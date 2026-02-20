@@ -1,0 +1,17 @@
+{
+  "name": "mcp-obsidian-system-root",
+  "version": "1.0.0",
+  "description": "Root package for MCP Obsidian System with Web UI",
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently \"cd web/frontend && npm run dev\" \"uvicorn web.api.main:app --reload --port 8000\"",
+    "install-frontend": "cd web/frontend && npm install",
+    "build-frontend": "cd web/frontend && npm run build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
