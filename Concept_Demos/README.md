@@ -65,17 +65,3 @@ python Concept_Demos/demo_city_postal.py
 python Concept_Demos/demo_memory_integration.py
 ```
 
-## Deploy (Vercel)
-
-A `vercel.json` is included with clean URLs and short aliases.
-
-```bash
-cd Concept_Demos
-vercel            # preview deploy
-vercel --prod     # production deploy
-```
-
-Once deployed:
-- `/` - Landing page
-- `/atp` - ATP prototype
-- `/hebbian` - Hebbian network visualization
