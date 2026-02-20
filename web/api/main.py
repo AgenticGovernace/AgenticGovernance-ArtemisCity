@@ -13,6 +13,15 @@ from pydantic import BaseModel, Field
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
+
+def _sanitize_for_log(value: Any) -> str:
+    """
+    Basic sanitization for values that will be written to logs.
+    Removes carriage returns and newlines to mitigate log injection.
+    """
+    text = str(value)
+    return text.replace("\r", "").replace("\n", "")
+
 import_error: Exception | None = None
 
 try:
@@ -288,7 +297,8 @@ async def get_report_content(filename: str):
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Report file not found.")
     except Exception as e:
-        logger.error(f"Error reading report {filename}: {e}")
+        safe_filename = _sanitize_for_log(filename)
+        logger.error(f"Error reading report {safe_filename}: {e}")
         raise HTTPException(status_code=500, detail=f"Error reading report: {e}")
 
 
