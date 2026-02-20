@@ -37,12 +37,12 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, List, Optional
 
-from ..utils.helpers import logger
+from utils.helpers import logger
 
 if TYPE_CHECKING:
     from logging import Logger
 
-    from ..types import TaskContext, TaskResult
+    from types import TaskContext, TaskResult
 
 
 class BaseAgent(ABC):

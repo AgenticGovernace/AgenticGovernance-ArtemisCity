@@ -6,8 +6,8 @@ import json
 import os
 import sqlite3
 import time
-from ..agents.base_agent import BaseAgent
-from ..utils.helpers import logger
+from agents.base_agent import BaseAgent
+from utils.helpers import logger
 
 
 @dataclass

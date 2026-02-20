@@ -9,7 +9,8 @@ from datetime import datetime
 
 import pytest
 
-from integration import MemoryClient, TrustInterface, TrustLevel, TrustScore
+from integration.memory_client import MemoryClient
+from integration.trust_interface import TrustInterface, TrustLevel, TrustScore
 
 
 class TestMemoryClient:
@@ -68,7 +69,7 @@ class TestContextLoader:
 
     def test_context_loader_initialization(self):
         """Test that ContextLoader can be initialized."""
-        from integration import ContextLoader
+        from integration.context_loader import ContextLoader
 
         # Set API key for MemoryClient initialization
         os.environ['MCP_API_KEY'] = 'test-api-key'  # pragma: allowlist secret
@@ -77,7 +78,7 @@ class TestContextLoader:
 
     def test_load_empty_context(self):
         """Test loading empty folder context."""
-        from integration import ContextLoader
+        from integration.context_loader import ContextLoader
 
         # Set API key for MemoryClient initialization
         os.environ['MCP_API_KEY'] = 'test-api-key'  # pragma: allowlist secret

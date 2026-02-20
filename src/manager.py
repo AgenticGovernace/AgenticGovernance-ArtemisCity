@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
-from ..mcp.config import OBSIDIAN_VAULT_PATH
-from ..utils.helpers import logger
+from mcp.config import OBSIDIAN_VAULT_PATH
+from utils.helpers import logger
 
 
 class ObsidianManager:

@@ -2,10 +2,10 @@ import argparse
 import os
 from datetime import datetime
 
-from mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
-from mcp.orchestrator import Orchestrator
-from utils.helpers import logger
-from utils.run_logger import init_run_logger
+from src.mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
+from src.mcp.orchestrator import Orchestrator
+from src.utils.helpers import logger
+from src.utils.run_logger import init_run_logger
 
 
 def parse_cli_args() -> argparse.Namespace:
