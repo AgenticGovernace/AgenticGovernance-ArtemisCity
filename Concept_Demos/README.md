@@ -1,4 +1,4 @@
-# Concept Demos
+﻿# Concept Demos
 
 Interactive browser prototypes and CLI walkthroughs for the MCP platform. The browser demos are self-contained (CDN React + Tailwind + Recharts) and deploy to Vercel as a static site. Python demos run from the repo root.
 
@@ -46,7 +46,7 @@ cd Concept_Demos && python -m http.server 8080
 
 # Then open:
 #   http://localhost:8080                    Landing page
-#   http://localhost:8080/atp-prototype.html ATP prototype
+#   http://localhost:8080/atp_prototype.html ATP prototype
 #   http://localhost:8080/Hebbian_Proto.html Hebbian network
 ```
 
@@ -65,3 +65,17 @@ python Concept_Demos/demo_city_postal.py
 python Concept_Demos/demo_memory_integration.py
 ```
 
+## Deploy (Vercel)
+
+A `vercel.json` is included with clean URLs and short aliases.
+
+```bash
+cd Concept_Demos
+vercel            # preview deploy
+vercel --prod     # production deploy
+```
+
+Once deployed:
+- `/` - Landing page
+- `/atp` - ATP prototype
+- `/hebbian` - Hebbian network visualization

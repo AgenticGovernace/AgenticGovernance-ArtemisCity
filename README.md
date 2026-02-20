@@ -87,7 +87,7 @@ Interactive browser prototypes and CLI walkthroughs in [`Concept_Demos/`](Concep
 
 | Demo | Type | What it shows |
 |---|---|---|
-| `atp-prototype.html` | Browser | ATP message builder, agent routing simulation, trust decay chart with scenario switching |
+| `atp_prototype.html` | Browser | ATP message builder, agent routing simulation, trust decay chart with scenario switching |
 | `Hebbian_Proto.html` | Browser | Hebbian learning network — agent weights, reinforcement dynamics, live simulation |
 | `demo_artemis.py` | CLI | ATP parsing, instruction loading, persona modes, reflection engine, semantic tagging |
 | `demo_city_postal.py` | CLI | Inter-agent mail, archive filing, trust clearances (works offline with mocks) |
