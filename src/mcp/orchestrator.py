@@ -63,7 +63,7 @@ from mcp.vector_store import LocalVectorStore
 from obsidian_integration.generator import ObsidianGenerator
 from obsidian_integration.manager import ObsidianManager
 from obsidian_integration.parser import ObsidianParser
-from types import ExecutionSummary, TaskContext, TaskResult
+from ..types import ExecutionSummary, TaskContext, TaskResult
 from utils.helpers import logger
 
 if TYPE_CHECKING:
