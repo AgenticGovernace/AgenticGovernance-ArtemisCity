@@ -15,7 +15,7 @@ import time
 from dataclasses import dataclass
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
-from ..utils.helpers import logger
+from utils.helpers import logger
 
 # Lazy import to avoid circular dependency
 _run_logger = None
@@ -26,7 +26,7 @@ def _get_run_logger():
     global _run_logger
     if _run_logger is None:
         try:
-            from ..utils.run_logger import get_run_logger
+            from utils.run_logger import get_run_logger
 
             _run_logger = get_run_logger()
         except Exception:

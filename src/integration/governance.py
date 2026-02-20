@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from ..utils.helpers import logger
+from utils.helpers import logger
 
 
 class GovernanceMonitor:

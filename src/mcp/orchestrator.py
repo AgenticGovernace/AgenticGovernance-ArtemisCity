@@ -44,30 +44,30 @@ import time
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
-from ..agents.artemis_agent import ArtemisAgent
-from ..agents.research_agent import ResearchAgent
-from ..agents.summarizer_agent import SummarizerAgent
-from ..exceptions import (
+from agents.artemis_agent import ArtemisAgent
+from agents.research_agent import ResearchAgent
+from agents.summarizer_agent import SummarizerAgent
+from exceptions import (
     AgentNotFoundError,
     MemoryBusError,
     TaskExecutionError,
     TaskRoutingError,
     TaskValidationError,
 )
-from ..integration.agent_registry import AgentRegistry
-from ..integration.governance import GovernanceMonitor
-from ..integration.memory_bus import MemoryBus
-from ..mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
-from ..mcp.hebbian_weights import HebbianWeightManager
-from ..mcp.vector_store import LocalVectorStore
-from ..obsidian_integration.generator import ObsidianGenerator
-from ..obsidian_integration.manager import ObsidianManager
-from ..obsidian_integration.parser import ObsidianParser
-from ..types import ExecutionSummary, TaskContext, TaskResult
-from ..utils.helpers import logger
+from integration.agent_registry import AgentRegistry
+from integration.governance import GovernanceMonitor
+from integration.memory_bus import MemoryBus
+from mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
+from mcp.hebbian_weights import HebbianWeightManager
+from mcp.vector_store import LocalVectorStore
+from obsidian_integration.generator import ObsidianGenerator
+from obsidian_integration.manager import ObsidianManager
+from obsidian_integration.parser import ObsidianParser
+from types import ExecutionSummary, TaskContext, TaskResult
+from utils.helpers import logger
 
 if TYPE_CHECKING:
-    from ..agents.base_agent import BaseAgent
+    from agents.base_agent import BaseAgent
 
 # Lazy import to avoid circular dependency
 _run_logger = None
@@ -78,7 +78,7 @@ def _get_run_logger():
     global _run_logger
     if _run_logger is None:
         try:
-            from ..utils.run_logger import get_run_logger
+            from utils.run_logger import get_run_logger
 
             _run_logger = get_run_logger()
         except Exception:

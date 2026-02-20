@@ -1,12 +1,19 @@
-import pytest
-from unittest.mock import Mock, patch
-from src.integration.agent_registry import AgentRegistry, AgentScore
-from src.agents.base_agent import BaseAgent
-from src.mcp.orchestrator import Orchestrator
-import src.mcp.config as config  # Import config to patch OBSIDIAN_VAULT_PATH
 import os
-import tempfile
 import shutil
+import tempfile
+from unittest.mock import Mock, patch
+
+import pytest
+
+import importlib
+import sys
+
+sys.modules["types"] = importlib.import_module("src.types")
+
+from integration.agent_registry import AgentRegistry, AgentScore
+from agents.base_agent import BaseAgent
+from mcp.orchestrator import Orchestrator
+import mcp.config as config  # Import config to patch OBSIDIAN_VAULT_PATH
 
 
 # Fixture for AgentRegistry with isolated DB
@@ -141,7 +148,7 @@ class TestOrchestratorRouting:
         monkeypatch.setattr(config, "OBSIDIAN_VAULT_PATH", self._temp_obsidian_vault)
 
         # Mock ObsidianManager methods that interact with the filesystem
-        with patch("src.mcp.orchestrator.ObsidianManager") as MockObsidianManager:
+        with patch("mcp.orchestrator.ObsidianManager") as MockObsidianManager:
             mock_obs_manager_instance = MockObsidianManager.return_value
             mock_obs_manager_instance._get_full_path.return_value = os.path.join(
                 self._temp_obsidian_vault, "dummy_path"
@@ -152,12 +159,12 @@ class TestOrchestratorRouting:
             mock_obs_manager_instance.write_note.return_value = None
 
             # Mock ObsidianParser, ObsidianGenerator, and HebbianWeightManager
-            with patch("src.mcp.orchestrator.ObsidianParser"), patch(
-                "src.mcp.orchestrator.ObsidianGenerator"
-            ), patch("src.mcp.orchestrator.HebbianWeightManager"), patch(
-                "src.mcp.orchestrator.LocalVectorStore"
+            with patch("mcp.orchestrator.ObsidianParser"), patch(
+                "mcp.orchestrator.ObsidianGenerator"
+            ), patch("mcp.orchestrator.HebbianWeightManager"), patch(
+                "mcp.orchestrator.LocalVectorStore"
             ) as MockVectorStore, patch(
-                "src.mcp.orchestrator.MemoryBus"
+                "mcp.orchestrator.MemoryBus"
             ) as MockMemoryBus:
 
                 mock_vector_store_instance = MockVectorStore.return_value

@@ -16,6 +16,7 @@ Data Source: Synthetic 3-phase concept drift (Linear → Quadratic → Sine)
 
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from sklearn.neural_network import MLPRegressor
 import matplotlib.pyplot as plt
 import warnings
@@ -498,10 +499,12 @@ ax.legend(fontsize=8)
 ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.savefig('/sessions/awesome-sweet-archimedes/mnt/Governance_Live_repo/Test_Plan/hebbian_scoped_vs_coldstart.png',
-            dpi=150, bbox_inches='tight')
-plt.show()
-print(f"\nVisualization saved to Test_Plan/hebbian_scoped_vs_coldstart.png")
+out_dir = Path(__file__).resolve().parent / "test_artifacts"
+out_dir.mkdir(parents=True, exist_ok=True)
+out_path = out_dir / "hebbian_scoped_vs_coldstart.png"
+plt.savefig(out_path, dpi=150, bbox_inches='tight')
+plt.close()
+print(f"\nVisualization saved: {out_path}")
 
 
 # ============================================================

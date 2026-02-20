@@ -22,6 +22,7 @@ Author: Apollo (Prinston Palmer) + Artemis (Claude)
 
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from sklearn.neural_network import MLPRegressor
 from sklearn.metrics import pairwise_distances
 import matplotlib.pyplot as plt
@@ -517,7 +518,9 @@ ax.legend(fontsize=7)
 ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
-out_path = '/sessions/awesome-sweet-archimedes/mnt/Governance_Live_repo/Test_Plan/hebbian_marketplace_vs_inference.png'
+out_dir = Path(__file__).resolve().parent / "test_artifacts"
+out_dir.mkdir(parents=True, exist_ok=True)
+out_path = out_dir / "hebbian_marketplace_vs_inference.png"
 plt.savefig(out_path, dpi=150, bbox_inches='tight')
 plt.close()
 print(f"\nVisualization saved: {out_path}")

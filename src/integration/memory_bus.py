@@ -12,9 +12,9 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from ..mcp.vector_store import LocalVectorStore
-from ..obsidian_integration.manager import ObsidianManager
-from ..utils.helpers import logger
+from mcp.vector_store import LocalVectorStore
+from obsidian_integration.manager import ObsidianManager
+from utils.helpers import logger
 
 # Lazy import to avoid circular dependency
 _run_logger = None
@@ -25,7 +25,7 @@ def _get_run_logger():
     global _run_logger
     if _run_logger is None:
         try:
-            from ..utils.run_logger import get_run_logger
+            from utils.run_logger import get_run_logger
 
             _run_logger = get_run_logger()
         except Exception:
