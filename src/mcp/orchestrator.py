@@ -300,7 +300,11 @@ class Orchestrator:
                 self.update_task_status_in_obsidian(
                     original_task_note_path, "routing_failed", task_id
                 )
-            return {"status": "failed", "error": str(e)}
+            # Return a generic error message to avoid exposing internal exception details
+            return {
+                "status": "failed",
+                "error": "Task routing failed due to invalid or incomplete task configuration.",
+            }
 
     def assign_and_execute_task(
         self,
@@ -404,10 +408,11 @@ class Orchestrator:
         except Exception as e:
             logger.error(f"Agent {agent_name} failed on task {task_id}: {e}")
             task_success = False
+            # Return generic error information to callers; detailed error is logged above.
             results = {
                 "status": "failed",
-                "error": str(e),
-                "summary": f"Task failed: {e}",
+                "error": "Agent execution failed due to an internal error.",
+                "summary": "Task failed during agent execution.",
             }
 
             # Update task status to failed
