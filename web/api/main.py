@@ -367,7 +367,12 @@ async def execute_pending_task(task_path: Dict[str, str]):
         return {"message": "Task executed successfully", "results": results}
     except ValueError as ve:
         orchestrator.update_task_status_in_obsidian(relative_note_path, "failed", task_data.get("task_id"))  # type: ignore
-        raise HTTPException(status_code=400, detail=str(ve))
+        logger.error(f"Validation error while executing task from {relative_note_path}: {ve}")
+        # Return a generic validation error message to the client
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid task data provided for execution.",
+        )
     except HTTPException:
         raise  # Re-raise FastAPI HTTPExceptions
     except Exception as e:
@@ -376,7 +381,11 @@ async def execute_pending_task(task_path: Dict[str, str]):
             orchestrator.update_task_status_in_obsidian(relative_note_path, "failed", task_data.get("task_id"))  # type: ignore
         safe_relative_note_path = _sanitize_for_log(relative_note_path)
         logger.error(f"Error executing task from {safe_relative_note_path}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error executing task: {e}")
+        # Return a generic server error message without exposing internal exception details
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred while executing the task.",
+        )
 
 
 @app.post("/api/execute-all-pending")
