@@ -374,7 +374,8 @@ async def execute_pending_task(task_path: Dict[str, str]):
         # If task_data and relative_note_path are available, update status to failed
         if "task_data" in locals() and "relative_note_path" in locals():
             orchestrator.update_task_status_in_obsidian(relative_note_path, "failed", task_data.get("task_id"))  # type: ignore
-        logger.error(f"Error executing task from {relative_note_path}: {e}")
+        safe_relative_note_path = _sanitize_for_log(relative_note_path)
+        logger.error(f"Error executing task from {safe_relative_note_path}: {e}")
         raise HTTPException(status_code=500, detail=f"Error executing task: {e}")
 
 
