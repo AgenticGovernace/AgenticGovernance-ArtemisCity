@@ -1,6 +1,13 @@
 import argparse
 import os
+import sys
 from datetime import datetime
+from pathlib import Path
+
+# Ensure project root is on sys.path so "src.*" imports resolve
+_project_root = str(Path(__file__).resolve().parents[2])
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
 from src.mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
 from src.mcp.orchestrator import Orchestrator

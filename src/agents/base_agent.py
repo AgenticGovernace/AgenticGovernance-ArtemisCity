@@ -42,7 +42,7 @@ from utils.helpers import logger
 if TYPE_CHECKING:
     from logging import Logger
 
-    from types import TaskContext, TaskResult
+    from my_types import TaskContext, TaskResult
 
 
 class BaseAgent(ABC):
