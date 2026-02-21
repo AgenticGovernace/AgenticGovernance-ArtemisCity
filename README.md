@@ -1,4 +1,14 @@
-<p><a target="_blank" href="https://app.eraser.io/workspace/B3mWQIytmT8waGacSoVV" id="edit-in-eraser-github-link"><img alt="Edit in Eraser" src="https://firebasestorage.googleapis.com/v0/b/second-petal-295822.appspot.com/o/images%2Fgithub%2FOpen%20in%20Eraser.svg?alt=media&amp;token=968381c8-a7e7-472a-8ed6-4a6626da5501"></a></p>
+# agentic_governance_artemis_city
+
+Artemis City is an architectural framework designed to align agentic reasoning with transparent, accountable action across distributed intelligence systems—both human and machine. The project is founded on the principles of iterative clarity and accountable collaboration, balancing trust, entropy, and coordination to advance a “net good over noise” ethos.
+
+This project establishes a governance framework for large-scale multi-agent deployments in which transparency is intrinsic rather than retrospective. It advances a structured approach to building agents for real-world applications by conceptualizing each task or prompt within a large language model (LLM) system as a formal directive, with responsibilities distributed accordingly. Absent such rigor and determinism, the potential benefits of artificial intelligence risk dilution.
+
+Artemis City illustrates a standardized model that can be replicated across domains without compromising efficiency or transparency. For AI systems to achieve broad enterprise adoption, these forces must be aligned. The framework emphasizes disciplined experimentation, public learning, and responsible iteration, recognizing that progress emerges through refinement, measured failure, and principled accountability.
+
+Artemis City is introduced as a new class of agentic operating system (AOS) for autonomous AI networks. It extends beyond conventional agent wrappers by providing a comprehensive infrastructure architecture for coordinating multiple intelligent agents, maintaining persistent memory, and enabling adaptive learning.
+
+Its primary differentiators lie in how artificial intelligence systems reason, execute decisions, and incorporate feedback from outcomes. This repository presents demonstrations of these concepts, drawing on biological principles to enhance the deployment of large language models (LLMs) with reduced cost and improved accuracy. These improvements are achieved through the integration of information acquisition and control (IAC) and infrastructure as code (IaC).
 
 # MCP - Multi-Agent Coordination Platform
 A multi-agent orchestration system built around an **Obsidian vault as persistent memory**. Agents communicate via the **Artemis Transmission Protocol (ATP)**, are ranked by **Hebbian-weighted trust scores**, and route tasks through a central orchestrator. A write-through memory bus keeps the vault and a local vector store in sync for both auditable storage and fast semantic recall.
