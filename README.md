@@ -1,24 +1,31 @@
-# agentic_governance_artemis_city
+# Agentic Governance - Artemis City
 
-Artemis City is an architectural framework designed to align agentic reasoning with transparent, accountable action across distributed intelligence systems—both human and machine. The project is founded on the principles of iterative clarity and accountable collaboration, balancing trust, entropy, and coordination to advance a “net good over noise” ethos.
+Artemis City is an architectural framework designed to align agentic reasoning with transparent, accountable action across distributed intelligence systems—both human and machine. It establishes a governance framework for large-scale multi-agent deployments where transparency is intrinsic rather than retrospective.
 
-This project establishes a governance framework for large-scale multi-agent deployments in which transparency is intrinsic rather than retrospective. It advances a structured approach to building agents for real-world applications by conceptualizing each task or prompt within a large language model (LLM) system as a formal directive, with responsibilities distributed accordingly. Absent such rigor and determinism, the potential benefits of artificial intelligence risk dilution.
+The platform is a **Multi-Agent Coordination Platform (MCP)** built around an **Obsidian vault as persistent memory**. Agents communicate via the **Artemis Transmission Protocol (ATP)**, are ranked by **Hebbian-weighted trust scores**, and route tasks through a central orchestrator.
 
-Artemis City illustrates a standardized model that can be replicated across domains without compromising efficiency or transparency. For AI systems to achieve broad enterprise adoption, these forces must be aligned. The framework emphasizes disciplined experimentation, public learning, and responsible iteration, recognizing that progress emerges through refinement, measured failure, and principled accountability.
+## 🚀 Overview
 
-Artemis City is introduced as a new class of agentic operating system (AOS) for autonomous AI networks. It extends beyond conventional agent wrappers by providing a comprehensive infrastructure architecture for coordinating multiple intelligent agents, maintaining persistent memory, and enabling adaptive learning.
+- **Persistent Memory**: Uses an Obsidian vault as a write-through memory bus.
+- **Protocol-Driven**: Agents communicate using structured ATP headers (Mode, Priority, Action, Context).
+- **Adaptive Governance**: Trust scores (Hebbian weights) evolve based on agent performance and decay over time.
+- **Full Stack**: Includes a Python orchestration engine, a TypeScript/Express API, and a React-based dashboard.
 
-Its primary differentiators lie in how artificial intelligence systems reason, execute decisions, and incorporate feedback from outcomes. This repository presents demonstrations of these concepts, drawing on biological principles to enhance the deployment of large language models (LLMs) with reduced cost and improved accuracy. These improvements are achieved through the integration of information acquisition and control (IAC) and infrastructure as code (IaC).
+## 🛠 Tech Stack
 
-# MCP - Multi-Agent Coordination Platform
-A multi-agent orchestration system built around an **Obsidian vault as persistent memory**. Agents communicate via the **Artemis Transmission Protocol (ATP)**, are ranked by **Hebbian-weighted trust scores**, and route tasks through a central orchestrator. A write-through memory bus keeps the vault and a local vector store in sync for both auditable storage and fast semantic recall.
+- **Core Logic**: Python 3.10+ (FastAPI, SQLAlchemy, Pydantic, Pytest)
+- **Persistent Storage**: Obsidian (Markdown), SQLite/PostgreSQL, Vector Store
+- **Web API**: Node.js, TypeScript, Express
+- **Frontend**: React, Vite, Chakra UI, TypeScript
+- **Package Managers**: `pip` / `pipenv` (Python), `npm` (Node.js)
 
-## System Architecture
+## 🏗 System Architecture
+
 ```mermaid
 graph TB
 subgraph User["User Layer"]
     CLI["main.py<br/>CLI Entrypoint"]
-    WebUI["web/<br/>FastAPI + React Dashboard"]
+    WebUI["web/frontend<br/>React Dashboard"]
 end
 
 subgraph Orchestration["Orchestration Layer"]
@@ -60,59 +67,133 @@ POST --> BUS
 BUS --> OBS
 BUS --> VEC
 ```
-## Quick Start
+
+## 📁 Project Structure
+
+```text
+.
+├── main.py                 # Primary Python CLI entry point
+├── pyproject.toml          # Python project metadata and dependencies
+├── requirements.txt        # Python dependencies
+├── Pipfile                 # Pipenv dependency management
+├── src/                    # Core Python source code
+│   ├── mcp/                # Multi-Agent Coordination Platform logic
+│   ├── agents/             # Individual agent implementations
+│   ├── core/               # Shared system utilities
+│   └── obsidian_integration/ # Obsidian vault connectors
+├── web/                    # Web-based interfaces
+│   ├── api/                # TypeScript/Express REST API
+│   └── frontend/           # React/Vite dashboard
+├── Concept_Demos/          # Prototypes and CLI walkthroughs
+├── tests/                  # Python test suite
+└── docs/                   # Project documentation
+```
+
+## ⚙️ Setup & Installation
+
+### Prerequisites
+- Python 3.10+
+- Node.js 18+
+- npm
+
+### 1. Python Environment
 ```bash
-# 1. Install dependencies
+# Clone the repository
+git clone <repo-url>
+cd MCP
+
+# Install dependencies
 pip install -r requirements.txt
-
-# 2. Configure vault path
-cp .env.example .env           # then set OBSIDIAN_VAULT_PATH
-
-# 3. Run the platform
-python main.py                              # full run with demo tasks
-python main.py --skip-demos                 # skip demo note creation
-python main.py -i "Summarize X" -c text_summarization
-python main.py --agent research_agent -i "Research Y"
-python main.py --show-hebbian               # view Hebbian network summary
-python main.py --agent-stats artemis        # single-agent stats
+# OR using pipenv
+pipenv install
 ```
-## Key Concepts
-| Concept | Description |
-| ----- | ----- |
-| **ATP** | <p>Structured message headers (</p><p>, </p><p>, </p><p>, </p><p>) parsed by agents to determine intent and routing</p> |
-| **Hebbian Weights** | Agents gain or lose routing priority based on task success/failure history — "neurons that fire together wire together" |
-| **Trust Decay** | Agent trust scores decay over time without reinforcement, gating read/write/delete permissions |
-| **Memory Bus** | Write-through layer keeping the Obsidian vault (auditable) and vector store (fast semantic recall) in sync |
-| **Postal Service** | Inter-agent communication framed as mail delivery — agents are citizens, the vault is the City Archives |
-| **Governance Monitor** | Tracks memory-bus failures and emits rollback signals when thresholds are exceeded |
-| **Orchestrator** | <p>Reads pending tasks from </p><p>, matches </p><p> to the highest-scored agent, executes, writes results to </p> |
-## Concept Demos
-Interactive browser prototypes and CLI walkthroughs in [﻿Concept_Demos/](Concept_Demos/README.md). Deployed to Vercel as a static site.
 
-| Demo | Type | What it shows |
-| ----- | ----- | ----- |
-|  | Browser | ATP message builder, agent routing simulation, trust decay chart with scenario switching |
-|  | Browser | Hebbian learning network — agent weights, reinforcement dynamics, live simulation |
-|  | CLI | ATP parsing, instruction loading, persona modes, reflection engine, semantic tagging |
-|  | CLI | Inter-agent mail, archive filing, trust clearances (works offline with mocks) |
-|  | CLI | MCP server connection, trust interface, context loading from Obsidian, trust decay model |
+### 2. Configuration
 ```bash
-# Browser demos — serve locally
-cd Concept_Demos && python -m http.server 8080
-# Then open http://localhost:8080
+# Copy environment template
+cp .env.example .env
 
-# CLI demos — run from repo root
-python Concept_Demos/demo_artemis.py
-python Concept_Demos/demo_city_postal.py
-python Concept_Demos/demo_memory_integration.py
+# Edit .env and set your Obsidian vault path and API keys
+# OBSIDIAN_VAULT_PATH=/path/to/your/vault
 ```
-## Tests
+
+### 3. Web API (Optional)
+```bash
+cd web/api
+npm install
+npm run build
+npm start
+```
+
+### 4. Frontend Dashboard (Optional)
+```bash
+cd web/frontend
+npm install
+npm run dev
+```
+
+## 🏃 Entry Points & Scripts
+
+### Python CLI (`main.py`)
+The primary way to interact with the platform:
+```bash
+# Run with demo tasks
+python main.py
+
+# Process a specific instruction
+python main.py -i "Summarize the latest research" -c text_summarization
+
+# Use a specific agent
+python main.py --agent research_agent -i "Find info on ATP"
+
+# View system stats
+python main.py --show-hebbian
+python main.py --agent-stats artemis
+```
+
+### Web API Scripts
+- `npm run dev`: Start API in development mode with auto-reload.
+- `npm run build`: Compile TypeScript to JavaScript.
+- `npm start`: Run the compiled API.
+
+### Frontend Scripts
+- `npm run dev`: Start the Vite development server.
+- `npm run build`: Build the production-ready dashboard.
+
+## 🧪 Testing
+
+### Python Tests
 ```bash
 pytest tests/
+# With coverage
+pytest --cov=src tests/
 ```
-## Author
+
+### Web API Tests
+```bash
+cd web/api
+npm test
+```
+
+## 🔑 Environment Variables
+
+Relevant variables in `.env`:
+- `OBSIDIAN_VAULT_PATH`: Local path to your Obsidian vault.
+- `OBSIDIAN_BASE_URL`: URL for Obsidian Local REST API (default: `http://localhost:27124`).
+- `OBSIDIAN_API_KEY`: API key for Obsidian integration.
+- `MCP_BASE_URL`: Base URL for the MCP server.
+- `FASTAPI_API_KEY`: Security key for the FastAPI dashboard.
+
+## 📝 TODOs & Roadmap
+
+- [ ] Implement robust error recovery in the Memory Bus.
+- [ ] Expand the Research Agent's web-scraping capabilities.
+- [ ] Add real-time WebSocket updates to the React dashboard.
+- [ ] Improve vector store indexing for large vaults.
+- [ ] Implement formal verification for ATP message headers.
+
+## 📄 License
+Apache 2.0 License. See [LICENSE](LICENSE) for details.
+
+## 👥 Author
 Prinston (Apollo) Palmer - Systems Architect
-
-
-
-<!--- Eraser file: https://app.eraser.io/workspace/B3mWQIytmT8waGacSoVV --->
