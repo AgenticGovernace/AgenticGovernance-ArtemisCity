@@ -1,308 +1,201 @@
+"""Artemis City CLI with ATP (Artemis Transmission Protocol) support.
+
+This module provides the main command-line interface for the Artemis City
+system. It integrates ATP message parsing for structured communication,
+agent routing, instruction loading, and the Artemis persona system.
+
+The CLI supports both single-command and interactive modes, parsing ATP
+headers from user input to provide structured context for agent routing
+and response generation.
+
+Example ATP-formatted command:
+    #Mode: Build #Context: CLI enhancement #ActionType: Execute
+"""
+
 import argparse
 import os
-from datetime import datetime
+import sys
+from pathlib import Path
 
-from mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
-from mcp.orchestrator import Orchestrator
-from utils.helpers import logger
-from utils.run_logger import init_run_logger
+# Add parent directory to path for local imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import yaml  # noqa: E402
 
-def parse_cli_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Run MCP and optionally send a one-off instruction to an agent.",
-        allow_abbrev=False,
-    )
-    parser.add_argument(
-        "-i",
-        "--instruction",
-        help="Instruction to send directly to an agent (e.g., 'Please write a note about ...').",
-    )
-    parser.add_argument(
-        "-c",
-        "--capability",
-        default=None,
-        help="Required capability to handle the instruction. If omitted and --agent is set, the agent's primary capability is used; otherwise defaults to web_search.",
-    )
-    parser.add_argument(
-        "--agent",
-        help="Explicit agent to run; capability is derived from the registry if not provided.",
-    )
-    parser.add_argument(
-        "-t", "--title", help="Optional title to use for the instruction task/note."
-    )
-    parser.add_argument(
-        "--skip-demos",
-        action="store_true",
-        help="Skip creating demo notes and the hard-coded summarizer example.",
-    )
-    parser.add_argument(
-        "--show-hebbian",
-        action="store_true",
-        help="Show Hebbian learning network summary and exit.",
-    )
-    parser.add_argument(
-        "--agent-stats", help="Show Hebbian statistics for a specific agent and exit."
-    )
-    return parser.parse_args()
+from app.agents.artemis import ArtemisPersona  # noqa: E402
+from app.agents.atp import ATPParser  # noqa: E402
+from app.core.instructions import get_global_cache  # noqa: E402
 
 
-def setup_example_task_note(obs_manager, memory_bus=None):
+def load_agent_router_config(config_path):
+    """Load agent routing configurations from a specified YAML file.
+
+    Args:
+        config_path: Path to the YAML configuration file.
+
+    Returns:
+        dict: Parsed configuration dictionary, or empty dict if file
+            not found or parsing fails.
     """
-    Creates an example task note in the Obsidian Agent Inputs folder
-    if one doesn't already exist, for demonstration purposes.
+    if not os.path.exists(config_path):
+        print(f"Error: Agent router config not found at {config_path}")
+        return {}
+    with open(config_path, 'r') as f:
+        return yaml.safe_load(f)
+
+
+def handle_command(command, agent_router, atp_parser, instruction_cache, artemis_persona):
+    """Route a command to the appropriate agent with ATP parsing and instruction loading.
+
+    Parses ATP headers from the command, loads relevant instructions,
+    and routes to the appropriate agent based on keyword matching.
+    Updates Artemis persona context when routing to the Artemis agent.
+
+    Args:
+        command: The command string to process, optionally with ATP headers.
+        agent_router: Dictionary containing agent routing configuration.
+        atp_parser: ATPParser instance for extracting ATP headers.
+        instruction_cache: InstructionCache for loading agent instructions.
+        artemis_persona: ArtemisPersona instance for context tracking.
     """
-    example_filename = "Example Research Task.md"
-    relative_path = os.path.join(AGENT_INPUT_DIR, example_filename)
-    full_path = obs_manager._get_full_path(
-        relative_path
-    )  # Access internal for convenience
+    # Parse ATP message
+    atp_message = atp_parser.parse(command)
 
-    if not full_path.is_file():
-        logger.info(f"Creating example task note at {relative_path}")
-        content = f"""---\ntask_id: {datetime.now().strftime('%Y%m%d%H%M%S')}\nrequired_capability: web_search\nstatus: pending\ntags: ["example", "research"]\n---\n\n# Research Task: Artificial Intelligence Ethics\n\n## Context\n\nProvide an overview of the current ethical considerations surrounding the development and deployment of Artificial Intelligence. Focus on privacy, bias, and accountability.\n\nKeywords: AI ethics, privacy, bias, accountability, machine learning\nTarget: [[AI Concepts]]\nSource: Internet\n\n## Subtasks\n\n- [ ]  Research current debates on AI ethics\n- [ ]  Find examples of AI bias in real-world applications\n- [ ]  Summarize key regulations or frameworks proposed for AI accountability\n"""
-        if memory_bus:
-            try:
-                memory_bus.write_note_with_embedding(
-                    relative_path, content, metadata={"demo": True}, embed=True
-                )
-            except Exception as exc:
-                logger.error(f"Failed to write example note via memory bus: {exc}")
-                obs_manager.write_note(relative_path, content, overwrite=False)
-        else:
-            obs_manager.write_note(relative_path, content, overwrite=False)
-        logger.info(
-            f"Example task note '{example_filename}' created. Please review it in your Obsidian vault."
-        )
-    else:
-        logger.info(f"Example task note '{example_filename}' already exists.")
+    # Show ATP info if headers present
+    if atp_message.has_atp_headers:
+        print("\n[ATP Protocol Detected]")
+        print(f"  Mode: {atp_message.mode.value}")
+        if atp_message.context:
+            print(f"  Context: {atp_message.context}")
+        if atp_message.priority.value != "Normal":
+            print(f"  Priority: {atp_message.priority.value}")
+        if atp_message.action_type.value != "Unknown":
+            print(f"  Action: {atp_message.action_type.value}")
+        if atp_message.target_zone:
+            print(f"  Target: {atp_message.target_zone}")
+        print()
 
+    # Load instructions for current context
+    instruction_set = instruction_cache.get(agent_name=None)
 
-def handle_user_instruction(
-    orchestrator: Orchestrator,
-    instruction: str,
-    capability: str | None,
-    title: str | None = None,
-    agent_name: str | None = None,
-):
-    """Create a task from a user instruction and dispatch it based on capability or explicit agent selection."""
-    if not instruction.strip():
-        logger.info("No instruction text provided. Skipping direct agent dispatch.")
-        return
+    if instruction_set.scopes:
+        print(f"[Loaded {len(instruction_set.scopes)} instruction scope(s)]")
+        for scope in instruction_set.scopes:
+            print(f"  - {scope.level}: {scope.path}")
+        print()
 
-    # Agent name mapping for convenience
-    agent_name_map = {
-        "artemis_agent": "Artemis Agent",
-        "research_agent": "Research Agent",
-        "summarizer_agent": "Summarizer Agent",
-    }
-    if agent_name in agent_name_map:
-        agent_name = agent_name_map[agent_name]
+    # Determine command to process
+    command_text = atp_message.content if atp_message.content else command
 
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    task_id = f"user_instruction_{timestamp}"
-    task_title = title or instruction.strip().split("\n")[0][:80] or "User Instruction"
-    agent_for_dispatch = None
-    effective_capability = capability
-    if agent_name:
-        agent_for_dispatch = orchestrator.agent_registry.get_agent(agent_name)
-        if not agent_for_dispatch:
-            logger.error(
-                f"Agent '{agent_name}' not registered. Available: {orchestrator.agent_registry.get_agent_names()}"
-            )
-            return
-        derived_capability = (
-            agent_for_dispatch.capabilities[0]
-            if agent_for_dispatch.capabilities
-            else None
-        )
-        if not effective_capability:
-            if not derived_capability:
-                logger.error(
-                    f"Agent '{agent_name}' has no capabilities defined; cannot dispatch."
-                )
-                return
-            effective_capability = derived_capability
-    if not effective_capability:
-        effective_capability = "web_search"
+    print(f"Processing: '{command_text}'")
 
-    task_data = {
-        "task_id": task_id,
-        "title": task_title,
-        "context": instruction,
-        "content": instruction,
-        "required_capability": effective_capability,
-        "status": "pending",
-        "tags": ["user_instruction", effective_capability],
-    }
+    # Route to agent
+    routed = False
+    for agent_name, config in agent_router.get('agents', {}).items():
+        if any(keyword in command_text.lower() for keyword in config.get('keywords', [])):
+            print(f"\n→ Routing to {agent_name} ({config.get('role', 'unknown role')}):")
+            print(f"  Expected action: {config.get('action_description', 'processing...')}")
+            routed = True
 
-    if agent_for_dispatch:
-        task_data["agent"] = agent_name
+            # If routing to artemis, show persona context
+            if agent_name == "artemis":
+                artemis_persona.add_context_memory(command_text)
+                print("\n[Artemis Context]")
+                print(f"  Mode: {artemis_persona.current_mode.value}")
+                recent_contexts = artemis_persona.get_recent_context(3)
+                if recent_contexts:
+                    print(f"  Recent interactions: {len(recent_contexts)}")
 
-    logger.info(
-        f"\n--- User Instruction: Dispatching task with capability '{effective_capability}' ---"
-    )
-    try:
-        note_path = orchestrator.create_new_task_in_obsidian(task_data)
-        orchestrator.update_task_status_in_obsidian(note_path, "in progress", task_id)
-    except Exception as exc:
-        logger.error(
-            f"Failed to record instruction in Obsidian before execution: {exc}"
-        )
-        note_path = None
+            break
 
-    try:
-        if agent_for_dispatch:
-            orchestrator.assign_and_execute_task(
-                agent_for_dispatch.name, task_data, note_path
-            )
-            logger.info(f"Instruction processed by agent '{agent_for_dispatch.name}'.")
-        else:
-            orchestrator.route_and_execute_task(task_data, note_path)
-            logger.info(
-                f"Instruction processed for capability '{effective_capability}'."
-            )
-    except Exception as exc:
-        logger.error(f"Error processing instruction: {exc}")
-        if note_path:
-            orchestrator.update_task_status_in_obsidian(note_path, "failed", task_id)
+    if not routed:
+        print("\n→ No specific agent matched. Using general system processing.")
 
 
 def main():
-    args = parse_cli_args()
+    """Initialize and run the Artemis City CLI with ATP support.
 
-    # Initialize run logger for comprehensive tracking
-    run_logger = init_run_logger(log_dir="logs", db_path="data/run_logs.db")
+    Sets up the ATP parser, instruction cache, Artemis persona, and
+    agent router. Supports single-command execution or interactive
+    mode with ATP header parsing.
 
-    logger.info("Starting Multi-Agent Coordination Platform...")
-    run_logger.log_event(
-        "mcp_init", "main", {"args": vars(args)}, "MCP initialization started"
+    Command-line Arguments:
+        command: Optional single command to execute.
+        --no-atp: Disable ATP parsing for commands.
+        --project-root: Specify the project root directory for
+            instruction loading.
+    """
+    parser = argparse.ArgumentParser(description="Agentic Codex CLI Interface with ATP Support")
+    parser.add_argument(
+        "command",
+        nargs="?",
+        help="The command to send to the Codex (e.g., 'status', 'ask artemis')",
     )
+    parser.add_argument("--no-atp", action="store_true", help="Disable ATP parsing")
+    parser.add_argument("--project-root", help="Specify project root directory")
+    args = parser.parse_args()
 
-    if not os.path.exists(OBSIDIAN_VAULT_PATH):
-        logger.error(
-            f"Error: Obsidian vault path '{OBSIDIAN_VAULT_PATH}' does not exist."
+    print("--- Artemis City CLI (ATP Enabled) ---")
+    print("Type 'exit', 'quit', or press Ctrl+C to close.")
+    print()
+
+    # Initialize ATP parser
+    atp_parser = ATPParser()
+
+    # Initialize instruction cache
+    instruction_cache = get_global_cache()
+
+    # Initialize Artemis persona
+    artemis_persona = ArtemisPersona()
+
+    # Load agent router configuration
+    script_dir = os.path.dirname(__file__)
+    agent_router_path = os.path.join(script_dir, 'launch/interface', 'agent_router.yaml')
+    agent_router_config = load_agent_router_config(agent_router_path)
+
+    # Show active instruction scopes
+    project_root = args.project_root or os.path.dirname(script_dir)
+    instruction_cache._loader.project_root = project_root
+    active_scopes = instruction_cache._loader.get_active_scopes()
+    if active_scopes:
+        print("[Active Instruction Scopes]")
+        for scope_path in active_scopes:
+            print(f"  ✓ {scope_path}")
+        print()
+
+    if args.command:
+        handle_command(
+            args.command, agent_router_config, atp_parser, instruction_cache, artemis_persona
         )
-        logger.error(
-            "Set OBSIDIAN_VAULT_PATH in the project '.env' or export it in your shell to point to your vault."
-        )
-        run_logger.log_event(
-            "mcp_error",
-            "main",
-            {"error": "vault_not_found"},
-            f"Vault path not found: {OBSIDIAN_VAULT_PATH}",
-        )
-        run_logger.finalize_run(status="error", summary={"error": "vault_not_found"})
-        return
-
-    orchestrator = Orchestrator()
-    run_logger.log_event(
-        "orchestrator_ready",
-        "main",
-        {"agents": orchestrator.agent_registry.get_agent_names()},
-        "Orchestrator initialized",
-    )
-
-    # Agent name mapping for convenience
-    agent_name_map = {
-        "artemis_agent": "Artemis Agent",
-        "research_agent": "Research Agent",
-        "summarizer_agent": "Summarizer Agent",
-    }
-
-    # Handle Hebbian statistics display
-    if args.show_hebbian:
-        orchestrator.show_hebbian_network_summary()
-        return
-
-    if args.agent_stats:
-        agent_name = agent_name_map.get(args.agent_stats, args.agent_stats)
-        orchestrator.show_agent_hebbian_stats(agent_name)
-        return
-
-    # --- Optional: Set up demo content and sample direct task ---
-    if not args.skip_demos:
-        setup_example_task_note(orchestrator.obs_manager, orchestrator.memory_bus)
-
-        logger.info("\n--- MCP Operations ---")
-        logger.info("\n--- Scenario 1: Direct Task Assignment (Summarizer Agent) ---")
-        direct_task_context = {
-            "task_id": "direct_summary_T001",
-            "title": "Summarize provided text",
-            "content": "Large Language Models (LLMs) are a class of artificial intelligence models that are trained on vast amounts of text data. They are capable of understanding and generating human-like text, performing tasks such as translation, summarization, question-answering, and content creation. Their development has rapidly advanced in recent years, leading to significant breakthroughs in natural language processing and various applications across industries.",
-            "required_capability": "text_summarization",
-            "status": "pending",
-        }
-
-        try:
-            orchestrator.route_and_execute_task(direct_task_context)
-            logger.info(f"Direct summary task completed. Report written to Obsidian.")
-        except ValueError as e:
-            logger.error(f"Failed to assign direct task: {e}")
     else:
-        logger.info("Skipping demo note creation and static summarizer task.")
+        # Interactive mode
+        print("Ready for commands. ATP headers supported: #Mode:, #Context:, etc.")
+        print("Example: #Mode: Build #Context: CLI enhancement #ActionType: Execute")
+        print()
 
-    # --- User-provided instruction (CLI) ---
-    if args.instruction:
-        handle_user_instruction(
-            orchestrator, args.instruction, args.capability, args.title, args.agent
-        )
+        while True:
+            try:
+                user_input = input("artemis> ").strip()
+                if user_input.lower() in ["exit", "quit"]:
+                    print("\nExiting Artemis City CLI. Goodbye!")
+                    break
+                if not user_input:
+                    continue
 
-    # --- Scenario 2: Check for tasks from Obsidian ---
-    logger.info("\n--- Scenario 2: Checking for new tasks in Obsidian ---")
-    new_tasks = orchestrator.check_for_new_tasks_from_obsidian()
-
-    if new_tasks:
-        logger.info(f"Found {len(new_tasks)} new pending tasks in Obsidian.")
-        for original_note_path, task_data in new_tasks:
-            task_title = task_data.get("title", "Untitled Task")
-            capability = task_data.get("required_capability")
-
-            if capability:
-                logger.info(
-                    f"Processing task '{task_title}' with capability '{capability}' from '{original_note_path}'"
+                print()  # Blank line for readability
+                handle_command(
+                    user_input, agent_router_config, atp_parser, instruction_cache, artemis_persona
                 )
+                print()  # Blank line after output
 
-                # First, update task status to 'in progress' in Obsidian
-                orchestrator.update_task_status_in_obsidian(
-                    original_note_path, "in progress", task_data["task_id"]
-                )
+            except KeyboardInterrupt:
+                print("\n\nExiting Artemis City CLI. Goodbye!")
+                break
+            except Exception as e:
+                print(f"\nError: {e}")
+                import traceback
 
-                # Execute the task
-                try:
-                    orchestrator.route_and_execute_task(task_data, original_note_path)
-                    logger.info(f"Task '{task_title}' completed.")
-                except Exception as e:
-                    logger.error(f"Error processing task '{task_title}': {e}")
-                    orchestrator.update_task_status_in_obsidian(
-                        original_note_path, "failed", task_data["task_id"]
-                    )
-            else:
-                logger.warning(
-                    f"Task '{task_title}' has no 'required_capability'. Skipping."
-                )
-                orchestrator.update_task_status_in_obsidian(
-                    original_note_path, "no_capability", task_data["task_id"]
-                )
-    else:
-        logger.info("No new pending tasks found in Obsidian input folder.")
-        logger.info(
-            f"Remember to create a new Markdown note in '{OBSIDIAN_VAULT_PATH}/{AGENT_INPUT_DIR}' with 'status: pending' and 'required_capability' in its YAML frontmatter, for example:"
-        )
-        logger.info(
-            """---\ntask_id: T_NEW_RESEARCH\nrequired_capability: web_search\nstatus: pending\n---\n\n# New Topic for Research\n\nTopic: The future of renewable energy technologies\nContext: Research emerging trends and key players.\nKeywords: solar, wind, geothermal, fusion\n"""
-        )
-
-    # Finalize run logging with summary
-    run_logger.finalize_run(
-        status="completed",
-        summary={
-            "tasks_found": len(new_tasks) if new_tasks else 0,
-            "skip_demos": args.skip_demos,
-            "instruction_provided": bool(args.instruction),
-        },
-    )
-    logger.info(f"Run log saved to: {run_logger.md_path}")
+                traceback.print_exc()
 
 
 if __name__ == "__main__":
