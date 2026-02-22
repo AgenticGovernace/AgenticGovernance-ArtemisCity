@@ -2,12 +2,40 @@
 
 This module parses ATP-formatted messages from user input, supporting both
 #Tag: and [[Tag]]: syntax formats for protocol headers.
+
+Enhanced with parse-time metrics for observability and kernel routing.
 """
 
 import re
-from typing import Optional, Tuple
+import time
+from typing import Dict, Optional, Tuple
 
 from .atp_models import ATPActionType, ATPMessage, ATPMode, ATPPriority
+
+# Optional Prometheus metrics
+try:
+    from prometheus_client import Counter, Histogram
+
+    _METRICS_ENABLED = True
+except ImportError:
+    _METRICS_ENABLED = False
+    Counter = Histogram = None
+
+if _METRICS_ENABLED:
+    ATP_PARSE_LATENCY = Histogram(
+        "artemis_atp_parse_latency_ms",
+        "ATP message parse latency in milliseconds",
+        buckets=[0.1, 0.5, 1, 2, 5, 10, 50],
+    )
+    ATP_PARSE_TOTAL = Counter(
+        "artemis_atp_parse_total",
+        "Total ATP messages parsed",
+        ["format", "has_headers"],
+    )
+    ATP_PARSE_ERRORS = Counter(
+        "artemis_atp_parse_errors_total",
+        "ATP parse errors",
+    )
 
 
 class ATPParser:
@@ -172,3 +200,72 @@ class ATPParser:
             True if ATP headers detected
         """
         return self.detect_format(text) is not None
+
+    def parse_with_metrics(self, raw_input: str) -> Tuple[ATPMessage, Dict]:
+        """Parse ATP message and return both the message and parse metrics.
+
+        Wraps the standard parse() call with timing instrumentation for
+        kernel routing and observability dashboards.
+
+        Args:
+            raw_input: Raw user input potentially containing ATP headers
+
+        Returns:
+            Tuple of (ATPMessage, metrics_dict) where metrics_dict contains:
+                - parse_latency_ms: Time to parse in milliseconds
+                - format_detected: 'hash', 'bracket', or None
+                - has_headers: Whether ATP headers were found
+                - fields_populated: List of populated ATP fields
+        """
+        start_time = time.perf_counter()
+
+        try:
+            message = self.parse(raw_input)
+            parse_latency_ms = (time.perf_counter() - start_time) * 1000
+
+            format_detected = self.detect_format(raw_input)
+            has_headers = message.has_atp_headers
+
+            # Track which fields were populated
+            fields_populated = []
+            if message.mode != ATPMode.UNKNOWN:
+                fields_populated.append("mode")
+            if message.context is not None:
+                fields_populated.append("context")
+            if message.priority != ATPPriority.NORMAL:
+                fields_populated.append("priority")
+            if message.action_type != ATPActionType.UNKNOWN:
+                fields_populated.append("action_type")
+            if message.target_zone is not None:
+                fields_populated.append("target_zone")
+            if message.special_notes is not None:
+                fields_populated.append("special_notes")
+
+            metrics = {
+                "parse_latency_ms": parse_latency_ms,
+                "format_detected": format_detected,
+                "has_headers": has_headers,
+                "is_complete": message.is_complete,
+                "fields_populated": fields_populated,
+                "field_count": len(fields_populated),
+                "content_length": len(message.content),
+                "raw_length": len(raw_input),
+            }
+
+            # Emit Prometheus metrics if available
+            if _METRICS_ENABLED:
+                ATP_PARSE_LATENCY.observe(parse_latency_ms)
+                ATP_PARSE_TOTAL.labels(
+                    format=format_detected or "none",
+                    has_headers=str(has_headers).lower(),
+                ).inc()
+
+            # Store metrics in message metadata
+            message.metadata["parse_metrics"] = metrics
+
+            return message, metrics
+
+        except Exception as e:
+            if _METRICS_ENABLED:
+                ATP_PARSE_ERRORS.inc()
+            raise

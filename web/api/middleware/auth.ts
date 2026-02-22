@@ -15,41 +15,70 @@ interface AuthenticatedRequest extends Request {
   apiKey?: string;
 }
 
-// API key store (in production, use database or secure vault)
-const API_KEYS: Record<string, { userId: string; role: string; permissions: string[] }> = {
-  'artemis-key-001': {
-    userId: 'artemis',
-    role: 'admin',
-    permissions: ['read', 'write', 'delete', 'admin']
-  },
-  'packrat-key-001': {
-    userId: 'packrat',
-    role: 'service',
-    permissions: ['read', 'write', 'search']
-  },
-  'copilot-key-001': {
-    userId: 'copilot',
-    role: 'assistant',
-    permissions: ['read', 'search', 'query']
-  },
-  'daemon-key-001': {
-    userId: 'daemon',
-    role: 'service',
-    permissions: ['read', 'write', 'system']
-  },
-  'dev-key-local': {
-    userId: 'developer',
-    role: 'admin',
-    permissions: ['read', 'write', 'delete', 'admin']
+interface ApiKeyEntry {
+  userId: string;
+  role: string;
+  permissions: string[];
+}
+
+/**
+ * Load API keys from environment variables.
+ *
+ * Expected format per key env var:
+ *   ARTEMIS_API_KEY_<NAME>=<key>:<role>:<perm1,perm2,...>
+ *
+ * Example:
+ *   ARTEMIS_API_KEY_ADMIN=my-secret-key:admin:read,write,delete,admin
+ *
+ * Falls back to MCP_API_KEY with admin role if no ARTEMIS_API_KEY_* vars are set.
+ */
+function loadApiKeys(): Record<string, ApiKeyEntry> {
+  const keys: Record<string, ApiKeyEntry> = {};
+
+  for (const [envName, envValue] of Object.entries(process.env)) {
+    if (!envName.startsWith('ARTEMIS_API_KEY_') || !envValue) continue;
+
+    const userId = envName.replace('ARTEMIS_API_KEY_', '').toLowerCase();
+    const parts = envValue.split(':');
+    if (parts.length < 3) {
+      console.warn(`[AUTH] Malformed key env var ${envName}: expected key:role:permissions`);
+      continue;
+    }
+
+    const [apiKey, role, permsRaw] = parts;
+    keys[apiKey] = {
+      userId,
+      role,
+      permissions: permsRaw.split(',').map(p => p.trim()),
+    };
   }
-};
+
+  // Fallback: use MCP_API_KEY if no ARTEMIS_API_KEY_* vars were found
+  if (Object.keys(keys).length === 0) {
+    const fallbackKey = process.env.MCP_API_KEY;
+    if (fallbackKey) {
+      keys[fallbackKey] = {
+        userId: 'default',
+        role: 'admin',
+        permissions: ['read', 'write', 'delete', 'admin'],
+      };
+    } else {
+      console.error('[AUTH] No API keys configured. Set ARTEMIS_API_KEY_* or MCP_API_KEY env vars.');
+    }
+  }
+
+  return keys;
+}
+
+const API_KEYS = loadApiKeys();
 
 /**
  * Main authentication middleware
  */
 export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-  // Skip auth in development mode
+  // Skip auth only when explicitly in development with SKIP_AUTH
   if (process.env.NODE_ENV === 'development' && process.env.SKIP_AUTH === 'true') {
+    console.warn('[AUTH] WARNING: Auth bypass active (SKIP_AUTH=true). Do NOT use in production.');
     req.user = {
       id: 'dev-user',
       role: 'admin',
@@ -57,6 +86,11 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
     };
     next();
     return;
+  }
+
+  // Block auth bypass if NODE_ENV is not explicitly set
+  if (process.env.SKIP_AUTH === 'true' && process.env.NODE_ENV !== 'development') {
+    console.error('[AUTH] SKIP_AUTH ignored: NODE_ENV is not "development".');
   }
 
   // Extract API key from header

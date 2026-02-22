@@ -6,8 +6,9 @@ import sqlite3
 from pathlib import Path
 from typing import List, Dict, Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 
 # Add the project root to the Python path
@@ -127,7 +128,8 @@ RUN_LOG_DB = DB_DIR / "run_logs.db"
 
 def _connect_db(db_path: Path) -> sqlite3.Connection:
     if not db_path.exists():
-        raise HTTPException(status_code=500, detail=f"Database not found: {db_path}")
+        logger.error("Database not found: %s", db_path)
+        raise HTTPException(status_code=500, detail="Database unavailable.")
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
     return conn
@@ -158,13 +160,30 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+_cors_origins_raw = os.environ.get("FASTAPI_CORS_ORIGINS", "http://localhost:3000,http://localhost:4000")
+_cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins for development. Restrict in production.
+    allow_origins=_cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key"],
 )
+
+# --- API Key Authentication ---
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+_FASTAPI_API_KEY = os.environ.get("FASTAPI_API_KEY") or os.environ.get("MCP_API_KEY")
+
+
+async def _require_api_key(api_key: str | None = Depends(_api_key_header)):
+    """Validate the API key from the X-API-Key header."""
+    if not _FASTAPI_API_KEY:
+        # No key configured — allow requests (local dev without .env)
+        return
+    if not api_key or api_key != _FASTAPI_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key.")
+
 
 # --- Orchestrator Instance ---
 try:
@@ -174,7 +193,7 @@ try:
         orchestrator = Orchestrator()
         logger.info("Orchestrator initialized for FastAPI.")
 except Exception as e:
-    logger.error(f"Failed to initialize Orchestrator: {e}")
+    logger.error("Failed to initialize Orchestrator: %s", _sanitize_for_log(e))
     # Depending on the severity, you might want to exit or provide a fallback
     orchestrator = None  # type: ignore
 
@@ -195,7 +214,7 @@ async def startup_event():
 
 
 @app.get("/api/agents", response_model=List[AgentResponse])
-async def get_agents():
+async def get_agents(_key: None = Depends(_require_api_key)):
     """Lists all registered agents."""
     if not orchestrator:
         raise HTTPException(status_code=500, detail="Orchestrator not initialized.")
@@ -206,36 +225,29 @@ async def get_agents():
 
 
 @app.get("/api/tasks")
-async def get_tasks():
+async def get_tasks(_key: None = Depends(_require_api_key)):
     """Retrieves all pending tasks from Obsidian."""
     if not orchestrator:
         raise HTTPException(status_code=500, detail="Orchestrator not initialized.")
     try:
-        # check_for_new_tasks_from_obsidian returns list of (relative_path, parsed_task_data)
         tasks_with_paths = orchestrator.check_for_new_tasks_from_obsidian()
-        # For the API, we might want to return the parsed_task_data directly,
-        # possibly with the path included as a field.
-        # Note: This will only return *pending* tasks. We might want to extend this
-        # to return all tasks, or tasks by status, in the future.
         formatted_tasks = []
         for path, data in tasks_with_paths:
-            # Ensure task_id is always present
             if "task_id" not in data:
                 data["task_id"] = f"task_{hash(path) % 100000}"
             formatted_tasks.append({**data, "relative_path": path})
         return formatted_tasks
     except Exception as e:
-        logger.error(f"Error fetching tasks: {e}")
-        raise HTTPException(status_code=500, detail=f"Error fetching tasks: {e}")
+        logger.error("Error fetching tasks: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch tasks.")
 
 
 @app.post("/api/tasks", status_code=201)
-async def create_task(task_data: TaskData):
+async def create_task(task_data: TaskData, _key: None = Depends(_require_api_key)):
     """Creates a new task in Obsidian for an agent."""
     if not orchestrator:
         raise HTTPException(status_code=500, detail="Orchestrator not initialized.")
     try:
-        # Use the Orchestrator's method to create the note
         payload = task_data.model_dump()
         relative_path = orchestrator.create_new_task_in_obsidian(payload)
         resolved_capability = orchestrator._resolve_required_capability(payload)  # type: ignore
@@ -246,12 +258,12 @@ async def create_task(task_data: TaskData):
             "required_capability": resolved_capability,
         }
     except Exception as e:
-        logger.error(f"Error creating task: {e}")
-        raise HTTPException(status_code=500, detail=f"Error creating task: {e}")
+        logger.error("Error creating task: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to create task.")
 
 
 @app.get("/api/reports", response_model=List[ReportSummary])
-async def get_reports():
+async def get_reports(_key: None = Depends(_require_api_key)):
     """Lists all generated reports."""
     if not orchestrator:
         raise HTTPException(status_code=500, detail="Orchestrator not initialized.")
@@ -259,7 +271,6 @@ async def get_reports():
         report_files = orchestrator.obs_manager.list_notes_in_folder(AGENT_OUTPUT_DIR)
         summaries = []
         for filename in report_files:
-            # Attempt to parse filename to extract agent and task_id
             parts = filename.replace(".md", "").split("_Report_")
             if len(parts) == 2:
                 agent_name = parts[0]
@@ -274,17 +285,17 @@ async def get_reports():
                     filename=filename,
                     agent=agent_name,
                     task_id=task_id,
-                    timestamp="N/A",  # Could parse from file content if needed
+                    timestamp="N/A",
                 )
             )
         return summaries
     except Exception as e:
-        logger.error(f"Error listing reports: {e}")
-        raise HTTPException(status_code=500, detail=f"Error listing reports: {e}")
+        logger.error("Error listing reports: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to list reports.")
 
 
 @app.get("/api/reports/{filename:path}")
-async def get_report_content(filename: str):
+async def get_report_content(filename: str, _key: None = Depends(_require_api_key)):
     """Retrieves the content of a specific report."""
     if not orchestrator:
         raise HTTPException(status_code=500, detail="Orchestrator not initialized.")
@@ -295,19 +306,18 @@ async def get_report_content(filename: str):
             raise HTTPException(status_code=404, detail="Report not found.")
         return {"filename": filename, "content": content}
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Report file not found.")
+        raise HTTPException(status_code=404, detail="Report not found.")
+    except HTTPException:
+        raise
     except Exception as e:
-        safe_filename = _sanitize_for_log(filename)
-        logger.error(f"Error reading report {safe_filename}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error reading report: {e}")
+        logger.error("Error reading report %s: %s", _sanitize_for_log(filename), _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to read report.")
 
 
 @app.post("/api/execute-task")
-async def execute_pending_task(task_path: Dict[str, str]):
+async def execute_pending_task(task_path: Dict[str, str], _key: None = Depends(_require_api_key)):
     """
     Executes a specific pending task identified by its relative_path in Obsidian.
-    This endpoint is designed to mimic the manual execution from the main.py loop
-    for a single task found in Obsidian.
     """
     if not orchestrator:
         raise HTTPException(status_code=500, detail="Orchestrator not initialized.")
@@ -321,9 +331,7 @@ async def execute_pending_task(task_path: Dict[str, str]):
     try:
         content = orchestrator.obs_manager.read_note(relative_note_path)
         if not content:
-            raise HTTPException(
-                status_code=404, detail=f"Task note not found at {relative_note_path}"
-            )
+            raise HTTPException(status_code=404, detail="Task note not found.")
 
         task_data = orchestrator.obs_parser.parse_task_note(content)
         if not task_data or task_data.get("status", "pending").lower() != "pending":
@@ -340,7 +348,7 @@ async def execute_pending_task(task_path: Dict[str, str]):
             )
             raise HTTPException(
                 status_code=400,
-                detail="Task is missing 'required_capability' and none could be inferred from the agent.",
+                detail="Task is missing 'required_capability' and none could be inferred.",
             )
 
         agent_name = task_data.get("agent")
@@ -348,39 +356,42 @@ async def execute_pending_task(task_path: Dict[str, str]):
             orchestrator.agent_registry.get_agent(agent_name) if agent_name else None
         )
 
-        # Update status to in progress
         orchestrator.update_task_status_in_obsidian(
             relative_note_path, "in progress", task_data.get("task_id")
         )
 
-        # Execute the task with a preference for the specified agent; fall back to routing by capability.
         if agent_obj:
             results = orchestrator.assign_and_execute_task(
                 agent_obj.name, task_data, relative_note_path
             )
         else:
             logger.warning(
-                f"No registered agent found for '{agent_name}'. Routing by capability '{resolved_capability}'."
+                "No registered agent for %s. Routing by capability %s.",
+                _sanitize_for_log(agent_name),
+                _sanitize_for_log(resolved_capability),
             )
             results = orchestrator.route_and_execute_task(task_data, relative_note_path)
 
         return {"message": "Task executed successfully", "results": results}
     except ValueError as ve:
+        logger.error("Validation error executing task: %s", _sanitize_for_log(ve))
         orchestrator.update_task_status_in_obsidian(relative_note_path, "failed", task_data.get("task_id"))  # type: ignore
-        raise HTTPException(status_code=400, detail=str(ve))
+        raise HTTPException(status_code=400, detail="Invalid task data.")
     except HTTPException:
-        raise  # Re-raise FastAPI HTTPExceptions
+        raise
     except Exception as e:
-        # If task_data and relative_note_path are available, update status to failed
         if "task_data" in locals() and "relative_note_path" in locals():
             orchestrator.update_task_status_in_obsidian(relative_note_path, "failed", task_data.get("task_id"))  # type: ignore
-        safe_relative_note_path = _sanitize_for_log(relative_note_path)
-        logger.error(f"Error executing task from {safe_relative_note_path}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error executing task: {e}")
+        logger.error(
+            "Error executing task from %s: %s",
+            _sanitize_for_log(relative_note_path),
+            _sanitize_for_log(e),
+        )
+        raise HTTPException(status_code=500, detail="Failed to execute task.")
 
 
 @app.post("/api/execute-all-pending")
-async def execute_all_pending_tasks():
+async def execute_all_pending_tasks(_key: None = Depends(_require_api_key)):
     """Executes all pending tasks discovered in the Obsidian input directory."""
     if not orchestrator:
         raise HTTPException(status_code=500, detail="Orchestrator not initialized.")
@@ -389,17 +400,15 @@ async def execute_all_pending_tasks():
         summary = orchestrator.execute_all_pending_tasks()
         return summary
     except Exception as e:
-        logger.error(f"Error executing all pending tasks: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Error executing all pending tasks: {e}"
-        )
+        logger.error("Error executing all pending tasks: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to execute pending tasks.")
 
 
 # --- Database Viewer Endpoints ---
 
 
 @app.get("/api/db/agents", response_model=List[AgentScore])
-async def get_agent_scores():
+async def get_agent_scores(_key: None = Depends(_require_api_key)):
     """Get all agents with their capabilities and performance scores."""
     conn = _connect_db(AGENT_REGISTRY_DB)
     try:
@@ -437,14 +446,14 @@ async def get_agent_scores():
             )
         return agents
     except Exception as e:
-        logger.error(f"Error fetching agent scores: {e}")
-        raise HTTPException(status_code=500, detail=f"Error fetching agent scores: {e}")
+        logger.error("Error fetching agent scores: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch agent scores.")
     finally:
         conn.close()
 
 
 @app.get("/api/db/hebbian/stats", response_model=HebbianStats)
-async def get_hebbian_stats():
+async def get_hebbian_stats(_key: None = Depends(_require_api_key)):
     """Get overall Hebbian network statistics."""
     conn = _connect_db(HEBBIAN_DB)
     try:
@@ -478,14 +487,14 @@ async def get_hebbian_stats():
             success_rate=_safe_rate(total_successes, total_activations),
         )
     except Exception as e:
-        logger.error(f"Error fetching Hebbian stats: {e}")
-        raise HTTPException(status_code=500, detail=f"Error fetching Hebbian stats: {e}")
+        logger.error("Error fetching Hebbian stats: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch Hebbian stats.")
     finally:
         conn.close()
 
 
 @app.get("/api/db/hebbian/connections", response_model=List[HebbianConnection])
-async def get_hebbian_connections(limit: int = 50):
+async def get_hebbian_connections(limit: int = 50, _key: None = Depends(_require_api_key)):
     """Get top Hebbian connections by weight."""
     if limit < 1:
         raise HTTPException(status_code=400, detail="limit must be >= 1")
@@ -519,16 +528,14 @@ async def get_hebbian_connections(limit: int = 50):
             for row in rows
         ]
     except Exception as e:
-        logger.error(f"Error fetching Hebbian connections: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Error fetching Hebbian connections: {e}"
-        )
+        logger.error("Error fetching Hebbian connections: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch Hebbian connections.")
     finally:
         conn.close()
 
 
 @app.get("/api/db/hebbian/agent/{agent_name}")
-async def get_agent_hebbian_stats(agent_name: str):
+async def get_agent_hebbian_stats(agent_name: str, _key: None = Depends(_require_api_key)):
     """Get Hebbian statistics for a specific agent."""
     conn = _connect_db(HEBBIAN_DB)
     try:
@@ -572,16 +579,14 @@ async def get_agent_hebbian_stats(agent_name: str):
             ],
         }
     except Exception as e:
-        logger.error(f"Error fetching agent Hebbian stats: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Error fetching agent Hebbian stats: {e}"
-        )
+        logger.error("Error fetching agent Hebbian stats: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch agent Hebbian stats.")
     finally:
         conn.close()
 
 
 @app.get("/api/db/vectors/stats", response_model=VectorStoreStats)
-async def get_vector_stats():
+async def get_vector_stats(_key: None = Depends(_require_api_key)):
     """Get vector store statistics."""
     conn = _connect_db(VECTOR_DB)
     try:
@@ -600,14 +605,14 @@ async def get_vector_stats():
             avg_content_length=float(row["avg_content_length"]),
         )
     except Exception as e:
-        logger.error(f"Error fetching vector stats: {e}")
-        raise HTTPException(status_code=500, detail=f"Error fetching vector stats: {e}")
+        logger.error("Error fetching vector stats: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch vector stats.")
     finally:
         conn.close()
 
 
 @app.get("/api/db/vectors/list")
-async def list_vectors(limit: int = 100, offset: int = 0):
+async def list_vectors(limit: int = 100, offset: int = 0, _key: None = Depends(_require_api_key)):
     """List vectors in the store with pagination."""
     if limit < 1:
         raise HTTPException(status_code=400, detail="limit must be >= 1")
@@ -638,14 +643,14 @@ async def list_vectors(limit: int = 100, offset: int = 0):
             )
         return vectors
     except Exception as e:
-        logger.error(f"Error listing vectors: {e}")
-        raise HTTPException(status_code=500, detail=f"Error listing vectors: {e}")
+        logger.error("Error listing vectors: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to list vectors.")
     finally:
         conn.close()
 
 
 @app.get("/api/db/runs", response_model=List[RunSummary])
-async def get_runs(limit: int = 20):
+async def get_runs(limit: int = 20, _key: None = Depends(_require_api_key)):
     """Get recent runs with summary statistics."""
     if limit < 1:
         raise HTTPException(status_code=400, detail="limit must be >= 1")
@@ -676,14 +681,14 @@ async def get_runs(limit: int = 20):
             for row in rows
         ]
     except Exception as e:
-        logger.error(f"Error fetching runs: {e}")
-        raise HTTPException(status_code=500, detail=f"Error fetching runs: {e}")
+        logger.error("Error fetching runs: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch runs.")
     finally:
         conn.close()
 
 
 @app.get("/api/db/runs/{run_id}/events")
-async def get_run_events_endpoint(run_id: str, event_type: str | None = None):
+async def get_run_events_endpoint(run_id: str, event_type: str | None = None, _key: None = Depends(_require_api_key)):
     """Get events for a specific run."""
     conn = _connect_db(RUN_LOG_DB)
     try:
@@ -719,8 +724,8 @@ async def get_run_events_endpoint(run_id: str, event_type: str | None = None):
             )
         return events
     except Exception as e:
-        logger.error(f"Error fetching run events: {e}")
-        raise HTTPException(status_code=500, detail=f"Error fetching run events: {e}")
+        logger.error("Error fetching run events: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch run events.")
     finally:
         conn.close()
 
@@ -729,7 +734,7 @@ async def get_run_events_endpoint(run_id: str, event_type: str | None = None):
 
 
 @app.post("/api/cli/execute", response_model=ExecuteInstructionResponse)
-async def execute_instruction(request: ExecuteInstructionRequest):
+async def execute_instruction(request: ExecuteInstructionRequest, _key: None = Depends(_require_api_key)):
     """
     Execute a CLI-style instruction with optional agent/capability specification.
     Mimics the behavior of: python main.py -i "instruction" -c "capability" --agent "agent_name"
@@ -757,7 +762,7 @@ async def execute_instruction(request: ExecuteInstructionRequest):
             if not agent_for_dispatch:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Agent '{request.agent}' not found. Available: {orchestrator.agent_registry.get_agent_names()}",
+                    detail="Specified agent not found.",
                 )
             if not request.capability and agent_for_dispatch.capabilities:
                 effective_capability = agent_for_dispatch.capabilities[0]
@@ -782,7 +787,7 @@ async def execute_instruction(request: ExecuteInstructionRequest):
             note_path = orchestrator.create_new_task_in_obsidian(task_data)
             orchestrator.update_task_status_in_obsidian(note_path, "in progress", task_id)
         except Exception as e:
-            logger.error(f"Failed to create task in Obsidian: {e}")
+            logger.error("Failed to create task in Obsidian: %s", _sanitize_for_log(e))
 
         # Execute task
         try:
@@ -801,7 +806,7 @@ async def execute_instruction(request: ExecuteInstructionRequest):
                 error=None,
             )
         except Exception as e:
-            logger.error(f"Error executing instruction: {e}")
+            logger.error("Error executing instruction: %s", _sanitize_for_log(e))
             if note_path:
                 orchestrator.update_task_status_in_obsidian(note_path, "failed", task_id)
             return ExecuteInstructionResponse(
@@ -809,11 +814,11 @@ async def execute_instruction(request: ExecuteInstructionRequest):
                 status="failed",
                 summary="Task execution failed",
                 note_path=note_path,
-                error=str(e),
+                error=None,
             )
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error processing instruction: {e}")
-        raise HTTPException(status_code=500, detail=f"Error processing instruction: {e}")
+        logger.error("Error processing instruction: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to process instruction.")

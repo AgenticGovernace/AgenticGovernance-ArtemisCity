@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 import os
 
 try:
@@ -14,8 +14,7 @@ except ImportError:  # pragma: no cover - fallback when dependency not installed
 load_dotenv()  # Load environment variables from .env file
 
 OBSIDIAN_VAULT_PATH = os.getenv(
-    "OBSIDIAN_VAULT_PATH", "/Users/prinstonpalmer/Library/Mobile Documents/iCloud~md~obsidian/Documents/Test"
-)
+    "OBSIDIAN_VAULT_PATH","/Users/artemis/Documents/Repo/MCP/test_vault")
 
 # Define specific subfolders within your vault for agent interaction
 

@@ -7,14 +7,16 @@
  * @module App
  */
 
+import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Layout from './components/Layout';
-import Dashboard from './pages/Dashboard';
-import Tasks from './pages/Tasks';
-import Reports from './pages/Reports';
-import Agents from './pages/Agents';
-import Database from './pages/Database';
-import Executor from './pages/Executor';
+
+const Layout = lazy(() => import('./components/Layout'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Tasks = lazy(() => import('./pages/Tasks'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Agents = lazy(() => import('./pages/Agents'));
+const Database = lazy(() => import('./pages/Database'));
+const Executor = lazy(() => import('./pages/Executor'));
 
 /**
  * Main application component with routing configuration.
@@ -32,16 +34,18 @@ import Executor from './pages/Executor';
 function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="tasks" element={<Tasks />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="agents" element={<Agents />} />
-          <Route path="database" element={<Database />} />
-          <Route path="executor" element={<Executor />} />
-        </Route>
-      </Routes>
+      <Suspense fallback={<div>Loading...</div>}>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="tasks" element={<Tasks />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="agents" element={<Agents />} />
+            <Route path="database" element={<Database />} />
+            <Route path="executor" element={<Executor />} />
+          </Route>
+        </Routes>
+      </Suspense>
     </Router>
   );
 }

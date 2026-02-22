@@ -11,7 +11,259 @@
     {
       "type": "command",
       "content": "what you do "
+    },
+    {
+      "type": "command",
+      "content": "artemis"
+    },
+    {
+      "type": "command",
+      "content": "web"
+    },
+    {
+      "type": "command",
+      "content": "help"
+    },
+    {
+      "type": "command",
+      "content": "1"
+    },
+    {
+      "type": "command",
+      "content": "2"
+    },
+    {
+      "type": "command",
+      "content": "3"
+    },
+    {
+      "type": "command",
+      "content": "a"
+    },
+    {
+      "type": "command",
+      "content": "ad"
+    },
+    {
+      "type": "command",
+      "content": "addd"
+    },
+    {
+      "type": "command",
+      "content": "\u001b[A\u001b[A\u001b[A\u001b[A\u001b[A"
+    },
+    {
+      "type": "command",
+      "content": "\u001bartemi"
+    },
+    {
+      "type": "command",
+      "content": "artemis"
+    },
+    {
+      "type": "command",
+      "content": "# Daily_Checklist 2-8 08:07 (1)"
+    },
+    {
+      "type": "command",
+      "content": "### Journal"
+    },
+    {
+      "type": "command",
+      "content": "- Yesterday reflection"
+    },
+    {
+      "type": "command",
+      "content": "    - What moved the needle?"
+    },
+    {
+      "type": "command",
+      "content": "        - Actuaally bring able to review cocx"
+    },
+    {
+      "type": "command",
+      "content": "    - What felt stuck?"
+    },
+    {
+      "type": "command",
+      "content": "        - "
+    },
+    {
+      "type": "command",
+      "content": "    - What to carry forward today?"
+    },
+    {
+      "type": "command",
+      "content": "        - "
+    },
+    {
+      "type": "command",
+      "content": "- Today's focus"
+    },
+    {
+      "type": "command",
+      "content": "    - Top 3 outcomes"
+    },
+    {
+      "type": "command",
+      "content": "        - "
+    },
+    {
+      "type": "command",
+      "content": "        - "
+    },
+    {
+      "type": "command",
+      "content": "        - "
+    },
+    {
+      "type": "command",
+      "content": "    - Known blockers"
+    },
+    {
+      "type": "command",
+      "content": "        - "
+    },
+    {
+      "type": "command",
+      "content": "- Timeboxes"
+    },
+    {
+      "type": "command",
+      "content": "---"
+    },
+    {
+      "type": "command",
+      "content": "### How to use this page"
+    },
+    {
+      "type": "command",
+      "content": "- Log prompts once. Let relations pull everything else together."
+    },
+    {
+      "type": "command",
+      "content": "- Work top to bottom. Check off steps as you go."
+    },
+    {
+      "type": "command",
+      "content": "---"
+    },
+    {
+      "type": "command",
+      "content": "### Capture a prompt"
+    },
+    {
+      "type": "command",
+      "content": "- [ ]  Create a new row in the view below"
+    },
+    {
+      "type": "command",
+      "content": "- [ ]  Set **Name**, **Timestamp**, optional **Log Level** and **Text**"
+    },
+    {
+      "type": "command",
+      "content": "- Thoughts"
+    },
+    {
+      "type": "command",
+      "content": "    [**Offering guidance on structure**](https://www.notion.so/Offering-guidance-on-structure-2975c4d6320e8078a632d8d2e3ac5ec6?pvs=21)"
+    },
+    {
+      "type": "command",
+      "content": "[Untitled](https://www.notion.so/30e5c4d6320e81e08d64f5a8016435d4?pvs=21)"
+    },
+    {
+      "type": "command",
+      "content": "---"
+    },
+    {
+      "type": "command",
+      "content": "### Link chats generated from today's prompts"
+    },
+    {
+      "type": "command",
+      "content": "- [ ]  As you chat, add quick notes and relate to the originating prompt"
+    },
+    {
+      "type": "command",
+      "content": "[Untitled](https://www.notion.so/30e5c4d6320e81778689ef9b8c559304?pvs=21)"
+    },
+    {
+      "type": "command",
+      "content": "---"
+    },
+    {
+      "type": "command",
+      "content": "### Capture issues, insights, and resolutions as semantic anchors"
+    },
+    {
+      "type": "command",
+      "content": "- [ ]  Add any noteworthy errors, insights, or fixes and relate to the prompt and chat"
+    },
+    {
+      "type": "command",
+      "content": "[Untitled](https://www.notion.so/30e5c4d6320e813ba3dac63db3b71bc9?pvs=21)"
+    },
+    {
+      "type": "command",
+      "content": "---"
+    },
+    {
+      "type": "command",
+      "content": "### Attach docs or create stubs for anything that should live in the repo canon"
+    },
+    {
+      "type": "command",
+      "content": "- [ ]  Drop README, .gitignore, design notes, or planning docs here and relate to projects"
+    },
+    {
+      "type": "command",
+      "content": "[Untitled](https://www.notion.so/30e5c4d6320e816cad7fe766a9e58ca3?pvs=21)"
+    },
+    {
+      "type": "command",
+      "content": "---"
+    },
+    {
+      "type": "command",
+      "content": "### Project rollup of today's activity"
+    },
+    {
+      "type": "command",
+      "content": "- [x]  Spot which projects were touched by chats, docs, or anchors"
+    },
+    {
+      "type": "command",
+      "content": "[Untitled](https://www.notion.so/30e5c4d6320e81c0b9c8e9434e019d17?pvs=21)"
+    },
+    {
+      "type": "command",
+      "content": "---"
+    },
+    {
+      "type": "command",
+      "content": "### Quick checklist"
+    },
+    {
+      "type": "command",
+      "content": "- [ ]  Prompts captured"
+    },
+    {
+      "type": "command",
+      "content": "- [ ]  Chats linked to prompts"
+    },
+    {
+      "type": "command",
+      "content": "- [ ]  Semantic anchors written"
+    },
+    {
+      "type": "command",
+      "content": "- [ ]  Docs attached or stubbed"
+    },
+    {
+      "type": "command",
+      "content": "- [ ]  Projects updatedexot"
     }
   ],
-  "boot_count": 3
+  "boot_count": 7
 }
