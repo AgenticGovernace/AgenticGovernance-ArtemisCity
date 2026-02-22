@@ -1,4 +1,4 @@
-﻿PyYAML>=6.0.1
+PyYAML>=6.0.1
 requests>=2.31.0
 numpy>=1.24.0
 pandas>=2.0.0
@@ -18,7 +18,7 @@ pylint>=3.0.0  # Additional linting
 
 # Docstring coverage
 interrogate>=1.5.0  # Docstring coverage checker
-
+˙œ˙œ
 # Type checking
 mypy>=1.5.0  # Static type checker
 types-PyYAML>=6.0.0  # Type stubs for PyYAML
