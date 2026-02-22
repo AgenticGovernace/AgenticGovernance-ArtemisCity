@@ -1,0 +1,31 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+markdown = ">=3.3.4"
+python-multipart = ">=0.0.5"
+sqlalchemy = ">=1.4.0"
+alembic = ">=1.7.0"
+psycopg2-binary = ">=2.9.0"
+prometheus-client = ">=0.14.0"
+pytest = ">=7.0.0"
+requests = ">=2.26.0"
+httpx = ">=0.21.0"
+pytest-asyncio = ">=0.16.0"
+pytest-cov = ">=3.0.0"
+pytest-mock = ">=3.7.0"
+uvicorn = {extras = ["standard"], version = ">=0.15.0"}
+uv = "*"
+poetry = "*"
+python-dotenv = "*"
+pyyaml = "*"
+fastapi = "*"
+node = "*"
+npm = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.13"
