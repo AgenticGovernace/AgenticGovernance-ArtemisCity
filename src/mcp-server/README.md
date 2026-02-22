@@ -75,9 +75,9 @@ Your `.env` file should look something like this (with your actual keys):
 
 ```ini
 PORT=3000
-MCP_API_KEY=your_super_secret_mcp_key_123_CHANGE_ME
+MCP_API_KEY=<YOUR_MCP_API_KEY>
 OBSIDIAN_BASE_URL=https://127.0.0.1:27124
-OBSIDIAN_API_KEY=your_obsidian_plugin_api_key_xyz_CHANGE_ME
+OBSIDIAN_API_KEY=<YOUR_OBSIDIAN_API_KEY>
 MCP_LOG_LEVEL=info
 ```
 
@@ -126,7 +126,7 @@ Ensure Docker Desktop is running on your machine.
 
 ## API Endpoints
 
-Once the server is running, you can interact with it using HTTP requests. All requests should include an `Authorization` header with your `MCP_API_KEY` (e.g., `Authorization: Bearer your_super_secret_mcp_key_123`).
+Once the server is running, you can interact with it using HTTP requests. All requests should include an `Authorization` header with your `MCP_API_KEY` (e.g., `Authorization: Bearer <YOUR_MCP_API_KEY>`).
 
 **Base URL for all endpoints:** `http://localhost:3000/api` (or your configured `PORT`)
 
@@ -145,7 +145,7 @@ Once the server is running, you can interact with it using HTTP requests. All re
     ```bash
     curl -X POST http://localhost:3000/api/getContext \
       -H "Content-Type: application/json" \
-      -H "Authorization: Bearer your_super_secret_mcp_key_123_CHANGE_ME" \
+      -H "Authorization: Bearer <YOUR_MCP_API_KEY>" \
       -d '{ "path": "My Daily Notes/2023-10-27.md" }'
     ```
 
@@ -186,7 +186,7 @@ Once the server is running, you can interact with it using HTTP requests. All re
     ```bash
     curl -X POST http://localhost:3000/api/appendContext \
       -H "Content-Type: application/json" \
-      -H "Authorization: Bearer your_super_secret_mcp_key_123_CHANGE_ME" \
+      -H "Authorization: Bearer <YOUR_MCP_API_KEY>" \
       -d '{ "path": "My Daily Notes/2023-10-27.md", "content": "\n- New item added by agent." }'
     ```
 
@@ -214,7 +214,7 @@ Once the server is running, you can interact with it using HTTP requests. All re
     ```bash
     curl -X POST http://localhost:3000/api/updateNote \
       -H "Content-Type: application/json" \
-      -H "Authorization: Bearer your_super_secret_mcp_key_123_CHANGE_ME" \
+      -H "Authorization: Bearer <YOUR_MCP_API_KEY>" \
       -d '{ "path": "My Project/Status.md", "content": "# Project Status\n\nUpdated: 2023-10-27\n\nAll tasks are green." }'
     ```
 
@@ -239,7 +239,7 @@ Once the server is running, you can interact with it using HTTP requests. All re
     ```bash
     curl -X POST http://localhost:3000/api/searchNotes \
       -H "Content-Type: application/json" \
-      -H "Authorization: Bearer your_super_secret_mcp_key_123_CHANGE_ME" \
+      -H "Authorization: Bearer <YOUR_MCP_API_KEY>" \
       -d '{ "query": "project status" }'
     ```
 
@@ -271,7 +271,7 @@ Once the server is running, you can interact with it using HTTP requests. All re
     ```bash
     curl -X POST http://localhost:3000/api/listNotes \
       -H "Content-Type: application/json" \
-      -H "Authorization: Bearer your_super_secret_mcp_key_123_CHANGE_ME" \
+      -H "Authorization: Bearer <YOUR_MCP_API_KEY>" \
       -d '{}'
     ```
 
@@ -304,7 +304,7 @@ Once the server is running, you can interact with it using HTTP requests. All re
     ```bash
     curl -X POST http://localhost:3000/api/deleteNote \
       -H "Content-Type: application/json" \
-      -H "Authorization: Bearer your_super_secret_mcp_key_123_CHANGE_ME" \
+      -H "Authorization: Bearer <YOUR_MCP_API_KEY>" \
       -d '{ "path": "Inbox/Old Idea.md" }'
     ```
 
@@ -332,7 +332,7 @@ Once the server is running, you can interact with it using HTTP requests. All re
     ```bash
     curl -X POST http://localhost:3000/api/manageFrontmatter \
       -H "Content-Type: application/json" \
-      -H "Authorization: Bearer your_super_secret_mcp_key_123_CHANGE_ME" \
+      -H "Authorization: Bearer <YOUR_MCP_API_KEY>" \
       -d '{ "path": "My Project/Task A.md", "key": "status", "value": "completed" }'
     ```
 
@@ -366,7 +366,7 @@ Once the server is running, you can interact with it using HTTP requests. All re
     ```bash
     curl -X POST http://localhost:3000/api/manageTags \
       -H "Content-Type: application/json" \
-      -H "Authorization: Bearer your_super_secret_mcp_key_123_CHANGE_ME" \
+      -H "Authorization: Bearer <YOUR_MCP_API_KEY>" \
       -d '{ "path": "My Project/Task A.md", "tags": ["urgent", "review"], "action": "add" }'
     ```
 
@@ -375,7 +375,7 @@ Once the server is running, you can interact with it using HTTP requests. All re
     ```bash
     curl -X POST http://localhost:3000/api/manageTags \
       -H "Content-Type: application/json" \
-      -H "Authorization: Bearer your_super_secret_mcp_key_123_CHANGE_ME" \
+      -H "Authorization: Bearer <YOUR_MCP_API_KEY>" \
       -d '{ "path": "My Project/Task A.md", "tags": ["review"], "action": "remove" }'
     ```
 
@@ -407,7 +407,7 @@ Once the server is running, you can interact with it using HTTP requests. All re
     ```bash
     curl -X POST http://localhost:3000/api/searchReplace \
       -H "Content-Type: application/json" \
-      -H "Authorization: Bearer your_super_secret_mcp_key_123_CHANGE_ME" \
+      -H "Authorization: Bearer <YOUR_MCP_API_KEY>" \
       -d '{ "path": "My Project/Report.md", "search": "draft", "replace": "final" }'
     ```
 
@@ -448,7 +448,7 @@ Once the server is running, you can interact with it using HTTP requests. All re
   - **Docker network issues (Linux hosts):** If running MCP in Docker on Linux, `host.docker.internal` won't work. Use your host machine's actual IP address (e.g., `172.17.0.1` or your LAN IP if Obsidian is exposed) for `OBSIDIAN_BASE_URL`.
 - **`Forbidden: Invalid API Key.` (403 error from MCP server):**
   - The `Authorization` header in your agent's request does not match the `MCP_API_KEY` set in your `.env` file.
-  - Ensure the header is `Authorization: Bearer your_mcp_secret_key`.
+  - Ensure the header is `Authorization: Bearer <YOUR_MCP_API_KEY>`.
 - **`Unauthorized` or `Forbidden` errors from Obsidian (via MCP server):**
   - The `OBSIDIAN_API_KEY` configured in your `.env` file is incorrect or has expired. Generate a new one in Obsidian's plugin settings and update your `.env`.
 - **Note not found / Operation failed:**
