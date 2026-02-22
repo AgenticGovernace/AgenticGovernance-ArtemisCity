@@ -175,7 +175,7 @@ services:
     networks:
       - artemis
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-artemis-redis-secret}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
 
   vector-store:
     image: qdrant/qdrant:latest
@@ -187,7 +187,7 @@ services:
       - artemis
     restart: unless-stopped
     environment:
-      - QDRANT_API_KEY=${QDRANT_API_KEY:-artemis-qdrant-secret}
+      - QDRANT_API_KEY=${QDRANT_API_KEY:?QDRANT_API_KEY must be set}
 
   # Monitoring Stack
   prometheus:
@@ -210,7 +210,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?GRAFANA_PASSWORD must be set}
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana-data:/var/lib/grafana
@@ -254,7 +254,7 @@ ARTEMIS_VECTOR_STORE_API_KEY=${QDRANT_API_KEY}
 
 # Message Broker
 ARTEMIS_REDIS_URL=redis://redis:6379
-REDIS_PASSWORD=artemis-redis-secret
+REDIS_PASSWORD=<generate-a-strong-random-secret>
 
 # Memory Bus
 ARTEMIS_MEMORY_WRITE_TIMEOUT_MS=200
@@ -279,8 +279,8 @@ ARTEMIS_SANDBOX_VIOLATION_QUARANTINE_COUNT=3
 ARTEMIS_SANDBOX_VIOLATION_DECAY_DAYS=30
 
 # Security
-QDRANT_API_KEY=artemis-qdrant-secret
-GRAFANA_PASSWORD=artemis-grafana-secret
+QDRANT_API_KEY=<generate-a-strong-random-secret>
+GRAFANA_PASSWORD=<generate-a-strong-random-secret>
 
 # Monitoring
 ARTEMIS_PROMETHEUS_ENABLED=true
