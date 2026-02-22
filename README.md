@@ -1,4 +1,4 @@
-# Agentic Governance - Artemis City
+# Agentic Governance Artemis City
 
 Artemis City is an architectural framework designed to align agentic reasoning with transparent, accountable action across distributed intelligence systems—both human and machine. It establishes a governance framework for large-scale multi-agent deployments where transparency is intrinsic rather than retrospective.
 
@@ -100,7 +100,7 @@ BUS --> VEC
 ```bash
 # Clone the repository
 git clone <repo-url>
-cd MCP
+cd repo
 
 # Install dependencies
 pip install -r requirements.txt
@@ -196,4 +196,4 @@ Relevant variables in `.env`:
 Apache 2.0 License. See [LICENSE](LICENSE) for details.
 
 ## 👥 Author
-Prinston (Apollo) Palmer - Systems Architect
+Prinston (Apollo) Palmer
