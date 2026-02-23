@@ -265,7 +265,7 @@ Relevant variables in `.env`:
 - [ ] Deploy browser demos to Vercel or GitHub Pages for easy public access
 
 ## 📄 License
-Apache 2.0 License. See [LICENSE](LICENSE) for details.
+MIT License. See [LICENSE](LICENSE) for details.
 
 ## 👥 Author
 Prinston (Apollo) Palmer
