@@ -1,8 +1,6 @@
-# ============================================
-#  ARTEMIS CITY - .gitignore
-# ============================================
-
+# 
 # --- Environment & Secrets ---
+.gitignore
 .env
 .env.local
 .env.*.local
@@ -77,3 +75,6 @@ docker-compose.override.yml
 *.log
 *.tmp
 .cache/
+.output.txt
+.devcontainer/python_typescript/devcontainer.json
+.ai/mcp/mcp.json
