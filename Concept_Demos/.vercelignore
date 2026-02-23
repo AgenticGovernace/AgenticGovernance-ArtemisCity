@@ -1,0 +1,19 @@
+# Python files (not needed for browser demos)
+*.py
+*.pyc
+__pycache__/
+.DS_Store
+
+# Source code (demos are self-contained HTML)
+src/
+
+# Data and logs
+data/
+logs/
+*.db
+*.log
+
+# Development files
+.venv/
+venv/
+*.egg-info/

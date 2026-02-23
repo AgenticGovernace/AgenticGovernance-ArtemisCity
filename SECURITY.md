@@ -20,8 +20,8 @@ This document outlines security best practices for Artemis City development and 
    # Root directory
    cp .env.example .env
 
-   # Memory Layer
-   cd "Artemis Agentic Memory Layer "
+   # MCP Server
+   cd src/mcp-server
    cp .env.example .env
    ```
 
@@ -37,7 +37,7 @@ This document outlines security best practices for Artemis City development and 
 3. **Set appropriate permissions:**
    ```bash
    chmod 600 .env
-   chmod 600 "Artemis Agentic Memory Layer /.env"
+   chmod 600 src/mcp-server/.env
    ```
 
 ### Best Practices

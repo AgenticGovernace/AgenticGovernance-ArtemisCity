@@ -50,7 +50,7 @@ lint: ## Run all linters
 	@echo "\n--- Flake8 ---"
 	flake8 . || true
 	@echo "\n--- Pylint ---"
-	pylint agents/ core/ interface/ memory/ || true
+	pylint src/agents/ src/core/ src/interface/ src/mcp/ || true
 	@echo "\nLinting complete!"
 
 lint-fix: ## Run linters with auto-fix
@@ -143,21 +143,21 @@ clean-env: ## Remove virtual environment
 
 run: ## Run the CLI interactively
 	@echo "Starting Artemis City CLI..."
-	python interface/Artemis_cli.py
+	python3 src/interface/Artemis_cli.py
 
 demo: ## Run all demos
 	@echo "Running demos..."
 	@echo "\n--- Artemis Features Demo ---"
-	python demo_artemis.py
+	python3 Concept_Demos/demo_artemis.py
 	@echo "\n--- Memory Integration Demo ---"
-	python demo_memory_integration.py
+	python3 Concept_Demos/demo_memory_integration.py
 	@echo "\n--- City Postal Demo ---"
-	python demo_city_postal.py
+	python3 Concept_Demos/demo_city_postal.py
 	@echo "\nDemos complete!"
 
 server: ## Start MCP server (Memory Layer)
 	@echo "Starting MCP server..."
-	cd "Artemis Agentic Memory Layer " && npm run dev
+	cd src/mcp-server && npm run dev
 
 # ============================================
 # BUILD & PACKAGE

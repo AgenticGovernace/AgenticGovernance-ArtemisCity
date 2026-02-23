@@ -304,27 +304,46 @@ City Archives/
 
 Experience the living city yourself:
 
+### Option 1: Concept Demo (Offline-Friendly) ⭐ Recommended
+Use the standalone concept demo which gracefully handles missing servers via mocks.
+
 ```bash
-# Set up environment
-export MCP_BASE_URL=http://localhost:3000
-export MCP_API_KEY=your_mcp_api_key
-
-# Start MCP server
-cd "Artemis Agentic Memory Layer"
-npm run dev
-
-# In another terminal, run the tour
-cd /path/to/Artemis-City
-python demo_city_postal.py
+# Run from the repository root
+python3 Concept_Demos/demo_city_postal.py
 ```
 
-The tour includes:
+This demo includes:
 1. 📬 Inter-agent mail delivery
 2. 📪 Mailbox checking
-3.  City Archives filing
+3. 🏛️ City Archives filing
 4. 📖 Archive research
-5.  Trust clearance visualization
-6.  Postal service report
+5. 🎖️ Trust clearance visualization
+6. 📊 Postal service report
+
+### Option 2: Full Orchestrator (Requires Setup)
+Run the full orchestration system with live MCP server and Obsidian vault.
+
+```bash
+# Prerequisites: Set up .env with OBSIDIAN_VAULT_PATH and MCP_BASE_URL
+
+# Start MCP server (if using)
+cd src/mcp-server
+npm install
+npm run dev
+
+# In another terminal, run from repo root
+python3 Concept_Demos/main.py --show-hebbian
+python3 Concept_Demos/main.py --agent-stats artemis
+python3 Concept_Demos/main.py -i "Your task instruction here" -c web_search
+```
+
+### Option 3: Memory Integration Demo
+Demonstrates trust interface, context loading, and agent-vault workflow.
+
+```bash
+# Run from the repository root
+python3 Concept_Demos/demo_memory_integration.py
+```
 
 ##  Why the Living City Theme?
 
