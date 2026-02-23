@@ -94,3 +94,6 @@ docker-compose.override.yml
 *.tmp
 .output.txt
 
+*.db
+Concept_Demos/logs/run_20260223_030438.md
+Concept_Demos/logs/run_20260223_030141.md
