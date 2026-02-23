@@ -93,5 +93,4 @@ docker-compose.override.yml
 *.log
 *.tmp
 .output.txt
-.devcontainer/python_typescript/devcontainer.json
-.ai/mcp/mcp.json
+
