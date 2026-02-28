@@ -97,3 +97,4 @@ docker-compose.override.yml
 *.db
 Concept_Demos/logs/run_20260223_030438.md
 Concept_Demos/logs/run_20260223_030141.md
+/Concept_Demos/.vercel
