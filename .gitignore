@@ -97,3 +97,14 @@ docker-compose.override.yml
 *.db
 Concept_Demos/logs/run_20260223_030438.md
 Concept_Demos/logs/run_20260223_030141.md
+/Concept_Demos/.vercel
+.github/ISSUE_TEMPLATE/custom.md
+.github/ISSUE_TEMPLATE/bug_report.md
+.github/ISSUE_TEMPLATE/feature_request.md
+.github/instructions/.instructions.md
+.github/workflows/release.yml
+.Rproj.user
+*.Rproj
+/Concept_Demos/logs
+coverage.md
+.Rhistory

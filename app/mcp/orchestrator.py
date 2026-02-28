@@ -1,3 +1,11 @@
+def _sanitize_for_log(value) -> str:
+    """Convert values to a single-line printable representation for logging."""
+    text = str(value)
+    return "".join(
+        ch if ch.isprintable() and ch not in "\n\r\t" else " " for ch in text
+    )
+
+
 class Orchestrator:
     # ... existing code ...
     _DEFAULT_TASK_ID = "unknown_task"
@@ -9,7 +17,9 @@ class Orchestrator:
         self.obs_manager.create_folder(AGENT_INPUT_DIR)
         self.obs_manager.create_folder(AGENT_OUTPUT_DIR)
         logger.info(
-            f"Ensured Obsidian agent input/output directories: {AGENT_INPUT_DIR}, {AGENT_OUTPUT_DIR}"
+            "Ensured Obsidian agent input/output directories: %s, %s",
+            _sanitize_for_log(AGENT_INPUT_DIR),
+            _sanitize_for_log(AGENT_OUTPUT_DIR),
         )
 
     def _validate_kernel_state(self) -> None:
@@ -20,15 +30,20 @@ class Orchestrator:
             return
 
         logger.info(
-            f"Kernel registered {len(registered_agents)} agent(s): {', '.join(registered_agents)}"
+            "Kernel registered %s agent(s): %s",
+            len(registered_agents),
+            _sanitize_for_log(", ".join(registered_agents)),
         )
 
         # Verify each agent has required methods
         for agent_obj in self.agent_registry.get_all_agents():
             if not hasattr(agent_obj, "perform_task"):
-                logger.warning(f"Agent '{agent_obj.name}' missing 'perform_task' method")
+                logger.warning(
+                    "Agent '%s' missing 'perform_task' method",
+                    _sanitize_for_log(agent_obj.name),
+                )
             else:
-                logger.debug(f"✓ {agent_obj.name} validated")
+                logger.debug("✓ %s validated", _sanitize_for_log(agent_obj.name))
 
     def _normalize_required_capability(
         self, task_context: Dict[str, Any]
@@ -81,12 +96,12 @@ class Orchestrator:
                 )
 
             agent_name = self.agent_registry.route_task(task_context)
-            logger.info(f"Task routed to '{agent_name}'.")
+            logger.info("Task routed to '%s'.", _sanitize_for_log(agent_name))
             return self.assign_and_execute_task(
                 agent_name, task_context, original_task_note_path
             )
         except (ValueError, KeyError) as e:
-            logger.error(f"Task routing failed: {e}")
+            logger.error("Task routing failed.", exc_info=True)
             self._update_task_status_if_possible(
                 original_task_note_path,
                 "routing_failed",
@@ -108,12 +123,12 @@ class Orchestrator:
 
         agent = self.agent_registry.get_agent(agent_name)
         if not agent:
-            logger.error(f"Agent '{agent_name}' not found in registry.")
+            logger.error("Agent '%s' not found in registry.", _sanitize_for_log(agent_name))
             raise ValueError(
                 f"Agent '{agent_name}' not registered with the orchestrator."
             )
 
-        logger.info(f"Orchestrator assigning task to {agent_name}...")
+        logger.info("Orchestrator assigning task to %s...", _sanitize_for_log(agent_name))
 
         task_id = task_context.get("task_id", "auto_generated")
         task_success = False
@@ -133,8 +148,11 @@ class Orchestrator:
         try:
             enriched_context = self._enrich_task_with_memory(task_context)
             results = agent.perform_task(enriched_context)
+            result_summary = results.get("summary", "N/A")
             logger.info(
-                f"Agent {agent_name} completed task. Results: {results.get('summary', 'N/A')}"
+                "Agent %s completed task. Results: %s",
+                _sanitize_for_log(agent_name),
+                _sanitize_for_log(result_summary),
             )
 
             task_success = results.get("status") != "failed"
@@ -152,15 +170,24 @@ class Orchestrator:
                     report_md,
                     metadata={"agent": agent_name, "task_id": task_id},
                 )
-            except Exception as write_exc:
-                logger.error(f"Failed to persist report for {agent_name}: {write_exc}")
+            except Exception:
+                logger.error(
+                    "Failed to persist report for %s.",
+                    _sanitize_for_log(agent_name),
+                    exc_info=True,
+                )
 
             self._update_task_status_if_possible(
                 original_task_note_path, "completed", task_id
             )
 
         except Exception as e:
-            logger.error(f"Agent {agent_name} failed on task {task_id}: {e}")
+            logger.error(
+                "Agent %s failed on task %s.",
+                _sanitize_for_log(agent_name),
+                _sanitize_for_log(task_id),
+                exc_info=True,
+            )
             task_success = False
             results = {
                 "status": "failed",
@@ -191,7 +218,10 @@ class Orchestrator:
         """
         Scan the Obsidian input directory for new pending tasks.
         """
-        logger.info(f"Checking for new tasks in Obsidian folder: {AGENT_INPUT_DIR}")
+        logger.info(
+            "Checking for new tasks in Obsidian folder: %s",
+            _sanitize_for_log(AGENT_INPUT_DIR),
+        )
         input_notes = self.obs_manager.list_notes_in_folder(AGENT_INPUT_DIR)
 
         new_tasks: List[Tuple[str, Dict[str, Any]]] = []
@@ -209,12 +239,15 @@ class Orchestrator:
                     task_data, _ = self._normalize_required_capability(task_data)
 
                     logger.info(
-                        f"Found new pending task: '{task_data.get('title', note_filename)}' for agent '{task_data.get('agent')}'"
+                        "Found new pending task: '%s' for agent '%s'",
+                        _sanitize_for_log(task_data.get("title", note_filename)),
+                        _sanitize_for_log(task_data.get("agent")),
                     )
                     new_tasks.append((relative_path, task_data))
                 else:
                     logger.debug(
-                        f"Note '{note_filename}' is not a pending task or couldn't be parsed."
+                        "Note '%s' is not a pending task or couldn't be parsed.",
+                        _sanitize_for_log(note_filename),
                     )
 
         return new_tasks
@@ -226,7 +259,9 @@ class Orchestrator:
         Updates the status of a specific task note in Obsidian.
         """
         logger.info(
-            f"Updating status for task note '{relative_note_path}' to '{new_status}'"
+            "Updating status for task note '%s' to '%s'",
+            _sanitize_for_log(relative_note_path),
+            _sanitize_for_log(new_status),
         )
         original_content = self.obs_manager.read_note(relative_note_path)
         if original_content:
@@ -239,13 +274,22 @@ class Orchestrator:
                     updated_content,
                     metadata={"task_id": task_id, "status": new_status},
                 )
-            except Exception as exc:
-                logger.error(f"Memory bus write failed for {relative_note_path}: {exc}")
+            except Exception:
+                logger.error(
+                    "Memory bus write failed for %s.",
+                    _sanitize_for_log(relative_note_path),
+                    exc_info=True,
+                )
                 self.obs_manager.write_note(relative_note_path, updated_content)
-            logger.info(f"Status updated for '{relative_note_path}' to '{new_status}'.")
+            logger.info(
+                "Status updated for '%s' to '%s'.",
+                _sanitize_for_log(relative_note_path),
+                _sanitize_for_log(new_status),
+            )
         else:
             logger.warning(
-                f"Could not read original content for '{relative_note_path}' to update status."
+                "Could not read original content for '%s' to update status.",
+                _sanitize_for_log(relative_note_path),
             )
 
     def create_new_task_in_obsidian(
@@ -260,7 +304,8 @@ class Orchestrator:
         task_data, resolved_capability = self._normalize_required_capability(task_data)
         if not resolved_capability:
             logger.warning(
-                f"No required_capability provided or inferred for task '{task_title}'. Task may not be routed correctly."
+                "No required_capability provided or inferred for task '%s'. Task may not be routed correctly.",
+                _sanitize_for_log(task_title),
             )
 
         if not filename:
@@ -278,10 +323,17 @@ class Orchestrator:
                     "created_by": "orchestrator",
                 },
             )
-        except Exception as exc:
-            logger.error(f"Failed to persist new task to memory bus: {exc}")
+        except Exception:
+            logger.error(
+                "Failed to persist new task to memory bus for %s.",
+                _sanitize_for_log(relative_path),
+                exc_info=True,
+            )
             self.obs_manager.write_note(relative_path, markdown_content)
-        logger.info(f"Created new task note in Obsidian: {relative_path}")
+        logger.info(
+            "Created new task note in Obsidian: %s",
+            _sanitize_for_log(relative_path),
+        )
         return relative_path
 
     def execute_all_pending_tasks(self) -> Dict[str, Any]:
@@ -302,7 +354,7 @@ class Orchestrator:
             logger.info("No pending tasks found to execute.")
             return summary
 
-        logger.info(f"Executing {len(pending_tasks)} pending task(s) from Obsidian.")
+        logger.info("Executing %s pending task(s) from Obsidian.", len(pending_tasks))
 
         for relative_note_path, task_data in pending_tasks:
             task_id = task_data.get("task_id", self._DEFAULT_TASK_ID)
@@ -310,7 +362,9 @@ class Orchestrator:
             task_data, resolved_capability = self._normalize_required_capability(task_data)
             if not resolved_capability:
                 logger.warning(
-                    f"Skipping task {task_id} at {relative_note_path}: no required_capability found or inferred."
+                    "Skipping task %s at %s: no required_capability found or inferred.",
+                    _sanitize_for_log(task_id),
+                    _sanitize_for_log(relative_note_path),
                 )
                 self.update_task_status_in_obsidian(
                     relative_note_path, "no_capability", task_id
@@ -330,7 +384,10 @@ class Orchestrator:
                 summary["details"].append({"task_id": task_id, "status": "completed"})
             except Exception as exc:
                 logger.error(
-                    f"Failed to execute task {task_id} from {relative_note_path}: {exc}"
+                    "Failed to execute task %s from %s.",
+                    _sanitize_for_log(task_id),
+                    _sanitize_for_log(relative_note_path),
+                    exc_info=True,
                 )
                 self.update_task_status_in_obsidian(
                     relative_note_path, "failed", task_id
