@@ -243,10 +243,11 @@ MIT License. See [﻿LICENSE](LICENSE) for details.
 Prinston (Apollo) Palmer
 
 
-<!-- eraser-additional-content -->
-## Diagrams
-<!-- eraser-additional-files -->
-<a href="/README-Multi-Agent Coordination Platform (MCP)-1.eraserdiagram" data-element-id="_E_Orsk6lH41v3KDLFs3t"><img src="/.eraser/9skbTVbh57gG3A6g4mQ4___JbelnRLHqINDuNCF51xhpyclDXW2___---diagram----c02802e44bfd334352bc5e76aa8dba31-Multi-Agent-Coordination-Platform--MCP-.png" alt="" data-element-id="_E_Orsk6lH41v3KDLFs3t" /></a>
-<!-- end-eraser-additional-files -->
-<!-- end-eraser-additional-content -->
+
+![View on Eraser](/.eraser/9skbTVbh57gG3A6g4mQ4___JbelnRLHqINDuNCF51xhpyclDXW2___---diagram---tInHhPIuY48tXFDnpdOUU---id---_E_Orsk6lH41v3KDLFs3t.png "View on Eraser")
+
+
+
+
+
 <!--- Eraser file: https://app.eraser.io/workspace/9skbTVbh57gG3A6g4mQ4 --->
