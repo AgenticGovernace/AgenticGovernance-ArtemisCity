@@ -71,15 +71,25 @@ dist-ssr/
 .fleet/
 *.swp
 *.swo
-*~
+*.swn
+*.sln
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+*.user
+*.userosscache
 Thumbs.db
 .cache/
+
 
 # --- OS Files ---
 .DS_Store
 .AppleDouble
 .LSOverride
 Icon
+
 ._*
 .Spotlight-V100
 .Trashes
@@ -108,3 +118,4 @@ Concept_Demos/logs/run_20260223_030141.md
 /Concept_Demos/logs
 coverage.md
 .Rhistory
+
