@@ -16,7 +16,6 @@ The Kernel is the central task dispatcher and orchestrator.
 - Routes tasks to the optimal agent
 - Manages task execution lifecycle and error handling
 **Scoring Algorithm:**
-
 ```
 Score = (Alignment × 0.4) + (Accuracy × 0.35) + (Efficiency × 0.25)
 WeightedScore = Score × HebianWeight(agent, task_type)
@@ -53,14 +52,12 @@ The Memory Bus provides unified access to both explicit (Obsidian) and semantic 
 2. **Keyword Match**: Obsidian metadata search (latency: <150ms)
 3. **Semantic Match**: Vector similarity search (latency: <300ms)
 **Write Protocol (Write-Through):**
-
 - All writes route through Memory Bus coordinator
 - Synchronous write to Obsidian (primary store)
 - Asynchronous propagation to vector store (with 200ms p95 SLA)
 - Dual-confirmation before acknowledging write
 - Conflict resolution via timestamp + content hash
 **Latency SLAs:**
-
 - Write latency p95: <200ms
 - Sync propagation lag p95: <300ms
 - Read exact match p99: <100ms
@@ -76,13 +73,11 @@ Adaptive connection strength between agents and task types through Hebbian weigh
 - Decrement: -1 for failure
 - Decay: 5% every 30 days
 **Storage Backend:**
-
 - SQLite-backed persistence
 - Atomic updates via transactions
 - Automatic archival at 180 days
 - Deletion threshold: weights < 0.01
 **Propagation:**
-
 - Batched updates every 60 seconds
 - Synced to Obsidian frontmatter (metadata)
 - Indexed in vector store for semantic correlation
@@ -110,7 +105,6 @@ Central inventory of all agents and their capabilities.
 - Semantic similarity to task requirements
 - Version constraints (agents with capability v2+)
 **Scoring:**
-
 - Alignment: Consistency with system values and user intent
 - Accuracy: Correctness of outputs (sampled validation)
 - Efficiency: Resource usage and latency
@@ -125,7 +119,6 @@ Per-agent security isolation with tool whitelisting and permission checks.
 3. **Network Controls**: Domain/port allowlists, rate limiting
 4. **Violation Logging**: All attempts logged to audit trail
 **Quarantine Rules:**
-
 - Auto-quarantine after 3 policy violations
 - Manual override by trust tier
 - Quarantine status queryable in Agent Registry
@@ -139,7 +132,6 @@ Multi-tier approval workflow for self-updates and policy changes.
 - **Monitored**: Standard updates (human approval + automated testing)
 - **Human**: Major versions, policy changes, capability additions
 **Workflow:**
-
 1. Update proposed with metadata (tier, risk score, rollback point)
 2. Automated testing (unit, integration, security)
 3. Conditional approval based on tier (auto-approved vs. queued)
@@ -193,12 +185,10 @@ Multi-tier approval workflow for self-updates and policy changes.
 - Bidirectional sync via Memory Bus
 - Full-text search via Obsidian plugins
 **Vector Store Integration:**
-
 - Semantic embedding of tasks and completions
 - k-NN search for similar memories
 - Metadata filtering on Hebbian scores and timestamps
 **Prometheus Metrics:**
-
 - Agent execution latency, success rates, error counts
 - Memory Bus throughput and latency percentiles
 - Sandbox violation counts per agent
@@ -225,23 +215,25 @@ Multi-tier approval workflow for self-updates and policy changes.
 - Decrement accuracy score
 - Auto-retry on next invocation (agent-dependent)
 **Memory Bus Desynchronization:**
-
 - Detect via consistency checks
 - Trigger rebuild from Obsidian source-of-truth
 - Alert monitoring system
 **Sandbox Violation:**
-
 - Log violation with context
 - Increment violation counter
 - Quarantine on 3rd violation
 - Prevent further execution pending review
 **Registry Unavailability:**
-
 - Cache recent agent metadata
 - Degrade to pre-computed rankings
 - Queued requests until recovery
 
 
 
-
+<!-- eraser-additional-content -->
+## Diagrams
+<!-- eraser-additional-files -->
+<a href="/docs/ARCHITECTURE-Artemis City Multi-Agent Operating System-1.eraserdiagram" data-element-id="SupLzmpo8uBF8Nk_vWDoW"><img src="/.eraser/RbH7tUtdYFc15lk1ep9O___JbelnRLHqINDuNCF51xhpyclDXW2___---diagram----8d07f846d30195c2d71162eb4c1ae4a3-Artemis-City-Multi-Agent-Operating-System.png" alt="" data-element-id="SupLzmpo8uBF8Nk_vWDoW" /></a>
+<!-- end-eraser-additional-files -->
+<!-- end-eraser-additional-content -->
 <!--- Eraser file: https://app.eraser.io/workspace/RbH7tUtdYFc15lk1ep9O --->
