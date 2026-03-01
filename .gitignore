@@ -108,3 +108,4 @@ Concept_Demos/logs/run_20260223_030141.md
 /Concept_Demos/logs
 coverage.md
 .Rhistory
+!/.circleci/config.yml
