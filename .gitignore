@@ -116,3 +116,4 @@ tests/pytest-of-artemis/pytest-0/test_orchestrator_updates_weigcurrent
 tests/pytest-of-artemis/pytest-0/test_orchestrator_creates_hebbcurrent
 /tests/integration/logs
 tests/output.md
+.RData
