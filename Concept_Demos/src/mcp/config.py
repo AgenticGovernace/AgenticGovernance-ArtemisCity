@@ -14,8 +14,8 @@ except ImportError:  # pragma: no cover - fallback when dependency not installed
 load_dotenv()  # Load environment variables from .env file
 
 OBSIDIAN_VAULT_PATH = os.getenv(
-    "OBSIDIAN_VAULT_PATH", "/Users/prinstonpalmer/Library/Mobile Documents/iCloud~md~obsidian/Documents/Test"
-)
+    "OBSIDIAN_VAULT_PATH", "/path/to/your/obsidian/vault"
+)  # Default path if not set in .env
 
 # Define specific subfolders within your vault for agent interaction
 

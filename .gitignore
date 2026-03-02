@@ -116,3 +116,5 @@ tests/pytest-of-artemis/pytest-0/test_orchestrator_creates_hebbcurrent
 /tests/integration/logs
 tests/output.md
 .RData
+logs/run_20260301_225905.md
+logs/run_20260302_034559.md
