@@ -17,7 +17,6 @@ credentials.json
 auth.json
 secrets.yaml
 secrets.yml
-
 # --- Python ---
 __pycache__/
 *.py[cod]
@@ -49,7 +48,6 @@ coverage.xml
 *.sqlite3
 celerybeat-schedule
 celerybeat.pid
-
 # --- Node.js & Web ---
 node_modules/
 npm-debug.log*
@@ -64,7 +62,6 @@ web/api/dist/
 web/frontend/dist/
 dist-ssr/
 .eslintcache
-
 # --- IDEs & Editors ---
 .vscode/
 .idea/
@@ -82,40 +79,40 @@ dist-ssr/
 *.userosscache
 Thumbs.db
 .cache/
-
-
 # --- OS Files ---
 .DS_Store
 .AppleDouble
 .LSOverride
 Icon
-
 ._*
 .Spotlight-V100
 .Trashes
 *.orig
 *.bak
-
 # --- Docker ---
 docker-compose.override.yml
-
 # --- Misc & Tools ---
 *.log
 *.tmp
 .output.txt
-
 *.db
 Concept_Demos/logs/run_20260223_030438.md
 Concept_Demos/logs/run_20260223_030141.md
 /Concept_Demos/.vercel
-.github/ISSUE_TEMPLATE/custom.md
-.github/ISSUE_TEMPLATE/bug_report.md
-.github/ISSUE_TEMPLATE/feature_request.md
-.github/instructions/.instructions.md
-.github/workflows/release.yml
 .Rproj.user
 *.Rproj
 /Concept_Demos/logs
 coverage.md
 .Rhistory
-
+.Rprofile
+renv
+renv.lock
+/tests/logs
+/tests/test_artifacts
+/tests/test_vault
+/unittest
+tests/pytest-of-artemis/pytest-current
+tests/pytest-of-artemis/pytest-0/test_orchestrator_updates_weigcurrent
+tests/pytest-of-artemis/pytest-0/test_orchestrator_creates_hebbcurrent
+/tests/integration/logs
+tests/output.md
