@@ -118,3 +118,9 @@ tests/output.md
 .RData
 logs/run_20260301_225905.md
 logs/run_20260302_034559.md
+AgenticGovernance-ArtemisCity.code-workspace
+.sadbox_city/pyvenv.cfg
+.sadbox_city/lib64
+.sadbox_city/bin/python3.12
+.sadbox_city/bin/python3
+.sadbox_city/bin/python
