@@ -119,3 +119,5 @@ tests/output.md
 .jupyter/desktop-workspaces/default-37a8.jupyterlab-workspace
 logs/run_20260302_034559.md
 logs/run_20260301_225905.md
+/.sadbox_city
+*.code-workspace

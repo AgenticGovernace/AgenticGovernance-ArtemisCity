@@ -5,11 +5,14 @@ Artemis City is an architectural framework designed to align agentic reasoning w
 The platform is a **Multi-Agent Coordination Platform (MCP)** built around an **Obsidian vault as persistent memory**. Agents communicate via the **Artemis Transmission Protocol (ATP)**, are ranked by **Hebbian-weighted trust scores**, and route tasks through a central orchestrator.
 
 ## 🚀 Overview
+
 - **Persistent Memory**: Uses an Obsidian vault as a write-through memory bus.
 - **Protocol-Driven**: Agents communicate using structured ATP headers (Mode, Priority, Action, Context).
 - **Adaptive Governance**: Trust scores (Hebbian weights) evolve based on agent performance and decay over time.
 - **Full Stack**: Includes a Python orchestration engine, a TypeScript/Express API, and a React-based dashboard.
+
 ## 🛠 Tech Stack
+
 - **Core Logic**: Python 3.10+ (FastAPI, SQLAlchemy, Pydantic, Pytest)
 - **Persistent Storage**: Obsidian (Markdown), SQLite/PostgreSQL, Vector Store
 - **Web API**: Node.js, TypeScript, Express
@@ -31,7 +34,6 @@ The platform is a **Multi-Agent Coordination Platform (MCP)** built around an **
 
 
 ## 🏗 System Architecture beyond Demo
-
 ```mermaid
 graph TB
 subgraph User["User Layer"]
@@ -81,6 +83,7 @@ BUS --> VEC
 # Mission Statement
 Focus on future-proofing the world of data from the backend to frontend applications. For an extended period, there has been a disconnect between those who build servers and those who develop applications. This disconnect has been intensifying as quantum computing gains power, and it is not an exaggeration to predict that all encryption will become obsolete in a relatively short timeframe.
 
+
 Governance principles within artificial intelligence (AI) must be formalized into a robust structure. Constraints are often misunderstood as detrimental to the AI space, which hinders the full potential of AI in a purely economic sense. The economic aspects of agents and data are not adequately explored.
 
 **For those who have ideas that resonate deeply within themselves but may not be immediately comprehensible to others, these ideas hold the potential to make a significant impact, and cripple yout ability to build and ship, this one is for you. A platform where you dont have to be loud to be heard, but always crystal clear. I got burned to let you know it only hurts if you learn nothing, just like you already thought, but didnt know why.
@@ -125,7 +128,6 @@ The project follows the **Agent_0 Manifesto** (`Agent_0/manifesto.md`), which es
 ---
 
 ## Repository Structure
-
 ```
 Artemis-City/
 │
@@ -166,12 +168,12 @@ Artemis-City/
 ├── package.json              # Project metadata
 ├── pyproject.toml            # Python project configuration
 └── uv.lock                   # Dependency lock file
-```
-
 ## 🎨 Concept Demos
+
 Explore the core features of Artemis City through interactive prototypes and walkthrough scripts. The `Concept_Demos/` directory is a self-contained demonstration environment with its own agent implementations, database backends, and orchestration logic.
 
 ### Browser Prototypes
+
 Self-contained React-based interactive demos (no server required).
 
 1. **ATP Prototype** (`atp_prototype.html` ): Four interactive tabs
@@ -189,7 +191,9 @@ To run locally:
 cd Concept_Demos && python3 -m http.server 8080
 # Open http://localhost:8080
 ```
+
 ### CLI Walkthroughs
+
 Interactive Python demonstrations with step-through prompts. These demos are **self-contained** and include their own agent implementations under `Concept_Demos/src/`.
 
 - `**demo_artemis.py**` : ATP protocol parsing, instruction hierarchy, Artemis persona response modes, reflection engine, and semantic tagging with citations.
@@ -208,7 +212,8 @@ python3 Concept_Demos/demo_memory_integration.py
 python3 Concept_Demos/main.py --show-hebbian
 python3 Concept_Demos/main.py --agent-stats artemis
 ```
-See [﻿Concept_Demos/README.md](Concept_Demos/README.md) for detailed feature descriptions and usage.
+
+See [Concept_Demos/README.md](Concept_Demos/README.md) for detailed feature descriptions and usage.
 
 ---
 
@@ -262,6 +267,7 @@ All agents follow a standardized template (`agents/agent_template.md`) with thes
 - **Keywords:** `memory`, `system`, watchtower 
 
 ### Agent Routing Mechanism
+
 
 The current build is focused on mechanism of movement and autidability, the end values criteria for routing and weighting will be domain dependent. For now it uses keyword-based routing defined in `interface/agent_router.yaml`:
 
@@ -329,13 +335,13 @@ Structured communication system with signal tags:
 git clone 
 cd to project directory
 
-# 2. Create virtual environment
-python -m venv venv
+# Or use GitHub Pages (see docs/BROWSER_DEMOS_DEPLOYMENT.md)
 
 # 3. Activate virtual environment
 # On macOS/Linux:
 source venv/bin/activate
 # On Windows:
+
 .\venv\Scripts\activate
 
 # 4. Install 
@@ -359,6 +365,8 @@ python -m Concept_Demo.kernel.Artemis_CLI
 ```bash
 python interface/Agent_0_cli.py "ask artemis about system status"
 ```
+
+
 
 ### Running Simulations
 
@@ -394,6 +402,7 @@ Currently, the project uses manual testing:
 	- Human intervention will come during or after outcome depending on complexity
 	- human based review of all issues in the initial agent onboarding phase. 
 
+
 4. **Configuration:**
    - Use markdown for configuration files. 
    - version 1 will have yaml based instruction files. These can be placed in the Agent queue (Postal Office) each full turn ends with review for pending tasks and along with logs	         	 and output. 
@@ -417,10 +426,12 @@ When creating new agents:
 
 
 
+
 ### File Naming Conventions
 - **Agents:** lowercase with underscores (e.g., `pack_rat.md`)
 Code allows for abbreviate to accomodate the common alternatives a user may intentionally or unintentionally enter. 
 Through ATP validation process, confirming the structure of prompt meets the postal minimum. Similar to sending a letter with no stamp, its returned to sender, alternatively natural language can be used and agent will try to parse input as intend to align with thefields mentinoned,
+
 if ambiguous, escalation is to ask follow up questions, and provide completed ATP details to ensure understanding was correct. 
 - **Python scripts:** lowercase with underscores (e.g., `Agent_0_cli.py`)
 - **Documentation:** lowercase with underscores (e.g., `trust_decay_model.md`)
@@ -432,14 +443,35 @@ if ambiguous, escalation is to ask follow up questions, and provide completed AT
 
 ### Configuration Files
 
+
+
 | File | Purpose | Format |
 |------|---------|--------|
 | `agent_router.yaml` | Agent keyword routing | YAML |
 | `requirements.txt && -dev.txt` | Python dependencies | Text |
 | `pyproject.toml` | Python project config | TOML |
+
 | `.gitignore` | Version control exclusions | Text |
+
 | `name.persona.py` | 	Agent personality user interaction layer (Base agent default)| py |
 
+- `OBSIDIAN_VAULT_PATH` : Local path to your Obsidian vault.
+- `OBSIDIAN_BASE_URL` : URL for Obsidian Local REST API (default: `http://localhost:27124` ).
+- `OBSIDIAN_API_KEY` : API key for Obsidian integration.
+- `MCP_BASE_URL` : Base URL for the MCP server.
+- `FASTAPI_API_KEY` : Security key for the FastAPI dashboard.
+## 📝 TODOs & Roadmap
+- [ ] Implement robust error recovery in the Memory Bus
+- [ ] Expand the Research Agent's web-scraping capabilities
+- [ ] Add real-time WebSocket updates to the React dashboard
+- [ ] Improve vector store indexing for large vaults
+- [ ] Implement formal verification for ATP message headers
+- [ ] Create unified agent implementation guide bridging Concept_Demos and main src/
+- [ ] Add integration tests between Concept_Demos and main orchestrator
+- [ ] Document migration path from Concept_Demos prototypes to production agents
+- [ ] Deploy browser demos to Vercel or GitHub Pages for easy public access
+## 📄 License
+MIT License. See [﻿LICENSE](LICENSE) for details.
 
 ### Documentation Files
 
