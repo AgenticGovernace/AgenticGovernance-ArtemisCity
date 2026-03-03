@@ -1,6 +1,7 @@
 import argparse
 import os
 from datetime import datetime
+from typing import Any, Optional
 
 from src.mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
 from src.mcp.orchestrator import Orchestrator
@@ -47,7 +48,7 @@ def parse_cli_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def setup_example_task_note(obs_manager, memory_bus=None):
+def setup_example_task_note(obs_manager: Any, memory_bus: Optional[Any] = None) -> None:
     """
     Creates an example task note in the Obsidian Agent Inputs folder
     if one doesn't already exist, for demonstration purposes.
@@ -79,12 +80,12 @@ def setup_example_task_note(obs_manager, memory_bus=None):
 
 
 def handle_user_instruction(
-    orchestrator: Orchestrator,
-    instruction: str,
-    capability: str | None,
-    title: str | None = None,
-    agent_name: str | None = None,
-):
+        orchestrator: Orchestrator,
+        instruction: str,
+        capability: str | None,
+        title: str | None = None,
+        agent_name: str | None = None,
+) -> None:
     """Create a task from a user instruction and dispatch it based on capability or explicit agent selection."""
     if not instruction.strip():
         logger.info("No instruction text provided. Skipping direct agent dispatch.")
@@ -168,7 +169,7 @@ def handle_user_instruction(
             orchestrator.update_task_status_in_obsidian(note_path, "failed", task_id)
 
 
-def main():
+def main() -> None:
     args = parse_cli_args()
 
     # Initialize run logger for comprehensive tracking
