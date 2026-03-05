@@ -233,7 +233,7 @@ Multi-tier approval workflow for self-updates and policy changes.
 <!-- eraser-additional-content -->
 ## Diagrams
 <!-- eraser-additional-files -->
-<a href="/docs/ARCHITECTURE-Artemis City Multi-Agent Operating System-1.eraserdiagram" data-element-id="SupLzmpo8uBF8Nk_vWDoW"><img src="/.eraser/RbH7tUtdYFc15lk1ep9O___JbelnRLHqINDuNCF51xhpyclDXW2___---diagram----8d07f846d30195c2d71162eb4c1ae4a3-Artemis-City-Multi-Agent-Operating-System.png" alt="" data-element-id="SupLzmpo8uBF8Nk_vWDoW" /></a>
+<a href="/docs/ARCHITECTURE-Artemis City Multi-Agent Operating System-1.eraserdiagram" data-element-id="SupLzmpo8uBF8Nk_vWDoW"><img src="/.eraser/RbH7tUtdYFc15lk1ep9O___JbelnRLHqINDuNCF51xhpyclDXW2___---diagram----80f7ad6ccb1b84f218db3a4859cdbd39-Artemis-City-Multi-Agent-Operating-System.png" alt="" data-element-id="SupLzmpo8uBF8Nk_vWDoW" /></a>
 <!-- end-eraser-additional-files -->
 <!-- end-eraser-additional-content -->
 <!--- Eraser file: https://app.eraser.io/workspace/RbH7tUtdYFc15lk1ep9O --->
