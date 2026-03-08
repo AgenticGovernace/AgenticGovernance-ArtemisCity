@@ -1,6 +1,6 @@
 # Artemis City
-Artemis City is an architectural framework designed to align agentic reasoning with transparent, accountable action across distributed intelligence systems—both human and machine. It establishes a governance framework for large-scale multi-agent deployments where transparency is intrinsic rather than retrospective.
 
+Artemis City is an architectural framework designed to align agentic reasoning with transparent, accountable action across distributed intelligence systems—both human and machine. It establishes a governance framework for large-scale multi-agent deployments where transparency is intrinsic rather than retrospective.
 
 The platform is a **Multi-Agent Coordination Platform (MCP)** built around an **Obsidian vault as persistent memory**. Agents communicate via the **Artemis Transmission Protocol (ATP)**, are ranked by **Hebbian-weighted trust scores**, and route tasks through a central orchestrator.
 
@@ -32,8 +32,8 @@ The platform is a **Multi-Agent Coordination Platform (MCP)** built around an **
 9. [Working with This Codebase](#working-with-this-codebase)
 10. [Communication Patterns](#communication-patterns)
 
-
 ## 🏗 System Architecture beyond Demo
+
 ```mermaid
 graph TB
 subgraph User["User Layer"]
@@ -80,9 +80,10 @@ POST --> BUS
 BUS --> OBS
 BUS --> VEC
 ```
-# Mission Statement
-Focus on future-proofing the world of data from the backend to frontend applications. For an extended period, there has been a disconnect between those who build servers and those who develop applications. This disconnect has been intensifying as quantum computing gains power, and it is not an exaggeration to predict that all encryption will become obsolete in a relatively short timeframe.
 
+# Mission Statement
+
+Focus on future-proofing the world of data from the backend to frontend applications. For an extended period, there has been a disconnect between those who build servers and those who develop applications. This disconnect has been intensifying as quantum computing gains power, and it is not an exaggeration to predict that all encryption will become obsolete in a relatively short timeframe.
 
 Governance principles within artificial intelligence (AI) must be formalized into a robust structure. Constraints are often misunderstood as detrimental to the AI space, which hinders the full potential of AI in a purely economic sense. The economic aspects of agents and data are not adequately explored.
 
@@ -90,36 +91,38 @@ Governance principles within artificial intelligence (AI) must be formalized int
 
 ---
 
-
-
 ## Core Philosophy & Principles
 
 The project follows the **Agent_0 Manifesto** (`Agent_0/manifesto.md`), which establishes these core tenets:
 
-### 1. Build from experience, clarity only comes from iterating through noise.
-- The Agent_manifesto is a living document, one that will change as platform adopts more Agents and other planned features are rolled out. 
+### 1. Build from experience, clarity only comes from iterating through noise
+
+- The Agent_manifesto is a living document, one that will change as platform adopts more Agents and other planned features are rolled out.
 - Evolves with understanding and experience
 - Embrace continuous improvement
 
 ### 2. **Net Good Over Noise**
+
 - Prioritize actions that contribute positively to system goals
 - Filter information through ethical boundaries
 - Focus on meaningful contributions
 - Build in public, mistakes and best practices are meant to be explored safely or with risk acceptance.
 
 ### 3. **Transparent Accountability**
+
 - Every agent's actions are auditable and attributable
 - Clear documentation of roles and responsibilities
 - Traceable decision-making processes
 
 ### 4. **Collaborative Autonomy**
+
 - Agents operate with defined autonomy within a collaborative framework
 - Clear boundaries prevent scope creep
 - Interdependencies are explicitly defined
 - Agents do not call each other, collaboration through the Kernel
 
-
 ### 5. **Resilience through Entropy Management**
+
 - Acknowledge natural decay and drift in complex systems
 - Implement countermeasures proactively
 - Use Trust Decay Model to manage reliability
@@ -128,6 +131,7 @@ The project follows the **Agent_0 Manifesto** (`Agent_0/manifesto.md`), which es
 ---
 
 ## Repository Structure
+
 ```
 Artemis-City/
 │
@@ -236,38 +240,41 @@ All agents follow a standardized template (`agents/agent_template.md`) with thes
 ### Current Agents
 
 #### 1. **Artemis** (Mayor Protocol, Governance)
+
 - **Role:** System overseer, governance, dispute resolution,memory interface, configuration management
 - **Access:** Full read access to agent/memory logs, write to governance protocols
 - **Energy:** Moderate, event-driven (policy violations, disputes, audits)
 - **Keywords:** `artemis`, `governance`, `policy`, `audit`, `dispute`, `review`
 
 #### 2. **planner** (Companion, Elastic Augmentation)
+
 - **Role:** Real-time assistant, contextual information provider
 - **Access:** Read current agent context and public memory, write to communication channels
 - **Energy:** Moderate, on-demand, scales with interaction
 - **Keywords:** `help`, `assist`, `explain`, `augment`, `clarify`, `suggest`
 
 #### 3. **Pack Rat** (Courier Role, Safe Transfer, Only external facing agent)
+
 - **Role:** Secure data transfer between agents/components
 - **Access:** Read/write to secure transfer zones, limited read to communication channels
 - **Energy:** Low-compute, transaction-based
 - **Keywords:** `transfer`, `send`, `receive`, `courier`, `data`, `secure`
 
 #### 4. Agent_0
+
 - **Role:** Execution operations, builder, towns operator
-- **Access:** Write access for defined Target area, limited timeframe of access. 
+- **Access:** Write access for defined Target area, limited timeframe of access.
 - **Energy:** High compute, build on command, order execution
 - **Keywords:** build, execute, scaffold, `daemon`, Operator
 
-
 #### 4. **CompSuite (Sentinel)
+
 - **Role:** System status monitoring, memory interface, configuration management
 - **Access:** System-level access to read memory and governance policies
-- **Energy:** Dynamic-compute, continuous signal monitoring, pattern awareness 
-- **Keywords:** `memory`, `system`, watchtower 
+- **Energy:** Dynamic-compute, continuous signal monitoring, pattern awareness
+- **Keywords:** `memory`, `system`, watchtower
 
 ### Agent Routing Mechanism
-
 
 The current build is focused on mechanism of movement and autidability, the end values criteria for routing and weighting will be domain dependent. For now it uses keyword-based routing defined in `interface/agent_router.yaml`:
 
@@ -287,17 +294,16 @@ Dynamic trust evaluation framework with these components:
 
 - **Initial Trust Score:** Baseline trust for new agents/memories/protocols
 - **Decay Rate:** Natural erosion over time without reinforcement
-- **Reinforcement Events:** Successful tasks, validations, protocol adherence increase trust as the foundation. Specific formula will vary by domain use case and 
+- **Reinforcement Events:** Successful tasks, validations, protocol adherence increase trust as the foundation. Specific formula will vary by domain use case and
 - **Negative Events:** Failures, violations, inconsistencies decrease trust
 - **Trust Thresholds:** Trigger re-evaluation, restricted access, or increased scrutiny and human intervention
 
 **Usecase:**
+
 - Agent Trust: Influences resource access and reliability
 - Memory Trust: Determines weight given to memory entries
 - Protocol Trust: Confidence in protocol effectiveness
 - Discrepancy resolution between agents working together on single overall request from user.
-
-
 
 ### 2. **Translator Protocol** (`interface/translator_protocol.md`)
 
@@ -314,6 +320,7 @@ Ensures consistent communication across languages and encoding systems. This is 
 The early naming usage has been Artemis Transmission Protocol as it came from my interaction with single LLM model who went by Artemis. With this improvement to base frontier model seen. It was applied across all agents in my daily workflow, hence the more generic name to represent the ability to drop any model into this protocol and have achieve similar behavior and increased output quality. This resulted into the foundational tags used in ATP, specific domains may require more inputs, but the belief is that this represents the minimum ATP setup when working with more than one Agent on a shared tasked.
 
 Structured communication system with signal tags:
+
 ```
 | Tag | Purpose |
 |-----|---------|
@@ -324,6 +331,7 @@ Structured communication system with signal tags:
 | `#TargetZone:` | Project/folder area for the work |
 | `#SpecialNotes:` | Unusual instructions, warnings, or exceptions |
 ```
+
 ---
 
 ## Development Workflows
@@ -362,11 +370,10 @@ python -m Concept_Demo.kernel.Artemis_CLI
 ```
 
 **Command Mode:**
+
 ```bash
 python interface/Agent_0_cli.py "ask artemis about system status"
 ```
-
-
 
 ### Running Simulations
 
@@ -377,9 +384,11 @@ python sandbox_city/networked_scripts/mail_delivery_sim.py
 ### Testing Workflow
 
 Currently, the project uses manual testing:
+
 - Test CLI routing with various commands
 - Run simulations to verify agent interactions
 - Validate protocol compliance manually
+
 ---
 
 ## Coding Conventions
@@ -396,19 +405,18 @@ Currently, the project uses manual testing:
    - Maintain clear separation of concerns
 
 3. **Error Handling:**
-	- Errors should be highlighted in the process prior to final output
-	- Agents never call another agent directly to discuss errors or workarounds. Output returned to kernel for review 
-	- Sentinel review can be triggered if interaction introduces misalignment between agents actions and ATP intent and output signals
-	- Human intervention will come during or after outcome depending on complexity
-	- human based review of all issues in the initial agent onboarding phase. 
-
+ - Errors should be highlighted in the process prior to final output
+ - Agents never call another agent directly to discuss errors or workarounds. Output returned to kernel for review
+ - Sentinel review can be triggered if interaction introduces misalignment between agents actions and ATP intent and output signals
+ - Human intervention will come during or after outcome depending on complexity
+ - human based review of all issues in the initial agent onboarding phase.
 
 4. **Configuration:**
-   - Use markdown for configuration files. 
-   - version 1 will have yaml based instruction files. These can be placed in the Agent queue (Postal Office) each full turn ends with review for pending tasks and along with logs	         	 and output. 
+   - Use markdown for configuration files.
+   - version 1 will have yaml based instruction files. These can be placed in the Agent queue (Postal Office) each full turn ends with review for pending tasks and along with logs            and output.
    - Keep configuration separate from code
    - Validate configuration on load
-   - Agent config will be stored in agent registry for Kernel reference, introducing an agent does not require changes to data structure, agents not on this list and partial setup anywhere else is viewed as invalid and not in scope for keyword and later capability based routing. The current agents handle task and platform maintenance and are invoked for al queries, in full production the specific agents may change but roles are always needed. Similar to how a government changes Mayors, President this can changed to achieve net good, but dissolving governmental bodies is not allowed.   
+   - Agent config will be stored in agent registry for Kernel reference, introducing an agent does not require changes to data structure, agents not on this list and partial setup anywhere else is viewed as invalid and not in scope for keyword and later capability based routing. The current agents handle task and platform maintenance and are invoked for al queries, in full production the specific agents may change but roles are always needed. Similar to how a government changes Mayors, President this can changed to achieve net good, but dissolving governmental bodies is not allowed.
 
 ### Agent Definition Conventions
 
@@ -421,29 +429,27 @@ When creating new agents:
 5. Specify concrete drift countermeasures
 6. List specific trust threshold triggers
 7. Update `interface/agent_router.yaml` with keywords
-8. Once reviewed this should be added to the backend agent registry database for actual implementation. 
+8. Once reviewed this should be added to the backend agent registry database for actual implementation.
 9. Agents base score is met through proven sandboxed task completion prior to registry approval or task routing
 
-
-
-
 ### File Naming Conventions
+
 - **Agents:** lowercase with underscores (e.g., `pack_rat.md`)
-Code allows for abbreviate to accomodate the common alternatives a user may intentionally or unintentionally enter. 
+Code allows for abbreviate to accomodate the common alternatives a user may intentionally or unintentionally enter.
 Through ATP validation process, confirming the structure of prompt meets the postal minimum. Similar to sending a letter with no stamp, its returned to sender, alternatively natural language can be used and agent will try to parse input as intend to align with thefields mentinoned,
 
-if ambiguous, escalation is to ask follow up questions, and provide completed ATP details to ensure understanding was correct. 
+if ambiguous, escalation is to ask follow up questions, and provide completed ATP details to ensure understanding was correct.
+
 - **Python scripts:** lowercase with underscores (e.g., `Agent_0_cli.py`)
 - **Documentation:** lowercase with underscores (e.g., `trust_decay_model.md`)
 - **Configuration:** lowercase with underscores (e.g., `agent_router.yaml`)
-	--As we introduce Hebbian structure, yaml files are not utilized in flow, the registry becomes the source of all agent details. 
+ --As we introduce Hebbian structure, yaml files are not utilized in flow, the registry becomes the source of all agent details.
+
 ---
 
 ## Important Files Reference
 
 ### Configuration Files
-
-
 
 | File | Purpose | Format |
 |------|---------|--------|
@@ -453,14 +459,16 @@ if ambiguous, escalation is to ask follow up questions, and provide completed AT
 
 | `.gitignore` | Version control exclusions | Text |
 
-| `name.persona.py` | 	Agent personality user interaction layer (Base agent default)| py |
+| `name.persona.py` |  Agent personality user interaction layer (Base agent default)| py |
 
 - `OBSIDIAN_VAULT_PATH` : Local path to your Obsidian vault.
 - `OBSIDIAN_BASE_URL` : URL for Obsidian Local REST API (default: `http://localhost:27124` ).
 - `OBSIDIAN_API_KEY` : API key for Obsidian integration.
 - `MCP_BASE_URL` : Base URL for the MCP server.
 - `FASTAPI_API_KEY` : Security key for the FastAPI dashboard.
+
 ## 📝 TODOs & Roadmap
+
 - [ ] Implement robust error recovery in the Memory Bus
 - [ ] Expand the Research Agent's web-scraping capabilities
 - [ ] Add real-time WebSocket updates to the React dashboard
@@ -470,8 +478,10 @@ if ambiguous, escalation is to ask follow up questions, and provide completed AT
 - [ ] Add integration tests between Concept_Demos and main orchestrator
 - [ ] Document migration path from Concept_Demos prototypes to production agents
 - [ ] Deploy browser demos to Vercel or GitHub Pages for easy public access
+
 ## 📄 License
-MIT License. See [﻿LICENSE](LICENSE) for details.
+
+MIT License. See [LICENSE](LICENSE) for details.
 
 ### Documentation Files
 
@@ -499,6 +509,7 @@ MIT License. See [﻿LICENSE](LICENSE) for details.
 ### Current State (Version 0.1.0)
 
 **Completed:**
+
 - ✅ Agent architecture framework
 - ✅ Basic CLI with keyword routing
 - ✅ Core documentation (Manifesto, protocols, templates)
@@ -507,11 +518,13 @@ MIT License. See [﻿LICENSE](LICENSE) for details.
 - ✅ Initial agent definitions (Artemis, planner, Pack Rat, CompSuite)
 
 **In Progress:**
+
 - 🔄 Memory management implementation
 - 🔄 Trust scoring system implementation
 - 🔄 Expanded simulation scenarios
 
 **Planned:**
+
 - ⏳ Automated testing infrastructure
 - ⏳ Contributing guidelines (`CONTRIBUTING.md`)
 - ⏳ Advanced agent interactions
@@ -519,7 +532,7 @@ MIT License. See [﻿LICENSE](LICENSE) for details.
 - ⏳ Enhanced security protocols
 - ⏳ Enhanced security protocols
 - ⏳ language and runtime refactoring
-	Move to integrate more modern handlers and languages such as go, rust, expanded ATP and planned protocols may need to be supported by language or structure not present in this repo as yet to avoid confusion.
+ Move to integrate more modern handlers and languages such as go, rust, expanded ATP and planned protocols may need to be supported by language or structure not present in this repo as yet to avoid confusion.
 
 ### Known Limitations
 
@@ -540,7 +553,8 @@ MIT License. See [﻿LICENSE](LICENSE) for details.
 7. Embodied Cognition
 8. Cognetive Morpheogensis
 
-## Efficency of ATP and multiAgent coordination platform quantitive validation simualtion data is currently being refactored into digestable public artifiact and will be avialable for critique and replication. OpenAIs Prism or Googles Colab will be able to run files and replicate.  
+## Efficency of ATP and multiAgent coordination platform quantitive validation simualtion data is currently being refactored into digestable public artifiact and will be avialable for critique and replication. OpenAIs Prism or Googles Colab will be able to run files and replicate  
+
 ---
 
 ## Maintenance Notes
@@ -548,6 +562,7 @@ MIT License. See [﻿LICENSE](LICENSE) for details.
 ### For AI Assistants
 
 **This file should be updated when:**
+
 - New agents are added
 - Agent definitions significantly change
 - New protocols are introduced
@@ -556,20 +571,22 @@ MIT License. See [﻿LICENSE](LICENSE) for details.
 - Project version changes
 
 **Keep this file:**
+
 - Comprehensive but focused
 - Clear and accessible
 - Aligned with actual codebase state
 - Updated with each major change
-- 
-- MIT License:** https://opensource.org/licenses/MIT
+-
+- MIT License:** <https://opensource.org/licenses/MIT>
 -     Applies to this specific integration of platform concepts, other portions of code under varying levels of Rights protection.
-The Below are being replaced with codign principles based on the C++ adhoc languge made for the F-35 JSF public PDF produced for that specific usecase and adopted to AI.  Current codebase has initial consideration but pending full integration into this style where posssible. 
-- **PyYAML Documentation:** https://pyyaml.org/
-- **Google Python Style Guide:** https://google.github.io/styleguide/pyguide.html
 
+The Below are being replaced with codign principles based on the C++ adhoc languge made for the F-35 JSF public PDF produced for that specific usecase and adopted to AI.  Current codebase has initial consideration but pending full integration into this style where posssible.
 
+- **PyYAML Documentation:** <https://pyyaml.org/>
+- **Google Python Style Guide:** <https://google.github.io/styleguide/pyguide.html>
 
-# next phase of build currently under validation, allowing for API use and live inference model testing. 
+# next phase of build currently under validation, allowing for API use and live inference model testing
+
 ```text
 .
 ├── main.py                 # Primary Python CLI entry point
@@ -598,8 +615,11 @@ The Below are being replaced with codign principles based on the C++ adhoc langu
 ├── monitoring/             # System health and logging configurations
 └── docs/                   # Project documentation and guidelines
 ```
+
 **Version History:**
-- **1.0.0** (2025-11-14): comprehensive Agents.md created by Claude under personal repo, prior to official org formation.  Building in public is messay when not classically trained as Dev, this learning and build choice, is on purpose, learn by doing and supplement known outcomes as validation, both of ones own failures and validity of exisitng correct process posture.  Has this led to issues, yes mainly outward view of sloppy commits, seemingly half baked. But the 4E's of intelligence dictate, that being right is not as valuable as exploation and failure. This was built from all the thigns that wnet wrong not listening to these principles. Getting burned so the world has marshmellows. 
+
+- **1.0.0** (2025-11-14): comprehensive Agents.md created by Claude under personal repo, prior to official org formation.  Building in public is messay when not classically trained as Dev, this learning and build choice, is on purpose, learn by doing and supplement known outcomes as validation, both of ones own failures and validity of exisitng correct process posture.  Has this led to issues, yes mainly outward view of sloppy commits, seemingly half baked. But the 4E's of intelligence dictate, that being right is not as valuable as exploation and failure. This was built from all the thigns that wnet wrong not listening to these principles. Getting burned so the world has marshmellows.
+
 ---
 
 **Last Updated:** 2025-11-14
