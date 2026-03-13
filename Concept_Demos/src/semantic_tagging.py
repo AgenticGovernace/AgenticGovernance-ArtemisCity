@@ -1,9 +1,3 @@
-"""Semantic tagging system for Artemis.
-
-This module provides semantic tagging and citation capabilities for
-organizing knowledge and referencing files, concepts, and conversations.
-"""
-
 import re
 from dataclasses import dataclass, field
 from pathlib import Path

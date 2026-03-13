@@ -120,23 +120,37 @@ class TestATPValidatorLenient:
         assert any("missing" in w.lower() for w in result.warnings)
 
     def test_empty_content_is_error(self, validator):
-        msg = _msg(mode=ATPMode.BUILD, context="ctx", action_type=ATPActionType.EXECUTE, content="")
+        msg = _msg(
+            mode=ATPMode.BUILD,
+            context="ctx",
+            action_type=ATPActionType.EXECUTE,
+            content="",
+        )
         result = validator.validate(msg)
         assert result.is_valid is False
         assert any("empty" in e.lower() for e in result.errors)
 
     def test_short_content_warning(self, validator):
-        msg = _msg(mode=ATPMode.BUILD, context="ctx", action_type=ATPActionType.EXECUTE, content="short")
+        msg = _msg(
+            mode=ATPMode.BUILD,
+            context="ctx",
+            action_type=ATPActionType.EXECUTE,
+            content="short",
+        )
         result = validator.validate(msg)
         assert any("short" in w.lower() for w in result.warnings)
 
     def test_long_content_suggestion(self, validator):
         msg = _msg(
-            mode=ATPMode.BUILD, context="ctx", action_type=ATPActionType.EXECUTE,
+            mode=ATPMode.BUILD,
+            context="ctx",
+            action_type=ATPActionType.EXECUTE,
             content="x" * 2500,
         )
         result = validator.validate(msg)
-        assert any("breaking" in s.lower() or "long" in s.lower() for s in result.suggestions)
+        assert any(
+            "breaking" in s.lower() or "long" in s.lower() for s in result.suggestions
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -170,7 +184,9 @@ class TestModeActionConsistency:
 
     def test_consistent_pair_no_suggestion(self, validator):
         msg = _msg(
-            mode=ATPMode.BUILD, context="ctx", action_type=ATPActionType.SCAFFOLD,
+            mode=ATPMode.BUILD,
+            context="ctx",
+            action_type=ATPActionType.SCAFFOLD,
             content="enough content for validation",
         )
         result = validator.validate(msg)
@@ -178,7 +194,9 @@ class TestModeActionConsistency:
 
     def test_inconsistent_pair_gives_suggestion(self, validator):
         msg = _msg(
-            mode=ATPMode.BUILD, context="ctx", action_type=ATPActionType.REFLECT,
+            mode=ATPMode.BUILD,
+            context="ctx",
+            action_type=ATPActionType.REFLECT,
             content="enough content for validation",
         )
         result = validator.validate(msg)
@@ -186,7 +204,9 @@ class TestModeActionConsistency:
 
     def test_unknown_action_no_suggestion(self, validator):
         msg = _msg(
-            mode=ATPMode.BUILD, context="ctx", action_type=ATPActionType.UNKNOWN,
+            mode=ATPMode.BUILD,
+            context="ctx",
+            action_type=ATPActionType.UNKNOWN,
             content="enough content for validation",
         )
         result = validator.validate(msg)
@@ -203,24 +223,33 @@ class TestTargetZoneValidation:
 
     def test_absolute_path_no_extra_suggestions(self, validator):
         msg = _msg(
-            mode=ATPMode.BUILD, context="ctx", action_type=ATPActionType.SCAFFOLD,
-            content="enough content for validation", target_zone="/home/user/project",
+            mode=ATPMode.BUILD,
+            context="ctx",
+            action_type=ATPActionType.SCAFFOLD,
+            content="enough content for validation",
+            target_zone="/home/user/project",
         )
         result = validator.validate(msg)
         assert not any("absolute" in s.lower() for s in result.suggestions)
 
     def test_relative_path_gives_suggestion(self, validator):
         msg = _msg(
-            mode=ATPMode.BUILD, context="ctx", action_type=ATPActionType.SCAFFOLD,
-            content="enough content for validation", target_zone="src/agents",
+            mode=ATPMode.BUILD,
+            context="ctx",
+            action_type=ATPActionType.SCAFFOLD,
+            content="enough content for validation",
+            target_zone="src/agents",
         )
         result = validator.validate(msg)
         assert any("absolute" in s.lower() for s in result.suggestions)
 
     def test_no_path_separators_gives_suggestion(self, validator):
         msg = _msg(
-            mode=ATPMode.BUILD, context="ctx", action_type=ATPActionType.SCAFFOLD,
-            content="enough content for validation", target_zone="myproject",
+            mode=ATPMode.BUILD,
+            context="ctx",
+            action_type=ATPActionType.SCAFFOLD,
+            content="enough content for validation",
+            target_zone="myproject",
         )
         result = validator.validate(msg)
         assert any("file path" in s.lower() for s in result.suggestions)
@@ -240,13 +269,17 @@ class TestSuggestImprovements:
         assert any("ATP headers" in s for s in suggestions)
 
     def test_missing_target_zone(self, validator):
-        msg = _msg(mode=ATPMode.BUILD, context="ctx", action_type=ATPActionType.SCAFFOLD)
+        msg = _msg(
+            mode=ATPMode.BUILD, context="ctx", action_type=ATPActionType.SCAFFOLD
+        )
         suggestions = validator.suggest_improvements(msg)
         assert any("TargetZone" in s for s in suggestions)
 
     def test_missing_special_notes(self, validator):
         msg = _msg(
-            mode=ATPMode.BUILD, context="ctx", action_type=ATPActionType.SCAFFOLD,
+            mode=ATPMode.BUILD,
+            context="ctx",
+            action_type=ATPActionType.SCAFFOLD,
             target_zone="/project",
         )
         suggestions = validator.suggest_improvements(msg)

@@ -15,7 +15,6 @@ if str(ROOT) not in sys.path:
 
 from src.mcp.vector_store import LocalVectorStore
 
-
 DEFAULT_DOCS = [
     (
         "project_update_plan",

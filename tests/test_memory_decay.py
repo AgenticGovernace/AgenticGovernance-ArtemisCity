@@ -1,4 +1,5 @@
 """Integration tests for memory decay functionality."""
+
 import sys
 from pathlib import Path
 
@@ -8,7 +9,9 @@ if _src not in sys.path:
 else:
     sys.path.remove(_src)
     sys.path.insert(0, _src)
-for _key in [k for k in sys.modules if k == "integration" or k.startswith("integration.")]:
+for _key in [
+    k for k in sys.modules if k == "integration" or k.startswith("integration.")
+]:
     del sys.modules[_key]
 
 import pytest
@@ -240,8 +243,12 @@ class TestMemoryDecayService:
             log_dir="logs/decay_logs",
         )
         now = datetime.utcnow()
-        service.register_node(MemoryNode("archive_me", 1.0, last_access=now - timedelta(days=200)))
-        service.register_node(MemoryNode("delete_me", 0.02, last_access=now - timedelta(days=300)))
+        service.register_node(
+            MemoryNode("archive_me", 1.0, last_access=now - timedelta(days=200))
+        )
+        service.register_node(
+            MemoryNode("delete_me", 0.02, last_access=now - timedelta(days=300))
+        )
 
         result = await service.run_decay_cycle()
         assert result["nodes_decayed"] >= 2
@@ -292,7 +299,11 @@ class TestMemoryDecayService:
             memory_client=_FailingClient(),
             log_dir="logs/decay_logs",
         )
-        node = MemoryNode("n_delete", weight=0.005, last_access=datetime.utcnow() - timedelta(days=365))
+        node = MemoryNode(
+            "n_delete",
+            weight=0.005,
+            last_access=datetime.utcnow() - timedelta(days=365),
+        )
         service.register_node(node)
 
         archive_event = await service._archive_node(node, days_unused=365)

@@ -14,6 +14,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from Concept_Demos.src.agents.atp.atp_parser import ATPParser
+
 
 def _configure_import_path() -> None:
     """Ensure imports resolve to this repository, not an unrelated installed checkout.
@@ -23,7 +25,9 @@ def _configure_import_path() -> None:
       - repo_root/app (if present) for layouts where packages live under app/
     """
     this_file = Path(__file__).resolve()
-    repo_root = this_file.parent.parent  # .../<repo>/examples/demo_artemis.py -> .../<repo>
+    repo_root = (
+        this_file.parent.parent
+    )  # .../<repo>/examples/demo_artemis.py -> .../<repo>
 
     candidates = [repo_root, repo_root / "app"]
     for p in candidates:
@@ -64,9 +68,9 @@ _configure_import_path()
 # Optional: if you still get confusing import behavior, keep this warning.
 _warn_if_shadowed("agents")
 
-from app.agents.atp import ATPParser, ATPValidator
-from app.core.instructions import InstructionLoader
-from app.agents.artemis import ArtemisPersona, ReflectionEngine, SemanticTagger
+import Concept_Demos.src.agents.atp
+from src.core.instructions import InstructionLoader
+from src.agents.artemis import ArtemisPersona, ReflectionEngine, SemanticTagger
 
 
 def demo_atp_parsing():
@@ -76,6 +80,8 @@ def demo_atp_parsing():
     print("=" * 70)
 
     parser = ATPParser()
+    from Concept_Demos.src.agents.atp.atp_validator import ATPValidator
+
     validator = ATPValidator()
 
     # Example ATP message
@@ -144,13 +150,13 @@ def demo_artemis_persona():
         {
             "query": "Explain the ATP protocol architecture",
             "atp_mode": "Review",
-            "request_feedback": False
+            "request_feedback": False,
         },
         {
             "query": "How do I implement agent communication?",
             "atp_mode": "Build",
-            "request_feedback": True
-        }
+            "request_feedback": True,
+        },
     ]
 
     for i, context in enumerate(contexts, 1):
@@ -193,8 +199,6 @@ def demo_reflection_engine():
         engine.add_conversation(conv)
         print(f"  + {conv[:60]}...")
 
-    print(f"\nStats: {engine.get_stats()}")
-
     # Synthesize
     print("\n" + "-" * 70)
     print("\nSynthesis:")
@@ -202,12 +206,6 @@ def demo_reflection_engine():
 
     # Find connections
     print("\n" + "-" * 70)
-    print("\nConnections for 'ATP':")
-    connections = engine.find_connections("ATP")
-    for conn in connections:
-        print(f"  ↔ {conn}")
-
-    print()
 
 
 def demo_semantic_tagging():
@@ -220,7 +218,9 @@ def demo_semantic_tagging():
 
     # Tag some items
     print("\nTagging items...")
-    tagger.tag_item("ATP Protocol", ["protocol", "communication", "architecture"], "concept")
+    tagger.tag_item(
+        "ATP Protocol", ["protocol", "communication", "architecture"], "concept"
+    )
     tagger.tag_item("agents/atp/atp_parser.py", ["atp", "parser", "python"], "file")
     tagger.tag_item("Artemis Agent", ["agent", "governance", "artemis"], "agent")
     tagger.tag_item("Memory Layer", ["memory", "storage", "architecture"], "concept")
@@ -281,20 +281,21 @@ def main():
         demo_instruction_loading,
         demo_artemis_persona,
         demo_reflection_engine,
-        demo_semantic_tagging
+        demo_semantic_tagging,
     ]
 
     for demo_func in demos:
         try:
             demo_func()
             input("Press Enter to continue to next demo...")
-            print("\n")
+
         except KeyboardInterrupt:
             print("\n\nDemo interrupted by user.")
             break
         except Exception as e:
             print(f"\n✗ Error in demo: {e}")
             import traceback
+
             traceback.print_exc()
             break
 

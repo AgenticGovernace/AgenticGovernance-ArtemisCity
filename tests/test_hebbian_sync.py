@@ -1,4 +1,5 @@
 """Integration tests for Hebbian sync functionality."""
+
 import sys
 from pathlib import Path
 
@@ -8,7 +9,9 @@ if _src not in sys.path:
 else:
     sys.path.remove(_src)
     sys.path.insert(0, _src)
-for _key in [k for k in sys.modules if k == "integration" or k.startswith("integration.")]:
+for _key in [
+    k for k in sys.modules if k == "integration" or k.startswith("integration.")
+]:
     del sys.modules[_key]
 
 import pytest
@@ -35,18 +38,14 @@ class TestWeightUpdate:
 
     def test_weight_update_defaults(self):
         """Test weight update default values."""
-        update = WeightUpdate(
-            source_node_id="a", target_node_id="b", new_weight=1.0
-        )
+        update = WeightUpdate(source_node_id="a", target_node_id="b", new_weight=1.0)
         assert update.previous_weight == 0.0
         assert update.update_type == "strengthen"
         assert update.timestamp > 0
 
     def test_weight_update_to_dict(self):
         """Test serialization."""
-        update = WeightUpdate(
-            source_node_id="a", target_node_id="b", new_weight=2.0
-        )
+        update = WeightUpdate(source_node_id="a", target_node_id="b", new_weight=2.0)
         d = update.to_dict()
         assert d["source_node_id"] == "a"
         assert d["target_node_id"] == "b"
@@ -249,10 +248,16 @@ class TestHebbianSyncService:
         assert result.batch_size == 1
         assert len(service._buffer) == 0
 
-    def test_flush_sync_collects_failures_from_sync_pipeline(self, service, monkeypatch):
+    def test_flush_sync_collects_failures_from_sync_pipeline(
+        self, service, monkeypatch
+    ):
         """flush_sync records failures when sync pipeline raises."""
         service.queue_update("a", "b", 1.0)
-        monkeypatch.setattr(service, "_sync_to_obsidian", lambda _: (_ for _ in ()).throw(RuntimeError("x")))
+        monkeypatch.setattr(
+            service,
+            "_sync_to_obsidian",
+            lambda _: (_ for _ in ()).throw(RuntimeError("x")),
+        )
 
         result = service.flush_sync()
         assert result.failed == 1

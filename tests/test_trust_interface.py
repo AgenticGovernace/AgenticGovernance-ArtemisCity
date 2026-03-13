@@ -60,7 +60,7 @@ class TestTrustScore:
             decay_rate=0.01,
         )
         decayed = ts.apply_decay()
-        expected = 0.8 * (0.99 ** 10)
+        expected = 0.8 * (0.99**10)
         assert abs(decayed - expected) < 0.001
 
     def test_decay_respects_min_floor(self):
@@ -84,8 +84,11 @@ class TestTrustScore:
 
     def test_reinforce_caps_at_one(self):
         ts = TrustScore(
-            entity_id="x", entity_type="agent", score=0.95,
-            level=TrustLevel.FULL, last_updated=datetime.now(),
+            entity_id="x",
+            entity_type="agent",
+            score=0.95,
+            level=TrustLevel.FULL,
+            last_updated=datetime.now(),
         )
         result = ts.reinforce(0.1)
         assert result == 1.0
@@ -98,16 +101,22 @@ class TestTrustScore:
 
     def test_penalize_floors_at_zero(self):
         ts = TrustScore(
-            entity_id="x", entity_type="agent", score=0.05,
-            level=TrustLevel.UNTRUSTED, last_updated=datetime.now(),
+            entity_id="x",
+            entity_type="agent",
+            score=0.05,
+            level=TrustLevel.UNTRUSTED,
+            last_updated=datetime.now(),
         )
         result = ts.penalize(0.2)
         assert result == 0.0
 
     def test_update_level_transitions(self):
         ts = TrustScore(
-            entity_id="x", entity_type="agent", score=0.95,
-            level=TrustLevel.FULL, last_updated=datetime.now(),
+            entity_id="x",
+            entity_type="agent",
+            score=0.95,
+            level=TrustLevel.FULL,
+            last_updated=datetime.now(),
         )
         # FULL
         ts._update_level()
@@ -170,8 +179,11 @@ class TestTrustInterface:
         # Force low trust
         key = "agent:low_agent"
         iface.trust_scores[key] = TrustScore(
-            entity_id="low_agent", entity_type="agent",
-            score=0.35, level=TrustLevel.LOW, last_updated=datetime.now(),
+            entity_id="low_agent",
+            entity_type="agent",
+            score=0.35,
+            level=TrustLevel.LOW,
+            last_updated=datetime.now(),
         )
         assert iface.can_perform_operation("low_agent", "read") is True
         assert iface.can_perform_operation("low_agent", "write") is False
@@ -180,8 +192,11 @@ class TestTrustInterface:
     def test_untrusted_no_operations(self, iface):
         key = "agent:bad"
         iface.trust_scores[key] = TrustScore(
-            entity_id="bad", entity_type="agent",
-            score=0.1, level=TrustLevel.UNTRUSTED, last_updated=datetime.now(),
+            entity_id="bad",
+            entity_type="agent",
+            score=0.1,
+            level=TrustLevel.UNTRUSTED,
+            last_updated=datetime.now(),
         )
         assert iface.can_perform_operation("bad", "read") is False
 
@@ -214,8 +229,11 @@ class TestTrustInterface:
         # Force unknown_low to be untrusted
         key = "agent:unknown_low"
         iface.trust_scores[key] = TrustScore(
-            entity_id="unknown_low", entity_type="agent",
-            score=0.1, level=TrustLevel.UNTRUSTED, last_updated=datetime.now(),
+            entity_id="unknown_low",
+            entity_type="agent",
+            score=0.1,
+            level=TrustLevel.UNTRUSTED,
+            last_updated=datetime.now(),
         )
         filtered = iface.filter_by_trust(items, TrustLevel.HIGH)
         assert len(filtered) == 1
@@ -233,6 +251,7 @@ class TestTrustInterface:
 class TestGetTrustInterface:
     def test_singleton(self):
         import integration.trust_interface as mod
+
         mod._global_trust_interface = None
         i1 = get_trust_interface()
         i2 = get_trust_interface()

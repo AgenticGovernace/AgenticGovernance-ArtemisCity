@@ -22,7 +22,9 @@ class _StubMemoryClient:
         self._responses[method] = response
 
     def _get(self, method, *args, **kwargs):
-        return self._responses.get(method, MCPResponse(success=False, error="not configured"))
+        return self._responses.get(
+            method, MCPResponse(success=False, error="not configured")
+        )
 
     def get_context(self, path):
         return self._get("get_context")
@@ -75,8 +77,12 @@ class TestLoadNote:
     @pytest.fixture
     def client(self):
         c = _StubMemoryClient()
-        c.set_response("get_context", MCPResponse(success=True, data={"content": "hello"}))
-        c.set_response("manage_tags", MCPResponse(success=True, data={"tags": ["arch"]}))
+        c.set_response(
+            "get_context", MCPResponse(success=True, data={"content": "hello"})
+        )
+        c.set_response(
+            "manage_tags", MCPResponse(success=True, data={"tags": ["arch"]})
+        )
         c.set_response(
             "manage_frontmatter",
             MCPResponse(success=True, data={"frontmatter": {"date": "2025-01-01"}}),
@@ -93,7 +99,9 @@ class TestLoadNote:
 
     def test_load_note_failure(self):
         client = _StubMemoryClient()
-        client.set_response("get_context", MCPResponse(success=False, error="not found"))
+        client.set_response(
+            "get_context", MCPResponse(success=False, error="not found")
+        )
         loader = ContextLoader(memory_client=client)
         assert loader.load_note("missing.md") is None
 
@@ -122,7 +130,12 @@ class TestSearchContext:
                 success=True,
                 data={
                     "results": [
-                        {"path": "a.md", "content": "match", "tags": ["t"], "score": 0.9},
+                        {
+                            "path": "a.md",
+                            "content": "match",
+                            "tags": ["t"],
+                            "score": 0.9,
+                        },
                         {"path": "b.md", "content": "also", "tags": [], "score": 0.8},
                     ]
                 },
@@ -140,7 +153,9 @@ class TestSearchContext:
             "search_notes",
             MCPResponse(
                 success=True,
-                data={"results": [{"path": f"{i}.md", "content": ""} for i in range(10)]},
+                data={
+                    "results": [{"path": f"{i}.md", "content": ""} for i in range(10)]
+                },
             ),
         )
         loader = ContextLoader(memory_client=client)
@@ -164,7 +179,9 @@ class TestLoadFolderContext:
             "list_notes",
             MCPResponse(success=True, data={"notes": ["a.md", "b.md"]}),
         )
-        client.set_response("get_context", MCPResponse(success=True, data={"content": "c"}))
+        client.set_response(
+            "get_context", MCPResponse(success=True, data={"content": "c"})
+        )
         client.set_response("manage_tags", MCPResponse(success=False))
         client.set_response("manage_frontmatter", MCPResponse(success=False))
         loader = ContextLoader(memory_client=client)
@@ -209,7 +226,9 @@ class TestLoadAgentHistory:
                 data={"results": [{"path": "agents/ctx.md"}]},
             ),
         )
-        client.set_response("get_context", MCPResponse(success=True, data={"content": "hist"}))
+        client.set_response(
+            "get_context", MCPResponse(success=True, data={"content": "hist"})
+        )
         client.set_response("manage_tags", MCPResponse(success=False))
         client.set_response("manage_frontmatter", MCPResponse(success=False))
         loader = ContextLoader(memory_client=client)
@@ -236,7 +255,9 @@ class TestGetContextSummary:
 
     def test_normal(self, loader):
         entries = [
-            ContextEntry(path="a.md", content="hello world", tags=["tag1"], frontmatter={}),
+            ContextEntry(
+                path="a.md", content="hello world", tags=["tag1"], frontmatter={}
+            ),
             ContextEntry(path="b.md", content="content", tags=[], frontmatter={}),
         ]
         summary = loader.get_context_summary(entries)
@@ -263,11 +284,19 @@ class TestFilterByDateRange:
 
     def test_filter_with_dates(self, loader):
         entries = [
-            ContextEntry(path="a.md", content="", tags=[], frontmatter={"date": "2025-01-15"}),
-            ContextEntry(path="b.md", content="", tags=[], frontmatter={"date": "2025-03-01"}),
-            ContextEntry(path="c.md", content="", tags=[], frontmatter={"date": "2025-06-01"}),
+            ContextEntry(
+                path="a.md", content="", tags=[], frontmatter={"date": "2025-01-15"}
+            ),
+            ContextEntry(
+                path="b.md", content="", tags=[], frontmatter={"date": "2025-03-01"}
+            ),
+            ContextEntry(
+                path="c.md", content="", tags=[], frontmatter={"date": "2025-06-01"}
+            ),
         ]
-        filtered = loader.filter_by_date_range(entries, start_date="2025-01-01", end_date="2025-04-01")
+        filtered = loader.filter_by_date_range(
+            entries, start_date="2025-01-01", end_date="2025-04-01"
+        )
         assert len(filtered) == 2
         paths = {e.path for e in filtered}
         assert paths == {"a.md", "b.md"}
@@ -281,14 +310,18 @@ class TestFilterByDateRange:
 
     def test_filter_with_created_field(self, loader):
         entries = [
-            ContextEntry(path="a.md", content="", tags=[], frontmatter={"created": "2025-02-01"}),
+            ContextEntry(
+                path="a.md", content="", tags=[], frontmatter={"created": "2025-02-01"}
+            ),
         ]
         filtered = loader.filter_by_date_range(entries, start_date="2025-01-01")
         assert len(filtered) == 1
 
     def test_filter_no_bounds(self, loader):
         entries = [
-            ContextEntry(path="a.md", content="", tags=[], frontmatter={"date": "2025-01-01"}),
+            ContextEntry(
+                path="a.md", content="", tags=[], frontmatter={"date": "2025-01-01"}
+            ),
         ]
         filtered = loader.filter_by_date_range(entries)
         assert len(filtered) == 1
@@ -300,17 +333,23 @@ class TestFilterByDateRange:
 class TestGetRelatedContext:
     def test_get_related(self):
         client = _StubMemoryClient()
-        client.set_response("get_context", MCPResponse(success=True, data={"content": "c"}))
-        client.set_response("manage_tags", MCPResponse(success=True, data={"tags": ["arch"]}))
+        client.set_response(
+            "get_context", MCPResponse(success=True, data={"content": "c"})
+        )
+        client.set_response(
+            "manage_tags", MCPResponse(success=True, data={"tags": ["arch"]})
+        )
         client.set_response("manage_frontmatter", MCPResponse(success=False))
         client.set_response(
             "search_notes",
             MCPResponse(
                 success=True,
-                data={"results": [
-                    {"path": "related.md", "content": "r"},
-                    {"path": "notes/test.md", "content": "self"},
-                ]},
+                data={
+                    "results": [
+                        {"path": "related.md", "content": "r"},
+                        {"path": "notes/test.md", "content": "self"},
+                    ]
+                },
             ),
         )
         loader = ContextLoader(memory_client=client)

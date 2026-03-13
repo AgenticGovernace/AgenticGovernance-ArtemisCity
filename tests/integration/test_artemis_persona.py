@@ -67,11 +67,24 @@ class TestShouldBeVerbose:
     def persona(self):
         return ArtemisPersona()
 
-    @pytest.mark.parametrize("keyword", [
-        "explain", "clarify", "elaborate", "detail", "architecture",
-        "design", "pattern", "synthesize", "summarize", "connect",
-        "why", "how does", "what is",
-    ])
+    @pytest.mark.parametrize(
+        "keyword",
+        [
+            "explain",
+            "clarify",
+            "elaborate",
+            "detail",
+            "architecture",
+            "design",
+            "pattern",
+            "synthesize",
+            "summarize",
+            "connect",
+            "why",
+            "how does",
+            "what is",
+        ],
+    )
     def test_verbose_keywords(self, persona, keyword):
         assert persona.should_be_verbose({"query": f"Please {keyword} this"}) is True
 
@@ -88,16 +101,26 @@ class TestInferMode:
         return ArtemisPersona()
 
     def test_technical_keywords(self, persona):
-        assert persona._infer_mode({"query": "debug this code"}) == ResponseMode.TECHNICAL
+        assert (
+            persona._infer_mode({"query": "debug this code"}) == ResponseMode.TECHNICAL
+        )
 
     def test_architectural_keywords(self, persona):
-        assert persona._infer_mode({"query": "system architecture"}) == ResponseMode.ARCHITECTURAL
+        assert (
+            persona._infer_mode({"query": "system architecture"})
+            == ResponseMode.ARCHITECTURAL
+        )
 
     def test_reflective_via_atp_mode(self, persona):
-        assert persona._infer_mode({"query": "thoughts", "atp_mode": "Synthesize"}) == ResponseMode.REFLECTIVE
+        assert (
+            persona._infer_mode({"query": "thoughts", "atp_mode": "Synthesize"})
+            == ResponseMode.REFLECTIVE
+        )
 
     def test_conversational_default(self, persona):
-        assert persona._infer_mode({"query": "hello there"}) == ResponseMode.CONVERSATIONAL
+        assert (
+            persona._infer_mode({"query": "hello there"}) == ResponseMode.CONVERSATIONAL
+        )
 
 
 class TestFormatResponse:

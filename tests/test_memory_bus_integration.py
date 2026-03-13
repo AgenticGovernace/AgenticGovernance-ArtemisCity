@@ -52,7 +52,9 @@ class _StubVectorStore:
     def query(self, query_text, top_k=3, include_content=False):
         results = []
         for doc_id, (content, metadata) in list(self.docs.items())[:top_k]:
-            results.append((doc_id, 0.9, metadata, content if include_content else None))
+            results.append(
+                (doc_id, 0.9, metadata, content if include_content else None)
+            )
         return results
 
 
@@ -188,9 +190,7 @@ class TestMemoryBusKeywordScan:
 
         obs = _StubObsidianManager(vault_path=str(vault))
         vec = _StubVectorStore()
-        bus = MemoryBus(
-            obsidian_manager=obs, vector_store=vec, search_dirs=["notes"]
-        )
+        bus = MemoryBus(obsidian_manager=obs, vector_store=vec, search_dirs=["notes"])
         results = bus.read("memory bus")
         keyword_hits = [r for r in results if r["source"] == "keyword"]
         assert len(keyword_hits) == 1
@@ -208,7 +208,9 @@ class TestMemoryBusKeywordScan:
         vault.mkdir()
         obs = _StubObsidianManager(vault_path=str(vault))
         vec = _StubVectorStore()
-        bus = MemoryBus(obsidian_manager=obs, vector_store=vec, search_dirs=["nonexistent"])
+        bus = MemoryBus(
+            obsidian_manager=obs, vector_store=vec, search_dirs=["nonexistent"]
+        )
         hits = bus._keyword_scan("query", 5)
         assert hits == []
 

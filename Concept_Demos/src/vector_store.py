@@ -90,16 +90,14 @@ class LocalVectorStore:
 
     def _initialize(self):
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS vectors (
                     doc_id TEXT PRIMARY KEY,
                     embedding TEXT NOT NULL,
                     metadata TEXT,
                     content TEXT
                 )
-                """
-            )
+                """)
             conn.commit()
 
     def upsert(self, doc_id: str, content: str, metadata: Optional[Dict] = None):

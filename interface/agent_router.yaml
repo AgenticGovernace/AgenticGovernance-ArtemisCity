@@ -1,0 +1,20 @@
+# Defines which agent handles what type of input based on keywords or patterns.
+# This is a simplified routing mechanism for the Artemis CLI.
+
+agents:
+  artemis:
+    role: "Mayor protocol, governance"
+    keywords: [ "artemis", "governance", "policy", "audit", "dispute", "review" ]
+    action_description: "Initiating governance review or policy query."
+  pack_rat:
+    role: "Courier role, safe transfer"
+    keywords: [ "transfer", "send", "receive", "courier", "data", "secure" ]
+    action_description: "Preparing secure data transfer."
+  daemon:
+    role: "System anchor, memory interface"
+    keywords: [ "memory", "system", "daemon", "config", "status", "health" ]
+    action_description: "Querying system status or memory interface."
+  planner:
+    role: "Architect, planning and contextual assistance"
+    keywords: [ "help", "assist", "explain", "augment", "clarify", "suggest", "plan", "roadmap", "blueprint", "schedule" ]
+    action_description: "Providing contextual assistance, augmentation, or developing execution plan."

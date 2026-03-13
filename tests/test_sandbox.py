@@ -1,4 +1,5 @@
 """Integration tests for AgentSandbox and SandboxManager."""
+
 import sys
 from pathlib import Path
 
@@ -12,7 +13,9 @@ else:
     sys.path.remove(_src)
     sys.path.insert(0, _src)
 # Remove stale cache entry so Python re-discovers from src/
-for _key in [k for k in sys.modules if k == "integration" or k.startswith("integration.")]:
+for _key in [
+    k for k in sys.modules if k == "integration" or k.startswith("integration.")
+]:
     del sys.modules[_key]
 
 import pytest
@@ -56,14 +59,20 @@ class TestAgentSandbox:
         result = sandbox.check_action("shell_execute", "/bin/bash")
         assert result is False
         assert len(sandbox.violation_log) == 1
-        assert sandbox.violation_log[0].violation_type == ViolationType.TOOL_NOT_WHITELISTED
+        assert (
+            sandbox.violation_log[0].violation_type
+            == ViolationType.TOOL_NOT_WHITELISTED
+        )
 
     def test_denied_file_access_outside_scope(self, sandbox):
         """Test that file access outside allowed paths is denied."""
         result = sandbox.check_action("file_read", "/etc/passwd")
         assert result is False
         assert len(sandbox.violation_log) == 1
-        assert sandbox.violation_log[0].violation_type == ViolationType.UNAUTHORIZED_FILE_ACCESS
+        assert (
+            sandbox.violation_log[0].violation_type
+            == ViolationType.UNAUTHORIZED_FILE_ACCESS
+        )
 
     def test_quarantine_after_threshold(self, sandbox):
         """Test auto-quarantine after 3 violations in the window."""

@@ -31,7 +31,9 @@ class TestInstructionLoader:
         """Test loading instructions for non-existent agent."""
         loader = InstructionLoader()
         # Load with non-existent agent (should still return InstructionSet)
-        instructions = loader.load(current_dir=os.getcwd(), agent_name="nonexistent-agent-12345")
+        instructions = loader.load(
+            current_dir=os.getcwd(), agent_name="nonexistent-agent-12345"
+        )
         assert instructions is not None
         assert isinstance(instructions, InstructionSet)
 

@@ -24,6 +24,11 @@ pyyaml = "*"
 fastapi = "*"
 node = "*"
 npm = "*"
+ipykernel = "*"
+bandit = "*"
+black = "*"
+kernel = "*"
+numpy = "*"
 
 [dev-packages]
 

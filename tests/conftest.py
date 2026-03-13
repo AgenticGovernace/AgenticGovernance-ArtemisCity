@@ -13,7 +13,7 @@ import pytest
 # Add project root and src directory to path for imports
 _project_root = str(Path(__file__).parent.parent)
 sys.path.insert(0, _project_root)
-sys.path.insert(0, str(Path(_project_root) / "src"))
+sys.path.insert(0, str(Path(_project_root) / "Concept_Demos" / "src"))
 
 
 # ============================================

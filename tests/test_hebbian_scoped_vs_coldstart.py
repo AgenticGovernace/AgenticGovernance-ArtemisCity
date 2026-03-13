@@ -20,7 +20,8 @@ from pathlib import Path
 from sklearn.neural_network import MLPRegressor
 import matplotlib.pyplot as plt
 import warnings
-warnings.filterwarnings('ignore')
+
+warnings.filterwarnings("ignore")
 
 # ============================================================
 # 1. DATA GENERATION — Same 3-phase concept drift from notebook
@@ -33,7 +34,7 @@ y_dynamic = np.zeros(N)
 # Phase 1: Linear (0-333)
 y_dynamic[:334] = 2 * X_dynamic[:334, 0] + 3 * X_dynamic[:334, 1]
 # Phase 2: Quadratic (334-666)
-y_dynamic[334:667] = -2 * X_dynamic[334:667, 0]**2 + X_dynamic[334:667, 1]
+y_dynamic[334:667] = -2 * X_dynamic[334:667, 0] ** 2 + X_dynamic[334:667, 1]
 # Phase 3: Sinusoidal (667-999)
 y_dynamic[667:] = 5 * np.sin(X_dynamic[667:, 2]) + X_dynamic[667:, 0]
 
@@ -52,6 +53,7 @@ y_dynamic += noise
 
 PRE_TRAIN_CYCLES = 600  # The 600-cycle threshold
 
+
 def generate_scoped_corpus(scope, n_samples=PRE_TRAIN_CYCLES):
     """Generate scoped training data for each agent specialty."""
     np.random.seed(scope)  # Deterministic per scope
@@ -61,7 +63,7 @@ def generate_scoped_corpus(scope, n_samples=PRE_TRAIN_CYCLES):
     if scope == 0:  # LINEAR specialist
         y = 2 * X[:, 0] + 3 * X[:, 1] + noise
     elif scope == 1:  # QUADRATIC specialist
-        y = -2 * X[:, 0]**2 + X[:, 1] + noise
+        y = -2 * X[:, 0] ** 2 + X[:, 1] + noise
     elif scope == 2:  # SINUSOIDAL specialist
         y = 5 * np.sin(X[:, 2]) + X[:, 0] + noise
     elif scope == 3:  # MIXED/GENERALIST
@@ -69,8 +71,10 @@ def generate_scoped_corpus(scope, n_samples=PRE_TRAIN_CYCLES):
         third = n_samples // 3
         y = np.zeros(n_samples)
         y[:third] = 2 * X[:third, 0] + 3 * X[:third, 1]
-        y[third:2*third] = -2 * X[third:2*third, 0]**2 + X[third:2*third, 1]
-        y[2*third:] = 5 * np.sin(X[2*third:, 2]) + X[2*third:, 0]
+        y[third : 2 * third] = (
+            -2 * X[third : 2 * third, 0] ** 2 + X[third : 2 * third, 1]
+        )
+        y[2 * third :] = 5 * np.sin(X[2 * third :, 2]) + X[2 * third :, 0]
         y += noise
     elif scope == 4:  # NOISE-ROBUST (trained with heavy noise)
         y = 2 * X[:, 0] + 3 * X[:, 1] + np.random.normal(0, 3.0, n_samples)
@@ -82,10 +86,10 @@ def create_agent(seed):
     """Standard high-capacity agent."""
     return MLPRegressor(
         hidden_layer_sizes=(100, 50),
-        activation='relu',
-        solver='adam',
+        activation="relu",
+        solver="adam",
         learning_rate_init=0.005,
-        random_state=seed
+        random_state=seed,
     )
 
 
@@ -93,7 +97,7 @@ def pre_train_agent(agent, X_corpus, y_corpus):
     """Pre-train an agent on its scoped corpus for 600 cycles."""
     for i in range(len(X_corpus)):
         x_t = X_corpus[i].reshape(1, -1)
-        y_t = y_corpus[i:i+1]
+        y_t = y_corpus[i : i + 1]
         agent.partial_fit(x_t, y_t)
     return agent
 
@@ -102,9 +106,17 @@ def pre_train_agent(agent, X_corpus, y_corpus):
 # 3. SIMULATION ENGINE
 # ============================================================
 
-def run_simulation(agents, weights, X, y, decay_rate=0.99,
-                   success_threshold=5.0, label="Simulation",
-                   use_atp_context=False):
+
+def run_simulation(
+    agents,
+    weights,
+    X,
+    y,
+    decay_rate=0.99,
+    success_threshold=5.0,
+    label="Simulation",
+    use_atp_context=False,
+):
     """
     Run Hebbian routing simulation with full telemetry.
 
@@ -124,7 +136,7 @@ def run_simulation(agents, weights, X, y, decay_rate=0.99,
 
     for t in range(len(X)):
         x_t = X[t].reshape(1, -1)
-        y_t = y[t:t+1]
+        y_t = y[t : t + 1]
 
         # --- ATP Context Vector (if enabled) ---
         # Phase detection based on step — simulates ATP #Context tag
@@ -188,25 +200,26 @@ def run_simulation(agents, weights, X, y, decay_rate=0.99,
         if len(deltas) < 2:
             sign_changes.append(0)
         else:
-            changes = sum(1 for i in range(1, len(deltas))
-                         if deltas[i] != deltas[i-1])
+            changes = sum(
+                1 for i in range(1, len(deltas)) if deltas[i] != deltas[i - 1]
+            )
             sign_changes.append(changes)
 
     # --- Phase Dominance ---
     selections = np.array(selections)
     phase_dom = {
-        'Linear (0-333)': np.bincount(selections[:334], minlength=n_agents),
-        'Quadratic (334-666)': np.bincount(selections[334:667], minlength=n_agents),
-        'Sinusoidal (667-999)': np.bincount(selections[667:], minlength=n_agents),
+        "Linear (0-333)": np.bincount(selections[:334], minlength=n_agents),
+        "Quadratic (334-666)": np.bincount(selections[334:667], minlength=n_agents),
+        "Sinusoidal (667-999)": np.bincount(selections[667:], minlength=n_agents),
     }
 
     return {
-        'errors': np.array(errors),
-        'weights_history': np.array(weights_history),
-        'selections': selections,
-        'sign_changes': sign_changes,
-        'phase_dominance': phase_dom,
-        'label': label
+        "errors": np.array(errors),
+        "weights_history": np.array(weights_history),
+        "selections": selections,
+        "sign_changes": sign_changes,
+        "phase_dominance": phase_dom,
+        "label": label,
     }
 
 
@@ -223,8 +236,7 @@ print("\n[A] Cold Start — Homogeneous Agents (no pre-training)...")
 cold_agents = [create_agent(i) for i in range(5)]
 cold_weights = np.ones(5)
 result_cold = run_simulation(
-    cold_agents, cold_weights, X_dynamic, y_dynamic,
-    label="Cold Start (Homogeneous)"
+    cold_agents, cold_weights, X_dynamic, y_dynamic, label="Cold Start (Homogeneous)"
 )
 
 # --- Condition B: SCOPED POST-600 (pre-trained on scoped corpus) ---
@@ -233,12 +245,17 @@ scoped_agents = [create_agent(i) for i in range(5)]
 for i in range(5):
     X_corpus, y_corpus = generate_scoped_corpus(i)
     scoped_agents[i] = pre_train_agent(scoped_agents[i], X_corpus, y_corpus)
-    print(f"    Agent {i} pre-trained on {['Linear','Quadratic','Sinusoidal','Mixed','Noise-Robust'][i]} corpus ({PRE_TRAIN_CYCLES} cycles)")
+    print(
+        f"    Agent {i} pre-trained on {['Linear','Quadratic','Sinusoidal','Mixed','Noise-Robust'][i]} corpus ({PRE_TRAIN_CYCLES} cycles)"
+    )
 
 scoped_weights = np.ones(5)
 result_scoped = run_simulation(
-    scoped_agents, scoped_weights, X_dynamic, y_dynamic,
-    label="Scoped Post-600 (Specialized)"
+    scoped_agents,
+    scoped_weights,
+    X_dynamic,
+    y_dynamic,
+    label="Scoped Post-600 (Specialized)",
 )
 
 # --- Condition C: SCOPED + ATP CONTEXT VECTORS ---
@@ -250,9 +267,12 @@ for i in range(5):
 
 scoped_atp_weights = np.ones(5)
 result_scoped_atp = run_simulation(
-    scoped_atp_agents, scoped_atp_weights, X_dynamic, y_dynamic,
+    scoped_atp_agents,
+    scoped_atp_weights,
+    X_dynamic,
+    y_dynamic,
     use_atp_context=True,
-    label="Scoped Post-600 + ATP Context"
+    label="Scoped Post-600 + ATP Context",
 )
 
 
@@ -260,14 +280,15 @@ result_scoped_atp = run_simulation(
 # 5. WATCHDOG / SENTINEL ANALYSIS
 # ============================================================
 
+
 def watchdog_analysis(result, window=50, oscillation_threshold=0.4):
     """
     Sentinel agent logic: monitor sign-change frequency.
     Flags steps where oscillation rate exceeds threshold.
     Returns: alert_steps (where human review would trigger)
     """
-    selections = result['selections']
-    errors = result['errors']
+    selections = result["selections"]
+    errors = result["errors"]
 
     # Track per-step delta signs for the dominant agent at each step
     deltas = []
@@ -284,19 +305,22 @@ def watchdog_analysis(result, window=50, oscillation_threshold=0.4):
     alert_steps = []
     oscillation_rates = []
     for t in range(window, len(deltas)):
-        window_deltas = deltas[t-window:t]
-        changes = sum(1 for i in range(1, len(window_deltas))
-                     if window_deltas[i] != window_deltas[i-1])
+        window_deltas = deltas[t - window : t]
+        changes = sum(
+            1
+            for i in range(1, len(window_deltas))
+            if window_deltas[i] != window_deltas[i - 1]
+        )
         rate = changes / window
         oscillation_rates.append(rate)
         if rate > oscillation_threshold:
             alert_steps.append(t)
 
     return {
-        'alert_steps': alert_steps,
-        'oscillation_rates': oscillation_rates,
-        'alert_count': len(alert_steps),
-        'alert_rate': len(alert_steps) / max(1, len(oscillation_rates))
+        "alert_steps": alert_steps,
+        "oscillation_rates": oscillation_rates,
+        "alert_count": len(alert_steps),
+        "alert_rate": len(alert_steps) / max(1, len(oscillation_rates)),
     }
 
 
@@ -316,15 +340,15 @@ print("=" * 70)
 for label, result, wd in [
     ("A) Cold Start", result_cold, watchdog_cold),
     ("B) Scoped Post-600", result_scoped, watchdog_scoped),
-    ("C) Scoped + ATP", result_scoped_atp, watchdog_atp)
+    ("C) Scoped + ATP", result_scoped_atp, watchdog_atp),
 ]:
     print(f"\n--- {label}: {result['label']} ---")
 
     # MAE metrics
-    total_mae = np.sum(result['errors'])
-    phase1_mae = np.mean(result['errors'][:334])
-    phase2_mae = np.mean(result['errors'][334:667])
-    phase3_mae = np.mean(result['errors'][667:])
+    total_mae = np.sum(result["errors"])
+    phase1_mae = np.mean(result["errors"][:334])
+    phase2_mae = np.mean(result["errors"][334:667])
+    phase3_mae = np.mean(result["errors"][667:])
     print(f"  Total Cumulative MAE:  {total_mae:.2f}")
     print(f"  Phase 1 (Linear) Avg:  {phase1_mae:.4f}")
     print(f"  Phase 2 (Quad) Avg:    {phase2_mae:.4f}")
@@ -332,13 +356,19 @@ for label, result, wd in [
 
     # Sawtooth / Oscillation
     print(f"  Sign Changes per Agent: {result['sign_changes']}")
-    dominant = np.argmax([sum(d) for d in result['sign_changes']] if isinstance(result['sign_changes'][0], list) else result['sign_changes'])
-    total_selections = len(result['selections'])
-    dom_selections = np.sum(result['selections'] == dominant)
-    print(f"  Dominant Agent: {dominant} ({dom_selections/total_selections*100:.1f}% of selections)")
+    dominant = np.argmax(
+        [sum(d) for d in result["sign_changes"]]
+        if isinstance(result["sign_changes"][0], list)
+        else result["sign_changes"]
+    )
+    total_selections = len(result["selections"])
+    dom_selections = np.sum(result["selections"] == dominant)
+    print(
+        f"  Dominant Agent: {dominant} ({dom_selections/total_selections*100:.1f}% of selections)"
+    )
 
     # Specialization Index (entropy of selection distribution)
-    sel_counts = np.bincount(result['selections'], minlength=5)
+    sel_counts = np.bincount(result["selections"], minlength=5)
     sel_probs = sel_counts / sel_counts.sum()
     sel_probs = sel_probs[sel_probs > 0]  # Remove zeros for log
     entropy = -np.sum(sel_probs * np.log2(sel_probs))
@@ -347,22 +377,24 @@ for label, result, wd in [
     print(f"  Specialization Index:  {specialization_idx:.4f} (0=monopoly, 1=uniform)")
 
     # Phase Dominance
-    for phase_name, counts in result['phase_dominance'].items():
+    for phase_name, counts in result["phase_dominance"].items():
         dominant_agent = np.argmax(counts)
         pct = counts[dominant_agent] / counts.sum() * 100
         print(f"  {phase_name}: Agent {dominant_agent} ({pct:.1f}%)")
 
     # Watchdog
-    print(f"  Watchdog Alerts:       {wd['alert_count']} ({wd['alert_rate']*100:.1f}% of monitored steps)")
+    print(
+        f"  Watchdog Alerts:       {wd['alert_count']} ({wd['alert_rate']*100:.1f}% of monitored steps)"
+    )
 
 # --- Comparative Summary ---
 print("\n" + "=" * 70)
 print("COMPARATIVE SUMMARY")
 print("=" * 70)
 
-mae_cold = np.sum(result_cold['errors'])
-mae_scoped = np.sum(result_scoped['errors'])
-mae_atp = np.sum(result_scoped_atp['errors'])
+mae_cold = np.sum(result_cold["errors"])
+mae_scoped = np.sum(result_scoped["errors"])
+mae_atp = np.sum(result_scoped_atp["errors"])
 
 print(f"\n  Cold Start Total MAE:      {mae_cold:.2f}")
 print(f"  Scoped Post-600 Total MAE: {mae_scoped:.2f}")
@@ -371,16 +403,20 @@ print(f"\n  Improvement (Cold→Scoped): {(1 - mae_scoped/mae_cold)*100:.1f}%")
 print(f"  Improvement (Cold→ATP):    {(1 - mae_atp/mae_cold)*100:.1f}%")
 
 # Oscillation comparison
-osc_cold = max(result_cold['sign_changes'])
-osc_scoped = max(result_scoped['sign_changes'])
-osc_atp = max(result_scoped_atp['sign_changes'])
+osc_cold = max(result_cold["sign_changes"])
+osc_scoped = max(result_scoped["sign_changes"])
+osc_atp = max(result_scoped_atp["sign_changes"])
 print(f"\n  Peak Oscillation (Cold):   {osc_cold} sign changes")
 print(f"  Peak Oscillation (Scoped): {osc_scoped} sign changes")
 print(f"  Peak Oscillation (ATP):    {osc_atp} sign changes")
 
 # Specialization comparison
-for label, result in [("Cold", result_cold), ("Scoped", result_scoped), ("ATP", result_scoped_atp)]:
-    sel_counts = np.bincount(result['selections'], minlength=5)
+for label, result in [
+    ("Cold", result_cold),
+    ("Scoped", result_scoped),
+    ("ATP", result_scoped_atp),
+]:
+    sel_counts = np.bincount(result["selections"], minlength=5)
     sel_probs = sel_counts / sel_counts.sum()
     sel_probs = sel_probs[sel_probs > 0]
     entropy = -np.sum(sel_probs * np.log2(sel_probs))
@@ -392,109 +428,150 @@ for label, result in [("Cold", result_cold), ("Scoped", result_scoped), ("ATP", 
 # ============================================================
 
 fig, axes = plt.subplots(3, 2, figsize=(18, 16))
-fig.suptitle('Hebbian Scoped Corpus: Post-600 Cycles vs Cold Start\n'
-             'Proof of Embodied Cognition Marketplace Thesis',
-             fontsize=14, fontweight='bold')
+fig.suptitle(
+    "Hebbian Scoped Corpus: Post-600 Cycles vs Cold Start\n"
+    "Proof of Embodied Cognition Marketplace Thesis",
+    fontsize=14,
+    fontweight="bold",
+)
 
 window = 50
 drift_points = [334, 667]
 
 # --- Plot 1: MAE Comparison (Moving Average) ---
 ax = axes[0, 0]
-ma_cold = pd.Series(result_cold['errors']).rolling(window=window).mean()
-ma_scoped = pd.Series(result_scoped['errors']).rolling(window=window).mean()
-ma_atp = pd.Series(result_scoped_atp['errors']).rolling(window=window).mean()
+ma_cold = pd.Series(result_cold["errors"]).rolling(window=window).mean()
+ma_scoped = pd.Series(result_scoped["errors"]).rolling(window=window).mean()
+ma_atp = pd.Series(result_scoped_atp["errors"]).rolling(window=window).mean()
 
-ax.plot(ma_cold, label='Cold Start', color='gray', alpha=0.7, linestyle='--')
-ax.plot(ma_scoped, label='Scoped Post-600', color='blue', linewidth=2)
-ax.plot(ma_atp, label='Scoped + ATP Context', color='green', linewidth=2)
+ax.plot(ma_cold, label="Cold Start", color="gray", alpha=0.7, linestyle="--")
+ax.plot(ma_scoped, label="Scoped Post-600", color="blue", linewidth=2)
+ax.plot(ma_atp, label="Scoped + ATP Context", color="green", linewidth=2)
 for pt in drift_points:
-    ax.axvline(x=pt, color='red', linestyle=':', alpha=0.5)
-ax.set_title('Adaptation Speed: Moving Average Error')
-ax.set_ylabel(f'MAE (Window={window})')
+    ax.axvline(x=pt, color="red", linestyle=":", alpha=0.5)
+ax.set_title("Adaptation Speed: Moving Average Error")
+ax.set_ylabel(f"MAE (Window={window})")
 ax.legend()
 ax.grid(True, alpha=0.3)
 
 # Phase labels
 ylim = ax.get_ylim()
-ax.text(167, ylim[1]*0.9, 'Linear', ha='center', fontsize=9, color='gray')
-ax.text(500, ylim[1]*0.9, 'Quadratic', ha='center', fontsize=9, color='gray')
-ax.text(833, ylim[1]*0.9, 'Sinusoidal', ha='center', fontsize=9, color='gray')
+ax.text(167, ylim[1] * 0.9, "Linear", ha="center", fontsize=9, color="gray")
+ax.text(500, ylim[1] * 0.9, "Quadratic", ha="center", fontsize=9, color="gray")
+ax.text(833, ylim[1] * 0.9, "Sinusoidal", ha="center", fontsize=9, color="gray")
 
 # --- Plot 2: Agent Selection Heatmap ---
 ax = axes[0, 1]
 for label_name, result, color in [
-    ('Cold', result_cold, 'gray'),
-    ('Scoped', result_scoped, 'blue'),
-    ('ATP', result_scoped_atp, 'green')
+    ("Cold", result_cold, "gray"),
+    ("Scoped", result_scoped, "blue"),
+    ("ATP", result_scoped_atp, "green"),
 ]:
-    sel_counts = np.bincount(result['selections'], minlength=5)
-    ax.bar(np.arange(5) + {'Cold': -0.25, 'Scoped': 0, 'ATP': 0.25}[label_name],
-           sel_counts / sel_counts.sum() * 100,
-           width=0.25, label=label_name, color=color, alpha=0.7)
-ax.set_xlabel('Agent Index')
-ax.set_ylabel('Selection %')
-ax.set_title('Agent Utilization: Specialization vs Monopoly')
+    sel_counts = np.bincount(result["selections"], minlength=5)
+    ax.bar(
+        np.arange(5) + {"Cold": -0.25, "Scoped": 0, "ATP": 0.25}[label_name],
+        sel_counts / sel_counts.sum() * 100,
+        width=0.25,
+        label=label_name,
+        color=color,
+        alpha=0.7,
+    )
+ax.set_xlabel("Agent Index")
+ax.set_ylabel("Selection %")
+ax.set_title("Agent Utilization: Specialization vs Monopoly")
 ax.set_xticks(range(5))
-ax.set_xticklabels(['Linear\n(Scope 0)', 'Quadratic\n(Scope 1)',
-                     'Sinusoidal\n(Scope 2)', 'Mixed\n(Scope 3)',
-                     'Noise-Robust\n(Scope 4)'])
+ax.set_xticklabels(
+    [
+        "Linear\n(Scope 0)",
+        "Quadratic\n(Scope 1)",
+        "Sinusoidal\n(Scope 2)",
+        "Mixed\n(Scope 3)",
+        "Noise-Robust\n(Scope 4)",
+    ]
+)
 ax.legend()
-ax.grid(True, alpha=0.3, axis='y')
+ax.grid(True, alpha=0.3, axis="y")
 
 # --- Plot 3: Sawtooth / Oscillation Comparison ---
 ax = axes[1, 0]
 x_pos = np.arange(5)
 width = 0.25
-ax.bar(x_pos - width, result_cold['sign_changes'], width, label='Cold Start', color='gray', alpha=0.7)
-ax.bar(x_pos, result_scoped['sign_changes'], width, label='Scoped Post-600', color='blue', alpha=0.7)
-ax.bar(x_pos + width, result_scoped_atp['sign_changes'], width, label='Scoped + ATP', color='green', alpha=0.7)
-ax.set_xlabel('Agent Index')
-ax.set_ylabel('Sign Changes (Oscillation)')
-ax.set_title('Sawtooth Pattern: Oscillation per Agent')
+ax.bar(
+    x_pos - width,
+    result_cold["sign_changes"],
+    width,
+    label="Cold Start",
+    color="gray",
+    alpha=0.7,
+)
+ax.bar(
+    x_pos,
+    result_scoped["sign_changes"],
+    width,
+    label="Scoped Post-600",
+    color="blue",
+    alpha=0.7,
+)
+ax.bar(
+    x_pos + width,
+    result_scoped_atp["sign_changes"],
+    width,
+    label="Scoped + ATP",
+    color="green",
+    alpha=0.7,
+)
+ax.set_xlabel("Agent Index")
+ax.set_ylabel("Sign Changes (Oscillation)")
+ax.set_title("Sawtooth Pattern: Oscillation per Agent")
 ax.set_xticks(range(5))
 ax.legend()
-ax.grid(True, alpha=0.3, axis='y')
+ax.grid(True, alpha=0.3, axis="y")
 
 # --- Plot 4: Watchdog Alert Timeline ---
 ax = axes[1, 1]
 for label_name, wd, color in [
-    ('Cold', watchdog_cold, 'gray'),
-    ('Scoped', watchdog_scoped, 'blue'),
-    ('ATP', watchdog_atp, 'green')
+    ("Cold", watchdog_cold, "gray"),
+    ("Scoped", watchdog_scoped, "blue"),
+    ("ATP", watchdog_atp, "green"),
 ]:
-    ax.plot(wd['oscillation_rates'], label=f'{label_name} Osc. Rate', color=color, alpha=0.7)
-ax.axhline(y=0.4, color='red', linestyle='--', alpha=0.5, label='Alert Threshold')
+    ax.plot(
+        wd["oscillation_rates"], label=f"{label_name} Osc. Rate", color=color, alpha=0.7
+    )
+ax.axhline(y=0.4, color="red", linestyle="--", alpha=0.5, label="Alert Threshold")
 for pt in drift_points:
-    ax.axvline(x=pt-window, color='red', linestyle=':', alpha=0.3)
-ax.set_title('Watchdog/Sentinel: Oscillation Rate Over Time')
-ax.set_xlabel('Step (offset by window)')
-ax.set_ylabel('Sign-Change Rate (per window)')
+    ax.axvline(x=pt - window, color="red", linestyle=":", alpha=0.3)
+ax.set_title("Watchdog/Sentinel: Oscillation Rate Over Time")
+ax.set_xlabel("Step (offset by window)")
+ax.set_ylabel("Sign-Change Rate (per window)")
 ax.legend()
 ax.grid(True, alpha=0.3)
 
 # --- Plot 5: Weight Evolution (Cold vs Scoped) ---
 ax = axes[2, 0]
 for a in range(5):
-    ax.plot(result_cold['weights_history'][:, a], alpha=0.4, linestyle='--')
-ax.set_title('Cold Start: Weight Evolution (Winner-Take-All)')
-ax.set_xlabel('Step')
-ax.set_ylabel('Hebbian Weight')
+    ax.plot(result_cold["weights_history"][:, a], alpha=0.4, linestyle="--")
+ax.set_title("Cold Start: Weight Evolution (Winner-Take-All)")
+ax.set_xlabel("Step")
+ax.set_ylabel("Hebbian Weight")
 for pt in drift_points:
-    ax.axvline(x=pt, color='red', linestyle=':', alpha=0.5)
+    ax.axvline(x=pt, color="red", linestyle=":", alpha=0.5)
 ax.grid(True, alpha=0.3)
 
 ax = axes[2, 1]
-colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
-scope_names = ['Linear', 'Quadratic', 'Sinusoidal', 'Mixed', 'Noise-Robust']
+colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"]
+scope_names = ["Linear", "Quadratic", "Sinusoidal", "Mixed", "Noise-Robust"]
 for a in range(5):
-    ax.plot(result_scoped['weights_history'][:, a],
-            color=colors[a], alpha=0.7, label=f'Agent {a} ({scope_names[a]})')
-ax.set_title('Scoped Post-600: Weight Evolution (Specialization)')
-ax.set_xlabel('Step')
-ax.set_ylabel('Hebbian Weight')
+    ax.plot(
+        result_scoped["weights_history"][:, a],
+        color=colors[a],
+        alpha=0.7,
+        label=f"Agent {a} ({scope_names[a]})",
+    )
+ax.set_title("Scoped Post-600: Weight Evolution (Specialization)")
+ax.set_xlabel("Step")
+ax.set_ylabel("Hebbian Weight")
 for pt in drift_points:
-    ax.axvline(x=pt, color='red', linestyle=':', alpha=0.5)
+    ax.axvline(x=pt, color="red", linestyle=":", alpha=0.5)
 ax.legend(fontsize=8)
 ax.grid(True, alpha=0.3)
 
@@ -502,7 +579,7 @@ plt.tight_layout()
 out_dir = Path(__file__).resolve().parent / "test_artifacts"
 out_dir.mkdir(parents=True, exist_ok=True)
 out_path = out_dir / "hebbian_scoped_vs_coldstart.png"
-plt.savefig(out_path, dpi=150, bbox_inches='tight')
+plt.savefig(out_path, dpi=150, bbox_inches="tight")
 plt.close()
 print(f"\nVisualization saved: {out_path}")
 

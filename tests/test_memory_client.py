@@ -3,7 +3,7 @@
 import sys
 import io
 import json
-import urllib.error
+from urllib.error import HTTPError, URLError
 
 sys.modules.pop("integration.memory_client", None)
 
@@ -117,9 +117,12 @@ class TestMakeRequest:
     def test_http_error_with_json_body(self, client, monkeypatch):
         def fake_urlopen(req, timeout=None):
             body = json.dumps({"success": False, "error": "bad request"}).encode()
-            raise urllib.error.HTTPError(
-                url="http://x", code=400, msg="Bad Request",
-                hdrs=None, fp=io.BytesIO(body),
+            raise HTTPError(
+                url="http://x",
+                code=400,
+                msg="Bad Request",
+                hdrs=None,
+                fp=io.BytesIO(body),
             )
 
         monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
@@ -130,9 +133,12 @@ class TestMakeRequest:
 
     def test_http_error_without_json_body(self, client, monkeypatch):
         def fake_urlopen(req, timeout=None):
-            raise urllib.error.HTTPError(
-                url="http://x", code=500, msg="Server Error",
-                hdrs=None, fp=io.BytesIO(b"not json"),
+            raise HTTPError(
+                url="http://x",
+                code=500,
+                msg="Server Error",
+                hdrs=None,
+                fp=io.BytesIO(b"not json"),
             )
 
         monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
@@ -142,7 +148,7 @@ class TestMakeRequest:
 
     def test_url_error(self, client, monkeypatch):
         def fake_urlopen(req, timeout=None):
-            raise urllib.error.URLError("Connection refused")
+            raise URLError("Connection refused")
 
         monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
         resp = client._make_request(MCPOperation.LIST_NOTES)

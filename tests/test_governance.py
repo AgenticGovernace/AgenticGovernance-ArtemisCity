@@ -1,4 +1,5 @@
 """Integration tests for governance and rollback functionality."""
+
 import sys
 from pathlib import Path
 
@@ -8,7 +9,9 @@ if _src not in sys.path:
 else:
     sys.path.remove(_src)
     sys.path.insert(0, _src)
-for _key in [k for k in sys.modules if k == "governance" or k.startswith("governance.")]:
+for _key in [
+    k for k in sys.modules if k == "governance" or k.startswith("governance.")
+]:
     del sys.modules[_key]
 
 import pytest
@@ -22,10 +25,10 @@ from governance.self_update_governance import (
 )
 from governance.rollback import RollbackManager, Checkpoint
 
-
 # ---------------------------------------------------------------------------
 # SelfUpdateGovernor tests
 # ---------------------------------------------------------------------------
+
 
 class TestSelfUpdateGovernor:
     """Tests for SelfUpdateGovernor class."""
@@ -79,7 +82,10 @@ class TestSelfUpdateGovernor:
         )
         decision = gov.evaluate_proposal_sync("agent_A", change)
         assert decision.status == "rejected"
-        assert "lint" in decision.reason.lower() or "description" in decision.reason.lower()
+        assert (
+            "lint" in decision.reason.lower()
+            or "description" in decision.reason.lower()
+        )
 
     def test_lint_catches_missing_target_component(self):
         """Lint rejects proposals with empty target_component."""
@@ -107,7 +113,10 @@ class TestSelfUpdateGovernor:
         )
         decision = gov.evaluate_proposal_sync("agent_A", change)
         assert decision.status == "rejected"
-        assert "suspicious" in decision.reason.lower() or "admin" in decision.reason.lower()
+        assert (
+            "suspicious" in decision.reason.lower()
+            or "admin" in decision.reason.lower()
+        )
 
     def test_auto_approve_with_high_trust(self):
         """Proposals from high-trust agents auto-approve (score > 0.85)."""
@@ -187,7 +196,9 @@ class TestSelfUpdateGovernor:
     async def test_evaluate_proposal_async_pipeline(self):
         """Async pipeline evaluates and logs proposal decisions."""
         gov = SelfUpdateGovernor(log_dir="logs/gov")
-        gov.registry = type("Registry", (), {"scores": {"agent_A": _MockAgentScore(0.90)}})()
+        gov.registry = type(
+            "Registry", (), {"scores": {"agent_A": _MockAgentScore(0.90)}}
+        )()
         change = WorkflowChange(
             change_type="config_update",
             target_component="kernel",
@@ -209,8 +220,12 @@ class TestSelfUpdateGovernor:
     def test_determine_approval_level_low_trust(self):
         """Scores <= 0.70 require human review."""
         gov = SelfUpdateGovernor(log_dir="logs/gov")
-        gov.registry = type("Registry", (), {"scores": {"agent_low": _MockAgentScore(0.70)}})()
-        assert gov._determine_approval_level("agent_low") == ApprovalLevel.HUMAN_REQUIRED
+        gov.registry = type(
+            "Registry", (), {"scores": {"agent_low": _MockAgentScore(0.70)}}
+        )()
+        assert (
+            gov._determine_approval_level("agent_low") == ApprovalLevel.HUMAN_REQUIRED
+        )
 
     def test_make_decision_human_required(self, governor):
         """Decision engine escalates when trust tier is HUMAN_REQUIRED."""
@@ -250,7 +265,9 @@ class TestSelfUpdateGovernor:
         decision = ApprovalDecision(
             status="approved",
             reason="ok",
-            sandbox_results=SandboxTestResults(total_tests=20, passed=18, failed=1, errors=1),
+            sandbox_results=SandboxTestResults(
+                total_tests=20, passed=18, failed=1, errors=1
+            ),
             approval_level=ApprovalLevel.AUTO_APPROVE,
         )
         data = decision.to_dict()
@@ -304,6 +321,7 @@ class TestApprovalLevel:
 # ---------------------------------------------------------------------------
 # RollbackManager tests
 # ---------------------------------------------------------------------------
+
 
 class TestRollbackManager:
     """Tests for RollbackManager class."""
@@ -407,7 +425,9 @@ class TestRollbackManager:
     def test_diff_checkpoints(self, manager):
         """diff_checkpoints shows differences between two states."""
         id_a = manager.create_checkpoint("v1", state={"agent_registry": {"a": 1}})
-        id_b = manager.create_checkpoint("v2", state={"agent_registry": {"a": 2, "b": 3}})
+        id_b = manager.create_checkpoint(
+            "v2", state={"agent_registry": {"a": 2, "b": 3}}
+        )
         diff = manager.diff_checkpoints(id_a, id_b)
         assert "differences" in diff
         assert "agent_registry" in diff["differences"]
@@ -519,6 +539,7 @@ class TestRollbackManager:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 class _MockAgentScore:
     """Minimal mock for AgentScore from agent_registry."""

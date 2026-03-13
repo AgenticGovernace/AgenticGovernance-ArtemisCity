@@ -1,7 +1,6 @@
 """Tests for the Artemis exception hierarchy (src/exceptions.py)."""
 
 import sys
-import importlib
 
 sys.modules.pop("exceptions", None)
 from exceptions import (
@@ -177,7 +176,9 @@ class TestMemoryExceptions:
         assert err.path is None
 
     def test_vector_store_error(self):
-        err = VectorStoreError("embed fail", operation="upsert", query="long query " * 20)
+        err = VectorStoreError(
+            "embed fail", operation="upsert", query="long query " * 20
+        )
         assert err.operation == "upsert"
         assert err.query == "long query " * 20
         # Details should truncate query to 100 chars
@@ -236,7 +237,9 @@ class TestGovernanceExceptions:
 # ---------------------------------------------------------------------------
 class TestConfigurationError:
     def test_config_error(self):
-        err = ConfigurationError("bad config", config_key="db_host", expected_type="str")
+        err = ConfigurationError(
+            "bad config", config_key="db_host", expected_type="str"
+        )
         assert err.config_key == "db_host"
         assert err.expected_type == "str"
         assert err.error_code == "CONFIG_001"

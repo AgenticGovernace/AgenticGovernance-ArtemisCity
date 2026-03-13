@@ -97,7 +97,9 @@ class TestSemanticTagger:
         assert tagger.tags["overseer"].category == "agent"
 
     def test_add_citation(self, tagger):
-        c = tagger.add_citation("/src/main.py", "file", context="in main", line_number=10)
+        c = tagger.add_citation(
+            "/src/main.py", "file", context="in main", line_number=10
+        )
         assert isinstance(c, Citation)
         assert len(tagger.citations) == 1
         assert c.target == "/src/main.py"
