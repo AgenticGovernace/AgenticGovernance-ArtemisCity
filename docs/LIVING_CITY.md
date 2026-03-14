@@ -64,8 +64,8 @@ for letter in mail:
     print(f"Preview: {letter.get_summary()}")
 ```
 ### Mail Features
-- **Tracking IDs**: Every piece of mail gets a unique ID (e.g., `ART-12345` )
-- **Priority Levels**: `urgent` , `normal` , `low` 
+- **Tracking IDs**: Every piece of mail gets a unique ID (e.g., `ART-12345`  )
+- **Priority Levels**: `urgent`  , `normal`  , `low`  
 - **Automatic Tagging**: Mail tagged with sender, recipient, and type
 - **Delivery Confirmation**: Real-time status updates
 - **Archive Storage**: All mail stored in `Postal/Agents/{recipient}/` 
