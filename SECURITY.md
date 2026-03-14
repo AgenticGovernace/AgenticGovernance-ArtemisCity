@@ -4,17 +4,16 @@
 This document outlines security best practices for Artemis City development and deployment.
 
 ## Table of Contents
-1. [﻿Environment Variables](#environment-variables) 
-2. [﻿API Key Management](#api-key-management) 
-3. [﻿Version Control](#version-control) 
-4. [﻿Development Workflow](#development-workflow) 
-5. [﻿Production Deployment](#production-deployment) 
+1. [﻿Environment Variables](#environment-variables)  
+2. [﻿API Key Management](#api-key-management)  
+3. [﻿Version Control](#version-control)  
+4. [﻿Development Workflow](#development-workflow)  
+5. [﻿Production Deployment](#production-deployment)  
 6. [﻿Incident Response](#incident-response) 
 ## 🔑 Environment Variables
 ### Setup
 1. **Copy the template:**# Root directory
 cp .env.example .env
-
 # MCP Server
 cd src/mcp-server
 cp .env.example .env
@@ -25,6 +24,7 @@ openssl rand -hex 32
 python -c "import secrets; print(secrets.token_hex(32))"
 3. **Set appropriate permissions:**chmod 600 .env
 chmod 600 src/mcp-server/.env
+
 ### Best Practices
 - **DO** use `.env`  files for local development
 - **DO** use different keys for development and production
@@ -65,7 +65,7 @@ security add-generic-password -a artemis -s mcp_api_key -w "your-key-here"
 security find-generic-password -a artemis -s mcp_api_key -w
 ```
 ### Key Rotation
-1. Generate new key: `openssl rand -hex 32` 
+1. Generate new key: `openssl rand -hex 32`  
 2. Update `.env`  files with new key
 3. Restart services
 4. Update any external systems using the old key
@@ -75,11 +75,11 @@ security find-generic-password -a artemis -s mcp_api_key -w
 ### Protected Patterns
 The `.gitignore` file protects:
 
-- **Environment files**: `.env` , `.env.*` , `.envrc` 
-- **API keys**: `*.key` , `*.pem` , `secrets/` 
-- **Credentials**: `credentials.json` , `auth.json` 
-- **SSH keys**: `id_rsa` , `id_ed25519` , etc.
-- **Cloud config**: `.aws/` , `.gcloud/` , `.azure/` 
+- **Environment files**: `.env`  , `.env.*`  , `.envrc`  
+- **API keys**: `*.key`  , `*.pem`  , `secrets/`  
+- **Credentials**: `credentials.json`  , `auth.json`  
+- **SSH keys**: `id_rsa`  , `id_ed25519`  , etc.
+- **Cloud config**: `.aws/`  , `.gcloud/`  , `.azure/` 
 ### Pre-commit Checks
 Create `.git/hooks/pre-commit`:
 
@@ -121,26 +121,25 @@ git push --force
 ## Development Workflow
 ### Secure Development Practices
 1. **Use environment variables:**import os
-
-#  Good
+# Good
 api_key = os.environ.get('MCP_API_KEY')
 
-#  Bad
+# Bad
 api_key = "abc123"
 2. **Validate input:**# Check required environment variables on startup
 required_vars = ['MCP_API_KEY', 'OBSIDIAN_API_KEY']
 missing = [var for var in required_vars if not os.environ.get(var)]
 if missing:
-    raise EnvironmentError(f"Missing required environment variables: {missing}")
-3. **Never log secrets:**#  Good
+ raise EnvironmentError(f"Missing required environment variables: {missing}")
+3. **Never log secrets:**# Good
 logger.info("API key configured")
 
-#  Bad
+# Bad
 logger.info(f"API key: {api_key}")
 4. **Use secure connections:**
-    - Always use HTTPS/TLS in production
-    - Validate SSL certificates
-    - Don't disable certificate verification
+ - Always use HTTPS/TLS in production
+ - Validate SSL certificates
+ - Don't disable certificate verification
 
 ### Code Review Checklist
 - [ ] No hardcoded secrets
@@ -199,19 +198,18 @@ app.use('/api/', limiter);
 
 1. **Rotate compromised keys immediately**# Generate new key
 openssl rand -hex 32
-
 # Update .env
 # Restart services
-2. **Revoke old keys**
+1. **Revoke old keys**
     - Update all systems using the key
     - Remove from any external services
 
-3. **Monitor for unauthorized access**
+2. **Monitor for unauthorized access**
     - Check logs for suspicious activity
     - Look for unexpected API calls
     - Review access patterns
 
-4. **Document the incident**
+3. **Document the incident**
     - What was exposed?
     - How was it exposed?
     - What actions were taken?
@@ -225,8 +223,8 @@ openssl rand -hex 32
 - [ ] Regular security audits are scheduled
 - [ ] Key rotation schedule is documented
 ## Additional Resources
-- [﻿OWASP Top 10](https://owasp.org/www-project-top-ten/) 
-- [﻿GitHub Secret Scanning](https://docs.github.com/en/code-security/secret-scanning) 
+- [﻿OWASP Top 10](https://owasp.org/www-project-top-ten/)  
+- [﻿GitHub Secret Scanning](https://docs.github.com/en/code-security/secret-scanning)  
 - [﻿Git-secrets](https://github.com/awslabs/git-secrets)  - Prevents committing secrets
 - [﻿Talisman](https://github.com/thoughtworks/talisman)  - Git hooks for secret detection
 ## 📞 Contact

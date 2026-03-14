@@ -14,7 +14,6 @@ The Memory Bus provides unified, synchronized access to heterogeneous storage ba
 - Ensures write-through propagation
 - Manages backpressure and queuing
 **Storage Backends:**
-
 1. **Obsidian Vault (Primary)**
     - Authoritative store for explicit knowledge
     - YAML frontmatter for metadata (weights, timestamps, embeddings)
@@ -106,13 +105,11 @@ Reads use a cascading approach to balance latency and accuracy:
 - Latency SLA: <50ms (p95)
 - Return: Exact document with parsed metadata
 **Level 2: Keyword Match (Obsidian Metadata)**
-
 - Full-text search across Obsidian vault
 - Condition: Title/tag-based search, document not found
 - Latency SLA: <150ms (p95)
 - Return: Ranked results by relevance metadata
 **Level 3: Semantic Match (Vector Store)**
-
 - Vector similarity search
 - Condition: No exact/keyword matches, semantic required
 - Latency SLA: <300ms (p95)
@@ -185,13 +182,11 @@ Conflicts arise when simultaneous writes target the same document or related sem
 - Discarded writes logged for audit
 - Suitable for non-critical metadata
 **2. Abort**
-
 - Both writes rejected
 - Caller receives conflict error
 - Caller must retry with explicit merge
 - Suitable for high-consistency requirements
 **3. Merge**
-
 - Attempt automatic merge of content
 - Frontmatter metadata merged (union of keys)
 - Content diffs computed and merged (trivial 3-way)
@@ -349,7 +344,6 @@ All vector search supports metadata filtering:
 - Max retries: 3
 - Return error if all attempts fail
 **Read Timeout:**
-
 - Escalate to next read level if available
 - Return partial results if semantic search times out
 - Log timeout for monitoring
@@ -361,7 +355,6 @@ All vector search supports metadata filtering:
 - Sync when Obsidian recovers
 - Alert monitoring system
 **Vector Store Unavailable:**
-
 - Disable semantic search
 - Degrade to keyword search
 - Continue write-through (async propagation queued)
@@ -389,7 +382,6 @@ If write throughput exceeds storage capacity:
 - TTL: 5 minutes for keyword/semantic results
 - Metrics: Cache hit ratio by query type
 **Write Deduplication:**
-
 - Detect duplicate writes within 1-second window
 - Return cached response
 - Prevent duplicate vector embeddings

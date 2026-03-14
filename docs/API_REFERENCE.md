@@ -8,7 +8,6 @@ Artemis City exposes three primary API surfaces:
 2. **ATP (Artemis Transmission Protocol)**: Structured inter-agent messaging
 3. **System APIs**: Registry, Memory Bus, Governance (admin-only)
 All APIs use HTTP/JSON for REST endpoints and support gRPC where noted.
-
 ## Agent Transmission Protocol (ATP)
 ATP is the structured message format for agent-to-agent communication and kernel-to-agent direction.
 
@@ -35,33 +34,29 @@ ATP is the structured message format for agent-to-agent communication and kernel
 ### ActionType Values
 **Query Operations:**
 
-- `query` : Read/lookup operation
-- `search` : Semantic or keyword search
-- `list` : Enumerate items
-- `get_status` : Check current state
+- `query`  : Read/lookup operation
+- `search`  : Semantic or keyword search
+- `list`  : Enumerate items
+- `get_status`  : Check current state
 **Modification Operations:**
-
-- `create` : Insert new record
-- `update` : Modify existing record
-- `delete` : Remove record
-- `upsert` : Create or update
+- `create`  : Insert new record
+- `update`  : Modify existing record
+- `delete`  : Remove record
+- `upsert`  : Create or update
 **Execution Operations:**
-
-- `execute` : Run task/agent
-- `schedule` : Queue for later execution
-- `cancel` : Abort running task
-- `retry` : Re-execute failed task
+- `execute`  : Run task/agent
+- `schedule`  : Queue for later execution
+- `cancel`  : Abort running task
+- `retry`  : Re-execute failed task
 **Management Operations:**
-
-- `register` : Register agent or capability
-- `revoke` : Remove registration
-- `approve` : Approve pending action
-- `reject` : Deny pending action
+- `register`  : Register agent or capability
+- `revoke`  : Remove registration
+- `approve`  : Approve pending action
+- `reject`  : Deny pending action
 **Governance Operations:**
-
-- `propose_update` : Submit self-update
-- `rollback` : Revert to checkpoint
-- `override` : Bypass policy check
+- `propose_update`  : Submit self-update
+- `rollback`  : Revert to checkpoint
+- `override`  : Bypass policy check
 ### ATP Message Examples
 #### Example 1: Query Task from Memory Bus
 ```
@@ -212,13 +207,12 @@ ATP is the structured message format for agent-to-agent communication and kernel
 
 **Query Parameters:**
 
-- `status` : Filter by status
-- `agent_id` : Filter by assigned agent
-- `created_after` : ISO 8601 timestamp
-- `limit` : Result limit (default: 100, max: 1000)
-- `offset` : Pagination offset
+- `status`  : Filter by status
+- `agent_id`  : Filter by assigned agent
+- `created_after`  : ISO 8601 timestamp
+- `limit`  : Result limit (default: 100, max: 1000)
+- `offset`  : Pagination offset
 **Response:**
-
 ```json
 {
   "tasks": [
@@ -454,12 +448,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
 
 **Query Parameters:**
 
-- `capability` : Filter by capability
-- `status` : Filter by status
-- `trust_tier` : Filter by tier
-- `limit` : Result limit
+- `capability`  : Filter by capability
+- `status`  : Filter by status
+- `trust_tier`  : Filter by tier
+- `limit`  : Result limit
 **Response:**
-
 ```json
 {
   "agents": [
@@ -750,9 +743,9 @@ All endpoints subject to rate limiting:
 - Default: 100 requests/minute per API key
 - Burst: 200 requests for 10 seconds
 - Headers:
-    - `X-RateLimit-Limit` : Requests per minute
-    - `X-RateLimit-Remaining` : Remaining requests
-    - `X-RateLimit-Reset` : Unix timestamp of reset
+    - `X-RateLimit-Limit`  : Requests per minute
+    - `X-RateLimit-Remaining`  : Remaining requests
+    - `X-RateLimit-Reset`  : Unix timestamp of reset
 
 ## Authentication
 Use Bearer token in Authorization header:

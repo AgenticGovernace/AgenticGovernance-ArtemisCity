@@ -16,7 +16,7 @@ Interactive browser prototypes and CLI walkthrough for the Agentic platform. The
 ### ATP Prototype (`atp_prototype.html`)
 Four interactive tabs:
 
-1. **Message Builder** - compose ATP headers (`#Mode` , `#Priority` , `#ActionType` , `#Context` , `#TargetZone` ) with real-time validation
+1. **Message Builder** - compose ATP headers (`#Mode`  , `#Priority`  , `#ActionType`  , `#Context`  , `#TargetZone`  ) with real-time validation
 2. **Agent Routing** - enter context text and watch keyword matching route to Artemis, Planner, Pack Rat, or Codex Daemon
 3. **Trust Decay** - area chart showing trust score over 30 days across 4 scenarios (natural decay, positive reinforcement, violation, recovery)
 4. **Full Workflow** - animated 5-step walk-through of the ATP message life-cycle from composition through trust update
