@@ -139,7 +139,7 @@ class ATPParser:
         """
         # Mode
         if "mode" in headers:
-            message.mode = self._parse_enum(headers["mode"], ATPMode, ATPMode.UNKNOWN)
+            message.mode = self._parse_enum(headers["mode"], ATPMode, ATPMode)
 
         # Context
         if "context" in headers:

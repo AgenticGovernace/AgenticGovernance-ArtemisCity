@@ -14,7 +14,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from Concept_Demos.src.agents.atp.atp_parser import ATPParser
+from src.agents.atp.atp_parser import ATPParser
 
 
 def _configure_import_path() -> None:
