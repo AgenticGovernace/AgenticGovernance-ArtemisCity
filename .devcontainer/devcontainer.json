@@ -1,0 +1,4 @@
+{
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "features": {"ghcr.io/devcontainers/features/conda:1": {"ghcr.io/devcontainer-config/features/dot-config:4": {"ghcr.io/devcontainers-extra/features/homebrew-package:1": {"ghcr.io/devcontainers-extra/features/poetry:2": {}}}}}
+}
