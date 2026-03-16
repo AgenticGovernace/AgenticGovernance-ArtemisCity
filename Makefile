@@ -148,7 +148,7 @@ run: ## Run the CLI interactively
 demo: ## Run all demos
 	@echo "Running demos..."
 	@echo "\n--- Artemis Features Demo ---"
-	python demo_artemis.py
+	python Concept_Demos/demo_artemis.py
 	@echo "\n--- Memory Integration Demo ---"
 	python demo_memory_integration.py
 	@echo "\n--- City Postal Demo ---"

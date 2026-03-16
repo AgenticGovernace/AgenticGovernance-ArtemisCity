@@ -1,0 +1,33 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Force LF line endings for these files
+*.sh text eol=lf
+*.bash text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+
+# Python
+*.py text diff=python eol=lf
+*.pyx text diff=python
+*.pxd text diff=python
+*.ipynb text eol=lf
+
+# Node/TypeScript
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.svg text eol=lf
+
+# Lock files should not show noisy diffs
+package-lock.json -diff
+yarn.lock -diff
+Pipfile.lock -diff
+uv.lock -diff
+*.lock -diff linguist-generated

@@ -1,11 +1,10 @@
-# ============================================
-#  ARTEMIS CITY - .gitignore
-# ============================================
-
-# --- Environment & Secrets ---
+    # --- Environment & Secrets ---
 .env
 .env.local
 .env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
 .env.production
 .env.staging
 *.pem
@@ -18,8 +17,7 @@ credentials.json
 auth.json
 secrets.yaml
 secrets.yml
-
-# --- Python ---
+    # --- Python ---
 __pycache__/
 *.py[cod]
 *$py.class
@@ -33,47 +31,104 @@ build/
 .venv/
 venv/
 env/
-.Python
-
-# --- Node.js ---
+ENV/
+env.bak/
+venv.bak/
+.ipynb_checkpoints/
+.mypy_cache/
+.pyre/
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.sqlite3
+celerybeat-schedule
+celerybeat.pid
+ # --- Node.js & Web ---
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.npm
+pnpm-debug.log*
+.npm/
 .yarn-integrity
-
-# --- Build Artifacts ---
-web/api/dist/
-web/frontend/dist/
 *.js.map
 *.d.ts.map
-
-# --- IDE & Editor ---
+web/api/dist/
+web/frontend/dist/
+dist-ssr/
+.eslintcache
+  # --- IDEs & Editors ---
 .vscode/
 .idea/
+.fleet/
 *.swp
 *.swo
-*~
-.DS_Store
+*.swn
+*.sln
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+*.user
+*.userosscache
 Thumbs.db
-
-# --- Testing & Coverage ---
-.coverage
-htmlcov/
-.pytest_cache/
-.tox/
-.nox/
-
-# --- OS Files ---
+.cache/
+ # --- OS Files ---
 .DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
 *.orig
 *.bak
-
-# --- Docker ---
+ # --- Docker ---
 docker-compose.override.yml
-
-# --- Misc ---
+ # --- Misc & Tools ---
 *.log
 *.tmp
-.cache/
+.output.txt
+*.db
+Concept_Demos/logs/run_20260223_030438.md
+Concept_Demos/logs/run_20260223_030141.md
+/Concept_Demos/.vercel
+.Rproj.user
+*.Rproj
+/Concept_Demos/logs
+coverage.md
+.Rhistory
+.Rprofile
+renv
+renv.lock
+/tests/logs
+/tests/test_artifacts
+/tests/test_vault
+/unittest
+tests/pytest-of-artemis/pytest-current
+tests/pytest-of-artemis/pytest-0/test_orchestrator_updates_weigcurrent
+tests/pytest-of-artemis/pytest-0/test_orchestrator_creates_hebbcurrent
+/tests/integration/logs
+tests/output.md
+.RData
+.jupyter/desktop-workspaces/default-37a8.jupyterlab-workspace
+logs/run_20260302_034559.md
+logs/run_20260301_225905.md
+/.sadbox_city
+*.code-workspace
+Concept_Demos/data/Agent Inputs/Example Research Task.md
+Concept_Demos/data/Agent Outputs/Research_Agent_Report_20260313030453_5.md
+Concept_Demos/data/Agent Outputs/Summarizer_Agent_Report_direct_summary_T001_5.md
+*.ipynb
+Concept_Demos/src/agents/copilot.md
+d
+/logs
+/web/api/db/Agent Outputs
+/web/api/db
+d
+/.claude

@@ -10,9 +10,9 @@ import time
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from .context_loader import ContextEntry, ContextLoader
-from .memory_client import MCPResponse, MemoryClient
-from .trust_interface import get_trust_interface
+import integration.context_loader as context_loader
+import integration.memory_client
+from integration.trust_interface import get_trust_interface
 
 
 class MailPacket:
@@ -30,8 +30,13 @@ class MailPacket:
     """
 
     def __init__(
-        self, sender: str, recipient: str, subject: str, content: str, priority: str = "normal"
-    ):
+        self,
+        sender: str,
+        recipient: str,
+        subject: str,
+        content: str,
+        priority: str = "normal",
+    ) -> None:
         """Initialize a mail packet."""
         self.sender = sender
         self.recipient = recipient
@@ -55,18 +60,10 @@ class MailPacket:
 
 
 class PostOffice:
-    """Artemis City Post Office - Central mail routing hub.
-
-    The Post Office handles all mail delivery between agents and the
-    City Archives (Obsidian vault), maintaining postal records and
-    ensuring secure delivery through Pack Rat protocols.
-    """
-
     def __init__(self):
-        """Initialize the Post Office."""
-        self.memory_client = MemoryClient()
+        self.memory_client = integration.memory_client.MemoryClient()
         self.trust_office = get_trust_interface()
-        self.context_loader = ContextLoader(self.memory_client)
+        self.context_loader = context_loader.ContextLoader(self.memory_client)
         self.delivery_log: List[Dict] = []
 
         print("\n Artemis City Post Office - OPEN")
@@ -77,7 +74,12 @@ class PostOffice:
         print("=" * 60)
 
     def send_mail(
-        self, sender: str, recipient: str, subject: str, content: str, priority: str = "normal"
+        self,
+        sender: str,
+        recipient: str,
+        subject: str,
+        content: str,
+        priority: str = "normal",
     ) -> MailPacket:
         """Send mail through the postal system.
 
@@ -99,7 +101,7 @@ class PostOffice:
         print(f"   Subject: {subject}")
 
         # Check sender clearance
-        if not self.trust_office.can_perform_operation(sender, 'write'):
+        if not self.trust_office.can_perform_operation(sender, "write"):
             packet.delivery_status = "rejected - insufficient clearance"
             print(f"    REJECTED: {sender} lacks postal clearance")
             self._log_delivery(packet, success=False, reason="No clearance")
@@ -131,7 +133,7 @@ class PostOffice:
 
             # Tag the mail
             self.memory_client.manage_tags(
-                vault_path, 'add', [sender, recipient, 'postal-mail', priority]
+                vault_path, "add", [sender, recipient, "postal-mail", priority]
             )
         else:
             packet.delivery_status = "failed"
@@ -140,23 +142,6 @@ class PostOffice:
 
         self._log_delivery(packet, response.success)
         return packet
-
-    def check_mailbox(self, agent_name: str, unread_only: bool = True) -> List[ContextEntry]:
-        """Check an agent's mailbox in the City Archives.
-
-        Args:
-            agent_name: Agent whose mailbox to check
-            unread_only: Whether to show only unread mail
-
-        Returns:
-            List of mail entries
-        """
-        print(f"\n📪 Checking mailbox for: {agent_name}")
-        print(f"   Location: Postal/Agents/{agent_name}/")
-
-        # Search for mail tagged with agent name
-        mail = self.context_loader.search_context(f"#{agent_name} #postal-mail", limit=20)
-
         if mail:
             print(f"   📨 Found {len(mail)} mail item(s)")
             for i, item in enumerate(mail[:5], 1):
@@ -168,7 +153,7 @@ class PostOffice:
 
     def send_to_archives(
         self, sender: str, archive_section: str, title: str, content: str
-    ) -> MCPResponse:
+    ) -> integration.memory_client.MCPResponse:
         """Send a document to the City Archives for permanent storage.
 
         Args:
@@ -186,9 +171,9 @@ class PostOffice:
         print(f"   Title: {title}")
 
         # Check clearance
-        if not self.trust_office.can_perform_operation(sender, 'write'):
+        if not self.trust_office.can_perform_operation(sender, "write"):
             print("    DENIED: Insufficient archival clearance")
-            return MCPResponse(
+            return integration.memory_client.MCPResponse(
                 success=False, error="Insufficient clearance for archival operations"
             )
 
@@ -213,7 +198,7 @@ class PostOffice:
 
     def request_from_archives(
         self, requester: str, query: str, section: Optional[str] = None
-    ) -> List[ContextEntry]:
+    ) -> List[context_loader.ContextEntry]:
         """Request documents from the City Archives.
 
         Args:
@@ -231,7 +216,7 @@ class PostOffice:
             print(f"   Section: {section}")
 
         # Check read clearance
-        if not self.trust_office.can_perform_operation(requester, 'read'):
+        if not self.trust_office.can_perform_operation(requester, "read"):
             print("    DENIED: No archive access clearance")
             return []
 
@@ -266,7 +251,7 @@ class PostOffice:
         print("=" * 60)
 
         total_deliveries = len(self.delivery_log)
-        successful = sum(1 for d in self.delivery_log if d['success'])
+        successful = sum(1 for d in self.delivery_log if d["success"])
         failed = total_deliveries - successful
 
         print(f"   Total Deliveries: {total_deliveries}")
@@ -280,17 +265,17 @@ class PostOffice:
         # Trust report
         print("\n     CITIZEN CLEARANCE STATUS")
         trust_report = self.trust_office.get_trust_report()
-        for level, entities in trust_report['by_level'].items():
+        for level, entities in trust_report["by_level"].items():
             if entities:
                 print(f"   {level.upper()}: {len(entities)} citizen(s)")
 
         print("=" * 60)
 
         return {
-            'total_deliveries': total_deliveries,
-            'successful': successful,
-            'failed': failed,
-            'trust_report': trust_report,
+            "total_deliveries": total_deliveries,
+            "successful": successful,
+            "failed": failed,
+            "trust_report": trust_report,
         }
 
     def _format_mail_note(self, packet: MailPacket) -> str:
@@ -329,19 +314,21 @@ status: {packet.delivery_status}
 *Archives maintained by Artemis City Library*
 """
 
-    def _log_delivery(self, packet: MailPacket, success: bool, reason: Optional[str] = None):
+    def _log_delivery(
+        self, packet: MailPacket, success: bool, reason: Optional[str] = None
+    ):
         """Log a delivery attempt."""
         self.delivery_log.append(
             {
-                'tracking_id': packet.tracking_id,
-                'sender': packet.sender,
-                'recipient': packet.recipient,
-                'subject': packet.subject,
-                'priority': packet.priority,
-                'timestamp': packet.timestamp,
-                'success': success,
-                'reason': reason,
-                'status': packet.delivery_status,
+                "tracking_id": packet.tracking_id,
+                "sender": packet.sender,
+                "recipient": packet.recipient,
+                "subject": packet.subject,
+                "priority": packet.priority,
+                "timestamp": packet.timestamp,
+                "success": success,
+                "reason": reason,
+                "status": packet.delivery_status,
             }
         )
 

@@ -6,7 +6,7 @@ Obsidian MCP server, enabling agents to read/write to the knowledge vault.
 
 import json
 import os
-import urllib.error
+from urllib.error import HTTPError, URLError
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -47,7 +47,7 @@ class MCPResponse:
     status_code: int = 200
 
     @classmethod
-    def from_json(cls, json_data: Dict, status_code: int) -> 'MCPResponse':
+    def from_json(cls, json_data: Dict, status_code: int) -> "MCPResponse":
         """Create MCPResponse from JSON data.
 
         Args:
@@ -58,10 +58,10 @@ class MCPResponse:
             MCPResponse instance
         """
         return cls(
-            success=json_data.get('success', False),
-            data=json_data.get('data'),
-            message=json_data.get('message'),
-            error=json_data.get('error'),
+            success=json_data.get("success", False),
+            data=json_data.get("data"),
+            message=json_data.get("message"),
+            error=json_data.get("error"),
             status_code=status_code,
         )
 
@@ -94,18 +94,24 @@ class MemoryClient:
             timeout: Request timeout in seconds
         """
         self.base_url = (
-            base_url if base_url is not None else os.getenv('MCP_BASE_URL', 'http://localhost:3000')
+            base_url
+            if base_url is not None
+            else os.getenv("MCP_BASE_URL", "http://localhost:3000")
         )
-        self.api_key = api_key if api_key is not None else os.getenv('MCP_API_KEY', '')
+        self.api_key = api_key if api_key is not None else os.getenv("MCP_API_KEY", "")
         self.timeout = timeout
 
         # Ensure base_url doesn't end with slash
-        self.base_url = self.base_url.rstrip('/')
+        self.base_url = self.base_url.rstrip("/")
 
         if not self.api_key:
-            raise ValueError("MCP_API_KEY required. Set via environment variable or constructor.")
+            raise ValueError(
+                "MCP_API_KEY required. Set via environment variable or constructor."
+            )
 
-    def _make_request(self, operation: MCPOperation, data: Optional[Dict] = None) -> MCPResponse:
+    def _make_request(
+        self, operation: MCPOperation, data: Optional[Dict] = None
+    ) -> MCPResponse:
         """Make HTTP request to MCP server.
 
         Args:
@@ -121,32 +127,41 @@ class MemoryClient:
         url = f"{self.base_url}/api/{operation.value}"
 
         # Prepare request
-        headers = {'Content-Type': 'application/json', 'Authorization': f'Bearer {self.api_key}'}
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+        }
 
-        request_data = json.dumps(data or {}).encode('utf-8')
-        req = urllib.request.Request(url, data=request_data, headers=headers, method='POST')
+        request_data = json.dumps(data or {}).encode("utf-8")
+        req = urllib.request.Request(
+            url, data=request_data, headers=headers, method="POST"
+        )
 
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as response:
-                response_data = json.loads(response.read().decode('utf-8'))
+                response_data = json.loads(response.read().decode("utf-8"))
                 return MCPResponse.from_json(response_data, response.status)
 
-        except urllib.error.HTTPError as e:
+        except HTTPError as e:
             # Parse error response
             try:
-                error_data = json.loads(e.read().decode('utf-8'))
+                error_data = json.loads(e.read().decode("utf-8"))
                 return MCPResponse.from_json(error_data, e.code)
             except (json.JSONDecodeError, AttributeError):
                 return MCPResponse(
-                    success=False, error=f"HTTP {e.code}: {e.reason}", status_code=e.code
+                    success=False,
+                    error=f"HTTP {e.code}: {e.reason}",
+                    status_code=e.code,
                 )
 
-        except urllib.error.URLError as e:
+        except URLError as e:
             return MCPResponse(
                 success=False, error=f"Connection error: {str(e.reason)}", status_code=0
             )
         except Exception as e:
-            return MCPResponse(success=False, error=f"Unexpected error: {str(e)}", status_code=0)
+            return MCPResponse(
+                success=False, error=f"Unexpected error: {str(e)}", status_code=0
+            )
 
     def get_context(self, path: str) -> MCPResponse:
         """Read content of a note.
@@ -157,7 +172,7 @@ class MemoryClient:
         Returns:
             MCPResponse with note content in data field
         """
-        return self._make_request(MCPOperation.GET_CONTEXT, {'path': path})
+        return self._make_request(MCPOperation.GET_CONTEXT, {"path": path})
 
     def append_context(self, path: str, content: str) -> MCPResponse:
         """Append content to a note (creates if doesn't exist).
@@ -169,7 +184,9 @@ class MemoryClient:
         Returns:
             MCPResponse with success status
         """
-        return self._make_request(MCPOperation.APPEND_CONTEXT, {'path': path, 'content': content})
+        return self._make_request(
+            MCPOperation.APPEND_CONTEXT, {"path": path, "content": content}
+        )
 
     def update_note(self, path: str, content: str) -> MCPResponse:
         """Replace entire note content.
@@ -181,7 +198,9 @@ class MemoryClient:
         Returns:
             MCPResponse with success status
         """
-        return self._make_request(MCPOperation.UPDATE_NOTE, {'path': path, 'content': content})
+        return self._make_request(
+            MCPOperation.UPDATE_NOTE, {"path": path, "content": content}
+        )
 
     def search_notes(self, query: str, context_length: int = 100) -> MCPResponse:
         """Search notes for query string.
@@ -194,7 +213,7 @@ class MemoryClient:
             MCPResponse with search results
         """
         return self._make_request(
-            MCPOperation.SEARCH_NOTES, {'query': query, 'contextLength': context_length}
+            MCPOperation.SEARCH_NOTES, {"query": query, "contextLength": context_length}
         )
 
     def list_notes(self, folder: str = "") -> MCPResponse:
@@ -206,7 +225,7 @@ class MemoryClient:
         Returns:
             MCPResponse with list of note paths
         """
-        data = {'folder': folder} if folder else {}
+        data = {"folder": folder} if folder else {}
         return self._make_request(MCPOperation.LIST_NOTES, data)
 
     def delete_note(self, path: str) -> MCPResponse:
@@ -218,10 +237,14 @@ class MemoryClient:
         Returns:
             MCPResponse with success status
         """
-        return self._make_request(MCPOperation.DELETE_NOTE, {'path': path})
+        return self._make_request(MCPOperation.DELETE_NOTE, {"path": path})
 
     def manage_frontmatter(
-        self, path: str, action: str, key: Optional[str] = None, value: Optional[str] = None
+        self,
+        path: str,
+        action: str,
+        key: Optional[str] = None,
+        value: Optional[str] = None,
     ) -> MCPResponse:
         """Manage YAML frontmatter in note.
 
@@ -234,15 +257,17 @@ class MemoryClient:
         Returns:
             MCPResponse with frontmatter data or success status
         """
-        data = {'path': path, 'action': action}
+        data = {"path": path, "action": action}
         if key:
-            data['key'] = key
+            data["key"] = key
         if value:
-            data['value'] = value
+            data["value"] = value
 
         return self._make_request(MCPOperation.MANAGE_FRONTMATTER, data)
 
-    def manage_tags(self, path: str, action: str, tags: Optional[List[str]] = None) -> MCPResponse:
+    def manage_tags(
+        self, path: str, action: str, tags: Optional[List[str]] = None
+    ) -> MCPResponse:
         """Manage tags in note.
 
         Args:
@@ -253,9 +278,9 @@ class MemoryClient:
         Returns:
             MCPResponse with tag data or success status
         """
-        data = {'path': path, 'action': action}
+        data = {"path": path, "action": action}
         if tags:
-            data['tags'] = tags
+            data["tags"] = tags
 
         return self._make_request(MCPOperation.MANAGE_TAGS, data)
 
@@ -275,7 +300,7 @@ class MemoryClient:
         """
         return self._make_request(
             MCPOperation.SEARCH_REPLACE,
-            {'path': path, 'search': search, 'replace': replace, 'regex': regex},
+            {"path": path, "search": search, "replace": replace, "regex": regex},
         )
 
     def health_check(self) -> bool:
@@ -283,10 +308,11 @@ class MemoryClient:
 
         Returns:
             True if server is healthy, False otherwise
+            :rtype: bool
         """
         try:
             url = f"{self.base_url}/health"
-            req = urllib.request.Request(url, method='GET')
+            req = urllib.request.Request(url, method="GET")
 
             with urllib.request.urlopen(req, timeout=5) as response:
                 return response.status == 200
@@ -313,10 +339,10 @@ class MemoryClient:
 
         if response.success and response.data:
             # Limit results
-            results = response.data.get('results', [])[:limit]
+            results = response.data.get("results", [])[:limit]
             return MCPResponse(
                 success=True,
-                data={'results': results},
+                data={"results": results},
                 message=f"Found {len(results)} context notes for {agent_name}",
             )
 
@@ -349,6 +375,6 @@ class MemoryClient:
 
         if response.success:
             # Add agent tag
-            self.manage_tags(path, 'add', [agent_name, 'agent-context'])
+            self.manage_tags(path, "add", [agent_name, "agent-context"])
 
         return response

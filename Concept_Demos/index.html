@@ -190,7 +190,6 @@
     <main>
       <div class="topbar">
         <div class="pill"><span></span>Governance Simulation Space</div>
-        <div class="pill">Vercel-ready · Static export</div>
       </div>
 
       <h1>Concept Demos</h1>
@@ -225,6 +224,18 @@
         </article>
 
         <article class="card">
+          <div class="tag">Live UI</div>
+          <h2>Provenance Tracker</h2>
+          <p>
+            Git-style checkpointing, rollback, and provenance logging for Artemis City governance
+            state — with checkpoint diffing and retention policies.
+          </p>
+          <div class="actions">
+            <a class="btn" href="Hebbian_Proto.html#provenance">Open Tracker</a>
+          </div>
+        </article>
+
+        <article class="card">
           <div class="tag">CLI · Python</div>
           <h2>Artemis Persona Demo</h2>
           <p>
@@ -250,36 +261,6 @@
             </li>
           </ul>
         </article>
-
-        <article class="card">
-          <div class="tag">CLI · Python</div>
-          <h2>Memory Integration</h2>
-          <p>
-            Walkthrough for the Obsidian MCP-backed memory bus. Gracefully skips MCP flows if the
-            server is unavailable.
-          </p>
-          <ul class="list">
-            <li>
-              Run locally:
-              <code>python Concept_Demos/demo_memory_integration.py</code>
-            </li>
-            <li>Optional: set <code>MCP_BASE_URL</code> and <code>MCP_API_KEY</code></li>
-          </ul>
-        </article>
-      </div>
-
-      <div class="panel">
-        <h2 style="margin: 0 0 10px; font-size: 18px">Deploying to Vercel</h2>
-        <ol style="margin: 0 0 8px 20px; padding: 0; color: var(--muted)">
-          <li>Install Vercel CLI: <code>npm i -g vercel</code></li>
-          <li>
-            Deploy this folder:
-            <code>vercel --prod Concept_Demos</code>
-          </li>
-        </ol>
-        <p class="footnote">
-          The Python demos are CLI-only. This deployment hosts the interactive browser prototypes.
-        </p>
       </div>
     </main>
   </body>

@@ -1,20 +1,17 @@
+<p><a target="_blank" href="https://app.eraser.io/workspace/olHJAnjmyPJ03fNBzDOT" id="edit-in-eraser-github-link"><img alt="Edit in Eraser" src="https://firebasestorage.googleapis.com/v0/b/second-petal-295822.appspot.com/o/images%2Fgithub%2FOpen%20in%20Eraser.svg?alt=media&amp;token=968381c8-a7e7-472a-8ed6-4a6626da5501"></a></p>
+
 # API Reference
-
 ## Overview
-
 Artemis City exposes three primary API surfaces:
+
 1. **Agent API**: Task submission and execution
 2. **ATP (Artemis Transmission Protocol)**: Structured inter-agent messaging
 3. **System APIs**: Registry, Memory Bus, Governance (admin-only)
-
 All APIs use HTTP/JSON for REST endpoints and support gRPC where noted.
-
 ## Agent Transmission Protocol (ATP)
-
 ATP is the structured message format for agent-to-agent communication and kernel-to-agent direction.
 
 ### ATP Message Format
-
 ```
 #Mode <mode>
 #Context <context_id>
@@ -25,53 +22,43 @@ ATP is the structured message format for agent-to-agent communication and kernel
 
 <message_body>
 ```
-
 ### ATP Tags Specification
-
 | Tag | Values | Required | Example | Purpose |
-|-----|--------|----------|---------|---------|
-| `#Mode` | `direct`, `batch`, `stream`, `async` | Yes | `#Mode direct` | Communication mode |
-| `#Context` | UUID, string (max 64 chars) | Yes | `#Context exec-2026-02-21-xyz` | Trace/correlation ID |
-| `#Priority` | `critical` (0), `high` (1), `normal` (2), `low` (3) | Yes | `#Priority high` | Queue priority |
-| `#ActionType` | See section below | Yes | `#ActionType query` | What agent should do |
-| `#TargetZone` | `kernel`, `registry`, `memory`, `sandbox`, `governance` | Yes | `#TargetZone memory` | System component target |
-| `#SpecialNotes` | String (max 256 chars) | No | `#SpecialNotes retry on timeout` | Metadata/hints |
-
+| ----- | ----- | ----- | ----- | ----- |
+| `#Mode`  | `direct`, `batch`, `stream`, `async`  | Yes | `#Mode direct`  | Communication mode |
+| `#Context`  | UUID, string (max 64 chars) | Yes | `#Context exec-2026-02-21-xyz`  | Trace/correlation ID |
+| `#Priority`  | `critical` (0), `high` (1), `normal` (2), `low` (3) | Yes | `#Priority high`  | Queue priority |
+| `#ActionType`  | See section below | Yes | `#ActionType query`  | What agent should do |
+| `#TargetZone`  | `kernel`, `registry`, `memory`, `sandbox`, `governance`  | Yes | `#TargetZone memory`  | System component target |
+| `#SpecialNotes`  | String (max 256 chars) | No | `#SpecialNotes retry on timeout`  | Metadata/hints |
 ### ActionType Values
-
 **Query Operations:**
-- `query`: Read/lookup operation
-- `search`: Semantic or keyword search
-- `list`: Enumerate items
-- `get_status`: Check current state
 
+- `query`  : Read/lookup operation
+- `search`  : Semantic or keyword search
+- `list`  : Enumerate items
+- `get_status`  : Check current state
 **Modification Operations:**
-- `create`: Insert new record
-- `update`: Modify existing record
-- `delete`: Remove record
-- `upsert`: Create or update
-
+- `create`  : Insert new record
+- `update`  : Modify existing record
+- `delete`  : Remove record
+- `upsert`  : Create or update
 **Execution Operations:**
-- `execute`: Run task/agent
-- `schedule`: Queue for later execution
-- `cancel`: Abort running task
-- `retry`: Re-execute failed task
-
+- `execute`  : Run task/agent
+- `schedule`  : Queue for later execution
+- `cancel`  : Abort running task
+- `retry`  : Re-execute failed task
 **Management Operations:**
-- `register`: Register agent or capability
-- `revoke`: Remove registration
-- `approve`: Approve pending action
-- `reject`: Deny pending action
-
+- `register`  : Register agent or capability
+- `revoke`  : Remove registration
+- `approve`  : Approve pending action
+- `reject`  : Deny pending action
 **Governance Operations:**
-- `propose_update`: Submit self-update
-- `rollback`: Revert to checkpoint
-- `override`: Bypass policy check
-
+- `propose_update`  : Submit self-update
+- `rollback`  : Revert to checkpoint
+- `override`  : Bypass policy check
 ### ATP Message Examples
-
 #### Example 1: Query Task from Memory Bus
-
 ```
 #Mode direct
 #Context task-exec-2026-02-21-abc123
@@ -90,9 +77,7 @@ ATP is the structured message format for agent-to-agent communication and kernel
   }
 }
 ```
-
 #### Example 2: Submit Task for Execution (Kernel)
-
 ```
 #Mode direct
 #Context user-request-2026-02-21-xyz789
@@ -111,9 +96,7 @@ ATP is the structured message format for agent-to-agent communication and kernel
   }
 }
 ```
-
 #### Example 3: Batch Agent Communication
-
 ```
 #Mode batch
 #Context batch-sync-2026-02-21-batch001
@@ -136,9 +119,7 @@ ATP is the structured message format for agent-to-agent communication and kernel
   ]
 }
 ```
-
 #### Example 4: Async Governance Update Proposal
-
 ```
 #Mode async
 #Context update-proposal-2026-02-21-tier2
@@ -160,14 +141,12 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "checkpoint_id": "uuid"
 }
 ```
-
 ## Kernel API
-
 ### Submit Task
-
-**Endpoint:** `POST /api/v1/tasks`
+**Endpoint:** `POST /api/v1/tasks` 
 
 **Request:**
+
 ```json
 {
   "id": "task-uuid (optional, generated if omitted)",
@@ -184,8 +163,8 @@ ATP is the structured message format for agent-to-agent communication and kernel
   }
 }
 ```
-
 **Response (202 Accepted):**
+
 ```json
 {
   "task_id": "uuid",
@@ -194,12 +173,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "estimated_completion": "2026-02-21T10:35:00Z"
 }
 ```
-
 ### Get Task Status
-
-**Endpoint:** `GET /api/v1/tasks/{task_id}`
+**Endpoint:** `GET /api/v1/tasks/{task_id}` 
 
 **Response:**
+
 ```json
 {
   "task_id": "uuid",
@@ -212,12 +190,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "error": null
 }
 ```
-
 ### Cancel Task
-
-**Endpoint:** `POST /api/v1/tasks/{task_id}/cancel`
+**Endpoint:** `POST /api/v1/tasks/{task_id}/cancel` 
 
 **Response:**
+
 ```json
 {
   "task_id": "uuid",
@@ -225,18 +202,16 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "cancelled_at": "2026-02-21T10:31:00Z"
 }
 ```
-
 ### List Tasks
-
-**Endpoint:** `GET /api/v1/tasks?status=completed&limit=100&offset=0`
+**Endpoint:** `GET /api/v1/tasks?status=completed&limit=100&offset=0` 
 
 **Query Parameters:**
-- `status`: Filter by status
-- `agent_id`: Filter by assigned agent
-- `created_after`: ISO 8601 timestamp
-- `limit`: Result limit (default: 100, max: 1000)
-- `offset`: Pagination offset
 
+- `status`  : Filter by status
+- `agent_id`  : Filter by assigned agent
+- `created_after`  : ISO 8601 timestamp
+- `limit`  : Result limit (default: 100, max: 1000)
+- `offset`  : Pagination offset
 **Response:**
 ```json
 {
@@ -255,14 +230,12 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "offset": 0
 }
 ```
-
 ## Memory Bus API
-
 ### Write Document
-
-**Endpoint:** `POST /api/v1/memory/write`
+**Endpoint:** `POST /api/v1/memory/write` 
 
 **Request:**
+
 ```json
 {
   "operation": "write|update|delete",
@@ -285,8 +258,8 @@ ATP is the structured message format for agent-to-agent communication and kernel
   }
 }
 ```
-
 **Response (200 OK):**
+
 ```json
 {
   "status": "success|conflict",
@@ -298,12 +271,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "estimated_sync_completion": "2026-02-21T10:30:00.300Z"
 }
 ```
-
 ### Read Document (Exact)
-
-**Endpoint:** `GET /api/v1/memory/read/exact?path={path}`
+**Endpoint:** `GET /api/v1/memory/read/exact?path={path}` 
 
 **Response:**
+
 ```json
 {
   "status": "success|not_found",
@@ -318,12 +290,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "latency_ms": 45
 }
 ```
-
 ### Search Documents (Keyword)
-
-**Endpoint:** `POST /api/v1/memory/search/keyword`
+**Endpoint:** `POST /api/v1/memory/search/keyword` 
 
 **Request:**
+
 ```json
 {
   "terms": ["term1", "term2"],
@@ -332,8 +303,8 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "limit": 20
 }
 ```
-
 **Response:**
+
 ```json
 {
   "matches": [
@@ -348,12 +319,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "search_latency_ms": 125
 }
 ```
-
 ### Search Documents (Semantic)
-
-**Endpoint:** `POST /api/v1/memory/search/semantic`
+**Endpoint:** `POST /api/v1/memory/search/semantic` 
 
 **Request:**
+
 ```json
 {
   "query": "Find information about data processing",
@@ -365,8 +335,8 @@ ATP is the structured message format for agent-to-agent communication and kernel
   }
 }
 ```
-
 **Response:**
+
 ```json
 {
   "matches": [
@@ -384,12 +354,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "search_latency_ms": 275
 }
 ```
-
 ### Get Memory Health
-
-**Endpoint:** `GET /api/v1/memory/health`
+**Endpoint:** `GET /api/v1/memory/health` 
 
 **Response:**
+
 ```json
 {
   "status": "healthy|degraded|unhealthy",
@@ -413,14 +382,12 @@ ATP is the structured message format for agent-to-agent communication and kernel
   }
 }
 ```
-
 ## Agent Registry API
-
 ### Register Agent
-
-**Endpoint:** `POST /api/v1/registry/agents`
+**Endpoint:** `POST /api/v1/registry/agents` 
 
 **Request:**
+
 ```json
 {
   "name": "string (required, agent name)",
@@ -445,8 +412,8 @@ ATP is the structured message format for agent-to-agent communication and kernel
   }
 }
 ```
-
 **Response (201 Created):**
+
 ```json
 {
   "agent_id": "uuid",
@@ -455,12 +422,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "created_at": "2026-02-21T10:30:00Z"
 }
 ```
-
 ### Get Agent
-
-**Endpoint:** `GET /api/v1/registry/agents/{agent_id}`
+**Endpoint:** `GET /api/v1/registry/agents/{agent_id}` 
 
 **Response:**
+
 ```json
 {
   "agent_id": "uuid",
@@ -477,17 +443,15 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "updated_at": "2026-02-21T10:30:00Z"
 }
 ```
-
 ### List Agents
-
-**Endpoint:** `GET /api/v1/registry/agents?capability=nlp&status=active&limit=100`
+**Endpoint:** `GET /api/v1/registry/agents?capability=nlp&status=active&limit=100` 
 
 **Query Parameters:**
-- `capability`: Filter by capability
-- `status`: Filter by status
-- `trust_tier`: Filter by tier
-- `limit`: Result limit
 
+- `capability`  : Filter by capability
+- `status`  : Filter by status
+- `trust_tier`  : Filter by tier
+- `limit`  : Result limit
 **Response:**
 ```json
 {
@@ -505,12 +469,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "offset": 0
 }
 ```
-
 ### Update Agent Scores
-
-**Endpoint:** `PATCH /api/v1/registry/agents/{agent_id}`
+**Endpoint:** `PATCH /api/v1/registry/agents/{agent_id}` 
 
 **Request:**
+
 ```json
 {
   "alignment_score": 0.85,
@@ -518,8 +481,8 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "efficiency_score": 0.88
 }
 ```
-
 **Response:**
+
 ```json
 {
   "agent_id": "uuid",
@@ -529,12 +492,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "updated_at": "2026-02-21T10:30:00Z"
 }
 ```
-
 ### Get Agent Violations
-
-**Endpoint:** `GET /api/v1/registry/agents/{agent_id}/violations`
+**Endpoint:** `GET /api/v1/registry/agents/{agent_id}/violations` 
 
 **Response:**
+
 ```json
 {
   "agent_id": "uuid",
@@ -550,20 +512,19 @@ ATP is the structured message format for agent-to-agent communication and kernel
   ]
 }
 ```
-
 ### Clear Agent Violations
-
-**Endpoint:** `POST /api/v1/registry/agents/{agent_id}/clear-violations`
+**Endpoint:** `POST /api/v1/registry/agents/{agent_id}/clear-violations` 
 
 **Request:**
+
 ```json
 {
   "override_tier": "monitored",
   "rationale": "Manual review confirms safe behavior"
 }
 ```
-
 **Response:**
+
 ```json
 {
   "agent_id": "uuid",
@@ -573,16 +534,14 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "override_timestamp": "2026-02-21T10:30:00Z"
 }
 ```
-
 ## Governance API
-
 ### Propose Update
-
-**Endpoint:** `POST /api/v1/governance/updates`
+**Endpoint:** `POST /api/v1/governance/updates` 
 
 **Request:** (See ATP Example 4 in section above)
 
 **Response (202 Accepted):**
+
 ```json
 {
   "update_id": "uuid",
@@ -591,12 +550,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "approval_deadline": "2026-02-21T10:35:00Z"
 }
 ```
-
 ### Get Update Status
-
-**Endpoint:** `GET /api/v1/governance/updates/{update_id}`
+**Endpoint:** `GET /api/v1/governance/updates/{update_id}` 
 
 **Response:**
+
 ```json
 {
   "update_id": "uuid",
@@ -612,12 +570,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
   }
 }
 ```
-
 ### List Pending Approvals
-
-**Endpoint:** `GET /api/v1/governance/approvals?tier=2&status=pending`
+**Endpoint:** `GET /api/v1/governance/approvals?tier=2&status=pending` 
 
 **Response:**
+
 ```json
 {
   "pending": [
@@ -633,12 +590,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "overdue": 0
 }
 ```
-
 ### Approve Update
-
-**Endpoint:** `POST /api/v1/governance/updates/{update_id}/approve`
+**Endpoint:** `POST /api/v1/governance/updates/{update_id}/approve` 
 
 **Request:**
+
 ```json
 {
   "approved_by": "admin_uuid",
@@ -646,8 +602,8 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "override_risk": false
 }
 ```
-
 **Response:**
+
 ```json
 {
   "update_id": "uuid",
@@ -656,12 +612,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "deployment_time": "2026-02-21T11:05:00Z"
 }
 ```
-
 ### Reject Update
-
-**Endpoint:** `POST /api/v1/governance/updates/{update_id}/reject`
+**Endpoint:** `POST /api/v1/governance/updates/{update_id}/reject` 
 
 **Request:**
+
 ```json
 {
   "rejected_by": "admin_uuid",
@@ -669,8 +624,8 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "feedback": "Please refactor to maintain backwards compatibility"
 }
 ```
-
 **Response:**
+
 ```json
 {
   "update_id": "uuid",
@@ -678,12 +633,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "rejected_at": "2026-02-21T10:35:00Z"
 }
 ```
-
 ### Propose Rollback
-
-**Endpoint:** `POST /api/v1/governance/rollbacks`
+**Endpoint:** `POST /api/v1/governance/rollbacks` 
 
 **Request:**
+
 ```json
 {
   "checkpoint_id": "uuid",
@@ -692,8 +646,8 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "details": "Anomaly: error rate > 5%"
 }
 ```
-
 **Response (202 Accepted):**
+
 ```json
 {
   "rollback_id": "uuid",
@@ -702,12 +656,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "estimated_completion": "2026-02-21T10:45:00Z"
 }
 ```
-
 ### Get Rollback Status
-
-**Endpoint:** `GET /api/v1/governance/rollbacks/{rollback_id}`
+**Endpoint:** `GET /api/v1/governance/rollbacks/{rollback_id}` 
 
 **Response:**
+
 ```json
 {
   "rollback_id": "uuid",
@@ -719,14 +672,12 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "notes": "System restored to stable state"
 }
 ```
-
 ## Hebbian Learning API
-
 ### Get Hebbian Weights
-
-**Endpoint:** `GET /api/v1/hebbian/weights?agent_id={agent_id}`
+**Endpoint:** `GET /api/v1/hebbian/weights?agent_id={agent_id}` 
 
 **Response:**
+
 ```json
 {
   "agent_id": "uuid",
@@ -738,12 +689,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "last_updated": "2026-02-21T10:30:00Z"
 }
 ```
-
 ### Get Learning History
-
-**Endpoint:** `GET /api/v1/hebbian/history/{agent_id}?limit=100`
+**Endpoint:** `GET /api/v1/hebbian/history/{agent_id}?limit=100` 
 
 **Response:**
+
 ```json
 {
   "agent_id": "uuid",
@@ -761,9 +711,7 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "limit": 100
 }
 ```
-
 ## Error Responses
-
 All error responses follow this format:
 
 ```json
@@ -778,42 +726,36 @@ All error responses follow this format:
   }
 }
 ```
-
 ### Common Error Codes
-
 | Code | HTTP | Meaning |
-|------|------|---------|
-| `INVALID_REQUEST` | 400 | Malformed request |
-| `UNAUTHORIZED` | 401 | Missing/invalid authentication |
-| `FORBIDDEN` | 403 | Insufficient permissions |
-| `NOT_FOUND` | 404 | Resource not found |
-| `CONFLICT` | 409 | Write conflict |
-| `RATE_LIMITED` | 429 | Rate limit exceeded |
-| `SERVICE_UNAVAILABLE` | 503 | Service temporarily down |
-| `TIMEOUT` | 504 | Request timeout |
-
+| ----- | ----- | ----- |
+| `INVALID_REQUEST`  | 400 | Malformed request |
+| `UNAUTHORIZED`  | 401 | Missing/invalid authentication |
+| `FORBIDDEN`  | 403 | Insufficient permissions |
+| `NOT_FOUND`  | 404 | Resource not found |
+| `CONFLICT`  | 409 | Write conflict |
+| `RATE_LIMITED`  | 429 | Rate limit exceeded |
+| `SERVICE_UNAVAILABLE`  | 503 | Service temporarily down |
+| `TIMEOUT`  | 504 | Request timeout |
 ## Rate Limiting
-
 All endpoints subject to rate limiting:
+
 - Default: 100 requests/minute per API key
 - Burst: 200 requests for 10 seconds
 - Headers:
-  - `X-RateLimit-Limit`: Requests per minute
-  - `X-RateLimit-Remaining`: Remaining requests
-  - `X-RateLimit-Reset`: Unix timestamp of reset
+    - `X-RateLimit-Limit`  : Requests per minute
+    - `X-RateLimit-Remaining`  : Remaining requests
+    - `X-RateLimit-Reset`  : Unix timestamp of reset
 
 ## Authentication
-
 Use Bearer token in Authorization header:
 
 ```
 Authorization: Bearer <api_key>
 ```
-
 API keys provisioned per agent/user. Scopes restrict which endpoints are accessible.
 
 ## Webhook Events
-
 Subscribe to events via `POST /api/v1/webhooks`:
 
 ```json
@@ -822,8 +764,8 @@ Subscribe to events via `POST /api/v1/webhooks`:
   "events": ["task.completed", "update.approved", "agent.quarantined"]
 }
 ```
-
 Event payload:
+
 ```json
 {
   "event": "task.completed",
@@ -836,3 +778,7 @@ Event payload:
 }
 ```
 
+
+
+
+<!--- Eraser file: https://app.eraser.io/workspace/olHJAnjmyPJ03fNBzDOT --->

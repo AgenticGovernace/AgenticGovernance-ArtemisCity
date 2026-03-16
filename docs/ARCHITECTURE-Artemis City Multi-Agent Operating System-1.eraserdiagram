@@ -1,0 +1,84 @@
+cloud-architecture-diagram
+
+
+
+title Artemis City Multi-Agent Operating System
+
+External Request [icon: globe]
+
+Kernel [icon: cpu, color: blue] {
+  Task Router [icon: git-branch]
+  Agent Ranking [icon: bar-chart-2]
+}
+
+Agent Registry [icon: database] {
+  Agent Records [icon: users]
+  Capability Matching [icon: search]
+  Scoring System [icon: award]
+}
+
+Hebbian Learning [icon: activity, color: purple] {
+  Weight Manager [icon: sliders]
+  SQLite Backend [icon: database]
+}
+
+Sandbox System [icon: shield, color: red] {
+  Tool Whitelist [icon: check-square]
+  Permission Checks [icon: lock]
+  Violation Logger [icon: alert-triangle]
+}
+
+Agents [icon: bot, color: green] {
+  Artemis Agent [icon: terminal]
+  Planner Agent [icon: calendar]
+  CLI Agent [icon: command]
+}
+
+Memory Bus [icon: hard-drive, color: orange] {
+  Coordinator [icon: layers]
+  Obsidian Store [icon: file-text]
+  Vector Store [icon: grid]
+}
+
+Governance [icon: clipboard, color: gray] {
+  Approval Workflow [icon: git-pull-request]
+  Rollback Manager [icon: rotate-ccw]
+  Checkpoints [icon: save]
+}
+
+Monitoring [icon: eye] {
+  Prometheus Metrics [icon: prometheus]
+  Run Logger [icon: file]
+}
+
+// Main request flow
+External Request > Kernel: incoming task
+Kernel > Agent Registry: query candidates
+Kernel > Hebbian Learning: get weights
+Kernel > Sandbox System: verify permissions
+Sandbox System > Agents: execute task
+
+// Agent execution
+Agents > Memory Bus: read/write memory
+
+// Memory synchronization
+Coordinator > Obsidian Store: sync write
+Coordinator --> Vector Store: async propagation
+
+// Learning feedback
+Agents > Hebbian Learning: success/failure
+Hebbian Learning --> Memory Bus: batch sync weights
+
+// Governance
+Governance > Kernel: policy updates
+Rollback Manager > Checkpoints: store/restore
+
+// Monitoring
+Kernel --> Monitoring: telemetry
+Memory Bus --> Monitoring: latency metrics
+Sandbox System --> Monitoring: violation counts
+Kernel < Agent Registry: ranked agents
+Kernel < Hebbian Learning: weighted scores
+Kernel < Agents: return results
+
+
