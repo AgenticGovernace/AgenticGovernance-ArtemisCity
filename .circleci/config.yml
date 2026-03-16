@@ -49,16 +49,16 @@ jobs:
       - checkout
       - run:
           name: Install MCP server dependencies
-          command: cd web/api && npm install
+          command: cd src/mcp-server && npm install
       - run:
           name: Lint MCP server
-          command: cd web/api && npm run lint --if-present
+          command: cd src/mcp-server && npm run lint --if-present
       - run:
           name: Build MCP server
-          command: cd web/api && npm run build --if-present
+          command: cd src/mcp-server && npm run build --if-present
       - run:
           name: Test MCP server
-          command: cd web/api && npm test --if-present
+          command: cd src/mcp-server && npm test --if-present
 
   secrets-check:
     docker:
