@@ -30,7 +30,7 @@ jobs:
           command: mypy . || true
       - run:
           name: Security scan (Bandit)
-          command: bandit -r . -c pyproject.toml || true
+          command: bandit -r . -c pyproject.toml
       - run:
           name: Run tests
           command: |
