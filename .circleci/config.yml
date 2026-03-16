@@ -1,5 +1,29 @@
 version: 2.1
 
+executors:
+  py:
+    docker:
+      - image: cimg/python:3.13
+    working_directory: ~/project
+
+autoscaling:
+  cancel_unfinished: false
+
+commands:
+  restore_pip_cache:
+    steps:
+      - restore_cache:
+          keys:
+            - pip-v1-{{ checksum "requirements.txt" }}-{{ checksum "test-requirements.txt" }}
+            - pip-v1-{{ checksum "requirements.txt" }}
+            - pip-v1-
+
+  save_pip_cache:
+    steps:
+      - save_cache:
+          key: pip-v1-{{ checksum "requirements.txt" }}-{{ checksum "test-requirements.txt" }}
+          paths:
+            - ~/.cache/pip
 orbs:
   node: circleci/node@5
   python: circleci/python@2
