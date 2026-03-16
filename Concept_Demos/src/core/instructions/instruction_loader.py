@@ -11,9 +11,9 @@ global → project root → current directory → agent-specific
 #  Vestibulum commodo. Ut rhoncus gravida arcu.
 
 import os
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, field
 
 
 @dataclass

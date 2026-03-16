@@ -14,9 +14,11 @@ for _key in [
 ]:
     del sys.modules[_key]
 
-import pytest
 import time
-from integration.hebbian_sync import HebbianSyncService, WeightUpdate, BatchResult
+
+import pytest
+
+from integration.hebbian_sync import BatchResult, HebbianSyncService, WeightUpdate
 
 
 class TestWeightUpdate:

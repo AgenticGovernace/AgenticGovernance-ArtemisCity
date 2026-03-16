@@ -11,10 +11,10 @@ import json
 import os
 import sqlite3
 import time
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from contextlib import contextmanager
 
 
 class RunLogger:

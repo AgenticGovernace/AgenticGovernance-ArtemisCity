@@ -4,7 +4,7 @@ This test demonstrates how to add a new test case and how the ATP parser works.
 """
 
 import pytest
-from agents.atp import ATPParser, ATPMode, ATPPriority
+from agents.atp import ATPMode, ATPParser, ATPPriority
 
 
 def test_atp_parser_demonstration():

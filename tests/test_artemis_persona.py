@@ -5,7 +5,6 @@ Tests the ArtemisPersona, ReflectionEngine, and SemanticTagger components.
 """
 
 import pytest
-
 from agents.artemis import (
     ArtemisPersona,
     ReflectionEngine,

@@ -20,13 +20,14 @@ Cost model: Hebbian O(1) per step, Inference O(N) per step
 Author: Apollo (Prinston Palmer) + Artemis (Claude)
 """
 
+import warnings
+from pathlib import Path
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from pathlib import Path
-from sklearn.neural_network import MLPRegressor
 from sklearn.metrics import pairwise_distances
-import matplotlib.pyplot as plt
-import warnings
+from sklearn.neural_network import MLPRegressor
 
 warnings.filterwarnings("ignore")
 

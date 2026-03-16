@@ -1,5 +1,4 @@
 import pytest
-
 from src.mcp.vector_store import LocalVectorStore
 
 

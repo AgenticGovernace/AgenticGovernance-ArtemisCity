@@ -7,10 +7,10 @@ Tests the ATP message parser, validator, and models.
 import pytest
 
 try:
-    from agents.atp import (  # type: ignore
+    from agents.atp import ATPMode  # type: ignore
+    from agents.atp import (
         ATPActionType,
         ATPMessage,
-        ATPMode,
         ATPParser,
         ATPPriority,
         ATPValidator,

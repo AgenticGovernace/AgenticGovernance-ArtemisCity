@@ -44,6 +44,7 @@ import time
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
+from ..agent_types import ExecutionSummary, TaskContext, TaskResult
 from ..agents.artemis_agent import ArtemisAgent
 from ..agents.research_agent import ResearchAgent
 from ..agents.summarizer_agent import SummarizerAgent
@@ -63,7 +64,6 @@ from ..mcp.vector_store import LocalVectorStore
 from ..obsidian_integration.generator import ObsidianGenerator
 from ..obsidian_integration.manager import ObsidianManager
 from ..obsidian_integration.parser import ObsidianParser
-from ..agent_types import ExecutionSummary, TaskContext, TaskResult
 from ..utils.helpers import logger
 
 if TYPE_CHECKING:

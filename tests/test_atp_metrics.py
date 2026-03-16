@@ -13,10 +13,11 @@ else:
 for _key in [k for k in sys.modules if k == "agents" or k.startswith("agents.")]:
     del sys.modules[_key]
 
-import pytest
 import time
+
+import pytest
+from agents.atp.atp_models import ATPActionType, ATPMessage, ATPMode, ATPPriority
 from agents.atp.atp_parser import ATPParser
-from agents.atp.atp_models import ATPMessage, ATPMode, ATPPriority, ATPActionType
 
 
 class TestParseWithMetricsBasic:

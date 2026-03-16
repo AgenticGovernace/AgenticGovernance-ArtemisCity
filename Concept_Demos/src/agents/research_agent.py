@@ -1,6 +1,7 @@
-from .base_agent import BaseAgent
-import time
 import random
+import time
+
+from .base_agent import BaseAgent
 
 
 class ResearchAgent(BaseAgent):

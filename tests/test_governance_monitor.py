@@ -1,12 +1,14 @@
 """Tests for the governance monitor (src/integration/governance.py)."""
 
-import sys
 import json
+import sys
 
 sys.modules.pop("integration.governance", None)
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from integration.governance import GovernanceMonitor
 
 

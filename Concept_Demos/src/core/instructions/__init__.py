@@ -10,8 +10,8 @@ local, and agent-specific scopes.
 #  Proin dapibus sapien vel ante. Aliquam erat volutpat. Pellentesque sagittis ligula eget metus.
 #  Vestibulum commodo. Ut rhoncus gravida arcu.
 
-from .instruction_loader import InstructionLoader, InstructionSet, InstructionScope
 from .instruction_cache import InstructionCache, get_global_cache, reset_global_cache
+from .instruction_loader import InstructionLoader, InstructionScope, InstructionSet
 
 __all__ = [
     "InstructionLoader",

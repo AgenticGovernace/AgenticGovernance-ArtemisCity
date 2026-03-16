@@ -13,12 +13,12 @@ import cors from 'cors';
 import helmet from 'helmet';
 
 // Routes
-import agentRoutes from './routes/agents';
-import memoryRoutes from './routes/memory';
-import atpRoutes from './routes/atp';
-import trustRoutes from './routes/trust';
-import healthRoutes from './routes/health';
-import llmRoutes from './routes/llm';
+import agentRoutes from './v1/agents';
+import memoryRoutes from './v1/memory';
+import atpRoutes from './v1/atp';
+import trustRoutes from './v1/trust';
+import healthRoutes from './v1/health';
+import llmRoutes from './v1/llm';
 
 // Middleware
 import { authMiddleware } from './middleware/auth';

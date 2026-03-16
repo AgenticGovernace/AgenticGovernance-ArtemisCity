@@ -1,11 +1,12 @@
 # src/integration/agent_registry.py
 
-from dataclasses import dataclass
-from typing import Dict, List
 import json
 import os
 import sqlite3
 import time
+from dataclasses import dataclass
+from typing import Dict, List
+
 try:
     from agents.base_agent import BaseAgent
     from utils.helpers import logger

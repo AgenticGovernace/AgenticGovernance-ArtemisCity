@@ -1,10 +1,11 @@
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
+from mcp.vector_store import LocalVectorStore
+from obsidian_integration.manager import ObsidianManager
 
 from integration.governance import GovernanceMonitor
 from integration.memory_bus import MemoryBus
-from mcp.vector_store import LocalVectorStore
-from obsidian_integration.manager import ObsidianManager
 
 
 def test_write_note_with_embedding_syncs_semantic_and_file(tmp_path):

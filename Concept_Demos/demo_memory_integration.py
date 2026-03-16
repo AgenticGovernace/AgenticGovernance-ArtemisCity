@@ -1,9 +1,13 @@
-import sys
 import pathlib
+import sys
 
 # Add project root to path so integration/ is importable
 _script_file = globals().get("__file__")
-_base_dir = pathlib.Path(_script_file).resolve().parents[1] if _script_file else pathlib.Path.cwd()
+_base_dir = (
+    pathlib.Path(_script_file).resolve().parents[1]
+    if _script_file
+    else pathlib.Path.cwd()
+)
 sys.path.insert(0, str(_base_dir))
 
 from integration import ContextLoader, TrustInterface, get_trust_interface
@@ -42,9 +46,11 @@ def demo_trust_interface():
 
     # Show initialized agents
     print("\n[Pre-configured Agent Trust Scores]")
-    for agent_id in ['artemis', 'pack_rat', 'agentzero', 'planner']:
+    for agent_id in ["artemis", "pack_rat", "agentzero", "planner"]:
         score = trust.get_trust_score(agent_id)
-        print(f"  {agent_id:15} | Score: {score.score:.2f} | Level: {score.level.value:8}")
+        print(
+            f"  {agent_id:15} | Score: {score.score:.2f} | Level: {score.level.value:8}"
+        )
 
     # Create new agent
     print("\n" + "-" * 70)
@@ -56,9 +62,11 @@ def demo_trust_interface():
     # Check permissions
     print("\n" + "-" * 70)
     print("\n[Permission Matrix]")
-    operations = ['read', 'write', 'delete', 'search', 'tag']
+    operations = ["read", "write", "delete", "search", "tag"]
 
-    print(f"{'Operation':<12} | {'artemis':<8} | {'test_agent':<11} | {'low_trust':<10}")
+    print(
+        f"{'Operation':<12} | {'artemis':<8} | {'test_agent':<11} | {'low_trust':<10}"
+    )
     print("-" * 60)
 
     # Set low trust agent
@@ -67,20 +75,20 @@ def demo_trust_interface():
     low_trust_score._update_level()
 
     for op in operations:
-        artemis_ok = "✓" if trust.can_perform_operation('artemis', op) else "✗"
-        test_ok = "✓" if trust.can_perform_operation('test_agent', op) else "✗"
-        low_ok = "✓" if trust.can_perform_operation('low_trust', op) else "✗"
+        artemis_ok = "✓" if trust.can_perform_operation("artemis", op) else "✗"
+        test_ok = "✓" if trust.can_perform_operation("test_agent", op) else "✗"
+        low_ok = "✓" if trust.can_perform_operation("low_trust", op) else "✗"
         print(f"{op:<12} | {artemis_ok:^8} | {test_ok:^11} | {low_ok:^10}")
 
     # Record events
     print("\n" + "-" * 70)
     print("\n[Recording Trust Events]")
-    trust.record_success('test_agent')
-    trust.record_success('test_agent')
-    trust.record_failure('low_trust')
+    trust.record_success("test_agent")
+    trust.record_success("test_agent")
+    trust.record_failure("low_trust")
 
-    updated_test = trust.get_trust_score('test_agent')
-    updated_low = trust.get_trust_score('low_trust')
+    updated_test = trust.get_trust_score("test_agent")
+    updated_low = trust.get_trust_score("low_trust")
 
     print(f"  test_agent after 2 successes: {updated_test.score:.3f}")
     print(f"  low_trust after 1 failure:    {updated_low.score:.3f}")
@@ -90,7 +98,7 @@ def demo_trust_interface():
     print("\n[Trust Report]")
     report = trust.get_trust_report()
     print(f"  Total entities: {report['total_entities']}")
-    for level, entities in report['by_level'].items():
+    for level, entities in report["by_level"].items():
         print(f"\n  {level.upper()}:")
         for entity in entities:
             print(f"    - {entity['id']} (score: {entity['score']})")
@@ -164,7 +172,7 @@ def demo_integrated_workflow(client: MemoryClient):
     agent_name = "artemis"
 
     # Check permission
-    can_write = trust.can_perform_operation(agent_name, 'write')
+    can_write = trust.can_perform_operation(agent_name, "write")
     print(f"  Agent: {agent_name}")
     print(f"  Permission to write: {'✓ Yes' if can_write else '✗ No'}")
 
@@ -205,7 +213,9 @@ def demo_integrated_workflow(client: MemoryClient):
 
     # Show updated trust
     updated_score = trust.get_trust_score(agent_name)
-    print(f"\n  Updated trust score: {updated_score.score:.3f} ({updated_score.level.value})")
+    print(
+        f"\n  Updated trust score: {updated_score.score:.3f} ({updated_score.level.value})"
+    )
 
     print()
 
@@ -230,6 +240,7 @@ def demo_trust_decay():
 
     # Simulate decay
     from datetime import timedelta
+
     score.last_updated = score.last_updated - timedelta(days=30)
 
     decayed_score = score.apply_decay()

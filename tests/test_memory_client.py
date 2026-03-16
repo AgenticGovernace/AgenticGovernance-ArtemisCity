@@ -1,13 +1,14 @@
 """Tests for the memory client (src/integration/memory_client.py)."""
 
-import sys
 import io
 import json
+import sys
 from urllib.error import HTTPError, URLError
 
 sys.modules.pop("integration.memory_client", None)
 
 import pytest
+
 from integration.memory_client import MCPOperation, MCPResponse, MemoryClient
 
 

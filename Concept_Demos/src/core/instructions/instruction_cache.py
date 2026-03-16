@@ -13,7 +13,8 @@ repeated file I/O operations.
 import os
 import time
 from typing import Dict, Optional, Tuple
-from .instruction_loader import InstructionSet, InstructionLoader
+
+from .instruction_loader import InstructionLoader, InstructionSet
 
 
 class InstructionCache:

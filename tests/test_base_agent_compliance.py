@@ -25,10 +25,10 @@ import inspect
 from typing import Any, Dict, List, Type
 
 import pytest
+from agents.artemis_agent import ArtemisAgent
 
 # Import base class and all concrete implementations
 from agents.base_agent import BaseAgent
-from agents.artemis_agent import ArtemisAgent
 from agents.research_agent import ResearchAgent
 from agents.summarizer_agent import SummarizerAgent
 

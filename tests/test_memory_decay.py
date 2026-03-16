@@ -14,9 +14,11 @@ for _key in [
 ]:
     del sys.modules[_key]
 
-import pytest
 from datetime import datetime, timedelta
-from integration.memory_decay import MemoryDecayService, MemoryNode, DecayEvent
+
+import pytest
+
+from integration.memory_decay import DecayEvent, MemoryDecayService, MemoryNode
 
 
 class TestMemoryNode:

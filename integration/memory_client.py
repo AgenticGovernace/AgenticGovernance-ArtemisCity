@@ -6,12 +6,12 @@ Obsidian MCP server, enabling agents to read/write to the knowledge vault.
 
 import json
 import os
-from urllib.error import HTTPError, URLError
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional
+from urllib.error import HTTPError, URLError
 
 
 class MCPOperation(Enum):

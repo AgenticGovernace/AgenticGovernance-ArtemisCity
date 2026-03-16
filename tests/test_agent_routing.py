@@ -3,17 +3,12 @@ import shutil
 import tempfile
 from unittest.mock import Mock, patch
 
+import mcp.config as config  # Import config to patch OBSIDIAN_VAULT_PATH
 import pytest
-
-import importlib
-import sys
-
-sys.modules["types"] = importlib.import_module("src.types")
-
-from integration.agent_registry import AgentRegistry, AgentScore
 from agents.base_agent import BaseAgent
 from mcp.orchestrator import Orchestrator
-import mcp.config as config  # Import config to patch OBSIDIAN_VAULT_PATH
+
+from integration.agent_registry import AgentRegistry, AgentScore
 
 
 # Fixture for AgentRegistry with isolated DB
