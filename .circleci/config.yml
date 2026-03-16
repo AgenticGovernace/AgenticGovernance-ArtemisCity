@@ -33,7 +33,14 @@ jobs:
           command: bandit -r . -c pyproject.toml || true
       - run:
           name: Run tests
-          command: pytest tests/ -v || echo "No tests found"
+          command: |
+            pytest tests/ -v
+            status=$?
+            if [ "$status" -eq 5 ]; then
+              echo "No tests found"
+              exit 0
+            fi
+            exit "$status"
 
   node-checks:
     docker:
