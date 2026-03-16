@@ -59,22 +59,15 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Check for hardcoded secrets
+          name: Scan for hardcoded secrets with gitleaks
           command: |
-            FOUND=0
-            for pattern in "API_KEY=.[a-zA-Z0-9]" "PASSWORD=.[a-zA-Z0-9]" "SECRET=.[a-zA-Z0-9]"; do
-              if grep -rn --include="*.py" --include="*.ts" --include="*.js" --include="*.yml" --include="*.yaml" --include="*.md" \
-                -E "$pattern" . \
-                --exclude-dir=.git --exclude-dir=node_modules --exclude="*.example" \
-                | grep -v "placeholder" | grep -v "your_" | grep -v "<" | grep -v "must be set" | grep -v "ENV_VAR" | grep -v "=xxx"; then
-                FOUND=1
-              fi
-            done
-            if [ "$FOUND" -eq 1 ]; then
-              echo "WARNING: Potential hardcoded secrets detected. Review the matches above."
-              exit 1
-            fi
-            echo "No hardcoded secrets detected."
+            echo "Installing gitleaks..."
+            curl -sSL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_Linux_x86_64.tar.gz -o gitleaks.tar.gz
+            tar -xzf gitleaks.tar.gz gitleaks
+            rm gitleaks.tar.gz
+            chmod +x gitleaks
+            echo "Running gitleaks scan..."
+            ./gitleaks detect --source . --no-git
 
 workflows:
   ci:
