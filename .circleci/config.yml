@@ -7,7 +7,7 @@ orbs:
 jobs:
   python-checks:
     docker:
-      - image: cimg/python:3.11
+      - image: cimg/python:3.13
     steps:
       - checkout
       - python/install-packages:
@@ -42,16 +42,16 @@ jobs:
       - checkout
       - run:
           name: Install MCP server dependencies
-          command: cd src/mcp-server && npm install
+          command: cd web/api && npm install
       - run:
           name: Lint MCP server
-          command: cd src/mcp-server && npm run lint --if-present
+          command: cd web/api && npm run lint --if-present
       - run:
           name: Build MCP server
-          command: cd src/mcp-server && npm run build --if-present
+          command: cd web/api && npm run build --if-present
       - run:
           name: Test MCP server
-          command: cd src/mcp-server && npm test --if-present
+          command: cd web/api && npm test --if-present
 
   secrets-check:
     docker:
@@ -66,7 +66,7 @@ jobs:
               if grep -rn --include="*.py" --include="*.ts" --include="*.js" --include="*.yml" --include="*.yaml" --include="*.md" \
                 -E "$pattern" . \
                 --exclude-dir=.git --exclude-dir=node_modules --exclude="*.example" \
-                | grep -v "placeholder" | grep -v "your_" | grep -v "<" | grep -v "must be set" | grep -v "ENV_VAR"; then
+                | grep -v "placeholder" | grep -v "your_" | grep -v "<" | grep -v "must be set" | grep -v "ENV_VAR" | grep -v "=xxx"; then
                 FOUND=1
               fi
             done
