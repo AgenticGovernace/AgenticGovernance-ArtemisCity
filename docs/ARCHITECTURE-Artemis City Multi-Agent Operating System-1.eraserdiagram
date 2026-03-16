@@ -1,6 +1,7 @@
 cloud-architecture-diagram
 
 
+
 title Artemis City Multi-Agent Operating System
 
 External Request [icon: globe]
@@ -79,4 +80,5 @@ Sandbox System --> Monitoring: violation counts
 Kernel < Agent Registry: ranked agents
 Kernel < Hebbian Learning: weighted scores
 Kernel < Agents: return results
+
 

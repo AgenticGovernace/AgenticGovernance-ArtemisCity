@@ -117,7 +117,9 @@ class TestATPValidator:
         )
         result = validator.validate(message)
         # Context should be required
-        assert result.is_valid is False or result.is_valid is True  # Depending on implementation
+        assert (
+            result.is_valid is False or result.is_valid is True
+        )  # Depending on implementation
 
 
 if __name__ == "__main__":

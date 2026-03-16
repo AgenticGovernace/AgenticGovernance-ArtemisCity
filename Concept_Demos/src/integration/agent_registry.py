@@ -6,8 +6,12 @@ import json
 import os
 import sqlite3
 import time
-from ..agents.base_agent import BaseAgent
-from ..utils.helpers import logger
+try:
+    from agents.base_agent import BaseAgent
+    from utils.helpers import logger
+except ImportError:
+    from ..agents.base_agent import BaseAgent
+    from ..utils.helpers import logger
 
 
 @dataclass
@@ -42,8 +46,7 @@ class AgentRegistryStore:
     def _initialize_database(self):
         """Create the agents table if it doesn't exist."""
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS agents (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE NOT NULL,
@@ -55,19 +58,16 @@ class AgentRegistryStore:
                     created_at TEXT,
                     updated_at TEXT
                 )
-                """
-            )
+                """)
             conn.commit()
 
     def load_scores(self) -> Dict[str, AgentScore]:
         """Load persisted scores for all agents."""
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute(
-                """
+            cursor = conn.execute("""
                 SELECT name, alignment, accuracy, efficiency
                 FROM agents
-                """
-            )
+                """)
             scores = {}
             for name, alignment, accuracy, efficiency in cursor.fetchall():
                 if alignment is None or accuracy is None or efficiency is None:
@@ -233,12 +233,14 @@ class AgentRegistry:
         result = []
         for agent in self.agents.values():
             score = self.scores.get(agent.name, AgentScore(0.5, 0.5, 0.5))
-            result.append({
-                "name": agent.name,
-                "capabilities": agent.capabilities,
-                "alignment": score.alignment,
-                "accuracy": score.accuracy,
-                "efficiency": score.efficiency,
-                "composite_score": score.composite_score,
-            })
+            result.append(
+                {
+                    "name": agent.name,
+                    "capabilities": agent.capabilities,
+                    "alignment": score.alignment,
+                    "accuracy": score.accuracy,
+                    "efficiency": score.efficiency,
+                    "composite_score": score.composite_score,
+                }
+            )
         return sorted(result, key=lambda x: x["composite_score"], reverse=True)

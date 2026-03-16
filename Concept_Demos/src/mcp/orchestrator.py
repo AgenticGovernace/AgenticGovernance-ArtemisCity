@@ -63,7 +63,7 @@ from ..mcp.vector_store import LocalVectorStore
 from ..obsidian_integration.generator import ObsidianGenerator
 from ..obsidian_integration.manager import ObsidianManager
 from ..obsidian_integration.parser import ObsidianParser
-from ..types import ExecutionSummary, TaskContext, TaskResult
+from ..agent_types import ExecutionSummary, TaskContext, TaskResult
 from ..utils.helpers import logger
 
 if TYPE_CHECKING:
@@ -357,12 +357,16 @@ class Orchestrator:
 
         agent = self.agent_registry.get_agent(agent_name)
         if not agent:
-            logger.error("Agent '%s' not found in registry.", _sanitize_for_log(agent_name))
+            logger.error(
+                "Agent '%s' not found in registry.", _sanitize_for_log(agent_name)
+            )
             raise ValueError(
                 f"Agent '{agent_name}' not registered with the orchestrator."
             )
 
-        logger.info("Orchestrator assigning task to %s...", _sanitize_for_log(agent_name))
+        logger.info(
+            "Orchestrator assigning task to %s...", _sanitize_for_log(agent_name)
+        )
 
         # Execute the task
         task_id = task_context.get("task_id", "auto_generated")

@@ -32,7 +32,6 @@ from agents.artemis_agent import ArtemisAgent
 from agents.research_agent import ResearchAgent
 from agents.summarizer_agent import SummarizerAgent
 
-
 # =============================================================================
 # Test Fixtures
 # =============================================================================
@@ -101,54 +100,50 @@ class TestInterfaceCompliance:
 
     def test_agent_inherits_from_base_agent(self, agent_class: Type[BaseAgent]) -> None:
         """All agent classes must inherit from BaseAgent."""
-        assert issubclass(agent_class, BaseAgent), (
-            f"{agent_class.__name__} must inherit from BaseAgent"
-        )
+        assert issubclass(
+            agent_class, BaseAgent
+        ), f"{agent_class.__name__} must inherit from BaseAgent"
 
     def test_agent_has_perform_task_method(self, agent_instance: BaseAgent) -> None:
         """All agents must implement perform_task method."""
-        assert hasattr(agent_instance, "perform_task"), (
-            f"{agent_instance.name} missing perform_task method"
-        )
-        assert callable(agent_instance.perform_task), (
-            f"{agent_instance.name}.perform_task must be callable"
-        )
+        assert hasattr(
+            agent_instance, "perform_task"
+        ), f"{agent_instance.name} missing perform_task method"
+        assert callable(
+            agent_instance.perform_task
+        ), f"{agent_instance.name}.perform_task must be callable"
 
     def test_agent_has_report_status_method(self, agent_instance: BaseAgent) -> None:
         """All agents must have report_status method (inherited or overridden)."""
-        assert hasattr(agent_instance, "report_status"), (
-            f"{agent_instance.name} missing report_status method"
-        )
-        assert callable(agent_instance.report_status), (
-            f"{agent_instance.name}.report_status must be callable"
-        )
+        assert hasattr(
+            agent_instance, "report_status"
+        ), f"{agent_instance.name} missing report_status method"
+        assert callable(
+            agent_instance.report_status
+        ), f"{agent_instance.name}.report_status must be callable"
 
     def test_agent_has_name_attribute(self, agent_instance: BaseAgent) -> None:
         """All agents must have a non-empty name attribute."""
-        assert hasattr(agent_instance, "name"), (
-            f"Agent missing name attribute"
-        )
-        assert isinstance(agent_instance.name, str), (
-            f"{agent_instance.name} name must be a string"
-        )
-        assert len(agent_instance.name) > 0, (
-            f"Agent name cannot be empty"
-        )
+        assert hasattr(agent_instance, "name"), f"Agent missing name attribute"
+        assert isinstance(
+            agent_instance.name, str
+        ), f"{agent_instance.name} name must be a string"
+        assert len(agent_instance.name) > 0, f"Agent name cannot be empty"
 
     def test_agent_has_capabilities_attribute(self, agent_instance: BaseAgent) -> None:
         """All agents must have a capabilities list attribute."""
-        assert hasattr(agent_instance, "capabilities"), (
-            f"{agent_instance.name} missing capabilities attribute"
-        )
-        assert isinstance(agent_instance.capabilities, list), (
-            f"{agent_instance.name}.capabilities must be a list"
-        )
+        assert hasattr(
+            agent_instance, "capabilities"
+        ), f"{agent_instance.name} missing capabilities attribute"
+        assert isinstance(
+            agent_instance.capabilities, list
+        ), f"{agent_instance.name}.capabilities must be a list"
 
     def test_agent_has_logger_attribute(self, agent_instance: BaseAgent) -> None:
         """All agents must have a logger attribute."""
-        assert hasattr(agent_instance, "logger"), (
-            f"{agent_instance.name} missing logger attribute"
-        )
+        assert hasattr(
+            agent_instance, "logger"
+        ), f"{agent_instance.name} missing logger attribute"
 
 
 # =============================================================================
@@ -165,9 +160,9 @@ class TestContractCompliance:
         params = list(sig.parameters.keys())
 
         # Should have self and task_context parameters
-        assert "self" in params or len(params) >= 1, (
-            f"{agent_class.__name__}.perform_task missing parameters"
-        )
+        assert (
+            "self" in params or len(params) >= 1
+        ), f"{agent_class.__name__}.perform_task missing parameters"
 
     def test_perform_task_accepts_dict(
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
@@ -178,9 +173,7 @@ class TestContractCompliance:
             result = agent_instance.perform_task(minimal_task_context)
             assert result is not None
         except TypeError as e:
-            pytest.fail(
-                f"{agent_instance.name}.perform_task rejected dict input: {e}"
-            )
+            pytest.fail(f"{agent_instance.name}.perform_task rejected dict input: {e}")
 
     def test_perform_task_returns_dict(
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
@@ -206,43 +199,44 @@ class TestBehaviorCompliance:
     ) -> None:
         """All task results must include a 'status' field."""
         result = agent_instance.perform_task(minimal_task_context)
-        assert "status" in result, (
-            f"{agent_instance.name} result missing 'status' field"
-        )
+        assert (
+            "status" in result
+        ), f"{agent_instance.name} result missing 'status' field"
 
     def test_result_status_is_valid(
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
     ) -> None:
         """Status field must be 'success' or 'failed'."""
         result = agent_instance.perform_task(minimal_task_context)
-        assert result.get("status") in ("success", "failed"), (
-            f"{agent_instance.name} returned invalid status: {result.get('status')}"
-        )
+        assert result.get("status") in (
+            "success",
+            "failed",
+        ), f"{agent_instance.name} returned invalid status: {result.get('status')}"
 
     def test_result_has_summary_field(
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
     ) -> None:
         """All task results must include a 'summary' field."""
         result = agent_instance.perform_task(minimal_task_context)
-        assert "summary" in result, (
-            f"{agent_instance.name} result missing 'summary' field"
-        )
+        assert (
+            "summary" in result
+        ), f"{agent_instance.name} result missing 'summary' field"
 
     def test_result_summary_is_string(
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
     ) -> None:
         """Summary field must be a string."""
         result = agent_instance.perform_task(minimal_task_context)
-        assert isinstance(result.get("summary"), str), (
-            f"{agent_instance.name} summary must be string"
-        )
+        assert isinstance(
+            result.get("summary"), str
+        ), f"{agent_instance.name} summary must be string"
 
     def test_capabilities_are_strings(self, agent_instance: BaseAgent) -> None:
         """All capability entries must be strings."""
         for cap in agent_instance.capabilities:
-            assert isinstance(cap, str), (
-                f"{agent_instance.name} has non-string capability: {cap}"
-            )
+            assert isinstance(
+                cap, str
+            ), f"{agent_instance.name} has non-string capability: {cap}"
 
 
 # =============================================================================
@@ -264,18 +258,16 @@ class TestErrorHandling:
         except Exception as e:
             # If it raises, it should be a documented exception type
             # not an unexpected crash
-            assert not isinstance(e, (AttributeError, KeyError, TypeError)), (
-                f"{agent_instance.name} crashed on empty context: {e}"
-            )
+            assert not isinstance(
+                e, (AttributeError, KeyError, TypeError)
+            ), f"{agent_instance.name} crashed on empty context: {e}"
 
     def test_report_status_accepts_string(self, agent_instance: BaseAgent) -> None:
         """report_status should accept string messages without error."""
         try:
             agent_instance.report_status("Test status message")
         except Exception as e:
-            pytest.fail(
-                f"{agent_instance.name}.report_status failed: {e}"
-            )
+            pytest.fail(f"{agent_instance.name}.report_status failed: {e}")
 
     def test_agent_repr_does_not_crash(self, agent_instance: BaseAgent) -> None:
         """Agent __repr__ should not raise exceptions."""
@@ -283,9 +275,7 @@ class TestErrorHandling:
             repr_str = repr(agent_instance)
             assert isinstance(repr_str, str)
         except Exception as e:
-            pytest.fail(
-                f"{agent_instance.name}.__repr__ failed: {e}"
-            )
+            pytest.fail(f"{agent_instance.name}.__repr__ failed: {e}")
 
 
 # =============================================================================
@@ -333,23 +323,19 @@ class TestAgentDiscovery:
         """All agent instances must have unique names."""
         agents = get_all_agent_instances()
         names = [a.name for a in agents]
-        assert len(names) == len(set(names)), (
-            f"Duplicate agent names found: {names}"
-        )
+        assert len(names) == len(set(names)), f"Duplicate agent names found: {names}"
 
     def test_all_agents_have_at_least_one_capability(self) -> None:
         """All agents should declare at least one capability."""
         for agent in get_all_agent_instances():
-            assert len(agent.capabilities) > 0, (
-                f"{agent.name} has no capabilities declared"
-            )
+            assert (
+                len(agent.capabilities) > 0
+            ), f"{agent.name} has no capabilities declared"
 
     def test_minimum_agent_count(self) -> None:
         """System should have at least 3 agents registered."""
         agents = get_all_agent_classes()
-        assert len(agents) >= 3, (
-            f"Expected at least 3 agents, found {len(agents)}"
-        )
+        assert len(agents) >= 3, f"Expected at least 3 agents, found {len(agents)}"
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from typing import Any, Optional
 
-from src.mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
+import src.mcp.config
 from src.mcp.orchestrator import Orchestrator
 from src.utils.helpers import logger
 from src.utils.run_logger import init_run_logger
@@ -54,7 +54,7 @@ def setup_example_task_note(obs_manager: Any, memory_bus: Optional[Any] = None) 
     if one doesn't already exist, for demonstration purposes.
     """
     example_filename = "Example Research Task.md"
-    relative_path = os.path.join(AGENT_INPUT_DIR, example_filename)
+    relative_path = os.path.join(src.mcp.config.AGENT_INPUT_DIR, example_filename)
     full_path = obs_manager._get_full_path(
         relative_path
     )  # Access internal for convenience
@@ -80,11 +80,11 @@ def setup_example_task_note(obs_manager: Any, memory_bus: Optional[Any] = None) 
 
 
 def handle_user_instruction(
-        orchestrator: Orchestrator,
-        instruction: str,
-        capability: str | None,
-        title: str | None = None,
-        agent_name: str | None = None,
+    orchestrator: Orchestrator,
+    instruction: str,
+    capability: str | None,
+    title: str | None = None,
+    agent_name: str | None = None,
 ) -> None:
     """Create a task from a user instruction and dispatch it based on capability or explicit agent selection."""
     if not instruction.strip():
@@ -180,9 +180,9 @@ def main() -> None:
         "mcp_init", "main", {"args": vars(args)}, "MCP initialization started"
     )
 
-    if not os.path.exists(OBSIDIAN_VAULT_PATH):
+    if not os.path.exists(src.mcp.config.OBSIDIAN_VAULT_PATH):
         logger.error(
-            f"Error: Obsidian vault path '{OBSIDIAN_VAULT_PATH}' does not exist."
+            f"Error: Obsidian vault path '{src.mcp.config.OBSIDIAN_VAULT_PATH}' does not exist."
         )
         logger.error(
             "Set OBSIDIAN_VAULT_PATH in the project '.env' or export it in your shell to point to your vault."
@@ -191,7 +191,7 @@ def main() -> None:
             "mcp_error",
             "main",
             {"error": "vault_not_found"},
-            f"Vault path not found: {OBSIDIAN_VAULT_PATH}",
+            f"Vault path not found: {src.mcp.config.OBSIDIAN_VAULT_PATH}",
         )
         run_logger.finalize_run(status="error", summary={"error": "vault_not_found"})
         return
@@ -288,7 +288,7 @@ def main() -> None:
     else:
         logger.info("No new pending tasks found in Obsidian input folder.")
         logger.info(
-            f"Remember to create a new Markdown note in '{OBSIDIAN_VAULT_PATH}/{AGENT_INPUT_DIR}' with 'status: pending' and 'required_capability' in its YAML frontmatter, for example:"
+            f"Remember to create a new Markdown note in '{src.mcp.config.OBSIDIAN_VAULT_PATH}/{src.mcp.config.AGENT_INPUT_DIR}' with 'status: pending' and 'required_capability' in its YAML frontmatter, for example:"
         )
         logger.info(
             """---\ntask_id: T_NEW_RESEARCH\nrequired_capability: web_search\nstatus: pending\n---\n\n# New Topic for Research\n\nTopic: The future of renewable energy technologies\nContext: Research emerging trends and key players.\nKeywords: solar, wind, geothermal, fusion\n"""

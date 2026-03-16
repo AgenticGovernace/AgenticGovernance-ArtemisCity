@@ -13,9 +13,7 @@ except ImportError:  # pragma: no cover - fallback when dependency not installed
 
 load_dotenv()  # Load environment variables from .env file
 
-OBSIDIAN_VAULT_PATH = os.getenv(
-    "OBSIDIAN_VAULT_PATH", 
-)
+OBSIDIAN_VAULT_PATH = os.getenv("OBSIDIAN_VAULT_PATH")
 
 # Define specific subfolders within your vault for agent interaction
 

@@ -1,6 +1,6 @@
 """Smoke tests for the Sandbox City simulation loop."""
 
-from app.sandbox_city.run_simulation import CitySimulation
+from src.sandbox_city.run_simulation import CitySimulation
 
 
 def test_simulation_is_deterministic_with_seed():

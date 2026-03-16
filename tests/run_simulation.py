@@ -35,7 +35,9 @@ class ZoneState:
     load: float = 0.35  # Operational load / queue pressure
     risk: float = 0.12  # Latent risk / anomaly likelihood
 
-    def apply_delta(self, stability: float = 0.0, load: float = 0.0, risk: float = 0.0) -> None:
+    def apply_delta(
+        self, stability: float = 0.0, load: float = 0.0, risk: float = 0.0
+    ) -> None:
         """Adjust metrics while keeping them within sane bounds."""
         self.stability = clamp(self.stability + stability)
         self.load = clamp(self.load + load)
@@ -60,7 +62,9 @@ class Resident:
     energy: float = 0.72
     trust: float = 0.78
 
-    def apply_delta(self, morale: float = 0.0, energy: float = 0.0, trust: float = 0.0) -> None:
+    def apply_delta(
+        self, morale: float = 0.0, energy: float = 0.0, trust: float = 0.0
+    ) -> None:
         self.morale = clamp(self.morale + morale)
         self.energy = clamp(self.energy + energy)
         self.trust = clamp(self.trust + trust)
@@ -89,7 +93,9 @@ class CityEvent:
         """Modify zone metrics based on severity and polarity."""
         sign = 1 if self.positive else -1
         zone_state.apply_delta(
-            stability=sign * -0.35 * self.severity,  # Negative for incidents, positive for boosts
+            stability=sign
+            * -0.35
+            * self.severity,  # Negative for incidents, positive for boosts
             load=0.45 * self.severity,
             risk=0.40 * self.severity * (1 if not self.positive else -0.5),
         )
@@ -113,16 +119,26 @@ class CitySimulation:
         self.tick: int = 0
         self.zones: Dict[str, ZoneState] = self._default_zones()
         self.residents: List[Resident] = self._default_residents()
-        self.history: List[Dict[str, object]] = []  # Snapshots per tick for offline analysis
+        self.history: List[Dict[str, object]] = (
+            []
+        )  # Snapshots per tick for offline analysis
 
     # ---- Public API -----------------------------------------------------
 
-    def run(self, ticks: int = 12, verbose: bool = True, summary_every: int = 1, json_out: Optional[str] = None) -> Dict[str, object]:
+    def run(
+        self,
+        ticks: int = 12,
+        verbose: bool = True,
+        summary_every: int = 1,
+        json_out: Optional[str] = None,
+    ) -> Dict[str, object]:
         """Advance the simulation for `ticks` steps."""
         for _ in range(ticks):
             self.tick += 1
             events = self._spawn_events()
-            actions = [self._take_action(resident, events) for resident in self.residents]
+            actions = [
+                self._take_action(resident, events) for resident in self.residents
+            ]
             snapshot = self._snapshot(events=events, actions=actions)
             self.history.append(snapshot)
 
@@ -155,9 +171,13 @@ class CitySimulation:
                     if resident.focus_zone == event.zone:
                         swing = 0.18 * event.severity
                         if event.positive:
-                            resident.apply_delta(morale=swing, trust=swing * 0.6, energy=0.05)
+                            resident.apply_delta(
+                                morale=swing, trust=swing * 0.6, energy=0.05
+                            )
                         else:
-                            resident.apply_delta(morale=-swing, trust=-0.5 * swing, energy=-0.08)
+                            resident.apply_delta(
+                                morale=-swing, trust=-0.5 * swing, energy=-0.08
+                            )
         return events
 
     def _take_action(self, resident: Resident, events: List[CityEvent]) -> ActionResult:
@@ -291,7 +311,9 @@ class CitySimulation:
 
     # ---- Snapshot + catalog helpers ------------------------------------
 
-    def _snapshot(self, events: List[CityEvent], actions: List[ActionResult]) -> Dict[str, object]:
+    def _snapshot(
+        self, events: List[CityEvent], actions: List[ActionResult]
+    ) -> Dict[str, object]:
         scores = self._city_scores()
         return {
             "tick": self.tick,
@@ -307,17 +329,25 @@ class CitySimulation:
             ],
             "actions": [action.__dict__ for action in actions],
             "zones": {name: zone.as_dict() for name, zone in self.zones.items()},
-            "residents": {resident.name: resident.as_dict() for resident in self.residents},
+            "residents": {
+                resident.name: resident.as_dict() for resident in self.residents
+            },
             "scores": scores,
         }
 
     def _city_scores(self) -> Dict[str, float]:
-        stability = sum(zone.stability for zone in self.zones.values()) / len(self.zones)
+        stability = sum(zone.stability for zone in self.zones.values()) / len(
+            self.zones
+        )
         load = sum(zone.load for zone in self.zones.values()) / len(self.zones)
         risk = sum(zone.risk for zone in self.zones.values()) / len(self.zones)
-        morale = sum(resident.morale for resident in self.residents) / len(self.residents)
+        morale = sum(resident.morale for resident in self.residents) / len(
+            self.residents
+        )
         trust = sum(resident.trust for resident in self.residents) / len(self.residents)
-        energy = sum(resident.energy for resident in self.residents) / len(self.residents)
+        energy = sum(resident.energy for resident in self.residents) / len(
+            self.residents
+        )
         return {
             "service_health": round(stability * (1 - load) * (1 - risk), 3),
             "stability": round(stability, 3),
@@ -330,36 +360,150 @@ class CitySimulation:
 
     def _event_catalog(self) -> List[CityEvent]:
         return [
-            CityEvent("Policy backlog", "Town Hall", severity=0.22, narrative="Audit queue piles up after a spike in edge-cases."),
-            CityEvent("Packet storm", "Post Office", severity=0.18, narrative="Burst of encrypted traffic saturates the secure channels."),
-            CityEvent("Data drift alert", "Library", severity=0.20, narrative="Checksum drift detected in historical archives."),
-            CityEvent("Sensor false alarm", "Watchtower", severity=0.14, narrative="False positive anomaly causes alert churn."),
-            CityEvent("Prototype sprint", "Workshop", severity=0.16, narrative="Ambitious sprint strains tooling and review bandwidth."),
-            CityEvent("Public rumor", "Public Square", severity=0.15, narrative="Rumor spreads about policy change; clarifications needed."),
-            CityEvent("Block party", "Public Square", severity=0.14, narrative="Spontaneous gathering boosts spirits and trust.", positive=True),
-            CityEvent("Mentorship hour", "Library", severity=0.12, narrative="Knowledge share boosts memory hygiene.", positive=True),
+            CityEvent(
+                "Policy backlog",
+                "Town Hall",
+                severity=0.22,
+                narrative="Audit queue piles up after a spike in edge-cases.",
+            ),
+            CityEvent(
+                "Packet storm",
+                "Post Office",
+                severity=0.18,
+                narrative="Burst of encrypted traffic saturates the secure channels.",
+            ),
+            CityEvent(
+                "Data drift alert",
+                "Library",
+                severity=0.20,
+                narrative="Checksum drift detected in historical archives.",
+            ),
+            CityEvent(
+                "Sensor false alarm",
+                "Watchtower",
+                severity=0.14,
+                narrative="False positive anomaly causes alert churn.",
+            ),
+            CityEvent(
+                "Prototype sprint",
+                "Workshop",
+                severity=0.16,
+                narrative="Ambitious sprint strains tooling and review bandwidth.",
+            ),
+            CityEvent(
+                "Public rumor",
+                "Public Square",
+                severity=0.15,
+                narrative="Rumor spreads about policy change; clarifications needed.",
+            ),
+            CityEvent(
+                "Block party",
+                "Public Square",
+                severity=0.14,
+                narrative="Spontaneous gathering boosts spirits and trust.",
+                positive=True,
+            ),
+            CityEvent(
+                "Mentorship hour",
+                "Library",
+                severity=0.12,
+                narrative="Knowledge share boosts memory hygiene.",
+                positive=True,
+            ),
         ]
 
     @staticmethod
     def _default_zones() -> Dict[str, ZoneState]:
         return {
-            "Town Hall": ZoneState("Town Hall", "Governance Hub", "Policy, audits, and arbitration", stability=0.82, load=0.42, risk=0.10),
-            "Post Office": ZoneState("Post Office", "Secure Load Zone", "Encrypted data transfer via Pack Rat", stability=0.78, load=0.37, risk=0.14),
-            "Library": ZoneState("Library", "Memory Archives", "Persistent memory stack and indexing", stability=0.80, load=0.40, risk=0.12),
-            "Workshop": ZoneState("Workshop", "Agent Development & Testing", "Prototyping, validation sims, onboarding", stability=0.76, load=0.38, risk=0.16),
-            "Public Square": ZoneState("Public Square", "Interface Layer", "Human/agent interaction surface", stability=0.79, load=0.33, risk=0.10),
-            "Watchtower": ZoneState("Watchtower", "Monitoring & Logging", "System monitoring, anomaly detection", stability=0.81, load=0.36, risk=0.13),
+            "Town Hall": ZoneState(
+                "Town Hall",
+                "Governance Hub",
+                "Policy, audits, and arbitration",
+                stability=0.82,
+                load=0.42,
+                risk=0.10,
+            ),
+            "Post Office": ZoneState(
+                "Post Office",
+                "Secure Load Zone",
+                "Encrypted data transfer via Pack Rat",
+                stability=0.78,
+                load=0.37,
+                risk=0.14,
+            ),
+            "Library": ZoneState(
+                "Library",
+                "Memory Archives",
+                "Persistent memory stack and indexing",
+                stability=0.80,
+                load=0.40,
+                risk=0.12,
+            ),
+            "Workshop": ZoneState(
+                "Workshop",
+                "Agent Development & Testing",
+                "Prototyping, validation sims, onboarding",
+                stability=0.76,
+                load=0.38,
+                risk=0.16,
+            ),
+            "Public Square": ZoneState(
+                "Public Square",
+                "Interface Layer",
+                "Human/agent interaction surface",
+                stability=0.79,
+                load=0.33,
+                risk=0.10,
+            ),
+            "Watchtower": ZoneState(
+                "Watchtower",
+                "Monitoring & Logging",
+                "System monitoring, anomaly detection",
+                stability=0.81,
+                load=0.36,
+                risk=0.13,
+            ),
         }
 
     @staticmethod
     def _default_residents() -> List[Resident]:
         return [
-            Resident(name="Artemis (Governor)", role="Governance steward", focus_zone="Town Hall", trust=0.83),
-            Resident(name="Pack Rat Courier", role="Secure courier", focus_zone="Post Office", energy=0.75),
-            Resident(name="Codex Daemon", role="Memory caretaker", focus_zone="Library", trust=0.85),
-            Resident(name="Workshop Lead", role="Workshop engineer", focus_zone="Workshop", morale=0.76),
-            Resident(name="Sentinel Scout", role="Watchtower monitor", focus_zone="Watchtower", energy=0.74),
-            Resident(name="Public Liaison", role="Community interface", focus_zone="Public Square", morale=0.78),
+            Resident(
+                name="Artemis (Governor)",
+                role="Governance steward",
+                focus_zone="Town Hall",
+                trust=0.83,
+            ),
+            Resident(
+                name="Pack Rat Courier",
+                role="Secure courier",
+                focus_zone="Post Office",
+                energy=0.75,
+            ),
+            Resident(
+                name="Codex Daemon",
+                role="Memory caretaker",
+                focus_zone="Library",
+                trust=0.85,
+            ),
+            Resident(
+                name="Workshop Lead",
+                role="Workshop engineer",
+                focus_zone="Workshop",
+                morale=0.76,
+            ),
+            Resident(
+                name="Sentinel Scout",
+                role="Watchtower monitor",
+                focus_zone="Watchtower",
+                energy=0.74,
+            ),
+            Resident(
+                name="Public Liaison",
+                role="Community interface",
+                focus_zone="Public Square",
+                morale=0.78,
+            ),
         ]
 
     # ---- Presentation helpers ------------------------------------------
@@ -373,7 +517,9 @@ class CitySimulation:
         if events:
             for event in events:
                 polarity = "⭐" if event["positive"] else "⚠️"
-                print(f"{polarity} {event['name']} at {event['zone']} (sev {event['severity']:.2f}) — {event['narrative']}")
+                print(
+                    f"{polarity} {event['name']} at {event['zone']} (sev {event['severity']:.2f}) — {event['narrative']}"
+                )
         else:
             print("… No city events")
 
@@ -381,26 +527,43 @@ class CitySimulation:
             location = f" @ {action['zone']}" if action["zone"] else ""
             print(f"• {action['actor']} {action['summary']}{location}")
 
-        print(
-            textwrap.dedent(
-                f"""
+        print(textwrap.dedent(f"""
                 Scores: service_health={scores['service_health']:.3f} | stability={scores['stability']:.2f} | load={scores['load']:.2f} | risk={scores['risk']:.2f}
                         morale={scores['morale']:.2f} | trust={scores['trust']:.2f} | energy={scores['energy']:.2f}
-                """
-            ).strip()
-        )
+                """).strip())
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the Sandbox City (Artemis City) simulation loop.")
-    parser.add_argument("--ticks", type=int, default=12, help="Number of ticks (steps) to simulate.")
-    parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducible runs.")
-    parser.add_argument("--summary-every", type=int, default=1, help="Print every Nth tick (default: 1).")
-    parser.add_argument("--json-out", type=str, default=None, help="Optional path to dump the tick-by-tick state as JSON.")
+    parser = argparse.ArgumentParser(
+        description="Run the Sandbox City (Artemis City) simulation loop."
+    )
+    parser.add_argument(
+        "--ticks", type=int, default=12, help="Number of ticks (steps) to simulate."
+    )
+    parser.add_argument(
+        "--seed", type=int, default=None, help="Random seed for reproducible runs."
+    )
+    parser.add_argument(
+        "--summary-every",
+        type=int,
+        default=1,
+        help="Print every Nth tick (default: 1).",
+    )
+    parser.add_argument(
+        "--json-out",
+        type=str,
+        default=None,
+        help="Optional path to dump the tick-by-tick state as JSON.",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = _parse_args()
     sim = CitySimulation(seed=args.seed)
-    sim.run(ticks=args.ticks, verbose=True, summary_every=args.summary_every, json_out=args.json_out)
+    sim.run(
+        ticks=args.ticks,
+        verbose=True,
+        summary_every=args.summary_every,
+        json_out=args.json_out,
+    )
