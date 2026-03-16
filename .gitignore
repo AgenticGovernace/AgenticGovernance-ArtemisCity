@@ -126,9 +126,7 @@ Concept_Demos/data/Agent Outputs/Research_Agent_Report_20260313030453_5.md
 Concept_Demos/data/Agent Outputs/Summarizer_Agent_Report_direct_summary_T001_5.md
 *.ipynb
 Concept_Demos/src/agents/copilot.md
-d
 /logs
 /web/api/db/Agent Outputs
 /web/api/db
-d
 /.claude
