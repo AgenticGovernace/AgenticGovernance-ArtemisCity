@@ -2,6 +2,7 @@ import argparse
 import sys
 
 from . import kernel
+
 parser = argparse.ArgumentParser(description="Artemis-City Kernel CLI")
 parser.add_argument("command", nargs="?", help="The command string to execute")
 parser.add_argument("--plan", help="Path to a plan file to execute")
@@ -48,4 +49,4 @@ else:
 
 
 if __name__ == "__main__":
-main()
+    pass
