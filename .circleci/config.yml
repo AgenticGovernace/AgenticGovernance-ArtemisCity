@@ -46,7 +46,7 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install MCP server dependencies
+          name: Install web API dependencies
           command: cd web/api && npm install
       - run:
           name: Lint web API
