@@ -141,9 +141,13 @@ clean-env: ## Remove virtual environment
 # DEVELOPMENT
 # ============================================
 
-run: ## Run the CLI interactively
+run: ## Run the interactive ATP CLI
 	@echo "Starting Artemis City CLI..."
-	python interface/Artemis_cli.py
+	python -m src
+
+run-orchestrator: ## Run the MCP orchestrator pipeline
+	@echo "Starting MCP Orchestrator..."
+	python -m src --orchestrator --skip-demos
 
 demo: ## Run all demos
 	@echo "Running demos..."

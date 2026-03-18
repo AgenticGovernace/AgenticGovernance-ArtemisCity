@@ -22,9 +22,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import yaml  # noqa: E402
 
-from app.agents.artemis import ArtemisPersona  # noqa: E402
-from app.agents.atp import ATPParser  # noqa: E402
-from app.core.instructions import get_global_cache  # noqa: E402
+from src.agents.artemis import ArtemisPersona  # noqa: E402
+from src.agents.atp import ATPParser  # noqa: E402
+from src.core.instructions import get_global_cache  # noqa: E402
 
 
 def load_agent_router_config(config_path):

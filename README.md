@@ -24,7 +24,7 @@ The platform is a **Multi-Agent Coordination Platform (MCP)** built around an **
 ```mermaid
 graph TB
 subgraph User["User Layer"]
-    CLI["main.py<br/>CLI Entrypoint"]
+    CLI["python -m src<br/>CLI Entrypoint"]
     WebUI["web/frontend<br/>React Dashboard"]
 end
 
@@ -72,11 +72,12 @@ BUS --> VEC
 
 ```text
 .
-├── main.py                 # Primary Python CLI entry point
-├── pyproject.toml          # Python project metadata and dependencies
 ├── requirements.txt        # Python dependencies
 ├── Pipfile                 # Pipenv dependency management
 ├── src/                    # Core Python source code
+│   ├── __main__.py         # Package entry point (python -m src)
+│   ├── main.py             # Interactive ATP CLI
+│   ├── launch/main.py      # MCP orchestrator pipeline
 │   ├── mcp/                # Multi-Agent Coordination Platform logic
 │   ├── agents/             # Individual agent implementations
 │   ├── core/               # Shared system utilities
@@ -134,21 +135,34 @@ npm run dev
 
 ## 🏃 Entry Points & Scripts
 
-### Python CLI (`main.py`)
+### Interactive CLI (`python -m src`)
 The primary way to interact with the platform:
 ```bash
+# Start the interactive ATP CLI
+python -m src
+
+# Or via Makefile
+make run
+```
+
+### MCP Orchestrator (`python -m src --orchestrator`)
+Run the orchestration pipeline for task processing:
+```bash
 # Run with demo tasks
-python main.py
+python -m src --orchestrator
 
 # Process a specific instruction
-python main.py -i "Summarize the latest research" -c text_summarization
+python -m src --orchestrator -i "Summarize the latest research" -c text_summarization
 
 # Use a specific agent
-python main.py --agent research_agent -i "Find info on ATP"
+python -m src --orchestrator --agent research_agent -i "Find info on ATP"
 
 # View system stats
-python main.py --show-hebbian
-python main.py --agent-stats artemis
+python -m src --orchestrator --show-hebbian
+python -m src --orchestrator --agent-stats artemis
+
+# Or via Makefile
+make run-orchestrator
 ```
 
 ### Web API Scripts
