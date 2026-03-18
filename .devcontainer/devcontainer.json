@@ -32,7 +32,7 @@
   "forwardPorts": [3000, 5432],
 
   // Install project dependencies after container creation
-  "postCreateCommand": "python -m pip install -r requirements.txt && cd src/mcp-server && npm install",
+  "postCreateCommand": "python -m pip install -r requirements.txt && cd web/api && npm install",
 
   // Configure tool-specific properties.
   "customizations": {
