@@ -67,7 +67,15 @@ jobs:
           name: Check for hardcoded secrets
           command: |
             FOUND=0
-            for pattern in "API_KEY=.[a-zA-Z0-9]" "PASSWORD=.[a-zA-Z0-9]" "SECRET=.[a-zA-Z0-9]"; do
+            for pattern in \
+              "API_KEY\\s*[:=]\\s*['\"]?[A-Za-z0-9_\\-]{20,}" \
+              "SECRET_KEY\\s*[:=]\\s*['\"]?[A-Za-z0-9_\\-]{20,}" \
+              "ACCESS_TOKEN\\s*[:=]\\s*['\"]?[A-Za-z0-9_\\-]{20,}" \
+              "TOKEN\\s*[:=]\\s*['\"]?[A-Za-z0-9_\\-]{20,}" \
+              "PASSWORD\\s*[:=]\\s*['\"]?[A-Za-z0-9_\\-]{12,}" \
+              "CLIENT_SECRET\\s*[:=]\\s*['\"]?[A-Za-z0-9_\\-]{20,}" \
+              "PRIVATE_KEY\\s*[:=]\\s*['\"]?-----BEGIN[ A-Z0-9]+PRIVATE KEY-----" \
+            ; do
               if grep -rn --include="*.py" --include="*.ts" --include="*.js" --include="*.yml" --include="*.yaml" --include="*.md" \
                 -E "$pattern" . \
                 --exclude-dir=.git --exclude-dir=node_modules --exclude="*.example" \
