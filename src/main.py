@@ -22,6 +22,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import yaml  # noqa: E402
 
+# When executed directly (e.g., `python src/main.py`), the `src` package may
+# not be importable, causing the absolute imports below to fail. In that case,
+# guide the user to run the CLI as a module instead.
+if __name__ == "__main__" and not __package__:
+    print("Error: This script must be run as a module. Use: python -m src")
+    sys.exit(1)
+
 from src.agents.artemis import ArtemisPersona  # noqa: E402
 from src.agents.atp import ATPParser  # noqa: E402
 from src.core.instructions import get_global_cache  # noqa: E402
