@@ -137,6 +137,8 @@ npm run dev
 
 All CLIs are invoked via `python -m src`, which lives in `src/__main__.py`:
 
+> Note: Earlier versions of this project used a root-level `main.py` entry point (invoked as `python main.py`). That file has been removed in favor of the module-based entry point. If you have existing scripts, automation, or documentation that still reference `python main.py`, update them to use `python -m src` instead.
+
 ### Kernel CLI — Interactive (default)
 ```bash
 python -m src                          # Interactive mode
