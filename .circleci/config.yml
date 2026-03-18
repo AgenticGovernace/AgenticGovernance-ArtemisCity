@@ -24,16 +24,21 @@ jobs:
           command: isort --check-only .
       - run:
           name: Lint (Flake8)
-          command: flake8 . || true
+          command: flake8 .
       - run:
           name: Type check (MyPy)
-          command: mypy . || true
+          command: mypy .
       - run:
           name: Security scan (Bandit)
-          command: bandit -r . -c pyproject.toml || true
+          command: bandit -r . -c pyproject.toml
       - run:
           name: Run tests
-          command: pytest tests/ -v || echo "No tests found"
+          command: |
+            if [ -d "tests" ]; then
+              pytest tests/ -v
+            else
+              echo "No tests found"
+            fi
 
   node-checks:
     docker:
