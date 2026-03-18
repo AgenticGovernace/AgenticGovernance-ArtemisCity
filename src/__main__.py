@@ -13,7 +13,6 @@ import sys
 def entry():
     parser = argparse.ArgumentParser(
         description="Artemis City — Agentic Governance Platform",
-        add_help=False,
     )
     parser.add_argument(
         "--orchestrator",
