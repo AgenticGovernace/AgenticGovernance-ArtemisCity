@@ -135,34 +135,28 @@ npm run dev
 
 ## 🏃 Entry Points & Scripts
 
-### Interactive CLI (`python -m src`)
-The primary way to interact with the platform:
-```bash
-# Start the interactive ATP CLI
-python -m src
+All CLIs are invoked via `python -m src`, which lives in `src/__main__.py`:
 
-# Or via Makefile
-make run
+### Kernel CLI — Interactive (default)
+```bash
+python -m src                          # Interactive mode
+python -m src "status"                 # One-shot command
+python -m src --plan plan.json         # Execute a plan file
+make run                               # Makefile shortcut
 ```
 
-### MCP Orchestrator (`python -m src --orchestrator`)
-Run the orchestration pipeline for task processing:
+### ATP CLI
 ```bash
-# Run with demo tasks
-python -m src --orchestrator
+python -m src --atp                    # ATP-enabled interactive CLI
+make run-atp                           # Makefile shortcut
+```
 
-# Process a specific instruction
+### MCP Orchestrator
+```bash
+python -m src --orchestrator           # Run with demo tasks
 python -m src --orchestrator -i "Summarize the latest research" -c text_summarization
-
-# Use a specific agent
-python -m src --orchestrator --agent research_agent -i "Find info on ATP"
-
-# View system stats
 python -m src --orchestrator --show-hebbian
-python -m src --orchestrator --agent-stats artemis
-
-# Or via Makefile
-make run-orchestrator
+make run-orchestrator                  # Makefile shortcut
 ```
 
 ### Web API Scripts

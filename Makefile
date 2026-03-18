@@ -4,7 +4,7 @@
 # Convenient commands for development tasks
 # Usage: make <target>
 
-.PHONY: help install lint format test clean security check pre-commit setup-hooks
+.PHONY: help install lint format test clean security check pre-commit setup-hooks run run-atp run-orchestrator
 
 # Default target
 .DEFAULT_GOAL := help
@@ -141,9 +141,13 @@ clean-env: ## Remove virtual environment
 # DEVELOPMENT
 # ============================================
 
-run: ## Run the interactive ATP CLI
+run: ## Run the interactive Kernel CLI
 	@echo "Starting Artemis City CLI..."
 	python -m src
+
+run-atp: ## Run the ATP-enabled CLI
+	@echo "Starting ATP CLI..."
+	python -m src --atp
 
 run-orchestrator: ## Run the MCP orchestrator pipeline
 	@echo "Starting MCP Orchestrator..."
