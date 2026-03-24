@@ -1,0 +1,12 @@
+title: Artemis City
+description: Transparent governance patterns for multi-agent systems.
+theme: minima
+markdown: kramdown
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default

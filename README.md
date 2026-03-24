@@ -21,6 +21,12 @@ The platform is a **Multi-Agent Coordination Platform (MCP)** built around an **
 - **Frontend**: React, Vite, Chakra UI, TypeScript
 - **Package Managers**: `pip`  / `pipenv`  (Python), `npm`  (Node.js)
 
+## CI/CD
+
+- `CI` runs GitHub Actions checks for Python packaging/syntax plus Node install and build validation for `web/api` and `web/frontend`.
+- `Deploy Docs Site` publishes a small Jekyll-backed project site to GitHub Pages from `main`.
+- GitHub Pages now has a concrete site entrypoint at [`index.md`](/Volumes/Homebase/sourcerepo/AgenticGovernance-ArtemisCity/index.md) with config in [`_config.yml`](/Volumes/Homebase/sourcerepo/AgenticGovernance-ArtemisCity/_config.yml).
+
 ## Table of Contents
 
 1. [Project Overview](#project-overview)
