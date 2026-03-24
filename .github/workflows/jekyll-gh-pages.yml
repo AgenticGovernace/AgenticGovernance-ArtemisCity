@@ -34,7 +34,9 @@ jobs:
           destination: ./_site
 
       - name: Fix Pages artifact permissions
-        run: chmod -c -R +rX ./_site
+        run: |
+          find ./_site -type f -exec chmod u+rw,go+r {} +
+          find ./_site -type d -exec chmod u+rwx,go+rx {} +
 
       - name: Archive Pages artifact
         run: tar --dereference --hard-dereference --directory ./_site -cvf "$RUNNER_TEMP/artifact.tar" --exclude=.git --exclude=.github .
