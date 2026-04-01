@@ -137,10 +137,10 @@ logger.info("API key configured")
 # Bad
 logger.info(f"API key: {api_key}")
 4. **Use secure connections:**
- - Always use HTTPS/TLS in production
- - Validate SSL certificates
- - Don't disable certificate verification
 
+- Always use HTTPS/TLS in production
+- Validate SSL certificates
+- Don't disable certificate verification
 ### Code Review Checklist
 - [ ] No hardcoded secrets
 - [ ] No secrets in logs
