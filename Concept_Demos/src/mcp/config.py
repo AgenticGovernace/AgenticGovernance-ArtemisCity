@@ -20,4 +20,8 @@ OBSIDIAN_VAULT_PATH = os.getenv("OBSIDIAN_VAULT_PATH")
 AGENT_INPUT_DIR = "Agent Inputs"  # Where agents look for new tasks/instructions
 AGENT_OUTPUT_DIR = "Agent Outputs"  # Where agents write their reports/results
 
+# EXO cluster inference settings
+EXO_BASE_URL = os.getenv("EXO_BASE_URL", "http://localhost:52415")
+EXO_MODEL_ID = os.getenv("EXO_MODEL_ID", "")
+
 # You can add more configuration here, e.g., agent specific settings, API keys etc.

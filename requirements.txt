@@ -4,19 +4,41 @@ pytest>=7.4.0
 pytest-cov>=4.1.0  # Coverage reporting
 pytest-asyncio>=0.21.0  # Async test support
 pytest-mock>=3.12.0  # Mocking utilities
+pytest-cases>=3.7.0  # Parameterized test cases
+# Test data generation
+faker>=18.0.0  # Generate fake data
+# Test coverage thresholds (optional, can be configured in pytest.ini)
+coverage>=7.0.0  # Coverage measurement
+coverage-badge>=1.0.0  # Generate coverage badges
+# Test reporting
+pytest-html>=3.2.0  # HTML test reports
+pytest-xdist>=3.0.0  # Parallel test execution
+# Mocking and stubbing
 
+responses>=0.22.0  # Mocking HTTP responses
+# Test fixtures and utilities
+pytest-fixture-config>=1.0.0  # Fixture configuration management
+pytest-factoryboy>=2.0.0  # Factory
 # ============================================
-# CODE QUALITY
+# CODE QUALITY AND MAINTENANCE
 # ============================================
-
-# Formatting
-black>=23.0.0  # Opinionated code formatter
-isort>=5.12.0  # Import statement sorter
-
+# Code formatting and linting
+# Code formatting
+# Note: We use black for code formatting, which is opinionated and has minimal configuration options.
+# If you prefer a more configurable formatter, you can consider using autopep8 or yapf instead.
+autopep8>=1.5.0  # Automatic code formatter (PEP 8)
+yapf>=0.32.0  # Yet another Python formatter (configurable)
+# isort>=5.12.0  # Import statement sorter
+# Note: isort is a popular tool for sorting imports, but it can sometimes conflict with black. If you choose to use black, it's recommended to configure isort to be compatible with black (e.g., using the "black" profile in isort). If you prefer a simpler setup, you can omit isort and rely on black
 # Linting
+#   
+# Note: We use flake8 for linting, which is a widely used tool that checks for style and programming errors. If you prefer a more comprehensive linter, you can consider using pylint instead, which provides more detailed analysis and can be configured to enforce specific coding standards.
 flake8>=6.0.0  # Style guide enforcement
 flake8-docstrings>=1.7.0  # Docstring linting
 pylint>=3.0.0  # Additional linting
+# Note: If you choose to use pylint, be aware that it can be more verbose and may require additional configuration to avoid false positives. It's often used in larger projects or when strict code quality is a priority. If you prefer a simpler setup, you can rely on flake8 for linting and omit pylint.
+# 
+# Note: We use black for code formatting, which is opinionated and has minimal configuration options. If you prefer a more configurable formatter, you can consider using autopep8 or yapf instead.
 
 # Type checking
 mypy>=1.5.0  # Static type checker
@@ -25,7 +47,6 @@ types-PyYAML>=6.0.0  # Type stubs for PyYAML
 # Security
 bandit>=1.7.0  # Security issue scanner
 safety>=2.3.0  # Dependency vulnerability checker
-
 # ============================================
 # DEVELOPMENT TOOLS
 # ============================================
@@ -67,9 +88,18 @@ pre-commit>=3.5.0
 # Data validation (for future API work)
 pydantic>=2.0.0
 
+# Legal summarization experiment (Codex_Experiments)
+datasets>=2.18.0  # HuggingFace dataset loading
+pyarrow>=15.0.0  # Parquet file support
+
 # HTTP library (if extending beyond urllib)
 requests>=2.31.0
 httpx>=0.25.0  # Modern async HTTP
 
 # Environment management
-python-dotenv>=1.0.0  # .env file support (optional, we use os.environ)
+
+
+setuptools>=65.0.0  # For packaging and distribution
+wheel>=0.36.0  # For building wheel distributions
+twine>=3.0.0  # For uploading packages to PyPI
+entrypoints>=0.4.0  # For defining CLI entry points

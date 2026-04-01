@@ -3,6 +3,7 @@ import os
 import json
 import logging
 import sqlite3
+import re
 from pathlib import Path
 from typing import List, Dict, Any
 
@@ -28,12 +29,14 @@ import_error: Exception | None = None
 
 try:
     from src.mcp.orchestrator import Orchestrator
-    from src.mcp.config import AGENT_OUTPUT_DIR
+    from src.mcp.config import AGENT_OUTPUT_DIR, AGENT_INPUT_DIR, OBSIDIAN_VAULT_PATH
     from src.utils.helpers import logger
 except Exception as e:
     import_error = e
     Orchestrator = None  # type: ignore[assignment]
     AGENT_OUTPUT_DIR = "Agent Outputs"
+    AGENT_INPUT_DIR = "Agent Inputs"
+    OBSIDIAN_VAULT_PATH = os.environ.get("OBSIDIAN_VAULT_PATH")
     logger = logging.getLogger("mcp_dashboard_api")
     if not logger.handlers:
         logging.basicConfig(level=logging.INFO)
@@ -155,6 +158,67 @@ def _safe_rate(successes: int, total: int) -> float:
     return (successes / total) if total else 0.0
 
 
+def _get_vault_path() -> Path:
+    vault_path = OBSIDIAN_VAULT_PATH or os.environ.get("OBSIDIAN_VAULT_PATH")
+    if not vault_path:
+        raise HTTPException(
+            status_code=500, detail="Obsidian vault path not configured."
+        )
+    full_path = Path(vault_path).expanduser()
+    if not full_path.is_dir():
+        raise HTTPException(status_code=500, detail="Obsidian vault path not found.")
+    return full_path
+
+
+def _list_markdown_files(folder: Path) -> List[str]:
+    if not folder.is_dir():
+        return []
+    return sorted(
+        [
+            f.name
+            for f in folder.iterdir()
+            if f.is_file() and f.suffix == ".md"
+        ]
+    )
+
+
+def _parse_task_note(content: str) -> Dict[str, Any] | None:
+    task_data: Dict[str, Any] = {}
+
+    if content.startswith("---"):
+        parts = content.split("---", 2)
+        if len(parts) > 1:
+            front_matter = parts[1].strip()
+            for line in front_matter.split("\n"):
+                if ":" in line:
+                    key, value = line.split(":", 1)
+                    task_data[key.strip()] = value.strip()
+            content = parts[2].strip()
+
+    lines = content.split("\n")
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("# ") and "title" not in task_data:
+            task_data["title"] = line[2:].strip()
+            continue
+        match = re.match(r"(\w+):\s*(.*)", line)
+        if match:
+            key = match.group(1).lower()
+            value = match.group(2).strip()
+            task_data[key] = value
+            continue
+        if line.startswith("- [ ] ") or line.startswith("- [x] "):
+            task_data.setdefault("subtasks", []).append(
+                {"text": line[6:].strip(), "completed": line[3] == "x"}
+            )
+
+    if not task_data:
+        return None
+    return task_data
+
+
 # --- FastAPI App Setup ---
 app = FastAPI(
     title="MCP Obsidian API",
@@ -222,19 +286,46 @@ async def startup_event():
 @app.get("/api/agents", response_model=List[AgentResponse])
 async def get_agents(_key: None = Depends(_require_api_key)):
     """Lists all registered agents."""
-    if not orchestrator:
-        raise HTTPException(status_code=500, detail="Orchestrator not initialized.")
-    return [
-        AgentResponse(name=agent.name, capabilities=getattr(agent, "capabilities", []))
-        for agent in orchestrator.agent_registry.get_all_agents()
-    ]
+    conn = _connect_db(AGENT_REGISTRY_DB)
+    try:
+        rows = conn.execute(
+            """
+            SELECT name, capabilities
+            FROM agents
+            ORDER BY name ASC
+            """
+        ).fetchall()
+        agents: List[AgentResponse] = []
+        for row in rows:
+            capabilities = _parse_json(row["capabilities"], [])
+            if not isinstance(capabilities, list):
+                capabilities = []
+            agents.append(
+                AgentResponse(name=row["name"], capabilities=capabilities)
+            )
+        return agents
+    except Exception as e:
+        logger.error("Error fetching agents: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch agents.")
+    finally:
+        conn.close()
 
 
 @app.get("/api/tasks")
 async def get_tasks(_key: None = Depends(_require_api_key)):
     """Retrieves all pending tasks from Obsidian."""
     if not orchestrator:
-        raise HTTPException(status_code=500, detail="Orchestrator not initialized.")
+        vault_path = _get_vault_path()
+        input_dir = vault_path / AGENT_INPUT_DIR
+        tasks = []
+        for filename in _list_markdown_files(input_dir):
+            relative_path = f"{AGENT_INPUT_DIR}/{filename}"
+            content = (input_dir / filename).read_text(encoding="utf-8")
+            data = _parse_task_note(content) or {}
+            if "task_id" not in data:
+                data["task_id"] = f"task_{hash(relative_path) % 100000}"
+            tasks.append({**data, "relative_path": relative_path})
+        return tasks
     try:
         tasks_with_paths = orchestrator.check_for_new_tasks_from_obsidian()
         formatted_tasks = []
@@ -272,7 +363,28 @@ async def create_task(task_data: TaskData, _key: None = Depends(_require_api_key
 async def get_reports(_key: None = Depends(_require_api_key)):
     """Lists all generated reports."""
     if not orchestrator:
-        raise HTTPException(status_code=500, detail="Orchestrator not initialized.")
+        vault_path = _get_vault_path()
+        output_dir = vault_path / AGENT_OUTPUT_DIR
+        report_files = _list_markdown_files(output_dir)
+        summaries = []
+        for filename in report_files:
+            parts = filename.replace(".md", "").split("_Report_")
+            if len(parts) == 2:
+                agent_name = parts[0]
+                task_id_and_len = parts[1].rsplit("_", 1)
+                task_id = task_id_and_len[0] if len(task_id_and_len) > 1 else "unknown"
+            else:
+                agent_name = "unknown_agent"
+                task_id = "unknown_task"
+            summaries.append(
+                ReportSummary(
+                    filename=filename,
+                    agent=agent_name,
+                    task_id=task_id,
+                    timestamp="N/A",
+                )
+            )
+        return summaries
     try:
         report_files = orchestrator.obs_manager.list_notes_in_folder(AGENT_OUTPUT_DIR)
         summaries = []
@@ -304,7 +416,12 @@ async def get_reports(_key: None = Depends(_require_api_key)):
 async def get_report_content(filename: str, _key: None = Depends(_require_api_key)):
     """Retrieves the content of a specific report."""
     if not orchestrator:
-        raise HTTPException(status_code=500, detail="Orchestrator not initialized.")
+        vault_path = _get_vault_path()
+        report_path = vault_path / AGENT_OUTPUT_DIR / filename
+        if not report_path.is_file():
+            raise HTTPException(status_code=404, detail="Report not found.")
+        content = report_path.read_text(encoding="utf-8")
+        return {"filename": filename, "content": content}
     try:
         relative_path = os.path.join(AGENT_OUTPUT_DIR, filename)
         content = orchestrator.obs_manager.read_note(relative_path)

@@ -7,12 +7,16 @@ as mail delivery between agents.
 
 import random
 import time
-from datetime import datetime
-from typing import Dict, List, Optional
+import datetime
+import typing
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 
 import integration.context_loader as context_loader
 import integration.memory_client
-from integration.trust_interface import get_trust_interface
+import integration.trust_interface
 
 
 class MailPacket:
@@ -38,14 +42,14 @@ class MailPacket:
         priority: str = "normal",
     ) -> None:
         """Initialize a mail packet."""
-        self.sender = sender
-        self.recipient = recipient
-        self.subject = subject
-        self.content = content
-        self.priority = priority
-        self.timestamp = datetime.now()
+        self.sender: str = sender
+        self.recipient: str = recipient
+        self.subject: str = subject
+        self.content: str = content
+        self.priority: str = priority
+        self.timestamp: datetime.datetime = datetime.datetime.now()
         self.delivery_status = "created"
-        self.tracking_id = f"{sender[:3].upper()}-{int(time.time() * 1000) % 100000}"
+        self.tracking_id: str = f"{sender[:3].upper()}-{int(time.time() * 1000) % 100000}"
 
     def __str__(self) -> str:
         """Return a string representation of the mail packet."""
@@ -60,11 +64,11 @@ class MailPacket:
 
 
 class PostOffice:
-    def __init__(self):
+    def __init__(self) -> None:
         self.memory_client = integration.memory_client.MemoryClient()
-        self.trust_office = get_trust_interface()
+        self.trust_office: integration.trust_interface.TrustInterface = integration.trust_interface.get_trust_interface()
         self.context_loader = context_loader.ContextLoader(self.memory_client)
-        self.delivery_log: List[Dict] = []
+        self.delivery_log: typing.List[typing.Dict] = []
 
         print("\n Artemis City Post Office - OPEN")
         print("=" * 60)
@@ -117,11 +121,11 @@ class PostOffice:
             time.sleep(random.uniform(0.5, 1.0))
 
         # Deliver to City Archives
-        vault_path = f"Postal/Agents/{recipient}/{packet.tracking_id}.md"
+        vault_path: str = f"Postal/Agents/{recipient}/{packet.tracking_id}.md"
 
         # Create mail note
-        mail_content = self._format_mail_note(packet)
-        response = self.memory_client.append_context(vault_path, mail_content)
+        mail_content: str = self._format_mail_note(packet)
+        response: integration.memory_client.MCPResponse = self.memory_client.append_context(vault_path, mail_content)
 
         if response.success:
             packet.delivery_status = "delivered"
@@ -181,8 +185,8 @@ class PostOffice:
         time.sleep(random.uniform(0.4, 0.9))
 
         # Store in archives
-        path = f"Archives/{archive_section}/{sender}_{title}.md"
-        response = self.memory_client.store_agent_context(
+        path: str = f"Archives/{archive_section}/{sender}_{title}.md"
+        response: integration.memory_client.MCPResponse = self.memory_client.store_agent_context(
             sender, content, folder=f"Archives/{archive_section}"
         )
 
@@ -197,8 +201,8 @@ class PostOffice:
         return response
 
     def request_from_archives(
-        self, requester: str, query: str, section: Optional[str] = None
-    ) -> List[context_loader.ContextEntry]:
+        self, requester: str, query: str, section: typing.Optional[str] = None
+    ) -> typing.List[context_loader.ContextEntry]:
         """Request documents from the City Archives.
 
         Args:
@@ -224,11 +228,11 @@ class PostOffice:
         time.sleep(random.uniform(0.5, 1.0))
 
         # Search archives
-        search_query = query
+        search_query: str = query
         if section:
-            search_query = f"#Archives #{section} {query}"
+            search_query: str = f"#Archives #{section} {query}"
 
-        results = self.context_loader.search_context(search_query, limit=10)
+        results: typing.List[context_loader.ContextEntry] = self.context_loader.search_context(search_query, limit=10)
 
         if results:
             print(f"    Found {len(results)} document(s)")
@@ -240,26 +244,26 @@ class PostOffice:
         self.trust_office.record_success(requester)
         return results
 
-    def get_postal_report(self) -> Dict:
+    def get_postal_report(self) -> typing.Dict:
         """Generate a postal service activity report.
 
         Returns:
             Dictionary with postal statistics
         """
         print("\n POSTAL SERVICE REPORT")
-        print(f"   Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"   Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("=" * 60)
 
-        total_deliveries = len(self.delivery_log)
-        successful = sum(1 for d in self.delivery_log if d["success"])
-        failed = total_deliveries - successful
+        total_deliveries: int = len(self.delivery_log)
+        successful: int = sum(1 for d in self.delivery_log if d["success"])
+        failed: int = total_deliveries - successful
 
         print(f"   Total Deliveries: {total_deliveries}")
         print(f"    Successful: {successful}")
         print(f"    Failed: {failed}")
 
         if total_deliveries > 0:
-            success_rate = (successful / total_deliveries) * 100
+            success_rate: float = (successful / total_deliveries) * 100
             print(f"   📈 Success Rate: {success_rate:.1f}%")
 
         # Trust report
@@ -315,8 +319,8 @@ status: {packet.delivery_status}
 """
 
     def _log_delivery(
-        self, packet: MailPacket, success: bool, reason: Optional[str] = None
-    ):
+        self, packet: MailPacket, success: bool, reason: typing.Optional[str] = None
+    ) -> None:
         """Log a delivery attempt."""
         self.delivery_log.append(
             {
