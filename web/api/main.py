@@ -228,7 +228,7 @@ app = FastAPI(
 
 # Add CORS middleware
 _cors_origins_raw = os.environ.get(
-    "FASTAPI_CORS_ORIGINS", "http://localhost:3000,http://localhost:4000"
+    "FASTAPI_CORS_ORIGINS", "http://localhost:8000,http://localhost:4000"
 )
 _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
 
@@ -242,7 +242,7 @@ app.add_middleware(
 
 # --- API Key Authentication ---
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
-_FASTAPI_API_KEY = os.environ.get("FASTAPI_API_KEY") or os.environ.get("MCP_API_KEY")
+_FASTAPI_API_KEY = os.environ.get('MCP_API_KEY')
 
 
 async def _require_api_key(api_key: str | None = Depends(_api_key_header)):

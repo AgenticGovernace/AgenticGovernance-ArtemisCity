@@ -1,10 +1,4 @@
-/**
- * Trust Controller
- *
- * Handles business logic for trust management and Hebbian learning.
- */
-
-type TrustLevel = 'FULL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'UNTRUSTED';
+enum TrustLevel {full = 'FULL', high = 'HIGH', medium = 'MEDIUM', low = 'LOW', untrusted = 'UNTRUSTED'}
 
 interface TrustScore {
   entityId: string;
@@ -63,7 +57,7 @@ const defaultTrustScores: TrustScore[] = [
     entityId: 'artemis',
     entityType: 'agent',
     score: 0.95,
-    level: 'FULL',
+    level: TrustLevel.full,
     successCount: 1000,
     failureCount: 5,
     lastInteraction: new Date().toISOString(),
@@ -74,7 +68,7 @@ const defaultTrustScores: TrustScore[] = [
     entityId: 'packrat',
     entityType: 'agent',
     score: 0.85,
-    level: 'HIGH',
+    level: TrustLevel.high,
     successCount: 800,
     failureCount: 20,
     lastInteraction: new Date().toISOString(),
@@ -85,7 +79,7 @@ const defaultTrustScores: TrustScore[] = [
     entityId: 'copilot',
     entityType: 'agent',
     score: 0.80,
-    level: 'HIGH',
+    level: TrustLevel.high,
     successCount: 500,
     failureCount: 25,
     lastInteraction: new Date().toISOString(),
@@ -96,7 +90,7 @@ const defaultTrustScores: TrustScore[] = [
     entityId: 'daemon',
     entityType: 'agent',
     score: 0.85,
-    level: 'HIGH',
+    level: TrustLevel.high,
     successCount: 600,
     failureCount: 15,
     lastInteraction: new Date().toISOString(),
@@ -319,20 +313,20 @@ export class TrustController {
    */
   getTrustLevels(): { name: TrustLevel; minScore: number; operations: string[] }[] {
     return [
-      { name: 'FULL', minScore: TRUST_THRESHOLDS.FULL, operations: TRUST_OPERATIONS.FULL },
-      { name: 'HIGH', minScore: TRUST_THRESHOLDS.HIGH, operations: TRUST_OPERATIONS.HIGH },
-      { name: 'MEDIUM', minScore: TRUST_THRESHOLDS.MEDIUM, operations: TRUST_OPERATIONS.MEDIUM },
-      { name: 'LOW', minScore: TRUST_THRESHOLDS.LOW, operations: TRUST_OPERATIONS.LOW },
-      { name: 'UNTRUSTED', minScore: TRUST_THRESHOLDS.UNTRUSTED, operations: TRUST_OPERATIONS.UNTRUSTED }
+      { name: TrustLevel.full, minScore: TRUST_THRESHOLDS.FULL, operations: TRUST_OPERATIONS.FULL },
+      { name: TrustLevel.high, minScore: TRUST_THRESHOLDS.HIGH, operations: TRUST_OPERATIONS.HIGH },
+      { name: TrustLevel.medium, minScore: TRUST_THRESHOLDS.MEDIUM, operations: TRUST_OPERATIONS.MEDIUM },
+      { name: TrustLevel.low, minScore: TRUST_THRESHOLDS.LOW, operations: TRUST_OPERATIONS.LOW },
+      { name: TrustLevel.untrusted, minScore: TRUST_THRESHOLDS.UNTRUSTED, operations: TRUST_OPERATIONS.UNTRUSTED }
     ];
   }
 
   // Helper methods
   private scoreToLevel(score: number): TrustLevel {
-    if (score >= TRUST_THRESHOLDS.FULL) return 'FULL';
-    if (score >= TRUST_THRESHOLDS.HIGH) return 'HIGH';
-    if (score >= TRUST_THRESHOLDS.MEDIUM) return 'MEDIUM';
-    if (score >= TRUST_THRESHOLDS.LOW) return 'LOW';
-    return 'UNTRUSTED';
+    if (score >= TRUST_THRESHOLDS.FULL) return TrustLevel.full;
+    if (score >= TRUST_THRESHOLDS.HIGH) return TrustLevel.high;
+    if (score >= TRUST_THRESHOLDS.MEDIUM) return TrustLevel.medium;
+    if (score >= TRUST_THRESHOLDS.LOW) return TrustLevel.low;
+    return TrustLevel.untrusted;
   }
 }

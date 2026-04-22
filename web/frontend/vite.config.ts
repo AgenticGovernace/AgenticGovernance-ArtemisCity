@@ -9,7 +9,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8000', // FastAPI backend
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '/api'), // Rewrite ensures /api is kept
+        rewrite: (path) => path.replace('/api', /^\/api/), // Rewrite ensures /api is kept
       },
     },
   },

@@ -76,10 +76,34 @@ router.post('/embed', async (req: Request, res: Response) => {
   try {
     const { text, model } = req.body;
 
-    if (!text) {
+    if (!text || (typeof text !== 'string' && !Array.isArray(text))) {
       res.status(400).json({
         success: false,
-        error: 'text is required'
+        error: 'text must be a non-empty string or array of strings'
+      });
+      return;
+    }
+
+    if (Array.isArray(text) && text.length === 0) {
+      res.status(400).json({
+        success: false,
+        error: 'text array cannot be empty'
+      });
+      return;
+    }
+
+    if (Array.isArray(text) && text.some(item => typeof item !== 'string' || !item.trim())) {
+      res.status(400).json({
+        success: false,
+        error: 'text array must contain only non-empty strings'
+      });
+      return;
+    }
+
+    if (typeof text === 'string' && !text.trim()) {
+      res.status(400).json({
+        success: false,
+        error: 'text cannot be empty'
       });
       return;
     }

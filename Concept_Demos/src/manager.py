@@ -5,8 +5,8 @@ from ..utils.helpers import logger
 
 
 class ObsidianManager:
-    def __init__(self, vault_path: str = OBSIDIAN_VAULT_PATH):
-        self.vault_path = Path(vault_path)
+    def __init__(self):
+        self.vault_path = Path(OBSIDIAN_VAULT_PATH)
         if not self.vault_path.is_dir():
             logger.error(f"Obsidian vault path does not exist: {self.vault_path}")
             raise FileNotFoundError(f"Obsidian vault path not found: {self.vault_path}")

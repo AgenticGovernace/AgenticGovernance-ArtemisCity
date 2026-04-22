@@ -2,7 +2,6 @@ import argparse
 import os
 from datetime import datetime
 from typing import Any, Optional
-# 
 import src.mcp.config
 from src.mcp.orchestrator import Orchestrator
 from src.utils.helpers import logger
@@ -48,7 +47,7 @@ def parse_cli_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def setup_example_task_note(obs_manager: Any, memory_bus: Optional[Any] = None) -> None:
+def setup_example_task_note(obs_manager: Any, memory_bus: [Any] = None) -> None:
     """
     Creates an example task note in the Obsidian Agent Inputs folder
     if one doesn't already exist, for demonstration purposes.
@@ -231,7 +230,7 @@ def main() -> None:
         direct_task_context = {
             "task_id": "direct_summary_T001",
             "title": "Summarize provided text",
-            "content": "Large Language Models (LLMs) are a class of artificial intelligence models that are trained on vast amounts of text data. They are capable of understanding and generating human-like text, performing tasks such as translation, summarization, question-answering, and content creation. Their development has rapidly advanced in recent years, leading to significant breakthroughs in natural language processing and various applications across industries.",
+            "content": "Large Language Models (LLMs) are a class of artificial intelligence models that are trained on vast amounts of text db. They are capable of understanding and generating human-like text, performing tasks such as translation, summarization, question-answering, and content creation. Their development has rapidly advanced in recent years, leading to significant breakthroughs in natural language processing and various applications across industries.",
             "required_capability": "text_summarization",
             "status": "pending",
             "tags": ["demo", "summarization"],
@@ -294,7 +293,11 @@ def main() -> None:
     else:
         logger.info("No new pending tasks found in Obsidian input folder.")
         logger.info(
-            f"Remember to create a new Markdown note in '{src.mcp.config.OBSIDIAN_VAULT_PATH}/{src.mcp.config.AGENT_INPUT_DIR}' with 'status: pending' and 'required_capability' in its YAML frontmatter, for example:"
+            "Remember to create a new Markdown note in '%s/%s' "
+            "with 'status: pending' and 'required_capability' in its YAML frontmatter, "
+            "for example:",
+            src.mcp.config.OBSIDIAN_VAULT_PATH,
+            src.mcp.config.AGENT_INPUT_DIR,
         )
         logger.info(
             """---\ntask_id: T_NEW_RESEARCH\nrequired_capability: web_search\nstatus: pending\n---\n\n# New Topic for Research\n\nTopic: The future of renewable energy technologies\nContext: Research emerging trends and key players.\nKeywords: solar, wind, geothermal, fusion\n"""

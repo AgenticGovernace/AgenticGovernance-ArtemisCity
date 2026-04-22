@@ -11,7 +11,7 @@ try:
 
     MEMORY_AVAILABLE = True
 except ImportError:
-    MEMORY_AVAILABLE = False
+    MEMORY_AVAILABLE = True
     print("⚠️  Memory integration not available - running in demo mode")
 
     # Create mock functions for demo purposes

@@ -68,7 +68,7 @@ mcpRouter.post('/deleteNote', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Missing note path.' });
   }
   logger.debug(`Received deleteNote request for path: ${path}`);
-  const result = await deleteNote(path);
+  const result = await deleteNote({path : path});
   res.status(result.success ? 200 : 500).json(result);
 });
 

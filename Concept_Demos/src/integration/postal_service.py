@@ -10,13 +10,9 @@ import time
 import datetime
 import typing
 import os
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-
-import integration.context_loader as context_loader
-import integration.memory_client
-import integration.trust_interface
+from . import context_loader
+from . import memory_client
+from . import trust_interface
 
 
 class MailPacket:
@@ -65,8 +61,8 @@ class MailPacket:
 
 class PostOffice:
     def __init__(self) -> None:
-        self.memory_client = integration.memory_client.MemoryClient()
-        self.trust_office: integration.trust_interface.TrustInterface = integration.trust_interface.get_trust_interface()
+        self.memory_client = memory_client.MemoryClient()
+        self.trust_office: trust_interface.TrustInterface = trust_interface.get_trust_interface()
         self.context_loader = context_loader.ContextLoader(self.memory_client)
         self.delivery_log: typing.List[typing.Dict] = []
 
@@ -125,7 +121,7 @@ class PostOffice:
 
         # Create mail note
         mail_content: str = self._format_mail_note(packet)
-        response: integration.memory_client.MCPResponse = self.memory_client.append_context(vault_path, mail_content)
+        response: memory_client.MCPResponse = self.memory_client.append_context(vault_path, mail_content)
 
         if response.success:
             packet.delivery_status = "delivered"
@@ -157,7 +153,7 @@ class PostOffice:
 
     def send_to_archives(
         self, sender: str, archive_section: str, title: str, content: str
-    ) -> integration.memory_client.MCPResponse:
+    ) -> memory_client.MCPResponse:
         """Send a document to the City Archives for permanent storage.
 
         Args:
@@ -177,7 +173,7 @@ class PostOffice:
         # Check clearance
         if not self.trust_office.can_perform_operation(sender, "write"):
             print("    DENIED: Insufficient archival clearance")
-            return integration.memory_client.MCPResponse(
+            return memory_client.MCPResponse(
                 success=False, error="Insufficient clearance for archival operations"
             )
 
@@ -186,7 +182,7 @@ class PostOffice:
 
         # Store in archives
         path: str = f"Archives/{archive_section}/{sender}_{title}.md"
-        response: integration.memory_client.MCPResponse = self.memory_client.store_agent_context(
+        response: memory_client.MCPResponse = self.memory_client.store_agent_context(
             sender, content, folder=f"Archives/{archive_section}"
         )
 

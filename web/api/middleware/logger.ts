@@ -217,4 +217,4 @@ export const log = (level: LogLevel, message: string, context?: Partial<LogEntry
   storeLog(entry);
 };
 
-export default requestLogger;
+
