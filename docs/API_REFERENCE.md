@@ -8,6 +8,8 @@ Artemis City exposes three primary API surfaces:
 2. **ATP (Artemis Transmission Protocol)**: Structured inter-agent messaging
 3. **System APIs**: Registry, Memory Bus, Governance (admin-only)
 All APIs use HTTP/JSON for REST endpoints and support gRPC where noted.
+![Node.js Expense Report Generation Process](undefined "Node.js Expense Report Generation Process")
+
 ## Agent Transmission Protocol (ATP)
 ATP is the structured message format for agent-to-agent communication and kernel-to-agent direction.
 
