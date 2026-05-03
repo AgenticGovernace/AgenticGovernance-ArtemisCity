@@ -4,6 +4,8 @@
 ## Overview
 Artemis City is a multi-agent operating system designed for autonomous task orchestration with adaptive learning and governance. The system combines distributed task routing, semantic memory persistence, Hebbian learning, and sandbox-based security into a cohesive framework.
 
+![Artemis City Multi-Agent Operating System](/.eraser/RbH7tUtdYFc15lk1ep9O___JbelnRLHqINDuNCF51xhpyclDXW2___---diagram---J-TgDCalP_2axe7rnsF-u---id---SupLzmpo8uBF8Nk_vWDoW.png "Artemis City Multi-Agent Operating System")
+
 ## Core Components
 ### 1. Kernel (Task Router)
 The Kernel is the central task dispatcher and orchestrator.
@@ -230,10 +232,5 @@ Multi-tier approval workflow for self-updates and policy changes.
 
 
 
-<!-- eraser-additional-content -->
-## Diagrams
-<!-- eraser-additional-files -->
-<a href="/docs/ARCHITECTURE-Artemis City Multi-Agent Operating System-1.eraserdiagram" data-element-id="SupLzmpo8uBF8Nk_vWDoW"><img src="/.eraser/RbH7tUtdYFc15lk1ep9O___JbelnRLHqINDuNCF51xhpyclDXW2___---diagram----a9b4b7dd629c420c92002a47fcae67c3-Artemis-City-Multi-Agent-Operating-System.png" alt="" data-element-id="SupLzmpo8uBF8Nk_vWDoW" /></a>
-<!-- end-eraser-additional-files -->
-<!-- end-eraser-additional-content -->
+
 <!--- Eraser file: https://app.eraser.io/workspace/RbH7tUtdYFc15lk1ep9O --->
