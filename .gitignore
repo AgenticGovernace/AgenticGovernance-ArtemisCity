@@ -77,3 +77,4 @@ docker-compose.override.yml
 *.log
 *.tmp
 .cache/
+/logs

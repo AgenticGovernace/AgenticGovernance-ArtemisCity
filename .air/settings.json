@@ -1,0 +1,5 @@
+{
+    "toolchains": [],
+    "prettier.mode": "Enabled",
+    "eslint.mode": "Enabled"
+}
