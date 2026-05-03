@@ -1,5 +1,7 @@
 <p><a target="_blank" href="https://app.eraser.io/workspace/D4T5ItN4GRuMmDAiXpjx" id="edit-in-eraser-github-link"><img alt="Edit in Eraser" src="https://firebasestorage.googleapis.com/v0/b/second-petal-295822.appspot.com/o/images%2Fgithub%2FOpen%20in%20Eraser.svg?alt=media&amp;token=968381c8-a7e7-472a-8ed6-4a6626da5501"></a></p>
 
+
+
 # Artemis City - Living Agent Ecosystem
 Welcome to **Artemis City**, where agents aren't just code—they're **citizens** of a thriving, living ecosystem!
 
@@ -15,31 +17,51 @@ Artemis City transforms technical operations into a vibrant urban experience:
 | MCP Server | Post Office | Central Hub |
 | Context Loading | Archive Research | 📖 Reading Room |
 | ATP Messages | Official Notices | 📜 City Hall |
+| Hebbian Weights | Relationship Strength | 🧠 Neural Network |
+| Agent Registry | Citizen Registry | 📋 City Hall Records |
+| Memory Bus | Postal Routes | 🚌 Transit System |
+| Governance Monitor | City Watch | 👁️ Oversight Office |
 ## Citizens of Artemis City
 ### Artemis (Mayor)
-- **Role**: Governance and oversight
+- **Role**: Governance, oversight, and orchestration
 - **Clearance**: FULL (0.95)
-- **Duties**: Policy, dispute resolution, city planning
+- **Duties**: Policy, dispute resolution, city planning, task coordination
 - **Office**: City Hall
+- **Capabilities**: `orchestrate` , `delegate` , `monitor` , `report` , `system_management` , `agent_coordination` 
 ### Pack Rat (Postmaster)
-- **Role**: Secure mail delivery and routing
+- **Role**: Secure mail delivery, routing, and memory management
 - **Clearance**: HIGH (0.85)
-- **Duties**: Deliver mail, maintain postal logs, route messages
+- **Duties**: Deliver mail, maintain postal logs, route messages, manage vault operations
 - **Office**: Post Office
+- **Capabilities**: `read` , `write` , `search` , `organize` , `archive` 
 ### Codex Daemon / CompSuite (City Manager)
-- **Role**: System monitoring and operations
+- **Role**: System monitoring, background services, and operations
 - **Clearance**: HIGH (0.85)
-- **Duties**: Monitor city health, manage configuration, status reports
+- **Duties**: Monitor city health, manage configuration, status reports, background tasks
 - **Office**: Operations Center
+- **Capabilities**: `schedule` , `maintain` , `backup` , `optimize` 
 ### Copilot (Assistant)
 - **Role**: Citizen assistance and information
 - **Clearance**: HIGH (0.80)
-- **Duties**: Help citizens, provide context, answer queries
+- **Duties**: Help citizens, provide context, answer queries, format responses
 - **Office**: Information Desk
+- **Capabilities**: `assist` , `query` , `suggest` , `format` 
+### Research Agent (Scholar)
+- **Role**: Information gathering and analysis
+- **Clearance**: HIGH (0.80)
+- **Duties**: Web search, document analysis, research synthesis
+- **Office**: City Library
+- **Capabilities**: `web_search` , `document_analysis` 
+### Summarizer Agent (Scribe)
+- **Role**: Content condensation and summarization
+- **Clearance**: MEDIUM (0.70)
+- **Duties**: Summarize documents, extract key points
+- **Office**: Records Office
+- **Capabilities**: `text_summarization` 
 ## The Postal System
 ### Sending Mail
 ```python
-from memory.integration import get_post_office
+from integration.postal_service import get_post_office
 
 post_office = get_post_office()
 
@@ -64,11 +86,12 @@ for letter in mail:
     print(f"Preview: {letter.get_summary()}")
 ```
 ### Mail Features
-- **Tracking IDs**: Every piece of mail gets a unique ID (e.g., `ART-12345`  )
-- **Priority Levels**: `urgent`  , `normal`  , `low`  
+- **Tracking IDs**: Every piece of mail gets a unique ID (e.g., `ART-12345` )
+- **Priority Levels**: `urgent` , `normal` , `low` 
 - **Automatic Tagging**: Mail tagged with sender, recipient, and type
 - **Delivery Confirmation**: Real-time status updates
 - **Archive Storage**: All mail stored in `Postal/Agents/{recipient}/` 
+- **Trust Verification**: Sender clearance checked before delivery
 ## The City Archives
 ### Filing Documents
 ```python
@@ -98,6 +121,34 @@ documents = post_office.request_from_archives(
 for doc in documents:
     print(f"📄 {doc.path}")
 ```
+## The Memory Bus
+The Memory Bus is the city's transit system, keeping the Archives (Obsidian) and the Semantic Index (Vector Store) synchronized.
+
+### Write-Through Protocol
+```python
+from Concept_Demos.src.integration.memory_bus import MemoryBus
+
+# All writes go through the Memory Bus for consistency
+result = memory_bus.write_note_with_embedding(
+    relative_path="Reports/daily_summary.md",
+    content="# Daily Summary\n\nCity operations nominal...",
+    metadata={"agent": "artemis", "type": "report"}
+)
+
+print(f"Written in {result['total_latency_ms']:.2f}ms")
+print(f"Vector indexed: {result['vector_latency_ms']:.2f}ms")
+```
+### Hierarchical Read Strategy
+```python
+# Reads cascade through: Exact Match → Keyword Scan → Semantic Search
+results = memory_bus.read(
+    query="governance policies",
+    max_results=5
+)
+
+for result in results:
+    print(f"[{result['source']}] {result['path']} (score: {result['score']:.2f})")
+```
 ## Trust Office & Clearances
 ### Clearance Levels
 Citizens earn trust through successful operations:
@@ -105,13 +156,13 @@ Citizens earn trust through successful operations:
 | Level | Score | What You Can Do |
 | ----- | ----- | ----- |
 | **FULL** | 0.9-1.0 | Everything (Mayor access) |
-| **HIGH** | 0.7-0.9 | Read, Write, Search, Tag, Update |
+| **HIGH** | 0.7-0.9 | Read, Write, Search, Tag, Update, Frontmatter |
 | **MEDIUM** | 0.5-0.7 | Read, Write, Search, Tag |
 | **LOW** | 0.3-0.5 | Read, Search only |
 | **UNTRUSTED** | 0.0-0.3 | No access |
 ### Checking Clearances
 ```python
-from memory.integration import get_trust_interface
+from integration.trust_interface import get_trust_interface
 
 trust = get_trust_interface()
 
@@ -121,13 +172,60 @@ print(f"Clearance: {score.level.value} (Score: {score.score:.2f})")
 
 # Check permissions
 if trust.can_perform_operation("pack_rat", "write"):
-    print(" Authorized for postal deliveries")
+    print("✅ Authorized for postal deliveries")
 ```
 ### Building Trust
-- **Successful operations** increase trust (+2%)
-- **Failed operations** decrease trust (-5%)
+- ✅ **Successful operations** increase trust (+2%)
+- ❌ **Failed operations** decrease trust (-5%)
 - ⏰ **Natural decay** over time without activity (-1% per day)
-- **Minimum thresholds** prevent complete decay
+- 🔒 **Minimum thresholds** prevent complete decay
+### Trust Report
+```python
+# Generate trust report for all citizens
+report = trust.get_trust_report()
+
+print(f"Total Citizens: {report['total_entities']}")
+for level, entities in report['by_level'].items():
+    if entities:
+        print(f"  {level.upper()}: {len(entities)} citizen(s)")
+```
+## 🧠 Hebbian Learning Network
+The city learns from experience through Hebbian weights—connections that strengthen when agents work well together.
+
+### How It Works
+```
+"Cells that fire together wire together"
+```
+- **Successful task completion**: Connection weight +1
+- **Failed task**: Connection weight -1
+- **Weights inform routing**: Higher weights = preferred assignments
+### Viewing Network Stats
+```python
+from Concept_Demos.src.mcp.hebbian_weights import HebbianWeightManager
+
+hebbian = HebbianWeightManager()
+
+# Get network summary
+summary = hebbian.get_network_summary()
+print(f"Total Connections: {summary['total_connections']}")
+print(f"Average Weight: {summary['average_weight']:.2f}")
+print(f"Success Rate: {summary['success_rate']*100:.1f}%")
+
+# Get agent-specific stats
+connections = hebbian.get_strongest_connections("Artemis Agent", limit=5)
+for target, weight in connections:
+    print(f"  → {target}: {weight:.1f}")
+```
+### Strengthening Connections
+```python
+# After successful collaboration
+new_weight = hebbian.strengthen_connection("Artemis Agent", "task_research_001")
+print(f"Connection strengthened to {new_weight}")
+
+# After failure
+new_weight = hebbian.weaken_connection("Research Agent", "task_failed_002")
+print(f"Connection weakened to {new_weight}")
+```
 ## 🎭 Living City Examples
 ### Example 1: Morning Mail Rounds
 ```python
@@ -142,92 +240,146 @@ for citizen in ["pack_rat", "copilot", "codex_daemon"]:
         content=f"Good morning, {citizen}! Today's priorities..."
     )
 ```
-### Example 2: Archive Research
+### Example 2: Archive Research with Memory Bus
 ```python
-# Copilot researches past decisions
-history = post_office.request_from_archives(
-    requester="copilot",
-    query="ATP protocol decisions",
-    section="Reflections"
-)
+from Concept_Demos.src.mcp.orchestrator import Orchestrator
 
-# Copilot synthesizes findings
-synthesis = f"Based on {len(history)} archived documents..."
-post_office.send_to_archives(
-    sender="copilot",
-    archive_section="Reports",
-    title="ATP_Research_Summary",
-    content=synthesis
-)
+orchestrator = Orchestrator()
+
+# Research task routed through the kernel
+result = orchestrator.route_and_execute_task({
+    "task_id": "research_001",
+    "title": "ATP Protocol Analysis",
+    "required_capability": "document_analysis",
+    "content": "Analyze the ATP protocol decisions from archives"
+})
+
+print(f"Status: {result['status']}")
+print(f"Summary: {result['summary']}")
 ```
-### Example 3: Weekly Report
+### Example 3: Weekly Report with Hebbian Stats
 ```python
 # Generate city-wide report
 report = post_office.get_postal_report()
+hebbian_summary = orchestrator.hebbian.get_network_summary()
 
 print(f"""
- ARTEMIS CITY WEEKLY REPORT
+🏛️ ARTEMIS CITY WEEKLY REPORT
 
- Postal Service: {report['successful']} deliveries
- Trust Office: {report['trust_report']['total_entities']} citizens
- Archives: Growing daily
- Status: City thriving!
+📬 Postal Service: {report['successful']} deliveries
+🎖️ Trust Office: {report['trust_report']['total_entities']} citizens
+🧠 Neural Network: {hebbian_summary['total_connections']} connections
+📈 Success Rate: {hebbian_summary['success_rate']*100:.1f}%
+📊 Status: City thriving!
 """)
+```
+## Agent Registry
+All citizens must be registered with City Hall before they can participate in city operations.
+
+### Registering New Agents
+```python
+from Concept_Demos.src.integration.agent_registry import AgentRegistry
+from Concept_Demos.src.agents.base_agent import BaseAgent
+
+class CustomAgent(BaseAgent):
+    def __init__(self):
+        super().__init__("Custom Agent", capabilities=["custom_task"])
+    
+    def perform_task(self, task_context):
+        return {"status": "success", "summary": "Task completed"}
+
+registry = AgentRegistry()
+registry.register_agent(CustomAgent())
+```
+### Agent Scoring
+Each agent has three performance dimensions:
+
+| Dimension | Weight | Description |
+| ----- | ----- | ----- |
+| **Alignment** | 40% | Policy adherence and value alignment |
+| **Accuracy** | 40% | Output quality and correctness |
+| **Efficiency** | 20% | Speed and resource usage |
+```python
+# Update agent scores after task completion
+registry.update_score("Research Agent", "accuracy", +0.05)
+registry.update_score("Research Agent", "efficiency", +0.02)
+
+# Get all agents with scores
+for agent in registry.get_all_agents_with_scores():
+    print(f"{agent['name']}: {agent['composite_score']:.2f}")
 ```
 ## Theming Your Own Agents
 When creating new agents for the city:
 
 ### Agent Profile Template
 ```python
-# Define your citizen
-citizen_profile = {
-    "name": "new_agent",
-    "role": "Specialist",  # e.g., Archivist, Scout, Builder
-    "clearance": 0.75,     # Initial trust score
-    "office": "Department of Innovation",
-    "duties": [
-        "Explore new possibilities",
-        "Report findings to archives",
-        "Collaborate with other citizens"
-    ]
-}
+from Concept_Demos.src.agents.base_agent import BaseAgent
+class NewCitizenAgent(BaseAgent):
+    """A new citizen of Artemis City."""
+    
+    def __init__(self):
+        super().__init__(
+            name="New Citizen",
+            capabilities=["explore", "report", "collaborate"]
+        )
+    
+    def perform_task(self, task_context: dict) -> dict:
+        self.report_status("Starting task...")
+        
+        # Your task logic here
+        result = self._do_work(task_context)
+        
+        self.report_status("Task complete!")
+        return {
+            "status": "success",
+            "summary": f"Completed: {task_context.get('title', 'task')}"
+        }
+    
+    def _do_work(self, context):
+        # Implementation details
+        pass
+```
+### Registration Flow
+```python
+# 1. Create agent instance
+new_agent = NewCitizenAgent()
 
-# Register with Trust Office
+# 2. Register with City Hall
+registry.register_agent(new_agent)
+
+# 3. Initialize trust score
 trust = get_trust_interface()
-score = trust.get_trust_score(citizen_profile["name"])
+score = trust.get_trust_score("New Citizen")
+print(f"Initial clearance: {score.level.value}")
 
-# Send introduction mail
+# 4. Send introduction mail
 post_office.send_mail(
-    sender="new_agent",
+    sender="New Citizen",
     recipient="artemis",
     subject="New Citizen Introduction",
-    content=f"Hello! I'm {citizen_profile['name']}, ready to serve the city!"
+    content="Hello! I'm ready to serve the city!"
 )
 ```
 ## 🔮 Advanced City Features
-### Cross-Citizen Collaboration
+### Cross-Citizen Collaboration via Orchestrator
 ```python
-# Pack Rat coordinates multi-agent task
-task_description = "Build new ATP extension"
+orchestrator = Orchestrator()
 
-for agent in ["artemis", "copilot", "codex_daemon"]:
-    post_office.send_mail(
-        sender="pack_rat",
-        recipient=agent,
-        subject="Coordination: ATP Extension",
-        content=f"""
-Task Assignment: {task_description}
-Your role: [specific to {agent}]
-Coordinate through mail or archives.
-        """,
-        priority="high"
-    )
+# Task automatically routed to best agent
+result = orchestrator.route_and_execute_task({
+    "task_id": "collab_001",
+    "title": "Build ATP Extension",
+    "required_capability": "system_management",
+    "content": "Design and implement new ATP message types"
+})
+
+# Hebbian weights updated automatically based on success/failure
 ```
 ### City-Wide Announcements
 ```python
-def broadcast_announcement(subject, content):
+def broadcast_announcement(subject: str, content: str):
 """Send announcement to all citizens."""
-citizens = ["artemis", "pack_rat", "codex_daemon", "copilot"]
+citizens = registry.get_agent_names()
 
 for citizen in citizens:
     post_office.send_mail(
@@ -237,6 +389,18 @@ for citizen in citizens:
         content=content,
         priority="urgent"
     )
+```
+### Governance Monitoring
+```python
+from Concept_Demos.src.integration.governance import GovernanceMonitor
+
+monitor = GovernanceMonitor(alert_threshold=3)
+
+# Monitor tracks failures automatically via Memory Bus
+# After 3 consecutive failures, alerts are triggered
+
+if monitor.get_failure_streak() >= 3:
+    print("⚠️ GOVERNANCE ALERT: System inspection recommended")
 ```
 ### Archive Organization
 The city automatically organizes archives:
@@ -253,6 +417,10 @@ City Archives/
 │   ├── Reports/
 │   ├── Policies/
 │   └── Projects/
+├── Agent Inputs/
+│   └── pending_tasks/
+├── Agent Outputs/
+│   └── completed_reports/
 └── History/
     └── Delivery_Logs/
 ```
@@ -278,14 +446,9 @@ This demo includes:
 Run the full orchestration system with live MCP server and Obsidian vault.
 
 ```bash
-# Prerequisites: Set up .env with OBSIDIAN_VAULT_PATH and MCP_BASE_URL
+# Prerequisites: Set up .env with OBSIDIAN_VAULT_PATH
 
-# Start MCP server (if using)
-cd src/mcp-server
-npm install
-npm run dev
-
-# In another terminal, run from repo root
+# Run from repo root
 python3 Concept_Demos/main.py --show-hebbian
 python3 Concept_Demos/main.py --agent-stats artemis
 python3 Concept_Demos/main.py -i "Your task instruction here" -c web_search
@@ -297,6 +460,46 @@ Demonstrates trust interface, context loading, and agent-vault workflow.
 # Run from the repository root
 python3 Concept_Demos/demo_memory_integration.py
 ```
+### Option 4: Artemis Persona Demo
+Experience the Artemis persona with ATP parsing and reflection engine.
+
+```bash
+# Run from the repository root
+python3 Concept_Demos/demo_artemis.py
+```
+### Option 5: Web Dashboard
+Run the TypeScript API and React frontend for a visual experience.
+
+```bash
+# Start the API server
+cd web/api
+npm install
+npm run dev
+
+# In another terminal, start the frontend
+cd web/frontend
+npm install
+npm run dev
+```
+## API Reference
+The city exposes REST endpoints for external integration:
+
+### Agent Endpoints
+- `GET /api/agents`  - List all citizens
+- `GET /api/agents/:id`  - Get citizen details
+- `POST /api/agents`  - Register new citizen
+- `PATCH /api/agents/:id`  - Update citizen
+- `POST /api/agents/:id/suspend`  - Suspend citizen
+### Memory Endpoints
+- `GET /api/memory/read?path=...`  - Read from archives
+- `POST /api/memory/write`  - Write to archives
+- `POST /api/memory/search`  - Search archives
+### Trust Endpoints
+- `GET /api/trust/:entityId`  - Get trust score
+- `POST /api/trust/:entityId/success`  - Record success
+- `POST /api/trust/:entityId/failure`  - Record failure
+- `GET /api/trust/report`  - Get trust report
+- `GET /api/trust/hebbian`  - Get Hebbian weights
 ## Why the Living City Theme?
 The city metaphor makes agent systems **intuitive** and **memorable**:
 
@@ -305,22 +508,28 @@ The city metaphor makes agent systems **intuitive** and **memorable**:
 - **Scalable**: New "buildings" and "services" can be added
 - **Fun**: Makes development enjoyable!
 - **Educational**: Teaches distributed systems through familiar concepts
+- **Governance-First**: Trust and accountability are built into the metaphor
 ## Next Steps
 1. **Explore**: Run `demo_city_postal.py`  to tour the city
 2. **Extend**: Add new citizens with unique roles
 3. **Customize**: Create new archive sections and postal routes
 4. **Integrate**: Connect the city to your agent workflows
-5. **Share**: The city grows with every citizen!
+5. **Monitor**: Use the web dashboard to visualize city operations
+6. **Learn**: Watch Hebbian weights evolve as agents collaborate
+7. **Share**: The city grows with every citizen!
 ---
 
-**Welcome to Artemis City!** 
+**Welcome to Artemis City!** 🏛️
 
 _Where agents aren't just code—they're citizens building a thriving ecosystem together._
 
-**Version**: 1.0.0
+**Version**: 2.0.0
 **Status**: City Open for Business
 **Population**: Growing Daily
 **Mayor**: Artemis
+**Architecture**: Memory Bus + Hebbian Learning + Trust Governance
+
+
 
 
 

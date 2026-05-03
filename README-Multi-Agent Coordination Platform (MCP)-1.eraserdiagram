@@ -1,5 +1,6 @@
 cloud-architecture-diagram
 
+
 direction right
 title Multi-Agent Coordination Platform (MCP)
 
@@ -59,3 +60,4 @@ Agent Registry > Agent Layer
 User Layer > Orchestrator
 Agent Layer > ATP Protocol
 Agent Layer > Postal Service
+
