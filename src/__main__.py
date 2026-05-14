@@ -13,7 +13,7 @@ import argparse
 import sys
 
 
-def entry():
+def entry() -> None:
     # Peek at args to decide which sub-CLI to dispatch to.
     # --orchestrator and --atp are consumed here; everything else
     # is forwarded to the chosen sub-module's own argparse.

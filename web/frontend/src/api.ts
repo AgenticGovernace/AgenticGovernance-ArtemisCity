@@ -8,7 +8,7 @@
  */
 
 /** Base URL for API endpoints (proxied by Vite in development) */
-const API_BASE_URL = '/api';
+const API_BASE_URL = process.get('API_BASE_URL');
 
 /**
  * Fetch all registered agents from the MCP server.

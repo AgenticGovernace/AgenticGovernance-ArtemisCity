@@ -40,6 +40,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+from src import mcp
+
 
 class ArtemisError(Exception):
     """
@@ -450,3 +452,22 @@ class ConfigurationError(ArtemisError):
         super().__init__(message, error_code="CONFIG_001", details=details)
         self.config_key = config_key
         self.expected_type = expected_type
+
+
+_register_exception = getattr(mcp, "register_exception", None)
+if callable(_register_exception):
+    _register_exception(ArtemisError)
+    _register_exception(TaskError)
+    _register_exception(TaskRoutingError)
+    _register_exception(TaskExecutionError)
+    _register_exception(TaskValidationError)
+    _register_exception(AgentError)
+    _register_exception(AgentNotFoundError)
+    _register_exception(AgentRegistrationError)
+    _register_exception(AgentCapabilityError)
+    _register_exception(MemorySystemError)
+    _register_exception(MemoryBusError)
+    _register_exception(VectorStoreError)
+    _register_exception(ObsidianConnectionError)
+    _register_exception(GovernanceError)
+    _register_exception(GovernanceViolationError)

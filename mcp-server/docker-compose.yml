@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  mcp-server:
+    build:
+      context: "./"
+      dockerfile: "Dockerfile"
+    ports:
+      - "${PORT}:8000"
+    environment:
+      # These environment variables will be passed into the container
+      # IMPORTANT: Replace placeholders with your actual keys
+      PORT: 4000
+      MCP_API_KEY: ${MCP_API_KEY} # <-- Replace this
+      # Use host.docker.internal if Obsidian is running on your host machine (Mac/Windows)
+      # For Linux hosts, you might need to find your host's IP or use a custom network setup.
+      OBSIDIAN_BASE_URL: ${OBSIDIAN_BASE_URL} # <-- Adjust if Obsidian is on a different port or in another container
+      OBSIDIAN_API_KEY: ${OBSIDIAN_API_KEY} # <-- Replace this
+      MCP_LOG_LEVEL: configurable # <-- Optional: Set log level (e.g., debug, info, warning)
+    networks:
+      - mcp_network
+      - default
+
+networks:
+  mcp_network: 
+    # Define a custom network for your services
+    # If you want the MCP server to only communicate internally with other Docker services,
+    # you can set 'internal: true' and remove the 'ports' mapping.
+    # For development, keeping 'ports' and using host.docker.internal is common.
+    driver: bridge
+    internal: false # Uncomment this line to restrict network access to internal Docker services only
+    # Note: If 'internal' is true, you won't be able to access the MCP server from your host machine using localhost or host.docker.internal. You would need to set up a reverse proxy or use Docker's port forwarding to access it.

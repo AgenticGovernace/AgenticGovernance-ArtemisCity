@@ -8,6 +8,8 @@
 .env.*.local
 .env.production
 .env.staging
+!.env.example
+!**/.env.example
 *.pem
 *.key
 *.p12
@@ -78,3 +80,16 @@ docker-compose.override.yml
 *.tmp
 .cache/
 /logs
+/app/codex/.ipynb_checkpoints
+/Concept_Demos/logs
+/renv
+/.ipynb_checkpoints
+/_wearealsotracked_
+/memory/.ipynb_checkpoints
+/_wearealsotracked_/idea
+*.jupyterlab-workspace
+.jupyter/desktop-workspaces/auto-5-7d69.jupyterlab-workspace
+.jupyter/desktop-settings.json
+mcp-auth/mcp-remote-0.1.31/cb42d1a06ae8db4e5585a26f2e5ca947_tokens.json
+.jupyter/desktop-workspaces/auto-5-7d69.jupyterlab-workspace
+/src/launch/logs

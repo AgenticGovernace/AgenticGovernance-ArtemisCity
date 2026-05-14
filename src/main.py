@@ -13,14 +13,16 @@ Example ATP-formatted command:
 """
 
 import argparse
+import importlib
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 # Add parent directory to path for local imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import yaml  # noqa: E402
+yaml: Any = importlib.import_module("yaml")  # noqa: E402
 
 # When executed directly (e.g., `python src/main.py`), the `src` package may
 # not be importable, causing the absolute imports below to fail. In that case,
@@ -47,11 +49,13 @@ def load_agent_router_config(config_path):
     if not os.path.exists(config_path):
         print(f"Error: Agent router config not found at {config_path}")
         return {}
-    with open(config_path, 'r') as f:
+    with open(config_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
 
-def handle_command(command, agent_router, atp_parser, instruction_cache, artemis_persona):
+def handle_command(
+    command, agent_router, atp_parser, instruction_cache, artemis_persona
+):
     """Route a command to the appropriate agent with ATP parsing and instruction loading.
 
     Parses ATP headers from the command, loads relevant instructions,
@@ -162,8 +166,11 @@ def main():
 
     # Show active instruction scopes
     project_root = args.project_root or os.path.dirname(script_dir)
-    instruction_cache._loader.project_root = project_root
-    active_scopes = instruction_cache._loader.get_active_scopes()
+    loader = getattr(instruction_cache, "_loader", None)
+    active_scopes = []
+    if loader is not None:
+        loader.project_root = project_root
+        active_scopes = loader.get_active_scopes()
     if active_scopes:
         print("[Active Instruction Scopes]")
         for scope_path in active_scopes:
@@ -198,7 +205,14 @@ def main():
             except KeyboardInterrupt:
                 print("\n\nExiting Artemis City CLI. Goodbye!")
                 break
-            except Exception as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+            ) as e:
                 print(f"\nError: {e}")
                 import traceback
 

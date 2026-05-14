@@ -26,6 +26,7 @@ node = "*"
 npm = "*"
 
 [dev-packages]
+ipykernel = "*"
 
 [requires]
 python_version = "3.13"

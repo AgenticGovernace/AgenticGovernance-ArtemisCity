@@ -1,15 +1,31 @@
 from datetime import datetime
-from utils.helpers import logger
+import logging
+
+try:
+    from utils.helpers import logger
+except ImportError:
+    logger = logging.getLogger(__name__)
 
 
 def generate_agent_report(
-        agent_name: str, task_id: str, results: dict
-) -> str:
+        agent_name: str, task_id: str, results: dict) -> str:
     """Generates a Markdown report from agent results."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     report_title = f"Agent Report: {agent_name} - {task_id}"
-
-    markdown = f"""---\ntask_id: {task_id}\nagent: {agent_name}\ntimestamp: {timestamp}\nstatus: completed\ntags: ["agent_report", "{agent_name.lower().replace(' ', '_')}"]\n---\n\n# {report_title}\n\n## Summary of Findings\n\n{results.get('summary', 'No summary provided.')}\n\n## Key Data/Outputs\n\n"""
+    tag = agent_name.lower().replace(" ", "_")
+    markdown: str = (
+        "---\n"
+        f"task_id: {task_id}\n"
+        f"agent: {agent_name}\n"
+        f"timestamp: {timestamp}\n"
+        "status: completed\n"
+        f"tags: [\"agent_report\", \"{tag}\"]\n"
+        "---\n\n"
+        f"# {report_title}\n\n"
+        "## Summary of Findings\n\n"
+        f"{results.get('summary', 'No summary provided.')}\n\n"
+        "## Key Data/Outputs\n\n"
+    )
     # Add key-value pairs from results
     for key, value in results.items():
         if key not in ["summary"]:  # Exclude summary as it's handled above
@@ -24,12 +40,17 @@ def generate_agent_report(
             else:
                 markdown += f"- **{key.replace('_', ' ').title()}**: {value}\n"
 
-    markdown += f"""\n## Next Steps (Optional)\n\n- [ ]  Review this report\n- [ ]  Discuss findings with team\n"""
-    logger.info(f"Generated report for {agent_name}, task {task_id}")
+    markdown += (
+        "\n## Next Steps (Optional)\n\n"
+        "- [ ]  Review this report\n"
+        "- [ ]  Discuss findings with team\n"
+    )
+    logger.info("Generated report for %s, task %s", agent_name, task_id)
     return markdown
 
 
-class ObsidianGenerator:
+class ObsidianGenerator:  # pylint: disable=too-few-public-methods
+    """Generate Obsidian-compatible Markdown notes for agent tasks."""
 
     def generate_task_note(self, task_data: dict) -> str:
         """Generates a new task note from structured data."""
@@ -62,5 +83,5 @@ class ObsidianGenerator:
                 checkbox = "[x]" if subtask.get("completed") else "[ ]"
                 markdown += f"- {checkbox} {subtask['text']}\n"
 
-        logger.info(f"Generated task note for '{title}'")
+        logger.info("Generated task note for '%s'", title)
         return markdown
