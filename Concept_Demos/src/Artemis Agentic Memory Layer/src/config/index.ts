@@ -9,7 +9,7 @@ interface Config {
 }
 
 const config: Config = {
-  PORT: parseInt(process.env.PORT || '4000', 10),
+  PORT: parseInt(process.env.PORT || '3000', 10),
   MCP_API_KEY: process.env.MCP_API_KEY || '',
   OBSIDIAN_BASE_URL: process.env.OBSIDIAN_BASE_URL || '',
   OBSIDIAN_API_KEY: process.env.OBSIDIAN_API_KEY || '',

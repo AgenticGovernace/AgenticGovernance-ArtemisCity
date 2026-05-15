@@ -36,17 +36,17 @@ mcpRouter.post('/appendContext', async (req, res) => {
   res.status(result.success ? 200 : 500).json(result);
 });
 
-  mcpRouter.post(' http://localhost:4000/updateNote', async (req, res) => {
-    const { path, content } = req.body;
-    if (!path || content === undefined) {
-      return res.status(400).json({ success: false, error: 'Missing note path or content.' });
-    }
-    logger.debug(`Received updateNote request for path: ${path}`);
-    const result = await updateNote(path, content);
-    res.status(result.success ? 200 : 500).json(result);
-  });
+mcpRouter.post('/updateNote', async (req, res) => {
+  const { path, content } = req.body;
+  if (!path || content === undefined) {
+    return res.status(400).json({ success: false, error: 'Missing note path or content.' });
+  }
+  logger.debug(`Received updateNote request for path: ${path}`);
+  const result = await updateNote(path, content);
+  res.status(result.success ? 200 : 500).json(result);
+});
 
-mcpRouter.post(' http://localhost:4000/searchNotes', async (req, res) => {
+mcpRouter.post('/searchNotes', async (req, res) => {
   const { query } = req.body;
   if (!query) {
     return res.status(400).json({ success: false, error: 'Missing search query.' });

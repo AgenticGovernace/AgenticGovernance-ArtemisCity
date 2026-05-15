@@ -7,6 +7,12 @@ from src.mcp.orchestrator import Orchestrator
 from src.utils.helpers import logger
 from src.utils.run_logger import init_run_logger
 
+AGENT_NAME_MAP = {
+    "artemis_agent": "Artemis Agent",
+    "research_agent": "Research Agent",
+    "summarizer_agent": "Summarizer Agent",
+}
+
 
 def parse_cli_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -47,7 +53,7 @@ def parse_cli_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def setup_example_task_note(obs_manager: Any, memory_bus: [Any] = None) -> None:
+def setup_example_task_note(obs_manager: Any, memory_bus: Optional[Any] = None) -> None:
     """
     Creates an example task note in the Obsidian Agent Inputs folder
     if one doesn't already exist, for demonstration purposes.
@@ -90,14 +96,8 @@ def handle_user_instruction(
         logger.info("No instruction text provided. Skipping direct agent dispatch.")
         return
 
-    # Agent name mapping for convenience
-    agent_name_map = {
-        "artemis_agent": "Artemis Agent",
-        "research_agent": "Research Agent",
-        "summarizer_agent": "Summarizer Agent",
-    }
-    if agent_name in agent_name_map:
-        agent_name = agent_name_map[agent_name]
+    if agent_name in AGENT_NAME_MAP:
+        agent_name = AGENT_NAME_MAP[agent_name]
 
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     task_id = f"user_instruction_{timestamp}"
@@ -204,21 +204,13 @@ def main() -> None:
         "Orchestrator initialized",
     )
 
-    # Agent name mapping for convenience
-    agent_name_map = {
-        "artemis_agent": "Artemis Agent",
-        "research_agent": "Research Agent",
-        "summarizer_agent": "Summarizer Agent",
-    }
-
-    # Handle Hebbian statistics display
     if args.show_hebbian:
         orchestrator.show_hebbian_network_summary()
         return
 
     if args.agent_stats:
-        agent_name = agent_name_map.get(args.agent_stats, args.agent_stats)
-        orchestrator.show_agent_hebbian_stats(agent_name or args.agent_stats)
+        agent_name = AGENT_NAME_MAP.get(args.agent_stats, args.agent_stats)
+        orchestrator.show_agent_hebbian_stats(agent_name)
         return
 
     # --- Optional: Set up demo content and sample direct task ---
@@ -230,7 +222,7 @@ def main() -> None:
         direct_task_context = {
             "task_id": "direct_summary_T001",
             "title": "Summarize provided text",
-            "content": "Large Language Models (LLMs) are a class of artificial intelligence models that are trained on vast amounts of text db. They are capable of understanding and generating human-like text, performing tasks such as translation, summarization, question-answering, and content creation. Their development has rapidly advanced in recent years, leading to significant breakthroughs in natural language processing and various applications across industries.",
+            "content": "Large Language Models (LLMs) are a class of artificial intelligence models that are trained on vast amounts of text data. They are capable of understanding and generating human-like text, performing tasks such as translation, summarization, question-answering, and content creation. Their development has rapidly advanced in recent years, leading to significant breakthroughs in natural language processing and various applications across industries.",
             "required_capability": "text_summarization",
             "status": "pending",
             "tags": ["demo", "summarization"],
@@ -303,36 +295,26 @@ def main() -> None:
             """---\ntask_id: T_NEW_RESEARCH\nrequired_capability: web_search\nstatus: pending\n---\n\n# New Topic for Research\n\nTopic: The future of renewable energy technologies\nContext: Research emerging trends and key players.\nKeywords: solar, wind, geothermal, fusion\n"""
         )
 
-    # Finalize run logging with summary
+    task_count = len(new_tasks) if new_tasks else 0
     run_logger.finalize_run(
         status="completed",
         summary={
-            "tasks_found": len(new_tasks) if new_tasks else 0,
+            "tasks_found": task_count,
+            "tasks_failed": sum(1 for _, t in (new_tasks or []) if t.get("status") == "failed"),
+            "tasks_no_capability": sum(
+                1 for _, t in (new_tasks or []) if t.get("status") == "no_capability"
+            ),
             "skip_demos": args.skip_demos,
-            "instruction_provided": bool(args.instruction),
+            "instruction": args.instruction,
             "capability": args.capability,
-            "agent": args.agent,    
+            "agent": args.agent,
+            "title": args.title,
             "show_hebbian": args.show_hebbian,
             "agent_stats": args.agent_stats,
-            "demo_tasks_created": not args.skip_demos,
-            "demo_summary_task": not args.skip_demos,
-            "example_task_note": not args.skip_demos,
-            "new_tasks_processed": len(new_tasks) if new_tasks else 0,
-            "new_tasks_failed": sum(1 for _, task in new_tasks if task.get("status") == "failed") if new_tasks else 0,
-            "new_tasks_no_capability": sum(1 for _, task in new_tasks if task.get("status") == "no_capability") if new_tasks else 0,
-            "user_instruction": bool(args.instruction),
-            "user_instruction_capability": args.capability if args.instruction else None,
-            "user_instruction_agent": args.agent if args.instruction else None,
-            "user_instruction_title": args.title if args.instruction else None,
-            "user_instruction_status": "dispatched" if args.instruction else None,
-            "user_instruction_error": None,
-            "hebbian_summary_shown": args.show_hebbian,
-            "agent_stats_shown": args.agent_stats,  
-            "demo_content_created": not args.skip_demos,
-
         },
     )
     logger.info(f"Run log saved to: {run_logger.md_path}")
-# --- End of main function ---
-if __name__ == "__main__":   
+
+
+if __name__ == "__main__":
     main()
