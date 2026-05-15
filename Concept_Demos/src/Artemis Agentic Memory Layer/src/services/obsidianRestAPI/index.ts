@@ -11,7 +11,7 @@ const obsidianAPI: AxiosInstance = axios.create({
     'Authorization': `Bearer ${OBSIDIAN_API_KEY}`,
     'Content-Type': 'application/json',
   },
-  httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+  httpsAgent: new https.Agent({ rejectUnauthorized: false, keepAlive: true }),
 });
 
 // Add a request interceptor

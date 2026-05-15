@@ -14,6 +14,16 @@ AGENT_NAME_MAP = {
 }
 
 
+class TaskStatus:
+    PENDING = "pending"
+    IN_PROGRESS = "in progress"
+    FAILED = "failed"
+    NO_CAPABILITY = "no_capability"
+
+
+DEFAULT_CAPABILITY = "web_search"
+
+
 def parse_cli_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run MCP and optionally send a one-off instruction to an agent.",
@@ -27,7 +37,7 @@ def parse_cli_args() -> argparse.Namespace:
     parser.add_argument(
         "-c",
         "--capability",
-        default="web_search",
+        default=DEFAULT_CAPABILITY,
         help="Required capability to handle the instruction. If omitted and --agent is set, the agent's primary capability is used; otherwise defaults to web_search.",
     )
     parser.add_argument(
@@ -54,34 +64,34 @@ def parse_cli_args() -> argparse.Namespace:
 
 
 def setup_example_task_note(obs_manager: Any, memory_bus: Optional[Any] = None) -> None:
-    """
-    Creates an example task note in the Obsidian Agent Inputs folder
-    if one doesn't already exist, for demonstration purposes.
-    """
+    """Create a demo task note in the Obsidian Agent Inputs folder if missing."""
     example_filename = "Example Research Task.md"
-    relative_path = os.path.join(src.mcp.config.AGENT_INPUT_DIR, src.mcp.config.AGENT_OUTPUT_DIR, example_filename)
-    full_path = obs_manager._get_full_path(
-        relative_path
-    )  # Access internal for convenience
+    relative_path = os.path.join(
+        src.mcp.config.AGENT_INPUT_DIR,
+        src.mcp.config.AGENT_OUTPUT_DIR,
+        example_filename,
+    )
+    full_path = obs_manager._get_full_path(relative_path)
 
-    if not full_path.is_file():
-        logger.info(f"Creating example task note at {relative_path}")
-        content = f"""---\ntask_id: {datetime.now().strftime('%Y%m%d%H%M%S')}\nrequired_capability: web_search\nstatus: pending\ntags: ["example", "research"]\n---\n\n# Research Task: Artificial Intelligence Ethics\n\n## Context\n\nProvide an overview of the current ethical considerations surrounding the development and deployment of Artificial Intelligence. Focus on privacy, bias, and accountability.\n\nKeywords: AI ethics, privacy, bias, accountability, machine learning\nTarget: [[AI Concepts]]\nSource: Internet\n\n## Subtasks\n\n- [ ]  Research current debates on AI ethics\n- [ ]  Find examples of AI bias in real-world applications\n- [ ]  Summarize key regulations or frameworks proposed for AI accountability\n"""
-        if memory_bus:
-            try:
-                memory_bus.write_note_with_embedding(
-                    relative_path, content, metadata={"demo": True}, embed=True
-                )
-            except Exception as exc:
-                logger.error(f"Failed to write example note via memory bus: {exc}")
-                obs_manager.write_note(relative_path, content, overwrite=False)
-        else:
-            obs_manager.write_note(relative_path, content, overwrite=False)
-        logger.info(
-            f"Example task note '{example_filename}' created. Please review it in your Obsidian vault."
-        )
-    else:
+    if full_path.is_file():
         logger.info(f"Example task note '{example_filename}' already exists.")
+        return
+
+    logger.info(f"Creating example task note at {relative_path}")
+    content = f"""---\ntask_id: {datetime.now().strftime('%Y%m%d%H%M%S')}\nrequired_capability: {DEFAULT_CAPABILITY}\nstatus: {TaskStatus.PENDING}\ntags: ["example", "research"]\n---\n\n# Research Task: Artificial Intelligence Ethics\n\n## Context\n\nProvide an overview of the current ethical considerations surrounding the development and deployment of Artificial Intelligence. Focus on privacy, bias, and accountability.\n\nKeywords: AI ethics, privacy, bias, accountability, machine learning\nTarget: [[AI Concepts]]\nSource: Internet\n\n## Subtasks\n\n- [ ]  Research current debates on AI ethics\n- [ ]  Find examples of AI bias in real-world applications\n- [ ]  Summarize key regulations or frameworks proposed for AI accountability\n"""
+    if memory_bus:
+        try:
+            memory_bus.write_note_with_embedding(
+                relative_path, content, metadata={"demo": True}, embed=True
+            )
+        except Exception as exc:
+            logger.error(f"Failed to write example note via memory bus: {exc}")
+            obs_manager.write_note(relative_path, content, overwrite=False)
+    else:
+        obs_manager.write_note(relative_path, content, overwrite=False)
+    logger.info(
+        f"Example task note '{example_filename}' created. Please review it in your Obsidian vault."
+    )
 
 
 def handle_user_instruction(
@@ -99,9 +109,6 @@ def handle_user_instruction(
     if agent_name in AGENT_NAME_MAP:
         agent_name = AGENT_NAME_MAP[agent_name]
 
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    task_id = f"user_instruction_{timestamp}"
-    task_title = title or instruction.strip().split("\n")[0][:80] or "User Instruction"
     agent_for_dispatch = None
     effective_capability = capability
     if agent_name:
@@ -111,31 +118,26 @@ def handle_user_instruction(
                 f"Agent '{agent_name}' not registered. Available: {orchestrator.agent_registry.get_agent_names()}"
             )
             return
-        derived_capability = (
-            agent_for_dispatch.capabilities[0]
-            if agent_for_dispatch.capabilities
-            else "web_search"
-        )
         if not effective_capability:
-            if not derived_capability:
-                logger.error(
-                    f"Agent '{agent_name}' has no capabilities defined; cannot dispatch."
-                )
-                return
-            effective_capability = derived_capability
-    if not effective_capability:
-        effective_capability = "web_search"
+            effective_capability = (
+                agent_for_dispatch.capabilities[0]
+                if agent_for_dispatch.capabilities
+                else None
+            )
+    effective_capability = effective_capability or DEFAULT_CAPABILITY
 
-    task_data = {
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    task_id = f"user_instruction_{timestamp}"
+    task_title = title or instruction.strip().split("\n")[0][:80] or "User Instruction"
+    task_data: dict[str, Any] = {
         "task_id": task_id,
         "title": task_title,
         "context": instruction,
         "content": instruction,
         "required_capability": effective_capability,
-        "status": "pending",
+        "status": TaskStatus.PENDING,
         "tags": ["user_instruction", effective_capability],
     }
-
     if agent_for_dispatch:
         task_data["agent"] = agent_name
 
@@ -144,12 +146,10 @@ def handle_user_instruction(
     )
     try:
         note_path = orchestrator.create_new_task_in_obsidian(task_data)
-        orchestrator.update_task_status_in_obsidian(note_path, "in progress", task_id)
+        orchestrator.update_task_status_in_obsidian(note_path, TaskStatus.IN_PROGRESS, task_id)
     except Exception as exc:
-        logger.error(
-            f"Failed to record instruction in Obsidian before execution: {exc}"
-        )
-        note_path = None  # Proceed without Obsidian tracking if note creation fails
+        logger.error(f"Failed to record instruction in Obsidian before execution: {exc}")
+        note_path = None
 
     try:
         if agent_for_dispatch:
@@ -165,13 +165,12 @@ def handle_user_instruction(
     except Exception as exc:
         logger.error(f"Error processing instruction: {exc}")
         if note_path:
-            orchestrator.update_task_status_in_obsidian(note_path, "failed", task_id)
+            orchestrator.update_task_status_in_obsidian(note_path, TaskStatus.FAILED, task_id)
 
 
 def main() -> None:
     args = parse_cli_args()
 
-    # Initialize run logger for comprehensive tracking
     run_logger = init_run_logger(log_dir="logs", db_path="data/run_logs.db")
 
     logger.info("Starting Multi-Agent Coordination Platform...")
@@ -199,8 +198,11 @@ def main() -> None:
     run_logger.log_event(
         "orchestrator_ready",
         "main",
-        {"agents": orchestrator.agent_registry.get_agent_names() 
-         if orchestrator.agent_registry else []},
+        {
+            "agents": orchestrator.agent_registry.get_agent_names()
+            if orchestrator.agent_registry
+            else []
+        },
         "Orchestrator initialized",
     )
 
@@ -213,74 +215,78 @@ def main() -> None:
         orchestrator.show_agent_hebbian_stats(agent_name)
         return
 
-    # --- Optional: Set up demo content and sample direct task ---
     if not args.skip_demos:
         setup_example_task_note(orchestrator.obs_manager, orchestrator.memory_bus)
 
-        logger.info("\n--- MCP Operations ---")
         logger.info("\n--- Scenario 1: Direct Task Assignment (Summarizer Agent) ---")
         direct_task_context = {
             "task_id": "direct_summary_T001",
             "title": "Summarize provided text",
-            "content": "Large Language Models (LLMs) are a class of artificial intelligence models that are trained on vast amounts of text data. They are capable of understanding and generating human-like text, performing tasks such as translation, summarization, question-answering, and content creation. Their development has rapidly advanced in recent years, leading to significant breakthroughs in natural language processing and various applications across industries.",
+            "content": (
+                "Large Language Models (LLMs) are a class of artificial intelligence models that "
+                "are trained on vast amounts of text data. They are capable of understanding and "
+                "generating human-like text, performing tasks such as translation, summarization, "
+                "question-answering, and content creation. Their development has rapidly advanced "
+                "in recent years, leading to significant breakthroughs in natural language processing "
+                "and various applications across industries."
+            ),
             "required_capability": "text_summarization",
-            "status": "pending",
+            "status": TaskStatus.PENDING,
             "tags": ["demo", "summarization"],
             "agent": "Summarizer Agent",
             "metadata": {"source": "direct_demo", "demo": True},
-            "log": [    {"timestamp": datetime.now().isoformat(), "event": "Task created for direct instruction demo."}]    
+            "log": [
+                {
+                    "timestamp": datetime.now().isoformat(),
+                    "event": "Task created for direct instruction demo.",
                 }
+            ],
+        }
 
         try:
             orchestrator.route_and_execute_task(direct_task_context)
-            logger.info(f"Direct summary task completed. Report written to Obsidian.")
+            logger.info("Direct summary task completed. Report written to Obsidian.")
         except ValueError as ve:
             logger.error(f"Value error during direct task assignment: {ve}")
-        except Exception as e:  
+        except Exception as e:
             logger.error(f"Failed to assign direct task: {e}")
     else:
         logger.info("Skipping demo note creation and static summarizer task.")
 
-    # --- User-provided instruction (CLI) ---
     if args.instruction:
         handle_user_instruction(
-            orchestrator, args.instruction, args.capability, args.title, args.agent)
+            orchestrator, args.instruction, args.capability, args.title, args.agent
+        )
 
-    # --- Scenario 2: Check for tasks from Obsidian ---
     logger.info("\n--- Scenario 2: Checking for new tasks in Obsidian ---")
-    new_tasks = orchestrator.check_for_new_tasks_from_obsidian()
+    new_tasks = orchestrator.check_for_new_tasks_from_obsidian() or []
 
     if new_tasks:
         logger.info(f"Found {len(new_tasks)} new pending tasks in Obsidian.")
         for original_note_path, task_data in new_tasks:
             task_title = task_data.get("title", "Untitled Task")
             capability = task_data.get("required_capability")
-            setting = task_data.get("setting", {})
-            if capability:
-                logger.info(
-                    f"Processing task '{task_title}' with capability '{capability}' from '{original_note_path}'"
-                )
-
-                # First, update task status to 'in progress' in Obsidian
-                orchestrator.update_task_status_in_obsidian(
-                    original_note_path, "in progress", task_data["task_id"]
-                )
-
-                # Execute the task
-                try:
-                    orchestrator.route_and_execute_task(task_data, original_note_path)
-                    logger.info(f"Task '{task_title}' completed.")
-                except Exception as e:
-                    logger.error(f"Error processing task '{task_title}': {e}")
-                    orchestrator.update_task_status_in_obsidian(
-                        original_note_path, "failed", task_data["task_id"]
-                    )
-            else:
+            if not capability:
                 logger.warning(
                     f"Task '{task_title}' has no 'required_capability'. Skipping."
                 )
                 orchestrator.update_task_status_in_obsidian(
-                    original_note_path, "no_capability", task_data["task_id"]
+                    original_note_path, TaskStatus.NO_CAPABILITY, task_data["task_id"]
+                )
+                continue
+            logger.info(
+                f"Processing task '{task_title}' with capability '{capability}' from '{original_note_path}'"
+            )
+            orchestrator.update_task_status_in_obsidian(
+                original_note_path, TaskStatus.IN_PROGRESS, task_data["task_id"]
+            )
+            try:
+                orchestrator.route_and_execute_task(task_data, original_note_path)
+                logger.info(f"Task '{task_title}' completed.")
+            except Exception as e:
+                logger.error(f"Error processing task '{task_title}': {e}")
+                orchestrator.update_task_status_in_obsidian(
+                    original_note_path, TaskStatus.FAILED, task_data["task_id"]
                 )
     else:
         logger.info("No new pending tasks found in Obsidian input folder.")
@@ -292,17 +298,16 @@ def main() -> None:
             src.mcp.config.AGENT_INPUT_DIR,
         )
         logger.info(
-            """---\ntask_id: T_NEW_RESEARCH\nrequired_capability: web_search\nstatus: pending\n---\n\n# New Topic for Research\n\nTopic: The future of renewable energy technologies\nContext: Research emerging trends and key players.\nKeywords: solar, wind, geothermal, fusion\n"""
+            f"---\ntask_id: T_NEW_RESEARCH\nrequired_capability: {DEFAULT_CAPABILITY}\nstatus: {TaskStatus.PENDING}\n---\n\n# New Topic for Research\n\nTopic: The future of renewable energy technologies\nContext: Research emerging trends and key players.\nKeywords: solar, wind, geothermal, fusion\n"
         )
 
-    task_count = len(new_tasks) if new_tasks else 0
     run_logger.finalize_run(
         status="completed",
         summary={
-            "tasks_found": task_count,
-            "tasks_failed": sum(1 for _, t in (new_tasks or []) if t.get("status") == "failed"),
+            "tasks_found": len(new_tasks),
+            "tasks_failed": sum(1 for _, t in new_tasks if t.get("status") == TaskStatus.FAILED),
             "tasks_no_capability": sum(
-                1 for _, t in (new_tasks or []) if t.get("status") == "no_capability"
+                1 for _, t in new_tasks if t.get("status") == TaskStatus.NO_CAPABILITY
             ),
             "skip_demos": args.skip_demos,
             "instruction": args.instruction,
