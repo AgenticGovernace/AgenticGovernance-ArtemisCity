@@ -24,9 +24,12 @@ import yaml  # noqa: E402
 
 # When executed directly (e.g., `python src/main.py`), the `src` package may
 # not be importable, causing the absolute imports below to fail. In that case,
-# guide the user to run the CLI as a module instead.
+# guide the user to run the ATP CLI through the package module entrypoint.
 if __name__ == "__main__" and not __package__:
-    print("Error: This script must be run as a module. Use: python -m src")
+    print(
+        "Error: This script must be run via the ATP module entrypoint. Use: python -m src --atp",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 from src.agents.artemis import ArtemisPersona  # noqa: E402

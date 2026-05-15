@@ -229,7 +229,10 @@ class LegalDatasetLoader:
                             task_label = t
                             break
             except Exception:
-                pass
+                logger.warning(
+                    "Failed to discover available task labels; continuing without task discovery.",
+                    exc_info=True,
+                )
 
         count = 0
         for row in ds:

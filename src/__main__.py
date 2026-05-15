@@ -32,26 +32,28 @@ def entry():
         action="store_true",
         help="Run the ATP (Artemis Transmission Protocol) CLI.",
     )
-    # Explicit help flag so we can decide whether to handle it here or
-    # forward it to the selected sub-module.
-    parser.add_argument(
-        "-h",
-        "--help",
-        action="store_true",
-        help="Show this help message and exit.",
-    )
     args, remaining = parser.parse_known_args()
+
+    help_requested = any(arg in ("-h", "--help") for arg in remaining)
+    remaining_without_help = [
+        arg for arg in remaining if arg not in ("-h", "--help")
+    ]
 
     # Decide how to handle help:
     # - If help is requested *and* we have not selected a specific mode
     #   and there are no additional args, show the wrapper help.
     # - Otherwise, forward a help flag to the selected sub-module so its
     #   own argparse can display detailed help.
-    forwarded_args = list(remaining)
-    if args.help and not args.orchestrator and not remaining:
+    forwarded_args = list(remaining_without_help)
+    if (
+        help_requested
+        and not args.orchestrator
+        and not args.atp
+        and not remaining_without_help
+    ):
         parser.print_help()
         sys.exit(0)
-    elif args.help:
+    elif help_requested:
         # User requested help in combination with a mode or extra args:
         # forward --help to the underlying module.
         forwarded_args.append("--help")

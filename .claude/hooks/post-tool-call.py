@@ -99,4 +99,4 @@ def main():
 
 if __name__ == "__main__":
     sys.excepthook = excepthook
-    sys.exit(main())
+    main()

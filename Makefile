@@ -4,7 +4,7 @@
 # Convenient commands for development tasks
 # Usage: make <target>
 
-.PHONY: help install lint format test clean security check pre-commit setup-hooks run run-atp run-orchestrator
+.PHONY: help install lint format test clean security check pre-commit setup-hooks run run-atp run-orchestrator run-orchestrator-demos run-orchestrator-no-demos
 
 # Default target
 .DEFAULT_GOAL := help
@@ -149,8 +149,16 @@ run-atp: ## Run the ATP-enabled CLI
 	@echo "Starting ATP CLI..."
 	python -m src --atp
 
-run-orchestrator: ## Run the MCP orchestrator pipeline
+run-orchestrator: ## Run the MCP orchestrator pipeline (with demo tasks)
 	@echo "Starting MCP Orchestrator..."
+	python -m src --orchestrator
+
+run-orchestrator-demos: ## Run the MCP orchestrator pipeline (with demo tasks)
+	@echo "Starting MCP Orchestrator (with demos)..."
+	python -m src --orchestrator
+
+run-orchestrator-no-demos: ## Run the MCP orchestrator pipeline (skip demos)
+	@echo "Starting MCP Orchestrator (skip demos)..."
 	python -m src --orchestrator --skip-demos
 
 demo: ## Run all demos
