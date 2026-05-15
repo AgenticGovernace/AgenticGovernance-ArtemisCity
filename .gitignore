@@ -133,3 +133,9 @@ Concept_Demos/src/agents/copilot.md
 /Projects/Codex_Experiments
 /.air
 /Concept_Demos/src/mcp-server
+Projects/Experiments/legal_summarization/logs/*
+**/log/**
+Projects/Experiments/legal_summarization/logs/run_20260430_112007.md
+Projects/Experiments/legal_summarization/*
+**/legal_summarization/**
+Projects/Experiments/legal_summarization/legal-judgements-en-ur-sd/summary_en/train-00000-of-00001.parquet
