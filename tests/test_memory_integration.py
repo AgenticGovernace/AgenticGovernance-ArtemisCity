@@ -19,7 +19,7 @@ class TestMemoryClient:
     def test_memory_client_initialization(self):
         """Test that MemoryClient can be initialized."""
         # Set API key in environment for test
-        os.environ['MCP_API_KEY'] = 'test-api-key'  # pragma: allowlist secret
+        os.environ["MCP_API_KEY"] = "test-api-key"  # pragma: allowlist secret
         client = MemoryClient(base_url="http://localhost:3000")
         assert client is not None
         assert client.base_url == "http://localhost:3000"
@@ -27,7 +27,7 @@ class TestMemoryClient:
     def test_memory_client_default_url(self):
         """Test MemoryClient with default URL."""
         # Set API key in environment for test
-        os.environ['MCP_API_KEY'] = 'test-api-key'  # pragma: allowlist secret
+        os.environ["MCP_API_KEY"] = "test-api-key"  # pragma: allowlist secret
         client = MemoryClient()
         assert client is not None
         # Should have a default URL
@@ -72,7 +72,7 @@ class TestContextLoader:
         from integration.context_loader import ContextLoader
 
         # Set API key for MemoryClient initialization
-        os.environ['MCP_API_KEY'] = 'test-api-key'  # pragma: allowlist secret
+        os.environ["MCP_API_KEY"] = "test-api-key"  # pragma: allowlist secret
         loader = ContextLoader()
         assert loader is not None
 
@@ -81,13 +81,13 @@ class TestContextLoader:
         from integration.context_loader import ContextLoader
 
         # Set API key for MemoryClient initialization
-        os.environ['MCP_API_KEY'] = 'test-api-key'  # pragma: allowlist secret
+        os.environ["MCP_API_KEY"] = "test-api-key"  # pragma: allowlist secret
         loader = ContextLoader()
         # Should handle empty folder context gracefully
         # Test loading context from empty folder (won't actually hit server in unit test)
         # Just verify the method exists and can be called
-        assert hasattr(loader, 'load_folder_context')
-        assert hasattr(loader, 'search_context')
+        assert hasattr(loader, "load_folder_context")
+        assert hasattr(loader, "search_context")
 
 
 if __name__ == "__main__":

@@ -8,17 +8,19 @@
  * Version: 1.0.0
  */
 
-import express, { Express, Request, Response, NextFunction } from 'express';
+import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 
 // Routes
-import agentRoutes from './routes/agents';
-import memoryRoutes from './routes/memory';
-import atpRoutes from './routes/atp';
-import trustRoutes from './routes/trust';
-import healthRoutes from './routes/health';
-import llmRoutes from './routes/llm';
+import {
+  agentRoutes,
+  memoryRoutes,
+  atpRoutes,
+  trustRoutes,
+  healthRoutes,
+  llmRoutes,
+} from './v1';
 
 // Middleware
 import { authMiddleware } from './middleware/auth';

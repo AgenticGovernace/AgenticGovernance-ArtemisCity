@@ -7,7 +7,7 @@ the Obsidian vault via the MCP server.
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-from .memory_client import MemoryClient
+from integration.memory_client import MemoryClient
 
 
 @dataclass
@@ -71,21 +71,23 @@ class ContextLoader:
         if not response.success:
             return None
 
-        content = response.data.get('content', '')
+        content = response.data.get("content", "")
 
         # Get tags
-        tags_response = self.client.manage_tags(path, 'get')
+        tags_response = self.client.manage_tags(path, "get")
         tags = []
         if tags_response.success and tags_response.data:
-            tags = tags_response.data.get('tags', [])
+            tags = tags_response.data.get("tags", [])
 
         # Get frontmatter
-        fm_response = self.client.manage_frontmatter(path, 'list')
+        fm_response = self.client.manage_frontmatter(path, "list")
         frontmatter = {}
         if fm_response.success and fm_response.data:
-            frontmatter = fm_response.data.get('frontmatter', {})
+            frontmatter = fm_response.data.get("frontmatter", {})
 
-        return ContextEntry(path=path, content=content, tags=tags, frontmatter=frontmatter)
+        return ContextEntry(
+            path=path, content=content, tags=tags, frontmatter=frontmatter
+        )
 
     def search_context(
         self, query: str, limit: int = 10, context_length: int = 200
@@ -104,16 +106,16 @@ class ContextLoader:
         if not response.success:
             return []
 
-        results = response.data.get('results', [])[:limit]
+        results = response.data.get("results", [])[:limit]
         entries = []
 
         for result in results:
             entry = ContextEntry(
-                path=result.get('path', ''),
-                content=result.get('content', ''),
-                tags=result.get('tags', []),
-                frontmatter=result.get('frontmatter', {}),
-                relevance_score=result.get('score'),
+                path=result.get("path", ""),
+                content=result.get("content", ""),
+                tags=result.get("tags", []),
+                frontmatter=result.get("frontmatter", {}),
+                relevance_score=result.get("score"),
             )
             entries.append(entry)
 
@@ -133,7 +135,7 @@ class ContextLoader:
         if not response.success:
             return []
 
-        note_paths = response.data.get('notes', [])
+        note_paths = response.data.get("notes", [])
         entries = []
 
         for path in note_paths:
@@ -157,7 +159,9 @@ class ContextLoader:
         query = f"#{tag}"
         return self.search_context(query, limit=limit)
 
-    def load_agent_history(self, agent_name: str, limit: int = 10) -> List[ContextEntry]:
+    def load_agent_history(
+        self, agent_name: str, limit: int = 10
+    ) -> List[ContextEntry]:
         """Load historical context for an agent.
 
         Args:
@@ -172,18 +176,20 @@ class ContextLoader:
         if not response.success:
             return []
 
-        results = response.data.get('results', [])
+        results = response.data.get("results", [])
         entries = []
 
         for result in results:
-            path = result.get('path', '')
+            path = result.get("path", "")
             entry = self.load_note(path)
             if entry:
                 entries.append(entry)
 
         return entries
 
-    def get_context_summary(self, entries: List[ContextEntry], max_entries: int = 5) -> str:
+    def get_context_summary(
+        self, entries: List[ContextEntry], max_entries: int = 5
+    ) -> str:
         """Generate summary from context entries.
 
         Args:
@@ -231,7 +237,7 @@ class ContextLoader:
 
         for entry in entries:
             # Try to get date from frontmatter
-            date = entry.frontmatter.get('date') or entry.frontmatter.get('created')
+            date = entry.frontmatter.get("date") or entry.frontmatter.get("created")
 
             if not date:
                 continue
@@ -246,7 +252,9 @@ class ContextLoader:
 
         return filtered
 
-    def get_related_context(self, path: str, max_related: int = 5) -> List[ContextEntry]:
+    def get_related_context(
+        self, path: str, max_related: int = 5
+    ) -> List[ContextEntry]:
         """Get context related to a specific note.
 
         Uses tags and content keywords to find related notes.

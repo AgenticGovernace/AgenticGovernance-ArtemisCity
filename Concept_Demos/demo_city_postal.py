@@ -1,14 +1,3 @@
-#!/usr/bin/env python3
-"""Artemis City Postal Service Demo.
-
-Welcome to Artemis City - a living, breathing agent ecosystem where:
-- Agents are citizens with postal clearances
-- Memory operations are mail deliveries
-- The Obsidian vault is the City Archives
-- Pack Rat handles all secure mail routing
-- Trust scores determine citizen clearance levels
-"""
-
 import sys
 from pathlib import Path
 
@@ -19,6 +8,7 @@ sys.path.insert(0, str(_base_dir))
 
 try:
     from memory.integration import get_post_office, get_trust_interface
+
     MEMORY_AVAILABLE = True
 except ImportError:
     MEMORY_AVAILABLE = False
@@ -35,6 +25,7 @@ except ImportError:
         def send_to_archives(self, sender, archive_section, title, content):
             class MockResponse:
                 success = True
+
             return MockResponse()
 
         def request_from_archives(self, requester, query, section):
@@ -47,9 +38,12 @@ except ImportError:
         def get_trust_score(self, citizen):
             class MockScore:
                 score = 0.75
+
                 class MockLevel:
                     value = "TRUSTED"
+
                 level = MockLevel()
+
             return MockScore()
 
         def can_perform_operation(self, citizen, operation):
@@ -110,7 +104,7 @@ The city thrives through our collaboration.
 
 — Artemis, Mayor of Artemis City
             """.strip(),
-            priority="normal"
+            priority="normal",
         )
 
         print(f"\n   {packet}")
@@ -177,7 +171,7 @@ The city is alive and thriving.
         sender="artemis",
         archive_section="Reflections",
         title="Weekly_Operations_Report",
-        content=reflection
+        content=reflection,
     )
 
     if response.success:
@@ -197,9 +191,7 @@ def demo_archive_search():
     post_office = get_post_office()
 
     results = post_office.request_from_archives(
-        requester="planner",
-        query="governance",
-        section="Reflections"
+        requester="planner", query="governance", section="Reflections"
     )
 
     if results:
@@ -239,9 +231,11 @@ def demo_trust_clearances():
         print(f"     Clearances: ", end="")
 
         # Show what they can do
-        can_read = "📖 Read" if trust.can_perform_operation(citizen, 'read') else ""
-        can_write = "✍️  Write" if trust.can_perform_operation(citizen, 'write') else ""
-        can_delete = "🗑️  Delete" if trust.can_perform_operation(citizen, 'delete') else ""
+        can_read = "📖 Read" if trust.can_perform_operation(citizen, "read") else ""
+        can_write = "✍️  Write" if trust.can_perform_operation(citizen, "write") else ""
+        can_delete = (
+            "🗑️  Delete" if trust.can_perform_operation(citizen, "delete") else ""
+        )
 
         clearances = [c for c in [can_read, can_write, can_delete] if c]
         print(" | ".join(clearances))
@@ -313,12 +307,6 @@ def main():
         print("   Collaborate as citizens of a living ecosystem")
         print()
         print("The city is ready for your agents to move in!")
-        print()
-        print("To start using the postal service:")
-        print("  1. Start MCP server: cd 'Artemis Agentic Memory Layer' && npm run dev")
-        print("  2. Set environment: export MCP_BASE_URL=... MCP_API_KEY=...")
-        print("  3. Import: from memory.integration import get_post_office")
-        print("  4. Use: post_office.send_mail(sender, recipient, subject, content)")
         print()
         print("=" * 70)
         print()

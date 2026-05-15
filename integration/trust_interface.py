@@ -1,9 +1,3 @@
-"""Trust interface for memory operations.
-
-This module provides trust-aware memory access, filtering operations
-based on agent trust scores and trust decay model.
-"""
-
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -121,10 +115,10 @@ class TrustInterface:
 
     # Operation permission matrix
     OPERATION_PERMISSIONS = {
-        TrustLevel.FULL: ['read', 'write', 'delete', 'search', 'tag', 'update'],
-        TrustLevel.HIGH: ['read', 'write', 'search', 'tag', 'update'],
-        TrustLevel.MEDIUM: ['read', 'write', 'search', 'tag'],
-        TrustLevel.LOW: ['read', 'search'],
+        TrustLevel.FULL: ["read", "write", "delete", "search", "tag", "update"],
+        TrustLevel.HIGH: ["read", "write", "search", "tag", "update"],
+        TrustLevel.MEDIUM: ["read", "write", "search", "tag"],
+        TrustLevel.LOW: ["read", "search"],
         TrustLevel.UNTRUSTED: [],
     }
 
@@ -137,22 +131,22 @@ class TrustInterface:
         """Initialize trust scores for known agents."""
         # Core agents start with high trust
         core_agents = {
-            'artemis': (0.95, TrustLevel.FULL),
-            'pack_rat': (0.85, TrustLevel.HIGH),
-            'codex_daemon': (0.85, TrustLevel.HIGH),
-            'copilot': (0.80, TrustLevel.HIGH),
+            "artemis": (0.95, TrustLevel.FULL),
+            "pack_rat": (0.85, TrustLevel.HIGH),
+            "codex_daemon": (0.85, TrustLevel.HIGH),
+            "copilot": (0.80, TrustLevel.HIGH),
         }
 
         for agent_id, (score, level) in core_agents.items():
             self.trust_scores[agent_id] = TrustScore(
                 entity_id=agent_id,
-                entity_type='agent',
+                entity_type="agent",
                 score=score,
                 level=level,
                 last_updated=datetime.now(),
             )
 
-    def get_trust_score(self, entity_id: str, entity_type: str = 'agent') -> TrustScore:
+    def get_trust_score(self, entity_id: str, entity_type: str = "agent") -> TrustScore:
         """Get trust score for an entity.
 
         Creates new score if entity doesn't exist.
@@ -169,7 +163,9 @@ class TrustInterface:
         if key not in self.trust_scores:
             # Create new trust score
             default_score = (
-                self.DEFAULT_AGENT_TRUST if entity_type == 'agent' else self.DEFAULT_MEMORY_TRUST
+                self.DEFAULT_AGENT_TRUST
+                if entity_type == "agent"
+                else self.DEFAULT_MEMORY_TRUST
             )
 
             self.trust_scores[key] = TrustScore(
@@ -187,7 +183,7 @@ class TrustInterface:
         return trust_score
 
     def can_perform_operation(
-        self, entity_id: str, operation: str, entity_type: str = 'agent'
+        self, entity_id: str, operation: str, entity_type: str = "agent"
     ) -> bool:
         """Check if entity can perform an operation.
 
@@ -203,7 +199,9 @@ class TrustInterface:
         allowed_operations = self.OPERATION_PERMISSIONS.get(trust_score.level, [])
         return operation in allowed_operations
 
-    def record_success(self, entity_id: str, entity_type: str = 'agent', amount: float = 0.02):
+    def record_success(
+        self, entity_id: str, entity_type: str = "agent", amount: float = 0.02
+    ):
         """Record successful operation (reinforces trust).
 
         Args:
@@ -214,7 +212,9 @@ class TrustInterface:
         trust_score = self.get_trust_score(entity_id, entity_type)
         trust_score.reinforce(amount)
 
-    def record_failure(self, entity_id: str, entity_type: str = 'agent', amount: float = 0.05):
+    def record_failure(
+        self, entity_id: str, entity_type: str = "agent", amount: float = 0.05
+    ):
         """Record failed operation (penalizes trust).
 
         Args:
@@ -238,18 +238,18 @@ class TrustInterface:
                 by_level[level] = []
             by_level[level].append(
                 {
-                    'id': trust_score.entity_id,
-                    'type': trust_score.entity_type,
-                    'score': round(trust_score.score, 3),
-                    'reinforcements': trust_score.reinforcement_events,
-                    'penalties': trust_score.penalty_events,
+                    "id": trust_score.entity_id,
+                    "type": trust_score.entity_type,
+                    "score": round(trust_score.score, 3),
+                    "reinforcements": trust_score.reinforcement_events,
+                    "penalties": trust_score.penalty_events,
                 }
             )
 
         return {
-            'total_entities': len(self.trust_scores),
-            'by_level': by_level,
-            'timestamp': datetime.now().isoformat(),
+            "total_entities": len(self.trust_scores),
+            "by_level": by_level,
+            "timestamp": datetime.now().isoformat(),
         }
 
     def filter_by_trust(
@@ -276,8 +276,8 @@ class TrustInterface:
 
         filtered = []
         for item in items:
-            entity_id = item.get('entity_id')
-            entity_type = item.get('entity_type', 'agent')
+            entity_id = item.get("entity_id")
+            entity_type = item.get("entity_type", "agent")
 
             if entity_id:
                 trust_score = self.get_trust_score(entity_id, entity_type)

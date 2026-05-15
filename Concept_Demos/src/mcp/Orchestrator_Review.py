@@ -1,4 +1,4 @@
-Defined but no initialized
+# Defined but not initialized
 def _get_run_logger():
     """Lazy load run logger to avoid circular imports."""
     global _run_logger
@@ -11,9 +11,10 @@ def _get_run_logger():
             _run_logger = None
     return _run_logger
 
+
 class Orchestrator:
-        def __init__(self) -> None:
-            # Obsidian integration components
+    def __init__(self) -> None:
+        # Obsidian integration components
         self.obs_manager = ObsidianManager(OBSIDIAN_VAULT_PATH)
         self.obs_parser = ObsidianParser()
         self.obs_generator = ObsidianGenerator()
@@ -28,9 +29,9 @@ class Orchestrator:
             self.obs_manager,
             self.vector_store,
             search_dirs=[AGENT_INPUT_DIR, AGENT_OUTPUT_DIR],
-            governance_monitor=self.governance_monitor,)
+            governance_monitor=self.governance_monitor,
+        )
 
-class
         # Initialize Agent Registry
         self.agent_registry = AgentRegistry()
         self._register_agents()
@@ -38,7 +39,3 @@ class
         self._ensure_obsidian_agent_dirs()
         self._validate_kernel_state()
         logger.info("MCP Orchestrator initialized with Agent Registry.")
-
-
-        Explore: Frontend API Integration. API client functions for agent and task management
-Start from: api.ts, index.ts w

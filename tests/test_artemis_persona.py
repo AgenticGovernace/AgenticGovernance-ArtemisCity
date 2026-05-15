@@ -6,7 +6,12 @@ Tests the ArtemisPersona, ReflectionEngine, and SemanticTagger components.
 
 import pytest
 
-from agents.artemis import ArtemisPersona, ReflectionEngine, ResponseMode, SemanticTagger
+from agents.artemis import (
+    ArtemisPersona,
+    ReflectionEngine,
+    ResponseMode,
+    SemanticTagger,
+)
 
 
 class TestArtemisPersona:
@@ -72,7 +77,9 @@ class TestSemanticTagger:
         """Test creating semantic tags."""
         from agents.artemis import SemanticTag
 
-        tag = SemanticTag(tag="governance", category="system", description="System governance")
+        tag = SemanticTag(
+            tag="governance", category="system", description="System governance"
+        )
         assert tag.tag == "governance"
         assert tag.category == "system"
         assert tag.description == "System governance"

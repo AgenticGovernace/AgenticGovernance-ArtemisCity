@@ -1,5 +1,6 @@
 import logging
 import os
+from logging import Logger
 
 
 def setup_logging():
@@ -15,9 +16,8 @@ def setup_logging():
     return logging.getLogger("MCP_System")
 
 
-logger = setup_logging()
+logger: Logger = setup_logging()
 
 # Re-export run_logger utilities for convenience
-from .run_logger import RunLogger, get_run_logger, init_run_logger
 
 __all__ = ["logger", "setup_logging", "RunLogger", "get_run_logger", "init_run_logger"]

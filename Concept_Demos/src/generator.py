@@ -1,12 +1,9 @@
-from datetime import datetime
-from ..utils.helpers import logger
+import datetime
 
 
-def generate_agent_report(
-        agent_name: str, task_id: str, results: dict
-) -> str:
+def generate_agent_report(agent_name: str, task_id: str, results: dict) -> str:
     """Generates a Markdown report from agent results."""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     report_title = f"Agent Report: {agent_name} - {task_id}"
 
     markdown = f"""---\ntask_id: {task_id}\nagent: {agent_name}\ntimestamp: {timestamp}\nstatus: completed\ntags: ["agent_report", "{agent_name.lower().replace(' ', '_')}"]\n---\n\n# {report_title}\n\n## Summary of Findings\n\n{results.get('summary', 'No summary provided.')}\n\n## Key Data/Outputs\n\n"""

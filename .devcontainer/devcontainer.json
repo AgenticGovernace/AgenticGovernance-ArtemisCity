@@ -1,25 +1,51 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the
-// README at: https://github.com/devcontainers/templates/tree/main/src/javascript-node-postgres
 {
-  "name": "Node.js & PostgreSQL",
+  "name": "Artemis City Dev",
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "features": {
-  
+    // Core languages used by this project
+    "ghcr.io/devcontainers/features/python:1": {},
+    "ghcr.io/devcontainers/features/node:1": {},
 
-  // Features to add to the dev container. More info: https://containers.dev/features.
-  // "features": {},
+    // Version control and collaboration
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/git-lfs:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
 
-  // Use 'forwardPorts' to make a list of ports inside the container available locally.
-  // This can be used to network with other containers or with the host.
-  // "forwardPorts": [3000, 5432],
+    // Container and orchestration tools
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
 
-  // Use 'postCreateCommand' to run commands after the container is created.
-  // "postCreateCommand": "yarn install",
+    // Common shell utilities
+    "ghcr.io/devcontainers/features/common-utils:2": {},
+
+    // Security tooling
+    "ghcr.io/jsburckhardt/devcontainer-features/gitleaks:1": {},
+
+    // CI CLI (CircleCI)
+    "ghcr.io/codeman99/features/circleci-cli:1": {}
+  },
+
+  // Make ports available locally
+  "forwardPorts": [3000, 5432],
+
+  // Install project dependencies after container creation
+  "postCreateCommand": "pip install -r requirements.txt && cd src/mcp-server && npm install",
 
   // Configure tool-specific properties.
-  // "customizations": {},
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.black-formatter",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-azuretools.vscode-docker",
+        "EditorConfig.EditorConfig",
+        "ms-vscode-remote.remote-containers"
+      ]
+    }
+  }
 
   // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
   // "remoteUser": "root"
