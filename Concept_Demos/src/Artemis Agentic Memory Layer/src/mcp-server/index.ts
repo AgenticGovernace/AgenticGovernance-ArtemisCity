@@ -1,114 +1,55 @@
-import { Router } from 'express';
+import { Request, Response, Router } from 'express';
 import authenticateMCP from './middleware/auth';
 import { getContext } from './tools/obsidianReadNoteTool';
 import { appendContext, updateNote } from './tools/obsidianUpdateNoteTool';
-import searchNotes from './tools/obsidianGlobalSearchTool';
+import { searchNotes } from './tools/obsidianGlobalSearchTool';
 import { listNotes } from './tools/obsidianListNotesTool';
 import { deleteNote } from './tools/obsidianDeleteNoteTool';
 import { manageFrontmatter } from './tools/obsidianManageFrontmatterTool';
-import { manageTags } from './tools/obsidianManageTagsTool';
+import { manageTags, MANAGE_TAGS_ACTIONS, ManageTagsAction } from './tools/obsidianManageTagsTool';
 import { searchReplace } from './tools/obsidianSearchReplaceTool';
 import { logger } from '../utils/logger';
 
-const mcpRouter = Router();
+type ToolResult = { success: boolean; [k: string]: unknown };
 
-// All MCP routes require authentication
+const mcpRouter = Router();
 mcpRouter.use(authenticateMCP);
 
-// Define MCP endpoints
-mcpRouter.post( '/getContext', async (req, res) => {
-  const { path } = req.body;
-  if (!path) {
-    return res.status(400).json({ success: false, error: 'Missing note path.' });
+const handle = (
+  name: string,
+  required: string[],
+  fn: (body: Record<string, any>) => Promise<ToolResult>,
+) => async (req: Request, res: Response): Promise<void> => {
+  const missing = required.find((k) => req.body?.[k] === undefined);
+  if (missing) {
+    res.status(400).json({ success: false, error: `Missing field: ${missing}` });
+    return;
   }
-  logger.debug(`Received getContext request for path: ${path}`);
-  const result = await getContext(path);
+  logger.debug(`Received ${name} request`, req.body);
+  const result = await fn(req.body);
   res.status(result.success ? 200 : 500).json(result);
-});
+};
 
-mcpRouter.post('/appendContext', async (req, res) => {
-  const { path, content } = req.body;
-  if (!path || content === undefined) {
-    return res.status(400).json({ success: false, error: 'Missing note path or content.' });
-  }
-  logger.debug(`Received appendContext request for path: ${path}`);
-  const result = await appendContext(path, content);
-  res.status(result.success ? 200 : 500).json(result);
-});
-
-  mcpRouter.post(' http://localhost:4000/updateNote', async (req, res) => {
-    const { path, content } = req.body;
-    if (!path || content === undefined) {
-      return res.status(400).json({ success: false, error: 'Missing note path or content.' });
-    }
-    logger.debug(`Received updateNote request for path: ${path}`);
-    const result = await updateNote(path, content);
-    res.status(result.success ? 200 : 500).json(result);
-  });
-
-mcpRouter.post(' http://localhost:4000/searchNotes', async (req, res) => {
-  const { query } = req.body;
-  if (!query) {
-    return res.status(400).json({ success: false, error: 'Missing search query.' });
-  }
-  logger.debug(`Received searchNotes request for query: ${query}`);
-  const result = await searchNotes(query);
-  res.status(result.success ? 200 : 500).json(result);
-});
-
-mcpRouter.post('/listNotes', async (req, res) => {
-  logger.debug('Received listNotes request.');
-  const result = await listNotes();
-  res.status(result.success ? 200 : 500).json(result);
-});
-
-mcpRouter.post('/deleteNote', async (req, res) => {
-  const { path } = req.body;
-  if (!path) {
-    return res.status(400).json({ success: false, error: 'Missing note path.' });
-  }
-  logger.debug(`Received deleteNote request for path: ${path}`);
-  const result = await deleteNote(path);
-  res.status(result.success ? 200 : 500).json(result);
-});
-
-mcpRouter.post('/manageFrontmatter', async (req, res) => {
-  const { path, key, value } = req.body;
-  if (!path || !key || value === undefined) {
-    return res
-      .status(400)
-      .json({ success: false, error: 'Missing note path, frontmatter key, or value.' });
-  }
-  logger.debug(`Received manageFrontmatter request for path: ${path}, key: ${key}`);
-  const result = await manageFrontmatter(path, key, value);
-  res.status(result.success ? 200 : 500).json(result);
-});
-
+mcpRouter.post('/getContext', handle('getContext', ['path'], (b) => getContext(b.path)));
+mcpRouter.post('/appendContext', handle('appendContext', ['path', 'content'], (b) => appendContext(b.path, b.content)));
+mcpRouter.post('/updateNote', handle('updateNote', ['path', 'content'], (b) => updateNote(b.path, b.content)));
+mcpRouter.post('/searchNotes', handle('searchNotes', ['query'], (b) => searchNotes(b.query)));
+mcpRouter.post('/listNotes', handle('listNotes', [], () => listNotes()));
+mcpRouter.post('/deleteNote', handle('deleteNote', ['path'], (b) => deleteNote(b.path)));
+mcpRouter.post('/manageFrontmatter', handle('manageFrontmatter', ['path', 'key', 'value'], (b) => manageFrontmatter(b.path, b.key, b.value)));
 mcpRouter.post('/manageTags', async (req, res) => {
-  const { path, tags, action } = req.body;
-  if (!path || !Array.isArray(tags) || !['add', 'remove'].includes(action)) {
-    return res.status(400).json({
+  const { path, tags, action } = req.body ?? {};
+  if (!path || !Array.isArray(tags) || !MANAGE_TAGS_ACTIONS.includes(action)) {
+    res.status(400).json({
       success: false,
-      error: 'Missing note path, tags (array), or invalid action (add/remove).',
+      error: `Missing note path, tags (array), or invalid action (${MANAGE_TAGS_ACTIONS.join('/')}).`,
     });
+    return;
   }
-  logger.debug(
-    `Received manageTags request for path: ${path}, action: ${action}, tags: ${tags.join(', ')}`
-  );
-  const result = await manageTags(path, tags, action);
+  logger.debug(`Received manageTags request for ${path}`);
+  const result = await manageTags(path, tags, action as ManageTagsAction);
   res.status(result.success ? 200 : 500).json(result);
 });
-
-mcpRouter.post('/searchReplace', async (req, res) => {
-  const { path, search, replace } = req.body;
-  if (!path || !search || replace === undefined) {
-    return res
-      .status(400)
-      .json({ success: false, error: 'Missing note path, search string, or replace string.' });
-  }
-  logger.debug(`Received searchReplace request for path: ${path}, search: ${search}`);
-  const result = await searchReplace(path, search, replace);
-  res.status(result.success ? 200 : 500).json(result);
-});
+mcpRouter.post('/searchReplace', handle('searchReplace', ['path', 'search', 'replace'], (b) => searchReplace(b.path, b.search, b.replace)));
 
 export { mcpRouter };

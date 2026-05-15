@@ -187,12 +187,12 @@ export class TrustController {
    */
   async getPermissions(entityId: string): Promise<{ entityId: string; level: TrustLevel; operations: string[] }> {
     const trust = trustStore.get(entityId);
-    const level = trust?.level || 'UNTRUSTED';
+    const level = trust?.level ?? TrustLevel.untrusted;
 
     return {
       entityId,
       level,
-      operations: TRUST_OPERATIONS[level]
+      operations: TRUST_OPERATIONS[level],
     };
   }
 

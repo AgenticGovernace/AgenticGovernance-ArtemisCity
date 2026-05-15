@@ -7,8 +7,7 @@
 import { Router, Request, Response } from 'express';
 import { MemoryController } from '../controllers/memoryController';
 
-let router: Router;
-router = Router();
+const router = Router();
 const controller = new MemoryController();
 
 /**

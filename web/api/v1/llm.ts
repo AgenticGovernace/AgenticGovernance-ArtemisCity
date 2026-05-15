@@ -10,6 +10,13 @@ import { LLMController } from '../controllers/llmController';
 const router = Router();
 const controller = new LLMController();
 
+const isNonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0;
+const validateEmbedText = (text: unknown): string | null => {
+  if (isNonEmptyString(text)) return null;
+  if (Array.isArray(text) && text.length > 0 && text.every(isNonEmptyString)) return null;
+  return 'text must be a non-empty string or array of non-empty strings';
+};
+
 /**
  * POST /api/v1/llm/chat
  * Send a chat completion request
@@ -75,36 +82,9 @@ router.post('/complete', async (req: Request, res: Response) => {
 router.post('/embed', async (req: Request, res: Response) => {
   try {
     const { text, model } = req.body;
-
-    if (!text || (typeof text !== 'string' && !Array.isArray(text))) {
-      res.status(400).json({
-        success: false,
-        error: 'text must be a non-empty string or array of strings'
-      });
-      return;
-    }
-
-    if (Array.isArray(text) && text.length === 0) {
-      res.status(400).json({
-        success: false,
-        error: 'text array cannot be empty'
-      });
-      return;
-    }
-
-    if (Array.isArray(text) && text.some(item => typeof item !== 'string' || !item.trim())) {
-      res.status(400).json({
-        success: false,
-        error: 'text array must contain only non-empty strings'
-      });
-      return;
-    }
-
-    if (typeof text === 'string' && !text.trim()) {
-      res.status(400).json({
-        success: false,
-        error: 'text cannot be empty'
-      });
+    const error = validateEmbedText(text);
+    if (error) {
+      res.status(400).json({ success: false, error });
       return;
     }
 

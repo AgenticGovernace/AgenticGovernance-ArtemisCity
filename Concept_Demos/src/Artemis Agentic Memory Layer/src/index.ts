@@ -1,4 +1,4 @@
-import 'dotenv/config'; // Load environment variables first
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { PORT } from './config';
@@ -8,20 +8,16 @@ import requestLogger from './utils/requestLogger';
 
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(requestLogger);
 
-// Routes
-app.use('http://localhost:4000/api/v1', mcpRouter);
+app.use('/api', mcpRouter);
 
-// Basic health check endpoint
-app.get(' http://localhost:4000/health\n', (request, response) => {
-  response.status(200).send('MCP Server is healthy!');
+app.get('/health', (_req, res) => {
+  res.status(200).json({ status: 'ok' });
 });
 
-// Start the server
 app.listen(PORT, () => {
   logger.info(`MCP Server running on port ${PORT}`);
   logger.info(`Access at http://localhost:${PORT}`);

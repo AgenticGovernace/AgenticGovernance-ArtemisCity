@@ -1,0 +1,16 @@
+node_modules
+dist
+.env
+.env.*
+*.log
+.git
+.gitignore
+Dockerfile
+docker-compose.yml
+README.md
+index.ts
+tools
+main.py
+pyproject.toml
+uv.lock
+yarn.lock

@@ -1,14 +1,13 @@
 import { manageTags as manageObsidianTags } from '../../services/obsidianRestAPI/methods';
-import { logger } from '../../utils/logger';
+import { wrapTool } from './wrapTool';
 
-export async function manageTags(path: string, tags: string[], action: 'add' | 'remove') {
-  try {
-    logger.debug(`Managing tags for note: ${path}, action: ${action}, tags: ${tags.join(', ')}`);
+export const MANAGE_TAGS_ACTIONS = ['add', 'remove'] as const;
+export type ManageTagsAction = (typeof MANAGE_TAGS_ACTIONS)[number];
+
+export const manageTags = wrapTool(
+  'manageTags',
+  async (path: string, tags: string[], action: ManageTagsAction) => {
     await manageObsidianTags(path, tags, action);
-    logger.info(`Successfully ${action}ed tags for note '${path}': ${tags.join(', ')}.`);
-    return { success: true, message: `Tags for '${path}' ${action}ed successfully.` };
-  } catch (error: any) {
-    logger.error(`Error managing tags for note '${path}': ${error.message}`);
-    return { success: false, error: error.message };
-  }
-}
+    return { message: `Tags for '${path}' ${action}ed successfully.` };
+  },
+);
