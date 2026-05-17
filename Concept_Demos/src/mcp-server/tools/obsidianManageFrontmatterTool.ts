@@ -1,5 +1,5 @@
 import { manageFrontmatter as manageObsidianFrontmatter } from '../../services/obsidianRestAPI/methods';
-import { logger } from '../../utils/logger';
+import { logger } from '../../../../src/utils/logger';
 
 export async function manageFrontmatter(path: string, key: string, value: any) {
   try {

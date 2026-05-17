@@ -57,7 +57,7 @@ pnpm-debug.log*
 .yarn-integrity
 *.js.map
 *.d.ts.map
-web/api/dist/
+api/dist/
 web/frontend/dist/
 dist-ssr/
 .eslintcache
@@ -106,15 +106,15 @@ coverage.md
 .Rprofile
 renv
 renv.lock
-/tests/logs
-/tests/test_artifacts
-/tests/test_vault
+/src/tests/logs
+/src/tests/test_artifacts
+/src/tests/test_vault
 /unittest
-tests/pytest-of-artemis/pytest-current
-tests/pytest-of-artemis/pytest-0/test_orchestrator_updates_weigcurrent
-tests/pytest-of-artemis/pytest-0/test_orchestrator_creates_hebbcurrent
-/tests/integration/logs
-tests/output.md
+src/tests/pytest-of-artemis/pytest-current
+src/tests/pytest-of-artemis/pytest-0/test_orchestrator_updates_weigcurrent
+src/tests/pytest-of-artemis/pytest-0/test_orchestrator_creates_hebbcurrent
+/src/tests/integration/logs
+src/tests/output.md
 .RData
 .jupyter/desktop-workspaces/default-37a8.jupyterlab-workspace
 logs/run_20260302_034559.md
@@ -125,17 +125,17 @@ Concept_Demos/data/Agent Inputs/Example Research Task.md
 Concept_Demos/data/Agent Outputs/Research_Agent_Report_20260313030453_5.md
 Concept_Demos/data/Agent Outputs/Summarizer_Agent_Report_direct_summary_T001_5.md
 *.ipynb
-Concept_Demos/src/agents/copilot.md
+src/agents/copilot.md
 /logs
-/web/api/db/Agent Outputs
-/web/api/db
+/api/db/Agent Outputs
+/api/db
 /.claude
 /Projects/Codex_Experiments
 /.air
 /Concept_Demos/src/mcp-server
-Projects/Experiments/legal_summarization/logs/*
+src/Experiments/legal_summarization/logs/*
 **/log/**
-Projects/Experiments/legal_summarization/logs/run_20260430_112007.md
-Projects/Experiments/legal_summarization/*
+src/Experiments/legal_summarization/logs/run_20260430_112007.md
+src/Experiments/legal_summarization/*
 **/legal_summarization/**
-Projects/Experiments/legal_summarization/legal-judgements-en-ur-sd/summary_en/train-00000-of-00001.parquet
+src/Experiments/legal_summarization/legal-judgements-en-ur-sd/summary_en/train-00000-of-00001.parquet

@@ -1,5 +1,5 @@
 import { deleteNote as deleteObsidianNote } from '../../services/obsidianRestAPI/methods';
-import { logger } from '../../utils/logger';
+import { logger } from '../../../../src/utils/logger';
 
 export async function deleteNote(path: string) {
   try {

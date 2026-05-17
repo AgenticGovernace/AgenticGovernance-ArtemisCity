@@ -193,7 +193,7 @@ export const fetchAgentHebbianStats = async (agentName: string) => {
 /**
  * Fetch vector store statistics.
  *
- * @returns Promise resolving to vector stats (total docs, avg length)
+ * @returns Promise resolving to vector stats (total Documents, avg length)
  * @throws Error if the request fails
  */
 export const fetchVectorStats = async () => {

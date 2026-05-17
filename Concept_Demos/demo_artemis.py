@@ -68,9 +68,8 @@ _configure_import_path()
 # Optional: if you still get confusing import behavior, keep this warning.
 _warn_if_shadowed("agents")
 
-import Concept_Demos.src.agents.atp
 from src.core.instructions import InstructionLoader
-from src.agents.artemis import ArtemisPersona, ReflectionEngine, SemanticTagger
+from src.agents import ArtemisPersona, ReflectionEngine, SemanticTagger
 
 
 def demo_atp_parsing():
@@ -80,7 +79,7 @@ def demo_atp_parsing():
     print("=" * 70)
 
     parser = ATPParser()
-    from Concept_Demos.src.agents.atp.atp_validator import ATPValidator
+    from src.agents.atp.atp_validator import ATPValidator
 
     validator = ATPValidator()
 

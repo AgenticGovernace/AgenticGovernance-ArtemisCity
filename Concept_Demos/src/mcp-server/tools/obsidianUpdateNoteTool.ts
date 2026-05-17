@@ -1,5 +1,5 @@
 import { updateNote as updateObsidianNote } from '../../services/obsidianRestAPI/methods';
-import { logger } from '../../utils/logger';
+import { logger } from '../../../../src/utils/logger';
 
 export async function appendContext(path: string, content: string) {
   try {

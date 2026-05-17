@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, Optional
 import src.mcp.config
 from src.mcp.orchestrator import Orchestrator
-from src.utils.helpers import logger
+from src.utils import logger
 from src.utils.run_logger import init_run_logger
 
 

@@ -1,5 +1,5 @@
 import { searchReplace as obsidianSearchReplace } from '../../services/obsidianRestAPI/methods';
-import { logger } from '../../utils/logger';
+import { logger } from '../../../../src/utils/logger';
 
 export async function searchReplace(path: string, search: string, replace: string) {
   try {
