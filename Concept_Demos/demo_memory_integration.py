@@ -10,8 +10,8 @@ _base_dir = (
 )
 sys.path.insert(0, str(_base_dir))
 
-from integration import ContextLoader, TrustInterface, get_trust_interface
-from integration.memory_client import MemoryClient
+from src.integration import ContextLoader, TrustInterface, get_trust_interface
+from src.integration import MemoryClient
 
 
 def demo_memory_client():

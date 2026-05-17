@@ -1,5 +1,5 @@
 import { manageTags as manageObsidianTags } from '../../services/obsidianRestAPI/methods';
-import { logger } from '../../utils/logger';
+import { logger } from '../../../../src/utils/logger';
 
 export async function manageTags(path: string, tags: string[], action: 'add' | 'remove') {
   try {

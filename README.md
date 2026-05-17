@@ -292,7 +292,7 @@ Structured communication system with signal tags:
 git clone 
 cd to project directory
 
-# Or use GitHub Pages (see docs/BROWSER_DEMOS_DEPLOYMENT.md)
+# Or use GitHub Pages (see Documents/BROWSER_DEMOS_DEPLOYMENT.md)
 
 # 3. Activate virtual environment
 # On macOS/Linux:

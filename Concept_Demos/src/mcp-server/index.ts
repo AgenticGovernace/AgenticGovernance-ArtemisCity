@@ -8,7 +8,7 @@ import { deleteNote } from './tools/obsidianDeleteNoteTool';
 import { manageFrontmatter } from './tools/obsidianManageFrontmatterTool';
 import { manageTags } from './tools/obsidianManageTagsTool';
 import { searchReplace } from './tools/obsidianSearchReplaceTool';
-import { logger } from '../utils/logger';
+import { logger } from '../../../src/utils/logger';
 
 const mcpRouter = Router();
 

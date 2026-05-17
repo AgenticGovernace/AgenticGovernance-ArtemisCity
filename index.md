@@ -10,10 +10,10 @@ Artemis City is a governance-minded multi-agent coordination platform built arou
 ## Explore
 
 - [Repository README](./README.md)
-- [Architecture](./docs/ARCHITECTURE.md)
-- [Memory Bus](./docs/MEMORY_BUS.md)
-- [Living City](./docs/LIVING_CITY.md)
-- [API Reference](./docs/API_REFERENCE.md)
+- [Architecture](Documents/ARCHITECTURE.md)
+- [Memory Bus](Documents/MEMORY_BUS.md)
+- [Living City](Documents/LIVING_CITY.md)
+- [API Reference](Documents/API_REFERENCE.md)
 
 ## Delivery
 
