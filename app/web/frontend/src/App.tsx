@@ -10,13 +10,13 @@
 import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
-const Layout = lazy(() => import('./components/Layout'));
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Tasks = lazy(() => import('./pages/Tasks'));
-const Reports = lazy(() => import('./pages/Reports'));
-const Agents = lazy(() => import('./pages/Agents'));
-const Database = lazy(() => import('./pages/Database'));
-const Executor = lazy(() => import('./pages/Executor'));
+const Layout = lazy(() => import('./components/Layout.tsx'));
+const Dashboard = lazy(() => import('./pages/Dashboard.tsx'));
+const Tasks = lazy(() => import('./pages/Tasks.tsx'));
+const Reports = lazy(() => import('./pages/Reports.tsx'));
+const Agents = lazy(() => import('./pages/Agents.tsx'));
+const Database = lazy(() => import('./pages/Database.tsx'));
+const Executor = lazy(() => import('./pages/Executor.tsx'));
 
 /**
  * Main application component with routing configuration.

@@ -47,7 +47,7 @@ import {
   Badge,
 } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
-import { fetchTasks, createNewTask, fetchAgents, executePendingTask, executeAllPendingTasks } from '../api';
+import { fetchTasks, createNewTask, fetchAgents, executePendingTask, executeAllPendingTasks } from '../api.ts';
 
 /**
  * Interface representing a task entity from the Obsidian vault.

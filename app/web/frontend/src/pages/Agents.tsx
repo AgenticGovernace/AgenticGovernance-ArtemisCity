@@ -9,7 +9,7 @@
 
 import { Box, Heading, Text, Spinner, Alert, AlertIcon, List, ListItem, ListIcon } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
-import { fetchAgents } from '../api';
+import { fetchAgents } from '../api.ts';
 import { FaStar } from 'react-icons/fa';
 
 /**

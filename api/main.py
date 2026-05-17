@@ -13,7 +13,7 @@ from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 
 # Add the project root to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../web", "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../app/web", "..")))
 
 
 def _sanitize_for_log(value: Any) -> str:

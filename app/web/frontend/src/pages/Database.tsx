@@ -47,7 +47,7 @@ import {
   fetchVectors,
   fetchRuns,
   fetchRunEvents,
-} from '../api';
+} from '../api.ts';
 
 /**
  * Interface for agent score data

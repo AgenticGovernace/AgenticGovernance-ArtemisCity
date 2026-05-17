@@ -37,7 +37,7 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
-import { fetchReports, fetchReportContent } from '../api';
+import { fetchReports, fetchReportContent } from '../api.ts';
 import ReactMarkdown from 'react-markdown';
 
 /**

@@ -31,7 +31,7 @@ import {
   StatNumber,
 } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
-import { executeInstruction, fetchAgents } from '../api';
+import { executeInstruction, fetchAgents } from '../api.ts';
 
 /**
  * Interface for agent data

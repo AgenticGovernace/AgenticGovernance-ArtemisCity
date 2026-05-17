@@ -29,7 +29,7 @@ import {
   fetchHebbianStats,
   fetchVectorStats,
   fetchRuns,
-} from '../api';
+} from '../api.ts';
 
 /**
  * Dashboard home page component.
