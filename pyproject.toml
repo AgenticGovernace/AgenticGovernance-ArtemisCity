@@ -8,7 +8,7 @@ requires-python = ">=3.8,<3.14"
 authors = [
     {name = "Prinston Palmer", email = "prinstonpalmer879@gmail.com"}
 ]
-license = {text = "MIT"}
+license = {text = "Apacbhe License 2.0"}
 keywords = ["agents", "ai", "agentic", "governance", "trust", "memory", "distributed-systems", "artificial-intelligence"]
 classifiers = [
     "Development Status :: 3 - Alpha",
