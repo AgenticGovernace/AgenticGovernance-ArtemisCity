@@ -57,16 +57,9 @@ enhanced = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/popvilla/artemis-city"
-Documentation = "https://github.com/popvilla/artemis-city#readme"
-Repository = "https://github.com/popvilla/artemis-city"
-Changelog = "https://github.com/popvilla/artemis-city/releases"
-Issues = "https://github.com/popvilla/artemis-city/issues"
-Discussion = "https://github.com/popvilla/artemis-city/discussions"
-Funding = "https://github.com/sponsors/popvilla"
 
-[project.scripts]
-artemis = "interface.codex_cli:main"
+
+    [project.scripts]
 
 [build-system]
 requires = ["hatchling"]
