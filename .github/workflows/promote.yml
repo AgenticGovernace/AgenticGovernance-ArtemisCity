@@ -1,0 +1,44 @@
+name: Promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      from:
+        description: Source environment branch
+        required: true
+        type: choice
+        options: [dev, staging]
+      to:
+        description: Target environment branch
+        required: true
+        type: choice
+        options: [staging, prod]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  open-promotion-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate direction
+        run: |
+          from="${{ github.event.inputs.from }}"
+          to="${{ github.event.inputs.to }}"
+          case "${from}->${to}" in
+            "dev->staging"|"staging->prod") ;;
+            *) echo "Invalid promotion ${from} -> ${to}" >&2; exit 1 ;;
+          esac
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Open PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FROM: ${{ github.event.inputs.from }}
+          TO: ${{ github.event.inputs.to }}
+        run: |
+          title="Promote ${FROM} -> ${TO}"
+          body="Automated promotion PR opened by the Promote workflow."
+          gh pr create --base "$TO" --head "$FROM" --title "$title" --body "$body" --draft
