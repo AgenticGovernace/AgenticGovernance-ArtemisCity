@@ -56,4 +56,6 @@ approvals are configured on the Environment itself in repo Settings.
 3. Under Settings -> Environments, create `dev`, `staging`, `prod` and
    attach any required reviewers / wait timers and per-env secrets.
 4. Add branch protection rules requiring CI green and the configured
-   number of approvals before merging into each env branch.
+   number of approvals before merging into each env branch. These live
+   under Settings -> Rules -> Rulesets as `Protect dev`, `Protect
+   staging`, and `Protect prod`.
