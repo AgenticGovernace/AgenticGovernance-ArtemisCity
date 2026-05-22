@@ -1,0 +1,24 @@
+name: dev
+description: Local and shared developer integration environment.
+
+mcp:
+  base_url: http://localhost:3000
+  log_level: DEBUG
+
+obsidian:
+  base_url: http://localhost:27124
+
+exo:
+  base_url: http://localhost:52415
+
+vector_store:
+  path: data/vector_store.dev.db
+
+governance:
+  strict_atp: false
+  trust_default_level: 2
+
+deploy:
+  branch: dev
+  github_environment: dev
+  approvals_required: 0

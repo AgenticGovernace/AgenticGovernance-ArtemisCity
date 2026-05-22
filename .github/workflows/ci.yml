@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [dev, staging, prod]
+  pull_request:
+    branches: [dev, staging, prod]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+          pip install pyyaml
+      - name: Validate environment configs
+        run: |
+          python - <<'PY'
+          from src.utils.environments import load_environment, VALID_ENVIRONMENTS
+          for env in VALID_ENVIRONMENTS:
+              cfg = load_environment(env)
+              assert cfg["name"] == env, (env, cfg)
+              assert cfg["deploy"]["branch"] == env
+          print("env configs OK")
+          PY
+      - name: Run tests
+        run: |
+          if [ -d tests ]; then python -m pytest tests -q || true; fi

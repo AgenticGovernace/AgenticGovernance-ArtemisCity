@@ -1,0 +1,70 @@
+name: Deploy
+
+on:
+  push:
+    branches: [dev, staging, prod]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        default: dev
+        type: choice
+        options: [dev, staging, prod]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.pick.outputs.environment }}
+    steps:
+      - id: pick
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> "$GITHUB_OUTPUT"
+          else
+            branch="${GITHUB_REF##*/}"
+            case "$branch" in
+              dev|staging|prod) echo "environment=$branch" >> "$GITHUB_OUTPUT" ;;
+              *) echo "Unsupported branch: $branch" >&2; exit 1 ;;
+            esac
+          fi
+
+  deploy:
+    needs: resolve
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Load environment config
+        env:
+          ARTEMIS_ENV: ${{ needs.resolve.outputs.environment }}
+        run: |
+          pip install pyyaml
+          python - <<'PY'
+          import os, json
+          from src.utils.environments import load_environment
+          cfg = load_environment(os.environ["ARTEMIS_ENV"])
+          print(json.dumps(cfg, indent=2))
+          PY
+      - name: Build artifacts
+        run: |
+          echo "Build step (provider-agnostic placeholder)."
+          echo "Wire your container build or package step here."
+      - name: Deploy
+        env:
+          ARTEMIS_ENV: ${{ needs.resolve.outputs.environment }}
+        run: |
+          echo "Deploying to $ARTEMIS_ENV"
+          echo "Replace this step with your target provider's deploy action."
+          echo "Secrets are scoped per GitHub Environment ($ARTEMIS_ENV)."
