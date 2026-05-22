@@ -1,7 +1,10 @@
 # Environment branching
 
 Artemis City uses three long-lived environment branches that map 1:1 to
-GitHub Environments and deploy targets.
+GitHub Environments and deploy targets. The names `dev`, `staging`, and
+`prod` are kept identical across the branch, the GitHub Environment, and
+the file under `config/environments/` so there is no mapping layer to
+forget.
 
 | Branch    | GitHub Environment | Purpose                                       | Approvals |
 |-----------|--------------------|-----------------------------------------------|-----------|
