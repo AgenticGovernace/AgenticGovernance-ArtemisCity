@@ -1,131 +1,165 @@
 import { obsidianAPI } from './index';
 
-interface ObsidianNote {
-  path: string;
-  content: string;
-  // Add other potential properties from Obsidian API like frontmatter, tags, etc.
-}
-
 interface SearchResult {
   path: string;
   excerpt: string;
-  // Add other potential properties
+}
+
+interface SimpleSearchHit {
+  filename: string;
+  score: number;
+  matches?: Array<{ match: { start: number; end: number }; context: string }>;
+}
+
+interface NoteJson {
+  path: string;
+  content: string;
+  frontmatter?: Record<string, unknown>;
+  tags?: string[];
+}
+
+// Local REST API treats `/` as the path separator inside a vault, so encode each
+// segment but keep slashes intact.
+function encodeVaultPath(path: string): string {
+  return path.split('/').map(encodeURIComponent).join('/');
 }
 
 /**
- * Reads the content of a specific note from Obsidian.
- * @param path The path to the note (e.g., 'My Folder/My Note.md').
- * @returns The content of the note.
+ * Reads the markdown content of a note.
+ * Wraps GET /vault/{path} from the Obsidian Local REST API.
  */
 export async function readNote(path: string): Promise<string> {
-  const response = await obsidianAPI.get<ObsidianNote>(`/vault/read`, {
-    params: { path },
+  const response = await obsidianAPI.get<string>(`/vault/${encodeVaultPath(path)}`, {
+    headers: { Accept: 'text/markdown' },
+    transformResponse: (data) => data,
   });
-  return response.data.content;
+  return typeof response.data === 'string' ? response.data : String(response.data);
 }
 
 /**
- * Updates an existing note or creates a new one. Can append content.
- * @param path The path to the note.
- * @param content The new content for the note.
- * @param options Options, e.g., { append: true } to append content.
- * @returns A success message.
+ * Creates, overwrites, or appends to a note.
+ * Wraps PUT /vault/{path} (overwrite) or POST /vault/{path} (append).
  */
-export async function updateNote(path: string, content: string, options?: { append?: boolean }): Promise<string> {
-  const response = await obsidianAPI.post(`/vault/write`, {
-    path,
-    content,
-    cursor: options?.append ? { line: -1, ch: -1 } : undefined, // Append to end if 'append' is true
-  });
-  return response.data.message || 'Note updated successfully.';
+export async function updateNote(
+  path: string,
+  content: string,
+  options?: { append?: boolean },
+): Promise<string> {
+  const url = `/vault/${encodeVaultPath(path)}`;
+  const config = { headers: { 'Content-Type': 'text/markdown' } };
+  if (options?.append) {
+    await obsidianAPI.post(url, content, config);
+    return `Content appended to '${path}'.`;
+  }
+  await obsidianAPI.put(url, content, config);
+  return `Note '${path}' updated.`;
 }
 
 /**
- * Searches for notes within the Obsidian vault.
- * @param query The search query string.
- * @returns An array of search results.
+ * Simple text search across the vault.
+ * Wraps POST /search/simple/?query=... and flattens hits to { path, excerpt }.
  */
 export async function searchNotes(query: string): Promise<SearchResult[]> {
-  const response = await obsidianAPI.get<SearchResult[]>(`/vault/search`, {
+  const response = await obsidianAPI.post<SimpleSearchHit[]>('/search/simple/', null, {
     params: { query },
   });
-  return response.data;
+  return (response.data ?? []).map((hit) => ({
+    path: hit.filename,
+    excerpt: hit.matches?.[0]?.context ?? '',
+  }));
 }
 
 /**
- * Lists all notes in the Obsidian vault.
- * @returns An array of note paths.
+ * Lists all markdown notes in the vault.
+ * Local REST API exposes one directory at a time via GET /vault/{dir}/, so this
+ * walks the tree depth-first and returns markdown files only.
  */
 export async function listNotes(): Promise<string[]> {
-  const response = await obsidianAPI.get<{ files: string[] }>(`/vault/list`);
-  return response.data.files;
+  const results: string[] = [];
+  const stack: string[] = [''];
+  while (stack.length) {
+    const dir = stack.pop() as string;
+    const url = dir === '' ? '/vault/' : `/vault/${encodeVaultPath(dir)}/`;
+    const response = await obsidianAPI.get<{ files: string[] }>(url);
+    for (const entry of response.data.files ?? []) {
+      const full = dir === '' ? entry : `${dir}${entry}`;
+      if (entry.endsWith('/')) {
+        stack.push(full);
+      } else if (entry.toLowerCase().endsWith('.md')) {
+        results.push(full);
+      }
+    }
+  }
+  return results;
 }
 
 /**
- * Deletes a note from the Obsidian vault.
- * @param path The path to the note to delete.
- * @returns A success message.
+ * Deletes a note. Wraps DELETE /vault/{path}.
  */
 export async function deleteNote(path: string): Promise<string> {
-  const response = await obsidianAPI.delete(`/vault/delete`, {
-    params: { path },
-  });
-  return response.data.message || 'Note deleted successfully.';
+  await obsidianAPI.delete(`/vault/${encodeVaultPath(path)}`);
+  return `Note '${path}' deleted successfully.`;
 }
 
 /**
- * Manages frontmatter for a note.
- * Note: The Obsidian Local REST API might not have a direct endpoint for this.
- * This implementation assumes a hypothetical `/vault/frontmatter` endpoint.
- * If not available, this would require reading the note, parsing/modifying content, and writing back.
- * @param path The path to the note.
- * @param key The frontmatter key.
- * @param value The value to set for the key.
- * @returns A success message.
+ * Replaces a single frontmatter key on a note.
+ * Wraps PATCH /vault/{path} with the frontmatter target headers documented by
+ * Local REST API v4.x. A JSON body is sent so values can be strings, numbers,
+ * booleans, arrays, or objects.
  */
-export async function manageFrontmatter(path: string, key: string, value: any): Promise<string> {
-  const response = await obsidianAPI.post(`/vault/frontmatter`, {
-    path,
-    key,
-    value,
+export async function manageFrontmatter(path: string, key: string, value: unknown): Promise<string> {
+  await obsidianAPI.patch(`/vault/${encodeVaultPath(path)}`, JSON.stringify(value), {
+    headers: {
+      Operation: 'replace',
+      'Target-Type': 'frontmatter',
+      Target: key,
+      'Content-Type': 'application/json',
+    },
   });
-  return response.data.message || 'Frontmatter updated successfully.';
+  return `Frontmatter for '${path}' updated.`;
 }
 
 /**
- * Manages tags for a note (add or remove).
- * Note: The Obsidian Local REST API might not have a direct endpoint for this.
- * This implementation assumes a hypothetical `/vault/tags` endpoint.
- * If not available, this would require reading the note, parsing/modifying content, and writing back.
- * @param path The path to the note.
- * @param tags An array of tags to add or remove.
- * @param action 'add' or 'remove'.
- * @returns A success message.
+ * Adds or removes tags from a note's frontmatter `tags` array.
+ * Read-modify-write against PATCH on `Target: tags` — avoids duplicates on add
+ * and handles missing arrays on remove.
  */
-export async function manageTags(path: string, tags: string[], action: 'add' | 'remove'): Promise<string> {
-  const response = await obsidianAPI.post(`/vault/tags`, {
-    path,
-    tags,
-    action,
+export async function manageTags(
+  path: string,
+  tags: string[],
+  action: 'add' | 'remove',
+): Promise<string> {
+  const url = `/vault/${encodeVaultPath(path)}`;
+  const current = await obsidianAPI.get<NoteJson>(url, {
+    headers: { Accept: 'application/vnd.olrapi.note+json' },
   });
-  return response.data.message || 'Tags updated successfully.';
+  const existing = Array.isArray(current.data.tags) ? current.data.tags : [];
+  const set = new Set(existing);
+  if (action === 'add') {
+    for (const tag of tags) set.add(tag);
+  } else {
+    for (const tag of tags) set.delete(tag);
+  }
+  const next = Array.from(set);
+  await obsidianAPI.patch(url, JSON.stringify(next), {
+    headers: {
+      Operation: 'replace',
+      'Target-Type': 'frontmatter',
+      Target: 'tags',
+      'Content-Type': 'application/json',
+    },
+  });
+  return `Tags for '${path}' ${action === 'add' ? 'added' : 'removed'} successfully.`;
 }
 
 /**
- * Performs a search and replace operation within a note.
- * Note: The Obsidian Local REST API might not have a direct endpoint for this.
- * This implementation assumes a hypothetical `/vault/search-replace` endpoint.
- * If not available, this would require reading the note, performing string replacement, and writing back.
- * @param path The path to the note.
- * @param search The string to search for.
- * @param replace The string to replace with.
- * @returns The updated content of the note.
+ * Replaces all occurrences of `search` with `replace` inside a note.
+ * Local REST API has no native string-replace endpoint, so we read the note,
+ * mutate the string, and PUT it back.
  */
 export async function searchReplace(path: string, search: string, replace: string): Promise<string> {
-  const response = await obsidianAPI.post<ObsidianNote>(`/vault/search-replace`, {
-    path,
-    search,
-    replace,
-  });
-  return response.data.content;
+  const content = await readNote(path);
+  const updated = content.split(search).join(replace);
+  await updateNote(path, updated);
+  return updated;
 }
