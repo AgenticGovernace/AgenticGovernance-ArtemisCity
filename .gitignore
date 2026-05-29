@@ -138,3 +138,4 @@ src/Experiments/legal_summarization/logs/run_20260430_112007.md
 src/Experiments/legal_summarization/*
 **/legal_summarization/**
 src/Experiments/legal_summarization/legal-judgements-en-ur-sd/summary_en/train-00000-of-00001.parquet
+*.sqlite
