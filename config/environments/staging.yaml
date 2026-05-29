@@ -21,4 +21,4 @@ governance:
 deploy:
   branch: staging
   github_environment: staging
-  approvals_required: 0
+  approvals_required: 1
