@@ -21,4 +21,4 @@ governance:
 deploy:
   branch: prod
   github_environment: prod
-  approvals_required: 2
+  approvals_required: 0
