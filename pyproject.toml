@@ -85,5 +85,5 @@ line_length = 100
 
 [tool.pytest.ini_options]
 addopts = "-ra -q --strict-markers"
-testpaths = ["tests"]
+testpaths = ["src/tests"]
 pythonpath = ["."]
