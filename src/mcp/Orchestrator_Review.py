@@ -4,7 +4,7 @@ def _get_run_logger():
     global _run_logger
     if _run_logger is None:
         try:
-            from src.utils import get_run_logger
+            from utils import get_run_logger
 
             _run_logger = get_run_logger()
         except Exception:

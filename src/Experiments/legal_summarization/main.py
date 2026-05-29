@@ -211,7 +211,7 @@ def main(argv: list[str] | None = None) -> None:
     # Optionally wire in the core RunLogger for event integration
     run_logger = None
     try:
-        from src.utils.run_logger import init_run_logger
+        from utils.run_logger import init_run_logger
 
         run_logger = init_run_logger(
             log_dir="logs",

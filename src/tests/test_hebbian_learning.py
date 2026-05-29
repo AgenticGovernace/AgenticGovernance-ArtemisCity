@@ -228,7 +228,7 @@ class TestHebbianIntegration:
 
     def test_orchestrator_updates_weights_on_success(self):
         """Test that successful tasks strengthen connections."""
-        from src.mcp.orchestrator import Orchestrator
+        from mcp.orchestrator import Orchestrator
 
         orchestrator = Orchestrator()
 

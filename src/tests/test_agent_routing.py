@@ -5,11 +5,6 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-import importlib
-import sys
-
-sys.modules["types"] = importlib.import_module("src.types")
-
 from integration.agent_registry import AgentRegistry, AgentScore
 from agents.base_agent import BaseAgent
 from mcp.orchestrator import Orchestrator

@@ -11,6 +11,7 @@ from integration.governance import GovernanceMonitor
 
 
 class TestGovernanceMonitor:
+    @pytest.fixture
     def monitor(self, tmp_path):
         log_path = str(tmp_path / "governance" / "events.log")
         return GovernanceMonitor(alert_threshold=3, log_path=log_path)

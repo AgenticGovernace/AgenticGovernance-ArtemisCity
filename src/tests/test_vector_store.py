@@ -1,6 +1,6 @@
 import pytest
 
-from src.mcp.vector_store import LocalVectorStore
+from mcp.vector_store import LocalVectorStore
 
 
 def simple_embedding(text: str):

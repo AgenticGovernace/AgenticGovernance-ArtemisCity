@@ -5,8 +5,8 @@ import sys
 sys.modules.pop("integration.context_loader", None)
 
 import pytest
-from src.integration.context_loader import ContextEntry, ContextLoader
-from src.integration.memory_client import MCPResponse
+from integration.context_loader import ContextEntry, ContextLoader
+from integration.memory_client import MCPResponse
 
 
 # ---------------------------------------------------------------------------

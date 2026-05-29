@@ -1,5 +1,5 @@
 import re
-from ..utils.helpers import logger
+from utils.helpers import logger
 
 
 class ObsidianParser:

@@ -1,9 +1,5 @@
 """Tests for the base agent (src/agents/base_agent.py)."""
 
-import sys
-
-sys.modules.pop("agents.base_agent", None)
-
 import pytest
 from agents.base_agent import BaseAgent
 

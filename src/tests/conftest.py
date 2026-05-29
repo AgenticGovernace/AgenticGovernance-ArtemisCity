@@ -10,10 +10,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-# Add project root and src directory to path for imports
-_project_root = str(Path(__file__).parent.parent)
-sys.path.insert(0, _project_root)
-sys.path.insert(0, str(Path(_project_root) / "Concept_Demos" / "src"))
+# Add the src directory (import root) and the legacy Concept_Demos/src to path
+_src_root = str(Path(__file__).parent.parent)
+_repo_root = str(Path(__file__).parent.parent.parent)
+sys.path.insert(0, _src_root)
+# Legacy modules (e.g. exceptions) live here; append so src/ keeps precedence.
+sys.path.append(str(Path(_repo_root) / "Concept_Demos" / "src"))
 
 
 # ============================================

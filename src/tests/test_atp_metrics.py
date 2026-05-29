@@ -7,11 +7,6 @@ from pathlib import Path
 _src = str(Path(__file__).resolve().parents[2] / "src")
 if _src not in sys.path:
     sys.path.insert(0, _src)
-else:
-    sys.path.remove(_src)
-    sys.path.insert(0, _src)
-for _key in [k for k in sys.modules if k == "agents" or k.startswith("agents.")]:
-    del sys.modules[_key]
 
 import pytest
 import time
