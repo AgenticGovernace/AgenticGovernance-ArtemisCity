@@ -1,4 +1,4 @@
-    # --- Environment & Secrets ---
+# --- Environment & Secrets ---
 .env
 .env.local
 .env.*.local
@@ -17,124 +17,42 @@ credentials.json
 auth.json
 secrets.yaml
 secrets.yml
-    # --- Python ---
+# --- Python ---
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-*.egg-info/
-*.egg
-dist/
-build/
-.eggs/
-*.whl
-.venv/
-venv/
-env/
-ENV/
-env.bak/
-venv.bak/
-.ipynb_checkpoints/
-.mypy_cache/
-.pyre/
-.pytest_cache/
-.tox/
-.nox/
-.coverage
-.coverage.*
-htmlcov/
-coverage.xml
-*.sqlite3
-celerybeat-schedule
-celerybeat.pid
- # --- Node.js & Web ---
+*.pyc
+*.pyo
+*.pyd
+# --- Node.js --- ∑
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-.npm/
-.yarn-integrity
-*.js.map
-*.d.ts.map
-api/dist/
-app/web/frontend/dist/
-dist-ssr/
-.eslintcache
-  # --- IDEs & Editors ---
-.vscode/
-.idea/
-.fleet/
-*.swp
-*.swo
-*.swn
-*.sln
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
-*.suo
-*.user
-*.userosscache
-Thumbs.db
-.cache/
- # --- OS Files ---
-.DS_Store
-.AppleDouble
-.LSOverride
-Icon
-._*
-.Spotlight-V100
-.Trashes
-*.orig
-*.bak
- # --- Docker ---
-docker-compose.override.yml
- # --- Misc & Tools ---
-*.log
-*.tmp
-.output.txt
-*.db
-Concept_Demos/logs/run_20260223_030438.md
-Concept_Demos/logs/run_20260223_030141.md
-/Concept_Demos/.vercel
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+# --- Java ---
+*.class
+*.jar
+*.war
+# --- C# ---
+bin/
+obj/
+# --- Ruby ---
+*.gem
+*.rbc
+.bundle/
+vendor/bundle/
+# --- Go ---
+*.exe
+*.dll
+*.so
+*.dylib
+# --- Rust ---
+target/
+# --- Logs ---
+logs/
 .Rproj.user
-*.Rproj
-/Concept_Demos/logs
-coverage.md
-.Rhistory
+**/.DS_STORE
+.idea
 .Rprofile
+AgenticGovernance-ArtemisCity.Rproj
 renv
 renv.lock
-/src/tests/logs
-/src/tests/test_artifacts
-/src/tests/test_vault
-/unittest
-src/tests/pytest-of-artemis/pytest-current
-src/tests/pytest-of-artemis/pytest-0/test_orchestrator_updates_weigcurrent
-src/tests/pytest-of-artemis/pytest-0/test_orchestrator_creates_hebbcurrent
-/src/tests/integration/logs
-src/tests/output.md
-.RData
-.jupyter/desktop-workspaces/default-37a8.jupyterlab-workspace
-logs/run_20260302_034559.md
-logs/run_20260301_225905.md
-/.sadbox_city
-*.code-workspace
-Concept_Demos/data/Agent Inputs/Example Research Task.md
-Concept_Demos/data/Agent Outputs/Research_Agent_Report_20260313030453_5.md
-Concept_Demos/data/Agent Outputs/Summarizer_Agent_Report_direct_summary_T001_5.md
-*.ipynb
-src/agents/copilot.md
-/logs
-/api/db/Agent Outputs
-/api/db
-/.claude
-/Projects/Codex_Experiments
-/.air
-src/Experiments/legal_summarization/logs/*
-**/log/**
-src/Experiments/legal_summarization/logs/run_20260430_112007.md
-src/Experiments/legal_summarization/*
-**/legal_summarization/**
-src/Experiments/legal_summarization/legal-judgements-en-ur-sd/summary_en/train-00000-of-00001.parquet
+!/requirements.txt

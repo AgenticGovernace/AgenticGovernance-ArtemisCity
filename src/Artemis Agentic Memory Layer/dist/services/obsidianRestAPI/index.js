@@ -1,0 +1,45 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.obsidianAPI = void 0;
+const axios_1 = __importDefault(require("axios"));
+const https_1 = __importDefault(require("https"));
+const config_1 = require("../../config");
+const logger_1 = require("../../utils/logger");
+// Obsidian Local REST API ships with a self-signed cert on https://127.0.0.1:27124,
+// so TLS verification is disabled. Only safe because the target is a localhost dev plugin.
+const obsidianAPI = axios_1.default.create({
+    baseURL: config_1.OBSIDIAN_BASE_URL,
+    headers: {
+        'Authorization': `Bearer ${config_1.OBSIDIAN_API_KEY}`,
+        'Content-Type': 'application/json',
+    },
+    httpsAgent: new https_1.default.Agent({ rejectUnauthorized: false, keepAlive: true }),
+});
+exports.obsidianAPI = obsidianAPI;
+// Add a request interceptor
+obsidianAPI.interceptors.request.use((config) => {
+    logger_1.logger.debug(`Obsidian API Request: ${config.method?.toUpperCase()} ${config.url}`);
+    return config;
+}, (error) => {
+    logger_1.logger.error(`Obsidian API Request Error: ${error.message}`);
+    return Promise.reject(error);
+});
+// Add a response interceptor
+obsidianAPI.interceptors.response.use((response) => {
+    logger_1.logger.debug(`Obsidian API Response: ${response.status} ${response.config.url}`);
+    return response;
+}, (error) => {
+    if (error.response) {
+        logger_1.logger.error(`Obsidian API Response Error - Status: ${error.response.status}, Data: ${JSON.stringify(error.response.data)}`);
+    }
+    else if (error.request) {
+        logger_1.logger.error(`Obsidian API Response Error - No response received: ${error.message}`);
+    }
+    else {
+        logger_1.logger.error(`Obsidian API Request Setup Error: ${error.message}`);
+    }
+    return Promise.reject(error);
+});

@@ -1,3 +1,4 @@
+# %%
 import os
 from pathlib import Path
 from Concept_Demos.src.mcp.config import OBSIDIAN_VAULT_PATH

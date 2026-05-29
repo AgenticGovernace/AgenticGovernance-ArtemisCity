@@ -27,7 +27,7 @@ help: ## Show this help message
 
 install: ## Install all dependencies
 	echo "Installing Python dependencies..."
-	pip install -r requirements.txt
+	pip install -r ./requirements.txt
 	echo "Installation complete!"
 
 install-dev: ## Install development dependencies
