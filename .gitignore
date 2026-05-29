@@ -22,7 +22,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-# --- Node.js --- ∑
+# --- Node.js ---
 node_modules/
 npm-debug.log
 yarn-debug.log
@@ -55,4 +55,35 @@ logs/
 AgenticGovernance-ArtemisCity.Rproj
 renv
 renv.lock
+
+# --- Build output ---
+dist/
+build/
+*.egg-info/
+
+# --- Databases & runtime data ---
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Logs ---
+*.log
+
+# --- Test & type-check caches ---
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# --- Virtual environments ---
+.venv/
+venv/
+
+# --- Notebooks ---
+.ipynb_checkpoints/
+
+# --- R ---
+.Rhistory
+
 !/requirements.txt
