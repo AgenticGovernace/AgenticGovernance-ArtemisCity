@@ -1,9 +1,5 @@
 """Tests for the memory bus (src/integration/memory_bus.py)."""
 
-import sys
-
-sys.modules.pop("integration.memory_bus", None)
-
 import pytest
 from pathlib import Path
 from integration.memory_bus import MemoryBus
