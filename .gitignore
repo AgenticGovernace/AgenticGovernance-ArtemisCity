@@ -132,7 +132,6 @@ src/agents/copilot.md
 /.claude
 /Projects/Codex_Experiments
 /.air
-/Concept_Demos/src/mcp-server
 src/Experiments/legal_summarization/logs/*
 **/log/**
 src/Experiments/legal_summarization/logs/run_20260430_112007.md
