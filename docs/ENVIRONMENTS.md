@@ -1,7 +1,10 @@
 # Environment branching
 
 Artemis City uses three long-lived environment branches that map 1:1 to
-GitHub Environments and deploy targets.
+GitHub Environments and deploy targets. The names `dev`, `staging`, and
+`prod` are kept identical across the branch, the GitHub Environment, and
+the file under `config/environments/` so there is no mapping layer to
+forget.
 
 | Branch    | GitHub Environment | Purpose                                       | Approvals |
 |-----------|--------------------|-----------------------------------------------|-----------|
@@ -56,4 +59,6 @@ approvals are configured on the Environment itself in repo Settings.
 3. Under Settings -> Environments, create `dev`, `staging`, `prod` and
    attach any required reviewers / wait timers and per-env secrets.
 4. Add branch protection rules requiring CI green and the configured
-   number of approvals before merging into each env branch.
+   number of approvals before merging into each env branch. These rules
+   live under Settings -> Rules -> Rulesets as `Protect dev`,
+   `Protect staging`, and `Protect prod`.
