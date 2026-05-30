@@ -3,14 +3,15 @@
 import sys
 import json
 
-sys.modules.pop("integration.governance", None)
+sys.modules.pop("src.integration.governance", None)
 
 import pytest
 from pathlib import Path
-from integration.governance import GovernanceMonitor
+from src.integration.governance import GovernanceMonitor
 
 
 class TestGovernanceMonitor:
+    @pytest.fixture
     def monitor(self, tmp_path):
         log_path = str(tmp_path / "governance" / "events.log")
         return GovernanceMonitor(alert_threshold=3, log_path=log_path)

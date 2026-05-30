@@ -2,10 +2,10 @@
 
 import sys
 
-sys.modules.pop("agents.artemis.semantic_tagging", None)
+sys.modules.pop("src.agents.artemis.semantic_tagging", None)
 
 import pytest
-from agents.artemis.semantic_tagging import Citation, SemanticTag, SemanticTagger
+from src.agents.artemis.semantic_tagging import Citation, SemanticTag, SemanticTagger
 
 
 # ---------------------------------------------------------------------------

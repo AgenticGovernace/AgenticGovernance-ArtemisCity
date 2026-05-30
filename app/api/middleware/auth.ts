@@ -25,7 +25,7 @@ interface ApiKeyEntry {
  * Load API keys from environment variables.
  *
  * Expected format per key env var:
- *   ARTEMIS_API_KEY_<NAME>=<key>:<role>:<perm1,perm2,...>
+ *   ARTEMIS_API_KEY_<NAME>=<key>:<role>:<perm1,perm2, ...>
  *
  * Example:
  *   ARTEMIS_API_KEY_ADMIN=my-secret-key:admin:read,write,delete,admin

@@ -45,4 +45,4 @@ jobs:
           PY
       - name: Run tests
         run: |
-          if [ -d tests ]; then python -m pytest tests -q || true; fi
+          python -m pytest src/tests

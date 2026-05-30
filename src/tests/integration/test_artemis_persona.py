@@ -3,10 +3,10 @@
 import sys
 import random
 
-sys.modules.pop("agents.artemis.persona", None)
+sys.modules.pop("src.agents.artemis.persona", None)
 
 import pytest
-from agents.artemis.persona import ArtemisPersona, ResponseMode
+from src.agents.artemis.persona import ArtemisPersona, ResponseMode
 
 
 class TestResponseMode:

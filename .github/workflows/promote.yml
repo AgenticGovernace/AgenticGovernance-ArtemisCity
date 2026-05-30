@@ -7,12 +7,12 @@ on:
         description: Source environment branch
         required: true
         type: choice
-        options: [dev, staging]
+        options: [dev, staging, prod]
       to:
         description: Target environment branch
         required: true
         type: choice
-        options: [staging, prod]
+        options: [dev, staging, prod]
 
 permissions:
   contents: read
@@ -27,14 +27,14 @@ jobs:
           from="${{ github.event.inputs.from }}"
           to="${{ github.event.inputs.to }}"
           case "${from}->${to}" in
-            "dev->staging"|"staging->prod") ;;
+            "dev->staging"|"staging->prod"|"dev->prod") ;;
             *) echo "Invalid promotion ${from} -> ${to}" >&2; exit 1 ;;
           esac
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Open PR
-        env:
+      - name: PR
+        env: 
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FROM: ${{ github.event.inputs.from }}
           TO: ${{ github.event.inputs.to }}

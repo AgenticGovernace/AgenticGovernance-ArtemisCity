@@ -20,6 +20,13 @@ Cost model: Hebbian O(1) per step, Inference O(N) per step
 Author: Apollo (Prinston Palmer) + Artemis (Claude)
 """
 
+import pytest
+
+pytest.importorskip("numpy")
+pytest.importorskip("pandas")
+pytest.importorskip("sklearn")
+pytest.importorskip("matplotlib")
+
 import numpy as np
 import pandas as pd
 from pathlib import Path
