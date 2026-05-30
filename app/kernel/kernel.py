@@ -12,10 +12,9 @@ main entry point for processing user requests through its agent network.
 import json
 import os
 
-from codex.agent_router import AgentRouter
-from codex.agents.codex_agent import CodexAgent
-from codex.agents.planner_agent import PlannerAgent
-from codex.memory_bus import MemoryBus
+from .agent_router import AgentRouter
+from .agents import DaemonAgent, PlannerAgent
+from .memory_bus import MemoryBus
 
 STATE_FILE = "state_kernel.json"
 
@@ -138,22 +137,22 @@ class Kernel:
 
         Factory method that instantiates the appropriate agent class
         based on the provided agent name. Falls back to a generic
-        CodexAgent if the agent name is not recognized.
+        DaemonAgent if the agent name is not recognized.
 
         Args:
             agent_name: Name of the agent to instantiate. Supported values:
                 - 'planner': Returns PlannerAgent
-                - 'codex_daemon' or 'codex': Returns CodexAgent
-                - Other: Returns generic CodexAgent
+                - 'daemon': Returns DaemonAgent
+                - Other: Returns generic DaemonAgent
 
         Returns:
             Agent: An instance of the appropriate Agent subclass.
         """
         if agent_name == "planner":
             return PlannerAgent(agent_name)
-        elif agent_name == "codex_daemon" or agent_name == "codex":
-            return CodexAgent(agent_name)
-        return CodexAgent("generic")
+        elif agent_name == "daemon":
+            return DaemonAgent(agent_name)
+        return DaemonAgent("generic")
 
     def _handle_command(self, command):
         """Handle a command by routing to the appropriate agent.
