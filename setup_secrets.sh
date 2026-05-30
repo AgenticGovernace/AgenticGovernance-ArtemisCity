@@ -141,10 +141,8 @@ provision_env \
 
 echo -e "${GREEN}Setup complete.${NC}"
 echo ""
-echo "Generated keys (matching the entries written to the .env files):"
-echo "  MCP_API_KEY              = $MCP_KEY"
-echo "  FASTAPI_API_KEY          = $FASTAPI_KEY"
-echo "  ARTEMIS_API_KEY_DEFAULT  = ${TS_KEY}:admin:read,write,delete,admin"
+echo "Generated keys were written only to files marked ok above."
+echo "Skipped existing files were left unchanged; read the corresponding .env files locally if you need their current values."
 echo ""
 echo "Next steps:"
 echo "  1. Add your Obsidian REST API key to .env:"
