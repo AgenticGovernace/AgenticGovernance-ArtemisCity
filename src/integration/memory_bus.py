@@ -133,7 +133,9 @@ class MemoryBus:
             if METRICS_ENABLED:
                 WRITE_FILE_LATENCY.observe(file_latency_ms)
         except Exception as exc:
-            # Roll back semantic write to avoid divergence
+            # Roll back the semantic write to avoid divergence.
+            # write_note is now atomic (temp file + os.replace), so a
+            # partial file can't be left behind by this failure.
             if embed:
                 try:
                     self.vector_store.delete(doc_id)
@@ -143,7 +145,10 @@ class MemoryBus:
                     logger.warning(
                         f"MemoryBus rollback failed for {doc_id}: {rollback_exc}"
                     )
-                self._record_governance_failure(doc_id, relative_path, str(exc))
+            # Governance fires for every failed Obsidian write, including
+            # embed=False — otherwise repeated no-embed failures would
+            # never trip the alert streak.
+            self._record_governance_failure(doc_id, relative_path, str(exc))
             raise exc
 
         total_latency_ms = (time.perf_counter() - start) * 1000

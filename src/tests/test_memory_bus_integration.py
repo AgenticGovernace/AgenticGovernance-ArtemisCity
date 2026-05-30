@@ -138,6 +138,18 @@ class TestMemoryBusWriteFailure:
             bus.write_note_with_embedding("notes/test.md", "content", embed=False)
         assert vec.deleted == []
 
+    def test_no_embed_failure_still_records_governance(self):
+        # embed=False used to bypass governance entirely, so repeated
+        # no-embed failures never tripped the alert streak.
+        obs = _FailingObsidianManager()
+        vec = _StubVectorStore()
+        gov = _StubGovernanceMonitor()
+        bus = MemoryBus(obsidian_manager=obs, vector_store=vec, governance_monitor=gov)
+        with pytest.raises(OSError):
+            bus.write_note_with_embedding("notes/test.md", "content", embed=False)
+        assert len(gov.failures) == 1
+        assert gov.failures[0]["path"] == "notes/test.md"
+
 
 class TestMemoryBusRead:
     @pytest.fixture

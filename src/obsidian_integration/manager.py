@@ -29,13 +29,31 @@ class ObsidianManager:
             return content
 
     def write_note(self, relative_path: str, content: str, overwrite: bool = True):
-        """Writes content to an Obsidian note. Creates directories if necessary."""
+        """Writes content to an Obsidian note. Creates directories if necessary.
+
+        Overwrite mode writes to a temp file and ``os.replace``s it onto the
+        target so a mid-write failure (e.g. disk full) can't leave a
+        truncated file behind. Append mode is unchanged.
+        """
         full_path = self._get_full_path(relative_path)
         full_path.parent.mkdir(parents=True, exist_ok=True)
-        mode = "w" if overwrite else "a"  # 'w' for overwrite, 'a' for append
-        with open(full_path, mode, encoding="utf-8") as f:
-            f.write(content)
-            logger.info(f"Wrote note: {relative_path} (mode: {mode})")
+        if overwrite:
+            tmp_path = full_path.with_name(full_path.name + ".tmp")
+            try:
+                with open(tmp_path, "w", encoding="utf-8") as f:
+                    f.write(content)
+                os.replace(tmp_path, full_path)
+            except Exception:
+                try:
+                    tmp_path.unlink()
+                except FileNotFoundError:
+                    pass
+                raise
+            logger.info(f"Wrote note: {relative_path} (mode: w, atomic)")
+        else:
+            with open(full_path, "a", encoding="utf-8") as f:
+                f.write(content)
+            logger.info(f"Wrote note: {relative_path} (mode: a)")
 
     def list_notes_in_folder(
         self, relative_folder_path: str, suffix: str = ".md"
