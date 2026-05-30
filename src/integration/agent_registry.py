@@ -1,14 +1,33 @@
 # src/integration/agent_registry.py
 
 from dataclasses import dataclass
-from typing import Dict, List
+from datetime import datetime, timezone
+from typing import Dict, List, Optional
 import json
 import os
 import sqlite3
 import time
+import uuid
 
 from src.agents import BaseAgent
 from src.utils.helpers import logger
+
+# Governance constants — mirror GOVERNANCE.md
+TRUST_TIERS = ("auto", "monitored", "human")
+AGENT_STATUSES = ("active", "suspended", "quarantined")
+VIOLATION_TYPES = (
+    "unauthorized_tool",
+    "unauthorized_path",
+    "rate_limit",
+    "missing_capability",
+    "unsafe_network",
+)
+QUARANTINE_THRESHOLD = 3  # 3rd violation triggers quarantine
+
+
+def _now_iso() -> str:
+    """UTC timestamp in ISO 8601 with Z suffix."""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
 @dataclass
@@ -41,7 +60,7 @@ class AgentRegistryStore:
             logger.info(f"Created agent registry database directory: {db_dir}")
 
     def _initialize_database(self):
-        """Create the agents table if it doesn't exist."""
+        """Create the agents and violations tables; apply governance migrations."""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS agents (
@@ -56,7 +75,38 @@ class AgentRegistryStore:
                     updated_at TEXT
                 )
                 """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS violations (
+                    violation_id TEXT PRIMARY KEY,
+                    agent_name TEXT NOT NULL,
+                    timestamp TEXT NOT NULL,
+                    violation_type TEXT NOT NULL,
+                    details TEXT NOT NULL,
+                    action_taken TEXT NOT NULL,
+                    cleared INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (agent_name) REFERENCES agents(name)
+                )
+                """)
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_violations_agent "
+                "ON violations(agent_name, cleared)"
+            )
+            self._migrate_governance_columns(conn)
             conn.commit()
+
+    def _migrate_governance_columns(self, conn: sqlite3.Connection):
+        """Add governance columns to existing agents tables. Idempotent."""
+        existing = {row[1] for row in conn.execute("PRAGMA table_info(agents)")}
+        migrations = [
+            ("trust_tier", "TEXT NOT NULL DEFAULT 'monitored'"),
+            ("status", "TEXT NOT NULL DEFAULT 'active'"),
+            ("violation_count", "INTEGER NOT NULL DEFAULT 0"),
+            ("quarantined_at", "TEXT"),
+            ("trust_score", "REAL"),
+        ]
+        for column, spec in migrations:
+            if column not in existing:
+                conn.execute(f"ALTER TABLE agents ADD COLUMN {column} {spec}")
 
     def load_scores(self) -> Dict[str, AgentScore]:
         """Load persisted scores for all agents."""
@@ -75,6 +125,85 @@ class AgentRegistryStore:
                     efficiency=efficiency,
                 )
             return scores
+
+    def load_governance_states(self) -> Dict[str, dict]:
+        """Load governance metadata (tier, status, violations) for all agents."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                "SELECT name, trust_tier, status, violation_count, "
+                "quarantined_at, trust_score FROM agents"
+            )
+            states = {}
+            for name, tier, status, count, quarantined_at, trust_score in cursor.fetchall():
+                states[name] = {
+                    "trust_tier": tier,
+                    "status": status,
+                    "violation_count": count,
+                    "quarantined_at": quarantined_at,
+                    "trust_score": trust_score,
+                }
+            return states
+
+    def _row_to_record(self, row: tuple) -> dict:
+        """Shape a full agents row into an API-friendly dict."""
+        (
+            name,
+            capabilities,
+            description,
+            alignment,
+            accuracy,
+            efficiency,
+            trust_tier,
+            status,
+            violation_count,
+            quarantined_at,
+            trust_score,
+        ) = row
+        try:
+            caps = json.loads(capabilities) if capabilities else []
+        except (json.JSONDecodeError, TypeError):
+            caps = []
+        if not isinstance(caps, list):
+            caps = []
+        composite = None
+        if None not in (alignment, accuracy, efficiency):
+            composite = AgentScore(alignment, accuracy, efficiency).composite_score
+        return {
+            "name": name,
+            "capabilities": caps,
+            "description": description,
+            "alignment": alignment,
+            "accuracy": accuracy,
+            "efficiency": efficiency,
+            "composite_score": composite,
+            "trust_tier": trust_tier,
+            "status": status,
+            "violation_count": violation_count,
+            "quarantined_at": quarantined_at,
+            "trust_score": trust_score,
+        }
+
+    _RECORD_COLUMNS = (
+        "name, capabilities, description, alignment, accuracy, efficiency, "
+        "trust_tier, status, violation_count, quarantined_at, trust_score"
+    )
+
+    def list_agent_records(self) -> List[dict]:
+        """Return full persisted records for all agents, ordered by name."""
+        with sqlite3.connect(self.db_path) as conn:
+            rows = conn.execute(
+                f"SELECT {self._RECORD_COLUMNS} FROM agents ORDER BY name ASC"
+            ).fetchall()
+        return [self._row_to_record(row) for row in rows]
+
+    def get_agent_record(self, name: str) -> Optional[dict]:
+        """Return the full persisted record for one agent, or None."""
+        with sqlite3.connect(self.db_path) as conn:
+            row = conn.execute(
+                f"SELECT {self._RECORD_COLUMNS} FROM agents WHERE name = ?",
+                (name,),
+            ).fetchone()
+        return self._row_to_record(row) if row else None
 
     def upsert_agent(self, agent: BaseAgent, default_score: AgentScore) -> AgentScore:
         """Insert agent metadata if new; return persisted or default score."""
@@ -149,12 +278,230 @@ class AgentRegistryStore:
             )
             conn.commit()
 
+    # ------------------------------------------------------------------
+    # Governance — violations, quarantine, trust tier
+    # ------------------------------------------------------------------
+
+    def record_violation(
+        self,
+        agent_name: str,
+        violation_type: str,
+        details: dict,
+    ) -> dict:
+        """Log a violation, increment counter, quarantine on threshold.
+
+        Returns the violation record (with `action_taken` reflecting
+        whether the agent crossed the quarantine threshold).
+        """
+        if violation_type not in VIOLATION_TYPES:
+            raise ValueError(
+                f"Unknown violation_type {violation_type!r}; "
+                f"expected one of {VIOLATION_TYPES}"
+            )
+
+        violation_id = str(uuid.uuid4())
+        timestamp = _now_iso()
+        details_json = json.dumps(details)
+
+        with sqlite3.connect(self.db_path) as conn:
+            row = conn.execute(
+                "SELECT violation_count, status FROM agents WHERE name = ?",
+                (agent_name,),
+            ).fetchone()
+            if row is None:
+                raise ValueError(f"Unknown agent: {agent_name!r}")
+            current_count, current_status = row
+            new_count = (current_count or 0) + 1
+
+            if new_count >= QUARANTINE_THRESHOLD and current_status != "quarantined":
+                action = "quarantine"
+                new_status = "quarantined"
+                quarantined_at = timestamp
+            else:
+                action = "logged"
+                new_status = current_status
+                quarantined_at = None
+
+            conn.execute(
+                "INSERT INTO violations "
+                "(violation_id, agent_name, timestamp, violation_type, details, action_taken) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    violation_id,
+                    agent_name,
+                    timestamp,
+                    violation_type,
+                    details_json,
+                    action,
+                ),
+            )
+            if quarantined_at is not None:
+                conn.execute(
+                    "UPDATE agents SET violation_count = ?, status = ?, "
+                    "quarantined_at = ?, updated_at = ? WHERE name = ?",
+                    (new_count, new_status, quarantined_at, time.time(), agent_name),
+                )
+            else:
+                conn.execute(
+                    "UPDATE agents SET violation_count = ?, updated_at = ? "
+                    "WHERE name = ?",
+                    (new_count, time.time(), agent_name),
+                )
+            conn.commit()
+
+        if action == "quarantine":
+            logger.error(
+                "Agent %s quarantined after %d violations (latest: %s)",
+                agent_name,
+                new_count,
+                violation_type,
+            )
+
+        return {
+            "violation_id": violation_id,
+            "agent_name": agent_name,
+            "timestamp": timestamp,
+            "violation_type": violation_type,
+            "details": details,
+            "action_taken": action,
+            "violation_count": new_count,
+        }
+
+    def get_violations(
+        self, agent_name: str, include_cleared: bool = False, limit: int = 100
+    ) -> List[dict]:
+        """Return violations for an agent, newest first."""
+        with sqlite3.connect(self.db_path) as conn:
+            query = (
+                "SELECT violation_id, agent_name, timestamp, violation_type, "
+                "details, action_taken, cleared FROM violations "
+                "WHERE agent_name = ?"
+            )
+            params: tuple = (agent_name,)
+            if not include_cleared:
+                query += " AND cleared = 0"
+            query += " ORDER BY timestamp DESC LIMIT ?"
+            params = params + (limit,)
+            rows = conn.execute(query, params).fetchall()
+
+        return [
+            {
+                "violation_id": vid,
+                "agent_name": name,
+                "timestamp": ts,
+                "violation_type": vtype,
+                "details": json.loads(details),
+                "action_taken": action,
+                "cleared": bool(cleared),
+            }
+            for vid, name, ts, vtype, details, action, cleared in rows
+        ]
+
+    def clear_violations(
+        self,
+        agent_name: str,
+        rationale: str,
+        override_tier: Optional[str] = None,
+    ) -> int:
+        """Mark active violations as cleared and release quarantine.
+
+        `override_tier` (optional) upgrades the agent's trust_tier as part
+        of the override. Returns the number of violations cleared.
+        """
+        if override_tier is not None and override_tier not in TRUST_TIERS:
+            raise ValueError(
+                f"Invalid trust_tier {override_tier!r}; "
+                f"expected one of {TRUST_TIERS}"
+            )
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                "UPDATE violations SET cleared = 1 "
+                "WHERE agent_name = ? AND cleared = 0",
+                (agent_name,),
+            )
+            cleared_count = cursor.rowcount
+
+            # Only release quarantine; a 'suspended' status was set for
+            # reasons unrelated to violations and must not be cleared here.
+            update_fields = [
+                "violation_count = 0",
+                "status = CASE WHEN status = 'quarantined' THEN 'active' "
+                "ELSE status END",
+                "quarantined_at = NULL",
+                "updated_at = ?",
+            ]
+            params: list = [time.time()]
+            if override_tier is not None:
+                update_fields.insert(-1, "trust_tier = ?")
+                params.insert(-1, override_tier)
+            params.append(agent_name)
+
+            conn.execute(
+                f"UPDATE agents SET {', '.join(update_fields)} WHERE name = ?",
+                params,
+            )
+            conn.commit()
+
+        logger.info(
+            "Cleared %d violations for agent %s (rationale: %s)",
+            cleared_count,
+            agent_name,
+            rationale,
+        )
+        return cleared_count
+
+    def set_trust_tier(self, agent_name: str, tier: str):
+        """Set the agent's trust tier."""
+        if tier not in TRUST_TIERS:
+            raise ValueError(
+                f"Invalid trust_tier {tier!r}; expected one of {TRUST_TIERS}"
+            )
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "UPDATE agents SET trust_tier = ?, updated_at = ? WHERE name = ?",
+                (tier, time.time(), agent_name),
+            )
+            conn.commit()
+
+    def get_governance_state(self, agent_name: str) -> Optional[dict]:
+        """Return all governance metadata for an agent, or None if missing."""
+        with sqlite3.connect(self.db_path) as conn:
+            row = conn.execute(
+                "SELECT trust_tier, status, violation_count, quarantined_at, "
+                "trust_score FROM agents WHERE name = ?",
+                (agent_name,),
+            ).fetchone()
+        if row is None:
+            return None
+        trust_tier, status, violation_count, quarantined_at, trust_score = row
+        return {
+            "trust_tier": trust_tier,
+            "status": status,
+            "violation_count": violation_count,
+            "quarantined_at": quarantined_at,
+            "trust_score": trust_score,
+        }
+
+    def set_trust_score(self, agent_name: str, score: float):
+        """Persist a computed trust score (0.0-1.0)."""
+        score = max(0.0, min(1.0, score))
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "UPDATE agents SET trust_score = ?, updated_at = ? WHERE name = ?",
+                (score, time.time(), agent_name),
+            )
+            conn.commit()
+
 
 class AgentRegistry:
     def __init__(self, db_path: str = "data/agent_registry.db"):
         self.store = AgentRegistryStore(db_path=db_path)
         self.agents: Dict[str, BaseAgent] = {}
         self.scores: Dict[str, AgentScore] = self.store.load_scores()
+        # Governance cache: name -> {trust_tier, status, violation_count, ...}
+        # Authoritative for reads; write-through to the store on mutation.
+        self.governance: Dict[str, dict] = self.store.load_governance_states()
 
     def register_agent(self, agent: BaseAgent):
         """Registers a new agent."""
@@ -167,12 +514,69 @@ class AgentRegistry:
         persisted_score = self.store.upsert_agent(agent, default_score)
         self.agents[agent.name] = agent
         self.scores[agent.name] = persisted_score
+        # Seed governance cache from the freshly-persisted defaults.
+        self.governance[agent.name] = self.store.get_governance_state(agent.name)
 
     def get_agent(self, agent_name: str) -> BaseAgent:
         return self.agents.get(agent_name)
 
+    # ------------------------------------------------------------------
+    # Governance facade — write-through to store, cache in self.governance
+    # ------------------------------------------------------------------
+
+    def _is_blocked(self, agent_name: str) -> bool:
+        """True if the agent is quarantined or suspended (ineligible for routing)."""
+        state = self.governance.get(agent_name)
+        if state is None:
+            return False
+        return state.get("status") in ("quarantined", "suspended")
+
+    def record_violation(
+        self, agent_name: str, violation_type: str, details: dict
+    ) -> dict:
+        """Record a sandbox violation; auto-quarantines on the 3rd strike."""
+        result = self.store.record_violation(agent_name, violation_type, details)
+        self.governance[agent_name] = self.store.get_governance_state(agent_name)
+        return result
+
+    def get_violations(
+        self, agent_name: str, include_cleared: bool = False, limit: int = 100
+    ) -> List[dict]:
+        """Return logged violations for an agent, newest first."""
+        return self.store.get_violations(agent_name, include_cleared, limit)
+
+    def clear_violations(
+        self, agent_name: str, rationale: str, override_tier: Optional[str] = None
+    ) -> int:
+        """Clear violations and release quarantine; optionally upgrade trust tier."""
+        cleared = self.store.clear_violations(agent_name, rationale, override_tier)
+        self.governance[agent_name] = self.store.get_governance_state(agent_name)
+        return cleared
+
+    def set_trust_tier(self, agent_name: str, tier: str):
+        """Set the agent's trust tier (auto|monitored|human)."""
+        self.store.set_trust_tier(agent_name, tier)
+        self.governance[agent_name] = self.store.get_governance_state(agent_name)
+
+    def set_trust_score(self, agent_name: str, score: float):
+        """Persist a computed trust score (0.0-1.0)."""
+        self.store.set_trust_score(agent_name, score)
+        self.governance[agent_name] = self.store.get_governance_state(agent_name)
+
+    def get_governance_state(self, agent_name: str) -> Optional[dict]:
+        """Return cached governance metadata for an agent, or None if unknown."""
+        return self.governance.get(agent_name)
+
+    def is_quarantined(self, agent_name: str) -> bool:
+        """Convenience predicate for quarantine status."""
+        state = self.governance.get(agent_name)
+        return bool(state and state.get("status") == "quarantined")
+
     def route_task(self, task: dict) -> str:
-        """Route task to highest-scoring capable agent"""
+        """Route task to highest-scoring capable agent.
+
+        Quarantined and suspended agents are excluded from routing.
+        """
         required_capability = task.get("required_capability")
         if not required_capability:
             raise ValueError(
@@ -183,6 +587,7 @@ class AgentRegistry:
             agent.name
             for agent in self.agents.values()
             if required_capability in agent.capabilities
+            and not self._is_blocked(agent.name)
         ]
 
         if not candidates:
