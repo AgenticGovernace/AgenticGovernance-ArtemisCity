@@ -8,6 +8,11 @@
  * Version: 1.0.0
  */
 
+// Load app/api/.env into process.env BEFORE any other import. The auth
+// middleware reads process.env at module-load time (loadApiKeys()), so any
+// later side-effecting import would see an empty env.
+import 'dotenv/config';
+
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
