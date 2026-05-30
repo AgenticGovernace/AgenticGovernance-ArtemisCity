@@ -133,26 +133,33 @@ class Kernel:
         return f"[Kernel] Unknown request type: {request_type}"
 
     def _get_agent_instance(self, agent_name):
-        """Create and return an agent instance based on agent name.
+        """Create and return an agent instance for a routed agent name.
 
-        Factory method that instantiates the appropriate agent class
-        based on the provided agent name. Falls back to a generic
-        DaemonAgent if the agent name is not recognized.
+        Factory method that instantiates the concrete agent class for the
+        given route. The router (agent_router.yaml) also declares the
+        ``artemis``, ``pack_rat`` and ``copilot`` personas, but those have
+        no concrete agent yet (Phase B of #67); commands routed to them
+        fall back to the default daemon, and the fallback is logged so the
+        gap is visible rather than silently mislabelled.
 
         Args:
-            agent_name: Name of the agent to instantiate. Supported values:
+            agent_name: Name of the routed agent. Recognized values:
                 - 'planner': Returns PlannerAgent
                 - 'daemon': Returns DaemonAgent
-                - Other: Returns generic DaemonAgent
+                - Any other route: falls back to the default DaemonAgent.
 
         Returns:
-            Agent: An instance of the appropriate Agent subclass.
+            Agent: A concrete Agent subclass instance.
         """
         if agent_name == "planner":
             return PlannerAgent(agent_name)
-        elif agent_name == "daemon":
+        if agent_name == "daemon":
             return DaemonAgent(agent_name)
-        return DaemonAgent("generic")
+        print(
+            f"[Kernel] Route '{agent_name}' has no concrete agent yet; "
+            f"handling with the default daemon."
+        )
+        return DaemonAgent("daemon")
 
     def _handle_command(self, command):
         """Handle a command by routing to the appropriate agent.
@@ -179,4 +186,6 @@ class Kernel:
         request = {"content": command, "type": "command"}
         result = agent.handle(request, self.memory)
 
-        return f"[Kernel] {agent_name} responded:\n{result}"
+        # Report the agent that actually handled the command; this can
+        # differ from the routed name when a route has no concrete agent.
+        return f"[Kernel] {agent.name} responded:\n{result}"

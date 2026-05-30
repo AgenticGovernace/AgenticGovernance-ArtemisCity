@@ -62,3 +62,17 @@ def test_router_default_is_daemon_not_codex():
 
     route = AgentRouter().route("zzzqqq no keywords here")
     assert route["agent"] == "daemon"
+
+
+def test_unimplemented_persona_route_falls_back_to_daemon(tmp_path, monkeypatch):
+    """Routes declared in YAML but lacking a concrete agent (artemis/
+    pack_rat/copilot) are handled by the daemon, and the response reports
+    the actual handler rather than the routed persona name."""
+    monkeypatch.chdir(tmp_path)
+    from app.kernel.kernel import Kernel
+
+    # "governance review" matches the artemis route, which has no concrete
+    # agent yet (Phase B of #67) -> must be handled by the daemon.
+    result = Kernel().process({"type": "command", "content": "governance review"})
+    assert "[Kernel] daemon responded:" in result
+    assert "artemis" not in result
