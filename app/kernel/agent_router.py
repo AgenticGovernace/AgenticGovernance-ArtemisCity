@@ -75,7 +75,7 @@ class AgentRouter:
 
         Matches the command against agent keywords using word boundary
         matching to find the appropriate handler. Returns the first
-        matching agent or defaults to 'codex_daemon' if no match found.
+        matching agent or defaults to 'daemon' if no match found.
 
         Args:
             command: The command string to route.
@@ -95,7 +95,7 @@ class AgentRouter:
                 return {"agent": agent_name, "metadata": rules}
 
         return {
-            "agent": "codex_daemon",
+            "agent": "daemon",
             "metadata": {
                 "role": "Default Handler",
                 "action_description": "General processing",
