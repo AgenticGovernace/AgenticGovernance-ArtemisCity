@@ -6,7 +6,13 @@ from ..utils.helpers import logger
 
 
 class ObsidianManager:
-    def __init__(self, vault_path: str = OBSIDIAN_VAULT_PATH):
+    def __init__(self, vault_path: str | None = None):
+        # Re-read OBSIDIAN_VAULT_PATH at call time so tests that
+        # monkeypatch src.mcp.config.OBSIDIAN_VAULT_PATH take effect.
+        # A def-time default would freeze the original module-load value.
+        if vault_path is None:
+            from src.mcp.config import OBSIDIAN_VAULT_PATH as _vault
+            vault_path = _vault
         self.vault_path = Path(vault_path)
         if not self.vault_path.is_dir():
             logger.error(f"Obsidian vault path does not exist: {self.vault_path}")
