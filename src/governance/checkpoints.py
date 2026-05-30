@@ -132,29 +132,41 @@ class CheckpointStore:
         return sorted(records, key=lambda r: r.get("timestamp", ""), reverse=True)
 
     def verify_checkpoint(self, checkpoint_id: str) -> bool:
-        """Recompute the integrity hash and compare against the stored value."""
+        """Recompute integrity hashes and compare against stored values.
+
+        Verifies both ``system_hash`` (over the combined registry + config
+        snapshot) and ``config_hash`` (over the config snapshot alone), so
+        tampering with either captured field is detected.
+        """
         record = self.get_checkpoint(checkpoint_id)
         if record is None:
             return False
         state = record.get("state", {})
-        recomputed = _hash_state(
-            {
-                "registry": state.get("registry_snapshot", {}),
-                "config": state.get("config_snapshot", {}),
-            }
-        )
-        return recomputed == state.get("system_hash")
+        registry_snapshot = state.get("registry_snapshot", {})
+        config_snapshot = state.get("config_snapshot", {})
+        system_ok = _hash_state(
+            {"registry": registry_snapshot, "config": config_snapshot}
+        ) == state.get("system_hash")
+        config_ok = _hash_state(config_snapshot) == state.get("config_hash")
+        return system_ok and config_ok
 
     def prune_expired(self, now: Optional[datetime] = None) -> int:
-        """Delete checkpoints whose retention window has passed. Returns count."""
+        """Delete checkpoints whose retention window has passed. Returns count.
+
+        A non-null ``locked_until`` defers pruning only while the lock is
+        still in the future; once the lock timestamp has passed, the
+        checkpoint is eligible for the normal expiration check.
+        """
         now = now or _now()
+        now_iso = _iso(now)
         removed = 0
         for record in self.list_checkpoints():
-            expires_at = record.get("retention", {}).get("expires_at")
-            locked_until = record.get("retention", {}).get("locked_until")
-            if locked_until is not None:
+            retention = record.get("retention", {})
+            expires_at = retention.get("expires_at")
+            locked_until = retention.get("locked_until")
+            if locked_until is not None and locked_until >= now_iso:
                 continue
-            if expires_at and expires_at < _iso(now):
+            if expires_at and expires_at < now_iso:
                 self._path(record["checkpoint_id"]).unlink(missing_ok=True)
                 removed += 1
         if removed:

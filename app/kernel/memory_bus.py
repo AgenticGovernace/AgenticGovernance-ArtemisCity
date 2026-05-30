@@ -17,6 +17,7 @@ specific storage implementations.
 import json
 import os
 import time
+import uuid
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
@@ -94,7 +95,11 @@ class FileMemoryBackend(MemoryBackend):
             str: Path to the created file if successful, None otherwise.
         """
         metadata = metadata or {}
-        filename = f"{int(time.time())}_{metadata.get('source', 'unknown')}.json"
+        # Append a uuid suffix so two writes from the same source within a
+        # single second don't collide on the second-resolution timestamp.
+        suffix = uuid.uuid4().hex[:8]
+        source = metadata.get("source", "unknown")
+        filename = f"{int(time.time())}_{source}_{suffix}.json"
         filepath = os.path.join(self.base_path, filename)
         data = {"content": content, "metadata": metadata, "timestamp": time.time()}
         try:
