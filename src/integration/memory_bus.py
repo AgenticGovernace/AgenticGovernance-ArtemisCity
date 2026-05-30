@@ -42,26 +42,35 @@ except ImportError:  # pragma: no cover - optional dependency
     Counter = Gauge = Histogram = None
 
 if METRICS_ENABLED:
-    WRITE_TOTAL_LATENCY = Histogram(
+    # safe_metric is reimport-tolerant; without it, sys.modules.pop +
+    # reimport of this module crashes with "Duplicated timeseries".
+    from src.utils.prometheus_guard import safe_metric
+
+    WRITE_TOTAL_LATENCY = safe_metric(
+        Histogram,
         "artemis_memory_write_latency_ms",
         "Total memory bus write latency in milliseconds",
         buckets=[10, 50, 100, 200, 500, 1000, 2000],
     )
-    WRITE_VECTOR_LATENCY = Histogram(
+    WRITE_VECTOR_LATENCY = safe_metric(
+        Histogram,
         "artemis_memory_vector_latency_ms",
         "Vector store write latency in milliseconds",
         buckets=[10, 50, 100, 200, 500, 1000],
     )
-    WRITE_FILE_LATENCY = Histogram(
+    WRITE_FILE_LATENCY = safe_metric(
+        Histogram,
         "artemis_memory_file_latency_ms",
         "Obsidian file write latency in milliseconds",
         buckets=[10, 50, 100, 200, 500, 1000],
     )
-    SYNC_LAG_GAUGE = Gauge(
+    SYNC_LAG_GAUGE = safe_metric(
+        Gauge,
         "artemis_memory_sync_lag_ms",
         "Approximate sync lag between semantic and explicit stores",
     )
-    READ_SOURCE_COUNTER = Counter(
+    READ_SOURCE_COUNTER = safe_metric(
+        Counter,
         "artemis_memory_read_total",
         "Memory bus read operations by source",
         ["source"],
