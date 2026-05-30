@@ -195,6 +195,8 @@ def _evaluate_update(payload: Dict[str, Any]) -> Dict[str, Any]:
     # Resolve the trust score: explicit > computed-from-metrics > persisted.
     if "trust_score" in payload and payload["trust_score"] is not None:
         trust_score = float(payload["trust_score"])
+        if not 0.0 <= trust_score <= 1.0:
+            raise BridgeError("trust_score must be between 0 and 1", code="INVALID_REQUEST")
     elif metrics_given:
         metrics = _build_metrics(payload, store, name)
         trust_score = compute_trust_score(metrics)
