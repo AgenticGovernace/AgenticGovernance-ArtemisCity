@@ -125,6 +125,23 @@ class TestClearViolations:
         with pytest.raises(ValueError, match="trust_tier"):
             registry.clear_violations("Alpha", rationale="x", override_tier="god")
 
+    def test_clear_does_not_reactivate_suspended_agent(self, registry, alpha, tmp_path):
+        """clear_violations must not turn a 'suspended' status into 'active'."""
+        # Manually suspend (bypass facade — no public API for it yet).
+        import sqlite3 as _sqlite
+
+        with _sqlite.connect(str(tmp_path / "registry.db")) as conn:
+            conn.execute(
+                "UPDATE agents SET status = 'suspended' WHERE name = 'Alpha'"
+            )
+            conn.commit()
+        registry.record_violation("Alpha", "rate_limit", {})
+        registry.clear_violations("Alpha", rationale="reviewed")
+        # Reload state from the store to confirm DB-level value.
+        state = registry.store.get_governance_state("Alpha")
+        assert state["status"] == "suspended"
+        assert state["violation_count"] == 0
+
 
 # ---------------------------------------------------------------------------
 # Trust tier + score

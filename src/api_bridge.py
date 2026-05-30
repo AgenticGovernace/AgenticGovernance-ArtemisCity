@@ -82,7 +82,15 @@ def _get_violations(payload: Dict[str, Any]) -> Dict[str, Any]:
     if store.get_agent_record(name) is None:
         raise BridgeError(f"agent not found: {name}", code="NOT_FOUND")
     include_cleared = bool(payload.get("include_cleared", False))
-    limit = int(payload.get("limit", 100))
+    raw_limit = payload.get("limit", 100)
+    try:
+        limit = int(raw_limit)
+    except (TypeError, ValueError):
+        raise BridgeError(
+            f"limit must be an integer, got {raw_limit!r}", code="INVALID_REQUEST"
+        )
+    if limit < 1:
+        raise BridgeError("limit must be >= 1", code="INVALID_REQUEST")
     violations = store.get_violations(name, include_cleared, limit)
     state = store.get_governance_state(name) or {}
     return {

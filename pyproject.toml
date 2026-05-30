@@ -67,8 +67,16 @@ build-backend = "hatchling.build"
 # Project name normalizes to "artemis_city" but the importable package
 # is "src" (no artemis_city/ directory exists). Tell hatch what to ship.
 # Also ship the "app" package so installed consumers can import
-# app.kernel.* (the kernel layer added in #67 Phase A).
+# app.kernel.* (the kernel layer added in #67 Phase A). Narrow the include
+# to the kernel + app marker -- app/api (fastapi/express, not declared as
+# runtime deps), app/web (frontend), and app/scripts (dev scripts) must
+# not ship in the wheel.
 packages = ["src", "app"]
+exclude = [
+  "app/api/**",
+  "app/web/**",
+  "app/scripts/**",
+]
 
 [tool.black]
 line-length = 100

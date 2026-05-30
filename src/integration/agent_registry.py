@@ -422,9 +422,12 @@ class AgentRegistryStore:
             )
             cleared_count = cursor.rowcount
 
+            # Only release quarantine; a 'suspended' status was set for
+            # reasons unrelated to violations and must not be cleared here.
             update_fields = [
                 "violation_count = 0",
-                "status = 'active'",
+                "status = CASE WHEN status = 'quarantined' THEN 'active' "
+                "ELSE status END",
                 "quarantined_at = NULL",
                 "updated_at = ?",
             ]

@@ -67,6 +67,23 @@ class TestDispatch:
         assert result["quarantined"] is False
         assert len(result["violations"]) == 1
 
+    def test_get_violations_non_integer_limit(self, db):
+        """A non-integer 'limit' must surface as INVALID_REQUEST, not 500."""
+        with pytest.raises(BridgeError) as exc:
+            dispatch(
+                "registry.get_violations",
+                {"db_path": db, "name": "Alpha", "limit": "abc"},
+            )
+        assert exc.value.code == "INVALID_REQUEST"
+
+    def test_get_violations_zero_limit(self, db):
+        with pytest.raises(BridgeError) as exc:
+            dispatch(
+                "registry.get_violations",
+                {"db_path": db, "name": "Alpha", "limit": 0},
+            )
+        assert exc.value.code == "INVALID_REQUEST"
+
     def test_record_violation_quarantines(self, db):
         for _ in range(QUARANTINE_THRESHOLD):
             dispatch(

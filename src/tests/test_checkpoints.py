@@ -81,6 +81,15 @@ class TestVerify:
     def test_verify_missing_is_false(self, store):
         assert store.verify_checkpoint("ghost") is False
 
+    def test_tampered_config_hash_detected(self, store):
+        """Modifying config_snapshot must also invalidate verification."""
+        record = store.create_checkpoint(SNAPSHOT, config_snapshot={"flag": "on"})
+        path = store._path(record["checkpoint_id"])
+        data = json.loads(path.read_text())
+        data["state"]["config_snapshot"] = {"flag": "off"}
+        path.write_text(json.dumps(data))
+        assert store.verify_checkpoint(record["checkpoint_id"]) is False
+
 
 # ---------------------------------------------------------------------------
 # Pruning
@@ -103,6 +112,19 @@ class TestPrune:
         path.write_text(json.dumps(data))
         future = _now() + timedelta(days=365)
         assert store.prune_expired(now=future) == 0
+
+    def test_expired_lock_does_not_block_prune(self, store):
+        """Once locked_until has passed, the normal expiration check applies."""
+        record = store.create_checkpoint(SNAPSHOT, retention_days=1)
+        path = store._path(record["checkpoint_id"])
+        data = json.loads(path.read_text())
+        # Lock that expired yesterday.
+        data["retention"]["locked_until"] = "2020-01-01T00:00:00.000000Z"
+        path.write_text(json.dumps(data))
+        # Two days in the future -> retention also expired -> prune.
+        future = _now() + timedelta(days=2)
+        assert store.prune_expired(now=future) == 1
+        assert store.get_checkpoint(record["checkpoint_id"]) is None
 
 
 # ---------------------------------------------------------------------------
