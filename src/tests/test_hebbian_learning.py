@@ -202,6 +202,11 @@ class TestHebbianIntegration:
         import src.mcp.orchestrator as orchestrator_module
 
         monkeypatch.setattr(orchestrator_module, "OBSIDIAN_VAULT_PATH", str(temp_vault))
+        # AGENT_INPUT_DIR / AGENT_OUTPUT_DIR default to absolute paths from
+        # the original author's machine; rebind to vault-relative names so
+        # ObsidianManager.create_folder lands inside the tmp vault.
+        monkeypatch.setattr(orchestrator_module, "AGENT_INPUT_DIR", "Agent Inputs")
+        monkeypatch.setattr(orchestrator_module, "AGENT_OUTPUT_DIR", "Agent Outputs")
         monkeypatch.setattr(
             orchestrator_module,
             "LocalVectorStore",
