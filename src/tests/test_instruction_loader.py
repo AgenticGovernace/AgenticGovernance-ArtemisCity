@@ -8,7 +8,7 @@ import os
 
 import pytest
 
-from core.instructions import InstructionLoader, InstructionSet
+from src.core.instructions import InstructionLoader, InstructionSet
 
 
 class TestInstructionLoader:
@@ -43,7 +43,7 @@ class TestInstructionSet:
 
     def test_instruction_set_creation(self):
         """Test creating an instruction set."""
-        from core.instructions import InstructionScope
+        from src.core.instructions import InstructionScope
 
         scope = InstructionScope(
             level="test", path="/test/path.md", content="Test instructions", priority=1
@@ -63,7 +63,7 @@ class TestInstructionCache:
 
     def test_cache_initialization(self):
         """Test that InstructionCache can be initialized."""
-        from core.instructions import InstructionCache
+        from src.core.instructions import InstructionCache
 
         cache = InstructionCache()
         assert cache is not None
@@ -72,7 +72,7 @@ class TestInstructionCache:
         """Test cache auto-population on get."""
         import tempfile
 
-        from core.instructions import InstructionCache
+        from src.core.instructions import InstructionCache
 
         cache = InstructionCache()
 
@@ -91,7 +91,7 @@ class TestInstructionCache:
         """Test cache behavior with different keys."""
         import tempfile
 
-        from core.instructions import InstructionCache
+        from src.core.instructions import InstructionCache
 
         cache = InstructionCache()
 

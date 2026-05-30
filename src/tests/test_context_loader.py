@@ -2,7 +2,7 @@
 
 import sys
 
-sys.modules.pop("integration.context_loader", None)
+sys.modules.pop("src.integration.context_loader", None)
 
 import pytest
 from src.integration.context_loader import ContextEntry, ContextLoader

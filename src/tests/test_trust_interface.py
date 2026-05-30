@@ -2,7 +2,7 @@
 
 import sys
 
-sys.modules.pop("integration.trust_interface", None)
+sys.modules.pop("src.integration.trust_interface", None)
 
 import pytest
 from datetime import datetime, timedelta
