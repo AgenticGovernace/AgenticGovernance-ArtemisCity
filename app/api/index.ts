@@ -15,6 +15,7 @@ import helmet from 'helmet';
 // Routes
 import {
   agentRoutes,
+  registryRoutes,
   memoryRoutes,
   atpRoutes,
   trustRoutes,
@@ -54,6 +55,7 @@ app.use(`/api/${API_VERSION}/health`, healthRoutes);
 
 // Protected routes (require auth)
 app.use(`/api/${API_VERSION}/agents`, authMiddleware, agentRoutes);
+app.use(`/api/${API_VERSION}/registry`, authMiddleware, registryRoutes);
 app.use(`/api/${API_VERSION}/memory`, authMiddleware, memoryRoutes);
 app.use(`/api/${API_VERSION}/atp`, authMiddleware, atpRoutes);
 app.use(`/api/${API_VERSION}/trust`, authMiddleware, trustRoutes);
@@ -68,6 +70,7 @@ app.get(`/api/${API_VERSION}`, (req: Request, res: Response) => {
     endpoints: {
       health: '/health',
       agents: `/api/${API_VERSION}/agents`,
+      registry: `/api/${API_VERSION}/registry`,
       memory: `/api/${API_VERSION}/memory`,
       atp: `/api/${API_VERSION}/atp`,
       trust: `/api/${API_VERSION}/trust`,
