@@ -53,7 +53,7 @@ def setup_example_task_note(obs_manager: Any, memory_bus: Optional[Any] = None) 
     if one doesn't already exist, for demonstration purposes.
     """
     example_filename = "Example Research Task.md"
-    relative_path = os.path.join(src.mcp.config.AGENT_INPUT_DIR, src.mcp.config.AGENT_OUTPUT_DIR, example_filename)
+    relative_path = os.path.join(src.mcp.config.AGENT_INPUT_DIR, example_filename)
     full_path = obs_manager._get_full_path(
         relative_path
     )  # Access internal for convenience

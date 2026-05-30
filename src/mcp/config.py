@@ -22,9 +22,12 @@ except ImportError:  # python-dotenv is pinned in Pipfile but degrade gracefully
     def load_dotenv(*_args, **_kwargs) -> bool:  # type: ignore[misc]
         return False
 
+# config.py lives at <repo-root>/src/mcp/config.py, so parents[2] is the repo
+# root. (Earlier indices were off-by-one — likely a leftover from when this
+# file lived under Concept_Demos/src/mcp/.)
 _THIS_FILE = Path(__file__).resolve()
-_CONCEPT_DEMOS_ROOT = _THIS_FILE.parents[2]  # .../Concept_Demos
-_REPO_ROOT = _THIS_FILE.parents[3]  # .../AgenticGovernance-ArtemisCity
+_REPO_ROOT = _THIS_FILE.parents[2]
+_CONCEPT_DEMOS_ROOT = _REPO_ROOT / "Concept_Demos"
 
 # Load lowest-precedence file first; ``override=False`` means anything already
 # set in os.environ (real shell env or earlier .env) is preserved.
@@ -33,15 +36,20 @@ for _candidate in (_REPO_ROOT / ".env", _CONCEPT_DEMOS_ROOT / ".env"):
         load_dotenv(_candidate, override=False)
 
 # --- Obsidian vault ---------------------------------------------------------
-OBSIDIAN_VAULT_PATH = os.getenv("OBSIDIAN_VAULT_PATH",
-                                "/Users/prinstonpalmer/PycharmProjects/FastAPIProject/obsidian_vault")
+# OBSIDIAN_VAULT_PATH is the on-disk vault root. AGENT_INPUT_DIR /
+# AGENT_OUTPUT_DIR are *vault-relative* folder names that callers join under
+# the vault root via ObsidianManager (which does ``vault_path / relative``).
+# Absolute defaults would collapse that join, escape the vault, and on Linux
+# CI hit PermissionError on the runner's '/Users' (see #65).
+OBSIDIAN_VAULT_PATH = os.getenv(
+    "OBSIDIAN_VAULT_PATH",
+    str(_REPO_ROOT / "obsidian_vault"),
+)
 
-# Agents read tasks from AGENT_INPUT_DIR and write reports to AGENT_OUTPUT_DIR.
-# These are resolved relative to OBSIDIAN_VAULT_PATH by the orchestrator.
-AGENT_INPUT_DIR = os.getenv("AGENT_INPUT_DIR",
-                            "/Users/prinstonpalmer/PycharmProjects/FastAPIProject/obsidian_vault/Agent Inputs")
-AGENT_OUTPUT_DIR = os.getenv("AGENT_OUTPUT_DIR",
-                             "/Users/prinstonpalmer/PycharmProjects/FastAPIProject/obsidian_vault/Agent Outputs")
+# Vault-relative folder names. Callers MUST NOT join these onto
+# OBSIDIAN_VAULT_PATH themselves; pass them straight to ObsidianManager methods.
+AGENT_INPUT_DIR = os.getenv("AGENT_INPUT_DIR", "Agent Inputs")
+AGENT_OUTPUT_DIR = os.getenv("AGENT_OUTPUT_DIR", "Agent Outputs")
 
 # --- EXO cluster (local LLM inference) --------------------------------------
 EXO_BASE_URL = os.getenv("EXO_BASE_URL", "http://localhost:52415")
