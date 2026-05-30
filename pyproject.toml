@@ -85,3 +85,7 @@ line_length = 100
 addopts = "-ra -q --strict-markers"
 testpaths = ["src/tests"]
 pythonpath = ["."]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]

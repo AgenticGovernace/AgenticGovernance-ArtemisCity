@@ -44,19 +44,19 @@ import time
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
-from agents.artemis_agent import ArtemisAgent
-from agents.research_agent import ResearchAgent
-from agents import SummarizerAgent
-from integration.agent_registry import AgentRegistry
-from integration.governance import GovernanceMonitor
-from integration.memory_bus import MemoryBus
-from mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
-from mcp.hebbian_weights import HebbianWeightManager
-from mcp.vector_store import LocalVectorStore
-from obsidian_integration import ObsidianGenerator
-from obsidian_integration import ObsidianManager
-from obsidian_integration import ObsidianParser
-from utils.helpers import logger
+from src.agents.artemis_agent import ArtemisAgent
+from src.agents.research_agent import ResearchAgent
+from src.agents import SummarizerAgent
+from ..integration.agent_registry import AgentRegistry
+from ..integration.governance import GovernanceMonitor
+from ..integration.memory_bus import MemoryBus
+from ..mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
+from ..mcp.hebbian_weights import HebbianWeightManager
+from ..mcp.vector_store import LocalVectorStore
+from src.obsidian_integration import ObsidianGenerator
+from src.obsidian_integration import ObsidianManager
+from src.obsidian_integration import ObsidianParser
+from src.utils.helpers import logger
 
 if TYPE_CHECKING:
     pass
@@ -70,7 +70,7 @@ def _get_run_logger():
     global _run_logger
     if _run_logger is None:
         try:
-            from utils import get_run_logger
+            from src.utils import get_run_logger
 
             _run_logger = get_run_logger()
         except Exception:

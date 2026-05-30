@@ -10,11 +10,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-# Add the src directory (import root) and the legacy Concept_Demos/src to path
-_src_root = str(Path(__file__).parent.parent)
+# Put the repo root on sys.path so the `src` package resolves
+# (src.mcp, src.integration, ...). Deliberately do NOT add src/ itself:
+# that would let the same module load under a second, bare name and create
+# duplicate identities (Prometheus double-registration, isinstance mismatches).
 _repo_root = str(Path(__file__).parent.parent.parent)
-sys.path.insert(0, _src_root)
-# Legacy modules (e.g. exceptions) live here; append so src/ keeps precedence.
+sys.path.insert(0, _repo_root)
+# Legacy modules (e.g. `exceptions`) still live here; append last.
 sys.path.append(str(Path(_repo_root) / "Concept_Demos" / "src"))
 
 

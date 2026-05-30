@@ -3,11 +3,11 @@
 import sys
 import json
 
-sys.modules.pop("integration.governance", None)
+sys.modules.pop("src.integration.governance", None)
 
 import pytest
 from pathlib import Path
-from integration.governance import GovernanceMonitor
+from src.integration.governance import GovernanceMonitor
 
 
 class TestGovernanceMonitor:

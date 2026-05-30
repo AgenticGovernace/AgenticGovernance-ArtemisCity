@@ -7,7 +7,7 @@ import tempfile
 from unittest.mock import MagicMock
 
 import pytest
-from mcp.hebbian_weights import HebbianWeightManager
+from src.mcp.hebbian_weights import HebbianWeightManager
 
 
 @pytest.fixture
@@ -196,10 +196,10 @@ class TestHebbianIntegration:
         temp_vault.mkdir(parents=True, exist_ok=True)
 
         # Patch both config and orchestrator module constants before instantiation
-        import mcp.config as config
+        import src.mcp.config as config
 
         monkeypatch.setattr(config, "OBSIDIAN_VAULT_PATH", str(temp_vault))
-        import mcp.orchestrator as orchestrator_module
+        import src.mcp.orchestrator as orchestrator_module
 
         monkeypatch.setattr(orchestrator_module, "OBSIDIAN_VAULT_PATH", str(temp_vault))
         monkeypatch.setattr(
@@ -220,7 +220,7 @@ class TestHebbianIntegration:
 
     def test_orchestrator_creates_hebbian_manager(self):
         """Test that orchestrator initializes with Hebbian manager."""
-        from mcp.orchestrator import Orchestrator
+        from src.mcp.orchestrator import Orchestrator
 
         orchestrator = Orchestrator()
         assert orchestrator.hebbian is not None
@@ -228,7 +228,7 @@ class TestHebbianIntegration:
 
     def test_orchestrator_updates_weights_on_success(self):
         """Test that successful tasks strengthen connections."""
-        from mcp.orchestrator import Orchestrator
+        from src.mcp.orchestrator import Orchestrator
 
         orchestrator = Orchestrator()
 

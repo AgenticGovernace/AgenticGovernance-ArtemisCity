@@ -1,7 +1,7 @@
 """Tests for the base agent (src/agents/base_agent.py)."""
 
 import pytest
-from agents.base_agent import BaseAgent
+from src.agents.base_agent import BaseAgent
 
 
 class _ConcreteAgent(BaseAgent):

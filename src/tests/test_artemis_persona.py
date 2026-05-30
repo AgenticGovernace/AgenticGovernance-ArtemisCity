@@ -6,7 +6,7 @@ Tests the ArtemisPersona, ReflectionEngine, and SemanticTagger components.
 
 import pytest
 
-from agents.artemis import (
+from src.agents.artemis import (
     ArtemisPersona,
     ReflectionEngine,
     ResponseMode,
@@ -48,14 +48,14 @@ class TestReflectionEngine:
 
     def test_concept_graph_creation(self):
         """Test creating a concept graph."""
-        from agents.artemis import ConceptGraph
+        from src.agents.artemis import ConceptGraph
 
         graph = ConceptGraph()
         assert graph is not None
 
     def test_add_concept_node(self):
         """Test adding concept nodes to graph."""
-        from agents.artemis import ConceptGraph, ConceptNode
+        from src.agents.artemis import ConceptGraph, ConceptNode
 
         _ = ConceptGraph()  # Verify graph can be created
         node = ConceptNode(concept="Test Concept", frequency=1)
@@ -75,7 +75,7 @@ class TestSemanticTagger:
 
     def test_semantic_tag_creation(self):
         """Test creating semantic tags."""
-        from agents.artemis import SemanticTag
+        from src.agents.artemis import SemanticTag
 
         tag = SemanticTag(
             tag="governance", category="system", description="System governance"
@@ -101,7 +101,7 @@ class TestCitationSystem:
 
     def test_citation_creation(self):
         """Test creating citations."""
-        from agents.artemis import Citation
+        from src.agents.artemis import Citation
 
         citation = Citation(
             target="memory/trust_decay_model.md",

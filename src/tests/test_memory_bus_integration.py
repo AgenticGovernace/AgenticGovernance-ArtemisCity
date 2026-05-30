@@ -2,7 +2,7 @@
 
 import pytest
 from pathlib import Path
-from integration.memory_bus import MemoryBus
+from src.integration.memory_bus import MemoryBus
 
 
 # ---------------------------------------------------------------------------

@@ -5,10 +5,10 @@ import io
 import json
 from urllib.error import HTTPError, URLError
 
-sys.modules.pop("integration.memory_client", None)
+sys.modules.pop("src.integration.memory_client", None)
 
 import pytest
-from integration.memory_client import MCPOperation, MCPResponse, MemoryClient
+from src.integration.memory_client import MCPOperation, MCPResponse, MemoryClient
 
 
 # ---------------------------------------------------------------------------

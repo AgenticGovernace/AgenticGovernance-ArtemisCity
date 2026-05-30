@@ -2,11 +2,11 @@
 
 import sys
 
-sys.modules.pop("integration.trust_interface", None)
+sys.modules.pop("src.integration.trust_interface", None)
 
 import pytest
 from datetime import datetime, timedelta
-from integration.trust_interface import (
+from src.integration.trust_interface import (
     TrustInterface,
     TrustLevel,
     TrustScore,
@@ -250,7 +250,7 @@ class TestTrustInterface:
 # ---------------------------------------------------------------------------
 class TestGetTrustInterface:
     def test_singleton(self):
-        import integration.trust_interface as mod
+        import src.integration.trust_interface as mod
 
         mod._global_trust_interface = None
         i1 = get_trust_interface()
