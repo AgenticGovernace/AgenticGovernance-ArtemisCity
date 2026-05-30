@@ -7,12 +7,8 @@ import os
 import sqlite3
 import time
 
-try:
-    from agents.base_agent import BaseAgent
-    from utils.helpers import logger
-except ImportError:
-    from src.agents import BaseAgent
-    from src.utils.helpers import logger
+from src.agents import BaseAgent
+from src.utils.helpers import logger
 
 
 @dataclass

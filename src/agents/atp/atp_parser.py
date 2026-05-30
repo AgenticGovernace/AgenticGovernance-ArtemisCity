@@ -28,17 +28,24 @@ except ImportError:
     Counter = Histogram = None
 
 if _METRICS_ENABLED:
-    ATP_PARSE_LATENCY = Histogram(
+    # safe_metric is reimport-tolerant; without it, sys.modules.pop +
+    # reimport of this module crashes with "Duplicated timeseries".
+    from src.utils.prometheus_guard import safe_metric
+
+    ATP_PARSE_LATENCY = safe_metric(
+        Histogram,
         "artemis_atp_parse_latency_ms",
         "ATP message parse latency in milliseconds",
         buckets=[0.1, 0.5, 1, 2, 5, 10, 50],
     )
-    ATP_PARSE_TOTAL = Counter(
+    ATP_PARSE_TOTAL = safe_metric(
+        Counter,
         "artemis_atp_parse_total",
         "Total ATP messages parsed",
         ["format", "has_headers"],
     )
-    ATP_PARSE_ERRORS = Counter(
+    ATP_PARSE_ERRORS = safe_metric(
+        Counter,
         "artemis_atp_parse_errors_total",
         "ATP parse errors",
     )
