@@ -6,7 +6,7 @@ from enum import Enum
 import pytest
 import time
 from src.agents.atp.atp_parser import ATPParser
-from src.agents.atp.atp_models import ATPMessage, ATPMode, ATPPriority, ATPActionType
+from src.agents.atp.atp_models import ATPMessage, ATPMode, ATPPriority
 
 
 def test_atp_parser_reimport_does_not_crash_on_duplicate_metrics():

@@ -225,17 +225,17 @@ class TestHebbianIntegration:
 
     def test_orchestrator_creates_hebbian_manager(self):
         """Test that orchestrator initializes with Hebbian manager."""
-        from src.mcp.orchestrator import Orchestrator
+        import src.mcp.orchestrator as orchestrator_module
 
-        orchestrator = Orchestrator()
+        orchestrator = orchestrator_module.Orchestrator()
         assert orchestrator.hebbian is not None
         assert isinstance(orchestrator.hebbian, HebbianWeightManager)
 
     def test_orchestrator_updates_weights_on_success(self):
         """Test that successful tasks strengthen connections."""
-        from src.mcp.orchestrator import Orchestrator
+        import src.mcp.orchestrator as orchestrator_module
 
-        orchestrator = Orchestrator()
+        orchestrator = orchestrator_module.Orchestrator()
 
         # Get initial weight
         initial_weight = orchestrator.hebbian.get_weight(
