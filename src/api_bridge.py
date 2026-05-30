@@ -189,6 +189,9 @@ def _compute_trust(payload: Dict[str, Any]) -> Dict[str, Any]:
 def _evaluate_update(payload: Dict[str, Any]) -> Dict[str, Any]:
     name = _require(payload, "agent_name")
     store = _store(payload)
+    record = store.get_agent_record(name)
+    if record is None:
+        raise BridgeError(f"agent not found: {name}", code="NOT_FOUND")
     metrics_given = payload.get("metrics") is not None
     has_history = bool(payload.get("has_history", True))
 
@@ -202,9 +205,6 @@ def _evaluate_update(payload: Dict[str, Any]) -> Dict[str, Any]:
         trust_score = compute_trust_score(metrics)
         has_history = metrics.has_execution_history
     else:
-        record = store.get_agent_record(name)
-        if record is None:
-            raise BridgeError(f"agent not found: {name}", code="NOT_FOUND")
         trust_score = record.get("trust_score")
         if trust_score is None:
             raise BridgeError(
