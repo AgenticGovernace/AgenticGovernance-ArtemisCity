@@ -2,21 +2,23 @@
 
 import sys
 from enum import Enum
-from pathlib import Path
-
-_src = str(Path(__file__).resolve().parents[2] / "src")
-if _src not in sys.path:
-    sys.path.insert(0, _src)
-else:
-    sys.path.remove(_src)
-    sys.path.insert(0, _src)
-for _key in [k for k in sys.modules if k == "agents" or k.startswith("agents.")]:
-    del sys.modules[_key]
 
 import pytest
 import time
-from agents.atp.atp_parser import ATPParser
-from agents.atp.atp_models import ATPMessage, ATPMode, ATPPriority, ATPActionType
+from src.agents.atp.atp_parser import ATPParser
+from src.agents.atp.atp_models import ATPMessage, ATPMode, ATPPriority, ATPActionType
+
+
+def test_atp_parser_reimport_does_not_crash_on_duplicate_metrics():
+    # Prometheus' default REGISTRY rejects duplicate names. Without the
+    # safe_metric guard, sys.modules.pop + reimport raises ValueError.
+    sys.modules.pop("src.agents.atp.atp_parser", None)
+    import src.agents.atp.atp_parser  # noqa: F401  (reimport must not raise)
+
+
+def test_memory_bus_reimport_does_not_crash_on_duplicate_metrics():
+    sys.modules.pop("src.integration.memory_bus", None)
+    import src.integration.memory_bus  # noqa: F401  (reimport must not raise)
 
 
 class TestParseWithMetricsBasic:

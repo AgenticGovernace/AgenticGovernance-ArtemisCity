@@ -79,7 +79,8 @@ export async function listNotes(): Promise<string[]> {
   const stack: string[] = [''];
   while (stack.length) {
     const dir = stack.pop() as string;
-    const url = dir === '' ? '/vault/' : `/vault/${encodeVaultPath(dir)}/`;
+    const normalizedDir = dir.replace(/\/+$/, '');
+    const url = normalizedDir === '' ? '/vault/' : `/vault/${encodeVaultPath(normalizedDir)}/`;
     const response = await obsidianAPI.get<{ files: string[] }>(url);
     for (const entry of response.data.files ?? []) {
       const full = dir === '' ? entry : `${dir}${entry}`;

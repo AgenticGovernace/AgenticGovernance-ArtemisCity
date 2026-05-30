@@ -2,10 +2,10 @@
 
 import sys
 
-sys.modules.pop("agents.artemis.reflection", None)
+sys.modules.pop("src.agents.artemis.reflection", None)
 
 import pytest
-from agents.artemis.reflection import ConceptGraph, ConceptNode, ReflectionEngine
+from src.agents.artemis.reflection import ConceptGraph, ConceptNode, ReflectionEngine
 
 
 # ---------------------------------------------------------------------------

@@ -36,13 +36,18 @@ class ObsidianGenerator:
         required_capability = task_data.get("required_capability")
         status = task_data.get("status", "pending")
         tags = task_data.get("tags", ["agent_task", agent.lower().replace(" ", "_")])
+        capability_line = (
+            f"required_capability: {required_capability}\n"
+            if required_capability
+            else ""
+        )
 
         markdown = (
             f"---\n"
             f"task_id: {task_data.get('task_id', 'AUTO_GEN_ID')}\n"
             f"agent: {agent}\n"
             f"status: {status}\n"
-            f"{f'required_capability: {required_capability}\\n' if required_capability else ''}"
+            f"{capability_line}"
             f"tags: {tags}\n"
             f"---\n\n"
             f"# {title}\n\n"

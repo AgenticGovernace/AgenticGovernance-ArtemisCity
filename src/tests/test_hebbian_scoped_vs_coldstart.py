@@ -14,6 +14,13 @@ Date: 2026-02-06
 Data Source: Synthetic 3-phase concept drift (Linear → Quadratic → Sine)
 """
 
+import pytest
+
+pytest.importorskip("numpy")
+pytest.importorskip("pandas")
+pytest.importorskip("sklearn")
+pytest.importorskip("matplotlib")
+
 import numpy as np
 import pandas as pd
 from pathlib import Path

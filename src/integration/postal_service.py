@@ -5,6 +5,8 @@ treating the Obsidian vault as the City Archives and memory operations
 as mail delivery between agents.
 """
 
+from __future__ import annotations
+
 import random
 import time
 import datetime

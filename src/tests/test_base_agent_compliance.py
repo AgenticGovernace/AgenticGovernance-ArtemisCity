@@ -27,10 +27,10 @@ from typing import Any, Dict, List, Type
 import pytest
 
 # Import base class and all concrete implementations
-from agents.base_agent import BaseAgent
-from agents.artemis_agent import ArtemisAgent
-from agents.research_agent import ResearchAgent
-from agents.summarizer_agent import SummarizerAgent
+from src.agents.base_agent import BaseAgent
+from src.agents.artemis_agent import ArtemisAgent
+from src.agents.research_agent import ResearchAgent
+from src.agents.summarizer_agent import SummarizerAgent
 
 # =============================================================================
 # Test Fixtures
