@@ -144,6 +144,67 @@ class AgentRegistryStore:
                 }
             return states
 
+    def _row_to_record(self, row: tuple) -> dict:
+        """Shape a full agents row into an API-friendly dict."""
+        (
+            name,
+            capabilities,
+            description,
+            alignment,
+            accuracy,
+            efficiency,
+            trust_tier,
+            status,
+            violation_count,
+            quarantined_at,
+            trust_score,
+        ) = row
+        try:
+            caps = json.loads(capabilities) if capabilities else []
+        except (json.JSONDecodeError, TypeError):
+            caps = []
+        if not isinstance(caps, list):
+            caps = []
+        composite = None
+        if None not in (alignment, accuracy, efficiency):
+            composite = AgentScore(alignment, accuracy, efficiency).composite_score
+        return {
+            "name": name,
+            "capabilities": caps,
+            "description": description,
+            "alignment": alignment,
+            "accuracy": accuracy,
+            "efficiency": efficiency,
+            "composite_score": composite,
+            "trust_tier": trust_tier,
+            "status": status,
+            "violation_count": violation_count,
+            "quarantined_at": quarantined_at,
+            "trust_score": trust_score,
+        }
+
+    _RECORD_COLUMNS = (
+        "name, capabilities, description, alignment, accuracy, efficiency, "
+        "trust_tier, status, violation_count, quarantined_at, trust_score"
+    )
+
+    def list_agent_records(self) -> List[dict]:
+        """Return full persisted records for all agents, ordered by name."""
+        with sqlite3.connect(self.db_path) as conn:
+            rows = conn.execute(
+                f"SELECT {self._RECORD_COLUMNS} FROM agents ORDER BY name ASC"
+            ).fetchall()
+        return [self._row_to_record(row) for row in rows]
+
+    def get_agent_record(self, name: str) -> Optional[dict]:
+        """Return the full persisted record for one agent, or None."""
+        with sqlite3.connect(self.db_path) as conn:
+            row = conn.execute(
+                f"SELECT {self._RECORD_COLUMNS} FROM agents WHERE name = ?",
+                (name,),
+            ).fetchone()
+        return self._row_to_record(row) if row else None
+
     def upsert_agent(self, agent: BaseAgent, default_score: AgentScore) -> AgentScore:
         """Insert agent metadata if new; return persisted or default score."""
         capabilities_json = json.dumps(agent.capabilities)
