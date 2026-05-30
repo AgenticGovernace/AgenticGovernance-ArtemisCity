@@ -1,5 +1,5 @@
 # Defines which agent handles what type of input based on keywords or patterns.
-# This is a simplified routing mechanism for the Codex CLI.
+# This is a simplified routing mechanism for the Artemis City Kernel CLI.
 
 agents:
   artemis:
@@ -10,7 +10,7 @@ agents:
     role: "Courier role, safe transfer"
     keywords: ["transfer", "send", "receive", "courier", "data", "secure"]
     action_description: "Preparing secure data transfer."
-  codex_daemon:
+  daemon:
     role: "System anchor, memory interface"
     keywords: ["memory", "system", "daemon", "config", "status", "health"]
     action_description: "Querying system status or memory interface."

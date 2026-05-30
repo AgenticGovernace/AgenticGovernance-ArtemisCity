@@ -1,18 +1,22 @@
 """Artemis City Kernel Command-Line Interface.
 
-This module provides the CLI entry point for the Artemis City Codex
-kernel. It supports both single-command execution and interactive
-mode for ongoing conversations with the kernel system.
+This module provides the CLI entry point for the Artemis City kernel.
+It supports both single-command execution and interactive mode for
+ongoing conversations with the kernel system.
 
 The CLI initializes the kernel, processes commands, and executes
 plan files when specified. In interactive mode, users can issue
 commands and receive responses until they choose to exit.
+
+Run as a module from the repository root::
+
+    python -m app.kernel.cli "system status"
 """
 
 import argparse
 import sys
 
-from kernel import Kernel
+from app.kernel.kernel import Kernel
 
 
 def main():
@@ -54,11 +58,11 @@ def main():
         print(result)
     else:
         # Interactive mode
-        print("Welcome to Artemis-City Codex (Kernel v1.0)")
+        print("Welcome to Artemis-City Kernel (v1.0)")
         print("Type 'exit' to quit.")
         while True:
             try:
-                cmd = input("codex> ")
+                cmd = input("artemis> ")
                 if cmd.strip().lower() in ["exit", "quit"]:
                     break
                 if not cmd.strip():
