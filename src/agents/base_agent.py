@@ -37,10 +37,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, List, Optional
 
-try:
-    from utils.helpers import logger
-except ImportError:
-    from ..utils.helpers import logger
+from ..utils.helpers import logger
 
 if TYPE_CHECKING:
     from logging import Logger

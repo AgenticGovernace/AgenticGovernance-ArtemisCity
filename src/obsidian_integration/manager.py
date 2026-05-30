@@ -6,7 +6,13 @@ from ..utils.helpers import logger
 
 
 class ObsidianManager:
-    def __init__(self, vault_path: str = OBSIDIAN_VAULT_PATH):
+    def __init__(self, vault_path: str | None = None):
+        # Re-read OBSIDIAN_VAULT_PATH at call time so tests that
+        # monkeypatch src.mcp.config.OBSIDIAN_VAULT_PATH take effect.
+        # A def-time default would freeze the original module-load value.
+        if vault_path is None:
+            from src.mcp.config import OBSIDIAN_VAULT_PATH as _vault
+            vault_path = _vault
         self.vault_path = Path(vault_path)
         if not self.vault_path.is_dir():
             logger.error(f"Obsidian vault path does not exist: {self.vault_path}")
@@ -29,13 +35,31 @@ class ObsidianManager:
             return content
 
     def write_note(self, relative_path: str, content: str, overwrite: bool = True):
-        """Writes content to an Obsidian note. Creates directories if necessary."""
+        """Writes content to an Obsidian note. Creates directories if necessary.
+
+        Overwrite mode writes to a temp file and ``os.replace``s it onto the
+        target so a mid-write failure (e.g. disk full) can't leave a
+        truncated file behind. Append mode is unchanged.
+        """
         full_path = self._get_full_path(relative_path)
         full_path.parent.mkdir(parents=True, exist_ok=True)
-        mode = "w" if overwrite else "a"  # 'w' for overwrite, 'a' for append
-        with open(full_path, mode, encoding="utf-8") as f:
-            f.write(content)
-            logger.info(f"Wrote note: {relative_path} (mode: {mode})")
+        if overwrite:
+            tmp_path = full_path.with_name(full_path.name + ".tmp")
+            try:
+                with open(tmp_path, "w", encoding="utf-8") as f:
+                    f.write(content)
+                os.replace(tmp_path, full_path)
+            except Exception:
+                try:
+                    tmp_path.unlink()
+                except FileNotFoundError:
+                    pass
+                raise
+            logger.info(f"Wrote note: {relative_path} (mode: w, atomic)")
+        else:
+            with open(full_path, "a", encoding="utf-8") as f:
+                f.write(content)
+            logger.info(f"Wrote note: {relative_path} (mode: a)")
 
     def list_notes_in_folder(
         self, relative_folder_path: str, suffix: str = ".md"
