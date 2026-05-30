@@ -131,6 +131,115 @@ class TestDispatch:
 
 
 # ---------------------------------------------------------------------------
+# governance.* commands
+# ---------------------------------------------------------------------------
+class TestGovernanceCommands:
+    def test_compute_trust_pristine(self, db):
+        result = dispatch(
+            "governance.compute_trust", {"db_path": db, "name": "Alpha"}
+        )
+        # No failures / no violations -> 1.0, and it's persisted.
+        assert result["trust_score"] == pytest.approx(1.0)
+        assert result["persisted"] is True
+        assert "components" in result["breakdown"]
+
+    def test_compute_trust_pulls_violation_count(self, db):
+        # Record one violation, then compute without passing the count.
+        dispatch(
+            "registry.record_violation",
+            {"db_path": db, "name": "Alpha", "violation_type": "rate_limit"},
+        )
+        result = dispatch(
+            "governance.compute_trust",
+            {"db_path": db, "name": "Alpha", "metrics": {}},
+        )
+        # security_score = 1 - 0.1*1 = 0.9 -> trust < 1.0
+        assert result["trust_score"] < 1.0
+        assert result["breakdown"]["components"]["security_score"] == pytest.approx(0.9)
+
+    def test_compute_trust_persists_to_registry(self, db):
+        dispatch(
+            "governance.compute_trust",
+            {"db_path": db, "name": "Alpha", "metrics": {"successful_executions": 5, "total_executions": 10}},
+        )
+        record = dispatch("registry.get_agent", {"db_path": db, "name": "Alpha"})
+        assert record["trust_score"] is not None
+
+    def test_compute_trust_no_persist(self, db):
+        dispatch(
+            "governance.compute_trust",
+            {"db_path": db, "name": "Alpha", "persist": False},
+        )
+        record = dispatch("registry.get_agent", {"db_path": db, "name": "Alpha"})
+        assert record["trust_score"] is None
+
+    def test_compute_trust_unknown_agent(self, db):
+        with pytest.raises(BridgeError) as exc:
+            dispatch("governance.compute_trust", {"db_path": db, "name": "ghost"})
+        assert exc.value.code == "NOT_FOUND"
+
+    def test_evaluate_update_auto(self, db):
+        result = dispatch(
+            "governance.evaluate_update",
+            {
+                "db_path": db,
+                "agent_name": "Alpha",
+                "trust_score": 0.95,
+                "code_change_ratio": 0.005,
+            },
+        )
+        assert result["tier"] == "auto"
+        assert result["auto_approved"] is True
+        assert result["trust_score"] == 0.95
+
+    def test_evaluate_update_human_on_breaking(self, db):
+        result = dispatch(
+            "governance.evaluate_update",
+            {
+                "db_path": db,
+                "agent_name": "Alpha",
+                "trust_score": 0.99,
+                "breaking_changes": True,
+            },
+        )
+        assert result["tier"] == "human"
+        assert result["requires_human"] is True
+
+    def test_evaluate_update_from_metrics(self, db):
+        result = dispatch(
+            "governance.evaluate_update",
+            {
+                "db_path": db,
+                "agent_name": "Alpha",
+                "metrics": {"successful_executions": 10, "total_executions": 10},
+                "code_change_ratio": 0.0,
+            },
+        )
+        # pristine metrics -> trust 1.0 -> auto
+        assert result["tier"] == "auto"
+
+    def test_evaluate_update_uses_persisted_trust(self, db):
+        # Persist a low trust score, then evaluate with no trust/metrics.
+        dispatch(
+            "governance.compute_trust",
+            {"db_path": db, "name": "Alpha", "metrics": {"successful_executions": 1, "total_executions": 10, "recent_violation_count": 5}},
+        )
+        result = dispatch(
+            "governance.evaluate_update", {"db_path": db, "agent_name": "Alpha"}
+        )
+        # Low persisted trust -> human tier
+        assert result["tier"] == "human"
+
+    def test_evaluate_update_no_trust_no_metrics_errors(self, db):
+        with pytest.raises(BridgeError) as exc:
+            dispatch(
+                "governance.evaluate_update", {"db_path": db, "agent_name": "Alpha"}
+            )
+        # Alpha has no persisted trust_score yet.
+        assert exc.value.code == "INVALID_REQUEST"
+
+
+# ---------------------------------------------------------------------------
 # CLI round-trip — exercises the stdin/stdout envelope the TS layer uses
 # ---------------------------------------------------------------------------
 class TestCLI:
