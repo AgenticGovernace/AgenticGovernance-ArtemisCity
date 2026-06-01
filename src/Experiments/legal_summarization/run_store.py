@@ -97,6 +97,18 @@ class RunStore:
         split: str,
         total_records: int,
     ) -> None:
+        """Start run.
+        
+        Args:
+            run_id (str): Identifier of the run being queried or updated.
+            config_json (str): Serialized configuration payload for the run.
+            dataset_config (str): Dataset configuration identifier for the summarization run.
+            split (str): Dataset split name to process.
+            total_records (int): Total number of records expected in the run.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 """INSERT INTO runs
@@ -114,6 +126,16 @@ class RunStore:
             conn.commit()
 
     def finish_run(self, run_id: str, status: str, duration_ms: float) -> None:
+        """Finish run.
+        
+        Args:
+            run_id (str): Identifier of the run being queried or updated.
+            status (str): Status value to persist or return.
+            duration_ms (float): Duration ms value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         with sqlite3.connect(self.db_path) as conn:
             # Count completed / failed from results table
             completed = conn.execute(
@@ -155,6 +177,21 @@ class RunStore:
         status: str,
         inference_ms: float,
     ) -> None:
+        """Store result.
+        
+        Args:
+            run_id (str): Identifier of the run being queried or updated.
+            record_index (int): Position of the record within the run.
+            input_text (str): Input text associated with the stored result.
+            reference_summary (str): Reference summary value used by this operation.
+            generated_summary (str): Generated summary value used by this operation.
+            mode (str): Execution or summarization mode to apply.
+            status (str): Status value to persist or return.
+            inference_ms (float): Inference ms value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         preview = input_text[:300] + "..." if len(input_text) > 300 else input_text
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
@@ -184,6 +221,14 @@ class RunStore:
     # ------------------------------------------------------------------
 
     def list_runs(self, limit: int = 20) -> list[dict]:
+        """List runs.
+        
+        Args:
+            limit (int): Maximum number of records to return or process.
+        
+        Returns:
+            list[dict]: List containing the resulting items.
+        """
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -192,6 +237,14 @@ class RunStore:
             return [dict(r) for r in rows]
 
     def get_run(self, run_id: str) -> Optional[dict]:
+        """Return run.
+        
+        Args:
+            run_id (str): Identifier of the run being queried or updated.
+        
+        Returns:
+            Optional[dict]: Matching value when available; otherwise None.
+        """
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
@@ -200,6 +253,15 @@ class RunStore:
             return dict(row) if row else None
 
     def get_results(self, run_id: str, limit: int = 500) -> list[dict]:
+        """Return results.
+        
+        Args:
+            run_id (str): Identifier of the run being queried or updated.
+            limit (int): Maximum number of records to return or process.
+        
+        Returns:
+            list[dict]: List containing the resulting items.
+        """
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -209,7 +271,14 @@ class RunStore:
             return [dict(r) for r in rows]
 
     def compare_runs(self, run_ids: list[str]) -> list[dict]:
-        """Return side-by-side run metadata for comparison."""
+        """Return side-by-side run metadata for comparison.
+        
+        Args:
+            run_ids (list[str]): Run identifiers to fetch for comparison.
+        
+        Returns:
+            list[dict]: Run metadata records for the identifiers that were found.
+        """
         runs = []
         for rid in run_ids:
             r = self.get_run(rid)
@@ -222,7 +291,14 @@ class RunStore:
     # ------------------------------------------------------------------
 
     def write_report(self, run_id: str) -> Path:
-        """Generate a Markdown report for a completed run."""
+        """Generate a Markdown report for a completed run.
+        
+        Args:
+            run_id (str): Identifier of the run being queried or updated.
+        
+        Returns:
+            Path: Resolved path produced by the operation.
+        """
         run = self.get_run(run_id)
         results = self.get_results(run_id)
         if not run:

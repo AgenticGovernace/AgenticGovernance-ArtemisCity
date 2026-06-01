@@ -22,6 +22,14 @@ class ArtemisAgent(BaseAgent):
         self.semantic_tagger = semantic_tagger or SemanticTagger()
 
     def perform_task(self, task_context: Dict) -> Dict:
+        """Perform task.
+        
+        Args:
+            task_context (Dict): Structured task context passed to the agent.
+        
+        Returns:
+            Dict: Resulting Dict value produced by the operation.
+        """
         title = (
             task_context.get("title") or task_context.get("task_id") or "Artemis Task"
         )

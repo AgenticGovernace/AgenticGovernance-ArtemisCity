@@ -312,9 +312,12 @@ def mock_env_vars(monkeypatch):
 @pytest.fixture
 def clean_env(monkeypatch):
     """Remove potentially interfering environment variables.
-
+    
     Args:
         monkeypatch: pytest's monkeypatch fixture
+    
+    Returns:
+        None: This function does not return a value.
     """
     vars_to_remove = ["MCP_BASE_URL", "MCP_API_KEY", "ARTEMIS_LOG_LEVEL"]
     for var in vars_to_remove:
@@ -328,9 +331,12 @@ def clean_env(monkeypatch):
 
 def pytest_configure(config):
     """Configure custom pytest markers.
-
+    
     Args:
         config: pytest configuration object
+    
+    Returns:
+        None: This function does not return a value.
     """
     config.addinivalue_line("markers", "unit: Unit tests for individual components")
     config.addinivalue_line(

@@ -15,12 +15,20 @@ class TestInstructionLoader:
     """Test Instruction Loader functionality."""
 
     def test_instruction_loader_initialization(self):
-        """Test that InstructionLoader can be initialized."""
+        """Test that InstructionLoader can be initialized.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         loader = InstructionLoader()
         assert loader is not None
 
     def test_load_agent_instructions(self):
-        """Test loading agent instructions from markdown files."""
+        """Test loading agent instructions from markdown files.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         loader = InstructionLoader()
         # Try to load instructions with agent name
         instructions = loader.load(current_dir=os.getcwd(), agent_name="artemis")
@@ -28,7 +36,11 @@ class TestInstructionLoader:
         assert isinstance(instructions, InstructionSet)
 
     def test_load_nonexistent_agent(self):
-        """Test loading instructions for non-existent agent."""
+        """Test loading instructions for non-existent agent.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         loader = InstructionLoader()
         # Load with non-existent agent (should still return InstructionSet)
         instructions = loader.load(
@@ -42,7 +54,11 @@ class TestInstructionSet:
     """Test InstructionSet data structure."""
 
     def test_instruction_set_creation(self):
-        """Test creating an instruction set."""
+        """Test creating an instruction set.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         from src.core.instructions import InstructionScope
 
         scope = InstructionScope(
@@ -53,7 +69,11 @@ class TestInstructionSet:
         assert instruction_set.scopes[0].level == "test"
 
     def test_empty_instruction_set(self):
-        """Test creating an empty instruction set."""
+        """Test creating an empty instruction set.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         instruction_set = InstructionSet()
         assert instruction_set is not None
 
@@ -62,14 +82,22 @@ class TestInstructionCache:
     """Test Instruction Cache functionality."""
 
     def test_cache_initialization(self):
-        """Test that InstructionCache can be initialized."""
+        """Test that InstructionCache can be initialized.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         from src.core.instructions import InstructionCache
 
         cache = InstructionCache()
         assert cache is not None
 
     def test_cache_set_get(self):
-        """Test cache auto-population on get."""
+        """Test cache auto-population on get.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         import tempfile
 
         from src.core.instructions import InstructionCache
@@ -88,7 +116,11 @@ class TestInstructionCache:
             assert result2 is result1  # Should be same object from cache
 
     def test_cache_miss(self):
-        """Test cache behavior with different keys."""
+        """Test cache behavior with different keys.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         import tempfile
 
         from src.core.instructions import InstructionCache

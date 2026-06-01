@@ -34,7 +34,14 @@ def _msg(
 # ValidationResult
 # ---------------------------------------------------------------------------
 class TestValidationResult:
+    """Represent the result data produced by the TestValidationResult workflow.
+    """
     def test_initial_state(self):
+        """Test that initial state.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         r = ValidationResult()
         assert r.is_valid is True
         assert r.warnings == []
@@ -43,6 +50,11 @@ class TestValidationResult:
         assert r.has_issues is False
 
     def test_add_warning(self):
+        """Test that add warning.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         r = ValidationResult()
         r.add_warning("heads up")
         assert r.warnings == ["heads up"]
@@ -50,6 +62,11 @@ class TestValidationResult:
         assert r.has_issues is True
 
     def test_add_error(self):
+        """Test that add error.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         r = ValidationResult()
         r.add_error("bad")
         assert r.errors == ["bad"]
@@ -57,6 +74,11 @@ class TestValidationResult:
         assert r.has_issues is True
 
     def test_add_suggestion(self):
+        """Test that add suggestion.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         r = ValidationResult()
         r.add_suggestion("try this")
         assert r.suggestions == ["try this"]
@@ -64,10 +86,20 @@ class TestValidationResult:
         assert r.has_issues is False
 
     def test_str_no_issues(self):
+        """Test that str no issues.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         r = ValidationResult()
         assert "no issues" in str(r).lower()
 
     def test_str_with_all(self):
+        """Test that str with all.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         r = ValidationResult()
         r.add_error("err1")
         r.add_warning("warn1")
@@ -85,11 +117,27 @@ class TestValidationResult:
 # ATPValidator – lenient mode (default)
 # ---------------------------------------------------------------------------
 class TestATPValidatorLenient:
+    """Provide the TestATPValidatorLenient abstraction used by this module.
+    """
+
     @pytest.fixture
     def validator(self):
+        """Validator.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         return ATPValidator(strict=False)
 
     def test_valid_complete_message(self, validator):
+        """Test that valid complete message.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(
             mode=ATPMode.BUILD,
             context="building a feature",
@@ -103,6 +151,14 @@ class TestATPValidatorLenient:
         assert result.errors == []
 
     def test_no_headers_gives_suggestion(self, validator):
+        """Test that no headers gives suggestion.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(content="plain text message here")
         assert msg.has_atp_headers is False
         result = validator.validate(msg)
@@ -112,6 +168,14 @@ class TestATPValidatorLenient:
 
     def test_incomplete_headers_gives_warning(self, validator):
         # has context (so has_atp_headers=True) but mode+action are UNKNOWN (not complete)
+        """Test that incomplete headers gives warning.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(context="some ctx", content="enough content for validation")
         assert msg.has_atp_headers is True
         assert msg.is_complete is False
@@ -120,6 +184,14 @@ class TestATPValidatorLenient:
         assert any("missing" in w.lower() for w in result.warnings)
 
     def test_empty_content_is_error(self, validator):
+        """Test that empty content is error.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(
             mode=ATPMode.BUILD,
             context="ctx",
@@ -131,6 +203,14 @@ class TestATPValidatorLenient:
         assert any("empty" in e.lower() for e in result.errors)
 
     def test_short_content_warning(self, validator):
+        """Test that short content warning.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(
             mode=ATPMode.BUILD,
             context="ctx",
@@ -141,6 +221,14 @@ class TestATPValidatorLenient:
         assert any("short" in w.lower() for w in result.warnings)
 
     def test_long_content_suggestion(self, validator):
+        """Test that long content suggestion.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(
             mode=ATPMode.BUILD,
             context="ctx",
@@ -157,17 +245,41 @@ class TestATPValidatorLenient:
 # ATPValidator – strict mode
 # ---------------------------------------------------------------------------
 class TestATPValidatorStrict:
+    """Provide the TestATPValidatorStrict abstraction used by this module.
+    """
+
     @pytest.fixture
     def validator(self):
+        """Validator.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         return ATPValidator(strict=True)
 
     def test_no_headers_is_error(self, validator):
+        """Test that no headers is error.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(content="plain text message here")
         result = validator.validate(msg)
         assert result.is_valid is False
         assert any("header" in e.lower() for e in result.errors)
 
     def test_incomplete_headers_is_error(self, validator):
+        """Test that incomplete headers is error.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(context="some ctx", content="enough content for validation")
         result = validator.validate(msg)
         assert result.is_valid is False
@@ -178,11 +290,27 @@ class TestATPValidatorStrict:
 # Mode/action consistency
 # ---------------------------------------------------------------------------
 class TestModeActionConsistency:
+    """Provide the TestModeActionConsistency abstraction used by this module.
+    """
+
     @pytest.fixture
     def validator(self):
+        """Validator.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         return ATPValidator()
 
     def test_consistent_pair_no_suggestion(self, validator):
+        """Test that consistent pair no suggestion.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(
             mode=ATPMode.BUILD,
             context="ctx",
@@ -193,6 +321,14 @@ class TestModeActionConsistency:
         assert not any("typically uses" in s for s in result.suggestions)
 
     def test_inconsistent_pair_gives_suggestion(self, validator):
+        """Test that inconsistent pair gives suggestion.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(
             mode=ATPMode.BUILD,
             context="ctx",
@@ -203,6 +339,14 @@ class TestModeActionConsistency:
         assert any("typically uses" in s for s in result.suggestions)
 
     def test_unknown_action_no_suggestion(self, validator):
+        """Test that unknown action no suggestion.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(
             mode=ATPMode.BUILD,
             context="ctx",
@@ -217,11 +361,27 @@ class TestModeActionConsistency:
 # Target zone validation
 # ---------------------------------------------------------------------------
 class TestTargetZoneValidation:
+    """Provide the TestTargetZoneValidation abstraction used by this module.
+    """
+
     @pytest.fixture
     def validator(self):
+        """Validator.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         return ATPValidator()
 
     def test_absolute_path_no_extra_suggestions(self, validator):
+        """Test that absolute path no extra suggestions.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(
             mode=ATPMode.BUILD,
             context="ctx",
@@ -233,6 +393,14 @@ class TestTargetZoneValidation:
         assert not any("absolute" in s.lower() for s in result.suggestions)
 
     def test_relative_path_gives_suggestion(self, validator):
+        """Test that relative path gives suggestion.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(
             mode=ATPMode.BUILD,
             context="ctx",
@@ -244,6 +412,14 @@ class TestTargetZoneValidation:
         assert any("absolute" in s.lower() for s in result.suggestions)
 
     def test_no_path_separators_gives_suggestion(self, validator):
+        """Test that no path separators gives suggestion.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(
             mode=ATPMode.BUILD,
             context="ctx",
@@ -259,16 +435,40 @@ class TestTargetZoneValidation:
 # suggest_improvements
 # ---------------------------------------------------------------------------
 class TestSuggestImprovements:
+    """Provide the TestSuggestImprovements abstraction used by this module.
+    """
+
     @pytest.fixture
     def validator(self):
+        """Validator.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         return ATPValidator()
 
     def test_no_headers_suggests_adding(self, validator):
+        """Test that no headers suggests adding.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(content="plain text")
         suggestions = validator.suggest_improvements(msg)
         assert any("ATP headers" in s for s in suggestions)
 
     def test_missing_target_zone(self, validator):
+        """Test that missing target zone.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(
             mode=ATPMode.BUILD, context="ctx", action_type=ATPActionType.SCAFFOLD
         )
@@ -276,6 +476,14 @@ class TestSuggestImprovements:
         assert any("TargetZone" in s for s in suggestions)
 
     def test_missing_special_notes(self, validator):
+        """Test that missing special notes.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(
             mode=ATPMode.BUILD,
             context="ctx",
@@ -286,11 +494,27 @@ class TestSuggestImprovements:
         assert any("SpecialNotes" in s for s in suggestions)
 
     def test_short_context_suggestion(self, validator):
+        """Test that short context suggestion.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(mode=ATPMode.BUILD, context="hi", action_type=ATPActionType.SCAFFOLD)
         suggestions = validator.suggest_improvements(msg)
         assert any("descriptive" in s.lower() for s in suggestions)
 
     def test_adequate_context_no_suggestion(self, validator):
+        """Test that adequate context no suggestion.
+        
+        Args:
+            validator: Validator value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         msg = _msg(
             mode=ATPMode.BUILD,
             context="Building a new agent module for research tasks",

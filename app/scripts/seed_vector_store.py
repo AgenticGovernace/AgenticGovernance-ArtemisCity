@@ -39,6 +39,11 @@ Memory Bus Sync Protocol (sample):
 
 
 def load_docs() -> list[tuple[str, str, dict]]:
+    """Load docs.
+    
+    Returns:
+        list[tuple[str, str, dict]]: List containing the resulting items.
+    """
     records = []
     for doc_id, path, metadata in DEFAULT_DOCS:
         if path.is_file():
@@ -56,6 +61,11 @@ def load_docs() -> list[tuple[str, str, dict]]:
 
 
 def main():
+    """Run the main workflow for this module.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     parser = argparse.ArgumentParser(
         description="Seed the local vector store with plan documents and sample data."
     )

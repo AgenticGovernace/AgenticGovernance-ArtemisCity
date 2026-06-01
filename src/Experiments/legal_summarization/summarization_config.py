@@ -96,6 +96,11 @@ class SummarizationConfig:
 
     @property
     def system_prompt(self) -> str:
+        """System prompt.
+        
+        Returns:
+            str: String result produced by the operation.
+        """
         if self.system_prompt_override:
             return self.system_prompt_override
         return self._SYSTEM_PROMPTS.get(
@@ -104,7 +109,14 @@ class SummarizationConfig:
         )
 
     def build_user_prompt(self, judgment_text: str) -> str:
-        """Build the user-role message for a single judgment."""
+        """Build the user-role message for a single judgment.
+        
+        Args:
+            judgment_text (str): Legal judgment text to summarize.
+        
+        Returns:
+            str: String result produced by the operation.
+        """
         length_hint = f" Keep the summary under {self.max_summary_tokens} tokens."
         parts = [
             f"Summarize the following legal judgment.{length_hint}",
@@ -115,7 +127,14 @@ class SummarizationConfig:
         return "\n\n".join(parts)
 
     def build_batch_prompt(self, judgment_texts: list[str]) -> str:
-        """Build a prompt that asks the model to synthesize across multiple judgments."""
+        """Build a prompt that asks the model to synthesize across multiple judgments.
+        
+        Args:
+            judgment_texts (list[str]): Collection of judgment texts to summarize together.
+        
+        Returns:
+            str: String result produced by the operation.
+        """
         separator = "\n\n===\n\n"
         combined = separator.join(
             f"[Judgment {i + 1}]\n{t}" for i, t in enumerate(judgment_texts)
@@ -135,6 +154,11 @@ class SummarizationConfig:
     # ---- Serialization ------------------------------------------------------
 
     def to_dict(self) -> dict:
+        """To dict.
+        
+        Returns:
+            dict: Dictionary containing the resulting data.
+        """
         d = asdict(self)
         d.pop("_SYSTEM_PROMPTS", None)
         d["mode"] = self.mode.value
@@ -143,10 +167,23 @@ class SummarizationConfig:
         return d
 
     def to_json(self) -> str:
+        """To json.
+        
+        Returns:
+            str: String result produced by the operation.
+        """
         return json.dumps(self.to_dict(), indent=2)
 
     @classmethod
     def from_dict(cls, data: dict) -> SummarizationConfig:
+        """From dict.
+        
+        Args:
+            data (dict): Structured data payload to transform or persist.
+        
+        Returns:
+            SummarizationConfig: Resulting SummarizationConfig value produced by the operation.
+        """
         data = dict(data)
         data.pop("_SYSTEM_PROMPTS", None)
         if "mode" in data:

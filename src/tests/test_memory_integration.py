@@ -17,7 +17,11 @@ class TestMemoryClient:
     """Test Memory Client functionality."""
 
     def test_memory_client_initialization(self):
-        """Test that MemoryClient can be initialized."""
+        """Test that MemoryClient can be initialized.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         # Set API key in environment for test
         os.environ["MCP_API_KEY"] = "test-api-key"  # pragma: allowlist secret
         client = MemoryClient(base_url="http://localhost:3000")
@@ -25,7 +29,11 @@ class TestMemoryClient:
         assert client.base_url == "http://localhost:3000"
 
     def test_memory_client_default_url(self):
-        """Test MemoryClient with default URL."""
+        """Test MemoryClient with default URL.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         # Set API key in environment for test
         os.environ["MCP_API_KEY"] = "test-api-key"  # pragma: allowlist secret
         client = MemoryClient()
@@ -38,7 +46,11 @@ class TestTrustInterface:
     """Test Trust Interface functionality."""
 
     def test_trust_score_creation(self):
-        """Test creating a trust score."""
+        """Test creating a trust score.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         score = TrustScore(
             entity_id="test-entity",
             entity_type="agent",
@@ -51,7 +63,11 @@ class TestTrustInterface:
         assert score.entity_id == "test-entity"
 
     def test_trust_levels(self):
-        """Test trust level enum values."""
+        """Test trust level enum values.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         assert TrustLevel.LOW is not None
         assert TrustLevel.MEDIUM is not None
         assert TrustLevel.HIGH is not None
@@ -59,7 +75,11 @@ class TestTrustInterface:
         assert TrustLevel.UNTRUSTED is not None
 
     def test_trust_interface_initialization(self):
-        """Test that TrustInterface can be initialized."""
+        """Test that TrustInterface can be initialized.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         interface = TrustInterface()
         assert interface is not None
 
@@ -68,7 +88,11 @@ class TestContextLoader:
     """Test Context Loader functionality."""
 
     def test_context_loader_initialization(self):
-        """Test that ContextLoader can be initialized."""
+        """Test that ContextLoader can be initialized.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         from src.integration.context_loader import ContextLoader
 
         # Set API key for MemoryClient initialization
@@ -77,7 +101,11 @@ class TestContextLoader:
         assert loader is not None
 
     def test_load_empty_context(self):
-        """Test loading empty folder context."""
+        """Test loading empty folder context.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         from src.integration.context_loader import ContextLoader
 
         # Set API key for MemoryClient initialization

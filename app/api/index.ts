@@ -104,6 +104,11 @@ app.use(errorHandler);
 // Server Start
 // ============================================================================
 
+/**
+ * Start the Express API server and log the public endpoints.
+ *
+ * @returns Nothing. The operation completes through side effects.
+ */
 export function startServer(): void {
   app.listen(PORT, () => {
     console.log('='.repeat(50));

@@ -25,8 +25,11 @@ function encodeVaultPath(path: string): string {
 }
 
 /**
- * Reads the markdown content of a note.
- * Wraps GET /vault/{path} from the Obsidian Local REST API.
+ * Read the markdown content of a note.
+ * Wraps `GET /vault/{path}` from the Obsidian Local REST API.
+ *
+ * @param path - Vault-relative note path to read.
+ * @returns Markdown content stored at the requested vault path.
  */
 export async function readNote(path: string): Promise<string> {
   const response = await obsidianAPI.get<string>(`/vault/${encodeVaultPath(path)}`, {
@@ -37,8 +40,13 @@ export async function readNote(path: string): Promise<string> {
 }
 
 /**
- * Creates, overwrites, or appends to a note.
- * Wraps PUT /vault/{path} (overwrite) or POST /vault/{path} (append).
+ * Create, overwrite, or append to a note.
+ * Wraps `PUT /vault/{path}` for overwrites and `POST /vault/{path}` for appends.
+ *
+ * @param path - Vault-relative note path to update.
+ * @param content - Markdown content to write to the note.
+ * @param options - Optional write settings such as append mode.
+ * @returns Status message describing whether the note was updated or appended.
  */
 export async function updateNote(
   path: string,
@@ -56,8 +64,11 @@ export async function updateNote(
 }
 
 /**
- * Simple text search across the vault.
- * Wraps POST /search/simple/?query=... and flattens hits to { path, excerpt }.
+ * Run a simple text search across the vault.
+ * Wraps `POST /search/simple/` and flattens hits to `{ path, excerpt }`.
+ *
+ * @param query - Search query to send to the Obsidian API.
+ * @returns Matching note paths with a short excerpt for the top match in each note.
  */
 export async function searchNotes(query: string): Promise<SearchResult[]> {
   const response = await obsidianAPI.post<SimpleSearchHit[]>('/search/simple/', null, {
@@ -70,9 +81,10 @@ export async function searchNotes(query: string): Promise<SearchResult[]> {
 }
 
 /**
- * Lists all markdown notes in the vault.
- * Local REST API exposes one directory at a time via GET /vault/{dir}/, so this
- * walks the tree depth-first and returns markdown files only.
+ * List all markdown notes in the vault.
+ * Walks the Local REST API directory listing depth-first and returns `.md` files only.
+ *
+ * @returns Markdown note paths discovered while traversing the vault.
  */
 export async function listNotes(): Promise<string[]> {
   const results: string[] = [];
@@ -95,7 +107,11 @@ export async function listNotes(): Promise<string[]> {
 }
 
 /**
- * Deletes a note. Wraps DELETE /vault/{path}.
+ * Delete a note from the vault.
+ * Wraps `DELETE /vault/{path}`.
+ *
+ * @param path - Vault-relative note path to delete.
+ * @returns Status message confirming the deletion request.
  */
 export async function deleteNote(path: string): Promise<string> {
   await obsidianAPI.delete(`/vault/${encodeVaultPath(path)}`);
@@ -103,10 +119,13 @@ export async function deleteNote(path: string): Promise<string> {
 }
 
 /**
- * Replaces a single frontmatter key on a note.
- * Wraps PATCH /vault/{path} with the frontmatter target headers documented by
- * Local REST API v4.x. A JSON body is sent so values can be strings, numbers,
- * booleans, arrays, or objects.
+ * Replace a single frontmatter key on a note.
+ * Uses the Local REST API frontmatter patch headers documented for v4.x.
+ *
+ * @param path - Vault-relative note path to update.
+ * @param key - Frontmatter key to replace.
+ * @param value - JSON-serializable value to store under the given key.
+ * @returns Status message confirming the frontmatter update.
  */
 export async function manageFrontmatter(path: string, key: string, value: unknown): Promise<string> {
   await obsidianAPI.patch(`/vault/${encodeVaultPath(path)}`, JSON.stringify(value), {
@@ -121,9 +140,13 @@ export async function manageFrontmatter(path: string, key: string, value: unknow
 }
 
 /**
- * Adds or removes tags from a note's frontmatter `tags` array.
- * Read-modify-write against PATCH on `Target: tags` — avoids duplicates on add
- * and handles missing arrays on remove.
+ * Add or remove tags from a note's frontmatter `tags` array.
+ * Performs a read-modify-write cycle to avoid duplicates and handle missing arrays.
+ *
+ * @param path - Vault-relative note path to update.
+ * @param tags - Tags to add to or remove from the note.
+ * @param action - Whether the provided tags should be added or removed.
+ * @returns Status message confirming the tag update.
  */
 export async function manageTags(
   path: string,
@@ -154,9 +177,13 @@ export async function manageTags(
 }
 
 /**
- * Replaces all occurrences of `search` with `replace` inside a note.
- * Local REST API has no native string-replace endpoint, so we read the note,
- * mutate the string, and PUT it back.
+ * Replace all occurrences of one string with another inside a note.
+ * Reads the note, performs an in-memory replacement, and writes the content back.
+ *
+ * @param path - Vault-relative note path to update.
+ * @param search - Literal text to find inside the note.
+ * @param replace - Replacement text to write in place of each match.
+ * @returns Updated note content after all replacements are applied.
  */
 export async function searchReplace(path: string, search: string, replace: string): Promise<string> {
   const content = await readNote(path);

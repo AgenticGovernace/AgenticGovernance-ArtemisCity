@@ -123,9 +123,15 @@ defaultHebbianWeights.forEach(hw => {
   hebbianWeights.set(key, hw);
 });
 
+/**
+ * Controller responsible for tracking trust scores, permissions, and Hebbian relationships for the demo API.
+ */
 export class TrustController {
   /**
    * Get trust score for an entity
+   *
+   * @param entityId - Entity identifier whose trust state should be inspected or updated.
+   * @returns Promise resolving to a TrustScore | null value produced by getting trust score for an entity.
    */
   async getTrustScore(entityId: string): Promise<TrustScore | null> {
     return trustStore.get(entityId) || null;
@@ -133,6 +139,11 @@ export class TrustController {
 
   /**
    * Set trust score for an entity
+   *
+   * @param entityId - Entity identifier whose trust state should be inspected or updated.
+   * @param score - Trust score value to store for the entity.
+   * @param entityType - Entity category to associate with the trust record.
+   * @returns Promise resolving to a TrustScore value produced by setting trust score for an entity.
    */
   async setTrustScore(entityId: string, score: number, entityType: string = 'agent'): Promise<TrustScore> {
     const existing = trustStore.get(entityId);
@@ -156,6 +167,10 @@ export class TrustController {
 
   /**
    * Record a successful operation
+   *
+   * @param entityId - Entity identifier whose trust state should be inspected or updated.
+   * @param amount - Adjustment amount to apply to the trust score.
+   * @returns Promise resolving to a number | null value produced by recording a successful operation.
    */
   async recordSuccess(entityId: string, amount: number = 0.02): Promise<number | null> {
     const trust = trustStore.get(entityId);
@@ -173,6 +188,10 @@ export class TrustController {
 
   /**
    * Record a failed operation
+   *
+   * @param entityId - Entity identifier whose trust state should be inspected or updated.
+   * @param amount - Adjustment amount to apply to the trust score.
+   * @returns Promise resolving to a number | null value produced by recording a failed operation.
    */
   async recordFailure(entityId: string, amount: number = 0.05): Promise<number | null> {
     const trust = trustStore.get(entityId);
@@ -190,6 +209,9 @@ export class TrustController {
 
   /**
    * Get permissions for an entity
+   *
+   * @param entityId - Entity identifier whose trust state should be inspected or updated.
+   * @returns Promise resolving to a the operation result value produced by getting permissions for an entity.
    */
   async getPermissions(entityId: string): Promise<{ entityId: string; level: TrustLevel; operations: string[] }> {
     const trust = trustStore.get(entityId);
@@ -204,6 +226,10 @@ export class TrustController {
 
   /**
    * Check if entity can perform operation
+   *
+   * @param entityId - Entity identifier whose trust state should be inspected or updated.
+   * @param operation - Operation name to check against the entity permissions.
+   * @returns Promise resolving to whether if entity can perform operation.
    */
   async canPerformOperation(entityId: string, operation: string): Promise<boolean> {
     const trust = trustStore.get(entityId);
@@ -214,6 +240,8 @@ export class TrustController {
 
   /**
    * Get Hebbian weights
+   *
+   * @returns Promise resolving to an array of HebbianWeight values produced by getting Hebbian weights.
    */
   async getHebbianWeights(): Promise<HebbianWeight[]> {
     return Array.from(hebbianWeights.values());
@@ -221,6 +249,11 @@ export class TrustController {
 
   /**
    * Update Hebbian weight between two agents
+   *
+   * @param agent1 - First agent participating in the Hebbian relationship.
+   * @param agent2 - Second agent participating in the Hebbian relationship.
+   * @param delta - Weight adjustment to apply to the existing Hebbian connection.
+   * @returns Promise resolving to a numeric result produced by updating Hebbian weight between two agents.
    */
   async updateHebbianWeight(agent1: string, agent2: string, delta: number): Promise<number> {
     // Ensure consistent key ordering
@@ -251,6 +284,8 @@ export class TrustController {
 
   /**
    * Get comprehensive trust report
+   *
+   * @returns Promise resolving to a TrustReport value produced by getting comprehensive trust report.
    */
   async getTrustReport(): Promise<TrustReport> {
     const entities = Array.from(trustStore.values());
@@ -292,6 +327,9 @@ export class TrustController {
 
   /**
    * Apply trust decay (called periodically)
+   *
+   * @param decayRate - Per-day trust decay to apply to stale entities.
+   * @returns Promise resolving to a numeric result produced by applying trust decay (called periodically).
    */
   async applyDecay(decayRate: number = 0.01): Promise<number> {
     let affected = 0;

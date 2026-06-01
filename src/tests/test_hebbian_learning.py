@@ -12,7 +12,11 @@ from src.mcp.hebbian_weights import HebbianWeightManager
 
 @pytest.fixture
 def temp_db():
-    """Create a temporary database for testing."""
+    """Create a temporary database for testing.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".db") as f:
         db_path = f.name
 
@@ -25,7 +29,14 @@ def temp_db():
 
 @pytest.fixture
 def hebbian_manager(temp_db):
-    """Create a HebbianWeightManager instance with temp database."""
+    """Create a HebbianWeightManager instance with temp database.
+    
+    Args:
+        temp_db: Temp db value used by this operation.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     return HebbianWeightManager(db_path=temp_db)
 
 
@@ -33,49 +44,105 @@ class TestHebbianWeightManager:
     """Test suite for Hebbian weight management."""
 
     def test_initialization(self, hebbian_manager):
-        """Test that the manager initializes correctly."""
+        """Test that the manager initializes correctly.
+        
+        Args:
+            hebbian_manager: Hebbian manager value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         assert hebbian_manager is not None
         summary = hebbian_manager.get_network_summary()
         assert summary["total_connections"] == 0
 
     def test_strengthen_connection_new(self, hebbian_manager):
-        """Test strengthening a new connection."""
+        """Test strengthening a new connection.
+        
+        Args:
+            hebbian_manager: Hebbian manager value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         weight = hebbian_manager.strengthen_connection("agent_a", "task_1")
         assert weight == 1.0
 
     def test_strengthen_connection_existing(self, hebbian_manager):
-        """Test strengthening an existing connection."""
+        """Test strengthening an existing connection.
+        
+        Args:
+            hebbian_manager: Hebbian manager value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         hebbian_manager.strengthen_connection("agent_a", "task_1")
         weight = hebbian_manager.strengthen_connection("agent_a", "task_1")
         assert weight == 2.0
 
     def test_weaken_connection_new(self, hebbian_manager):
-        """Test weakening a non-existent connection (should create it at 0)."""
+        """Test weakening a non-existent connection (should create it at 0).
+        
+        Args:
+            hebbian_manager: Hebbian manager value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         weight = hebbian_manager.weaken_connection("agent_a", "task_1")
         assert weight == 0.0
 
     def test_weaken_connection_existing(self, hebbian_manager):
-        """Test weakening an existing connection."""
+        """Test weakening an existing connection.
+        
+        Args:
+            hebbian_manager: Hebbian manager value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         hebbian_manager.strengthen_connection("agent_a", "task_1")
         hebbian_manager.strengthen_connection("agent_a", "task_1")
         weight = hebbian_manager.weaken_connection("agent_a", "task_1")
         assert weight == 1.0
 
     def test_weaken_connection_minimum_zero(self, hebbian_manager):
-        """Test that weights don't go below zero."""
+        """Test that weights don't go below zero.
+        
+        Args:
+            hebbian_manager: Hebbian manager value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         hebbian_manager.strengthen_connection("agent_a", "task_1")
         hebbian_manager.weaken_connection("agent_a", "task_1")
         weight = hebbian_manager.weaken_connection("agent_a", "task_1")
         assert weight == 0.0
 
     def test_get_weight(self, hebbian_manager):
-        """Test getting connection weight."""
+        """Test getting connection weight.
+        
+        Args:
+            hebbian_manager: Hebbian manager value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         assert hebbian_manager.get_weight("agent_a", "task_1") == 0.0
         hebbian_manager.strengthen_connection("agent_a", "task_1")
         assert hebbian_manager.get_weight("agent_a", "task_1") == 1.0
 
     def test_get_connection_stats(self, hebbian_manager):
-        """Test getting detailed connection statistics."""
+        """Test getting detailed connection statistics.
+        
+        Args:
+            hebbian_manager: Hebbian manager value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         hebbian_manager.strengthen_connection("agent_a", "task_1")
         stats = hebbian_manager.get_connection_stats("agent_a", "task_1")
 
@@ -86,7 +153,14 @@ class TestHebbianWeightManager:
         assert stats["failure_count"] == 0
 
     def test_get_strongest_connections_outgoing(self, hebbian_manager):
-        """Test getting strongest outgoing connections."""
+        """Test getting strongest outgoing connections.
+        
+        Args:
+            hebbian_manager: Hebbian manager value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         hebbian_manager.strengthen_connection("agent_a", "task_1")
         hebbian_manager.strengthen_connection("agent_a", "task_1")
         hebbian_manager.strengthen_connection("agent_a", "task_2")
@@ -98,7 +172,14 @@ class TestHebbianWeightManager:
         assert connections[1] == ("task_2", 1.0)
 
     def test_get_strongest_connections_incoming(self, hebbian_manager):
-        """Test getting strongest incoming connections."""
+        """Test getting strongest incoming connections.
+        
+        Args:
+            hebbian_manager: Hebbian manager value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         hebbian_manager.strengthen_connection("agent_a", "task_1")
         hebbian_manager.strengthen_connection("agent_b", "task_1")
         hebbian_manager.strengthen_connection("agent_b", "task_1")
@@ -112,7 +193,14 @@ class TestHebbianWeightManager:
         assert connections[1] == ("agent_a", 1.0)
 
     def test_get_agent_average_weight(self, hebbian_manager):
-        """Test calculating agent average weight."""
+        """Test calculating agent average weight.
+        
+        Args:
+            hebbian_manager: Hebbian manager value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         hebbian_manager.strengthen_connection("agent_a", "task_1")
         hebbian_manager.strengthen_connection("agent_a", "task_1")
         hebbian_manager.strengthen_connection("agent_a", "task_2")
@@ -121,7 +209,14 @@ class TestHebbianWeightManager:
         assert avg_weight == 1.5  # (2.0 + 1.0) / 2
 
     def test_get_agent_success_rate(self, hebbian_manager):
-        """Test calculating agent success rate."""
+        """Test calculating agent success rate.
+        
+        Args:
+            hebbian_manager: Hebbian manager value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         hebbian_manager.strengthen_connection("agent_a", "task_1")
         hebbian_manager.strengthen_connection("agent_a", "task_2")
         hebbian_manager.weaken_connection("agent_a", "task_3")
@@ -130,7 +225,14 @@ class TestHebbianWeightManager:
         assert success_rate == 2.0 / 3.0  # 2 successes out of 3 activations
 
     def test_get_network_summary(self, hebbian_manager):
-        """Test getting network summary statistics."""
+        """Test getting network summary statistics.
+        
+        Args:
+            hebbian_manager: Hebbian manager value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         hebbian_manager.strengthen_connection("agent_a", "task_1")
         hebbian_manager.strengthen_connection("agent_b", "task_2")
         hebbian_manager.weaken_connection("agent_c", "task_3")
@@ -144,7 +246,14 @@ class TestHebbianWeightManager:
         assert summary["success_rate"] == 2.0 / 3.0
 
     def test_prune_weak_connections(self, hebbian_manager):
-        """Test pruning connections below threshold."""
+        """Test pruning connections below threshold.
+        
+        Args:
+            hebbian_manager: Hebbian manager value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         hebbian_manager.strengthen_connection("agent_a", "task_1")
         hebbian_manager.strengthen_connection("agent_a", "task_1")
         hebbian_manager.strengthen_connection("agent_b", "task_2")
@@ -158,7 +267,14 @@ class TestHebbianWeightManager:
         assert hebbian_manager.get_weight("agent_c", "task_3") == 0.0  # Pruned
 
     def test_reset_weights(self, hebbian_manager):
-        """Test resetting all weights."""
+        """Test resetting all weights.
+        
+        Args:
+            hebbian_manager: Hebbian manager value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         hebbian_manager.strengthen_connection("agent_a", "task_1")
         hebbian_manager.strengthen_connection("agent_b", "task_2")
 
@@ -168,7 +284,14 @@ class TestHebbianWeightManager:
         assert summary["total_connections"] == 0
 
     def test_multiple_activations_tracking(self, hebbian_manager):
-        """Test that activation counts are tracked correctly."""
+        """Test that activation counts are tracked correctly.
+        
+        Args:
+            hebbian_manager: Hebbian manager value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         # Multiple successes
         hebbian_manager.strengthen_connection("agent_a", "task_1")
         hebbian_manager.strengthen_connection("agent_a", "task_1")
@@ -191,7 +314,15 @@ class TestHebbianIntegration:
 
     @pytest.fixture(autouse=True)
     def temp_obsidian_vault(self, tmp_path, monkeypatch):
-        """Isolate orchestrator tests from real vault by using a temp directory."""
+        """Isolate orchestrator tests from real vault by using a temp directory.
+        
+        Args:
+            tmp_path: Tmp path value used by this operation.
+            monkeypatch: Monkeypatch value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         temp_vault = tmp_path / "obsidian_vault"
         temp_vault.mkdir(parents=True, exist_ok=True)
 
@@ -224,7 +355,11 @@ class TestHebbianIntegration:
         yield
 
     def test_orchestrator_creates_hebbian_manager(self):
-        """Test that orchestrator initializes with Hebbian manager."""
+        """Test that orchestrator initializes with Hebbian manager.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         import src.mcp.orchestrator as orchestrator_module
 
         orchestrator = orchestrator_module.Orchestrator()
@@ -232,7 +367,11 @@ class TestHebbianIntegration:
         assert isinstance(orchestrator.hebbian, HebbianWeightManager)
 
     def test_orchestrator_updates_weights_on_success(self):
-        """Test that successful tasks strengthen connections."""
+        """Test that successful tasks strengthen connections.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         import src.mcp.orchestrator as orchestrator_module
 
         orchestrator = orchestrator_module.Orchestrator()

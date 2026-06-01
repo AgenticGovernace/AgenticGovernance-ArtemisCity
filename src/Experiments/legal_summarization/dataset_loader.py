@@ -114,7 +114,11 @@ class LegalDatasetLoader:
         return records
 
     def available_configs(self) -> list[str]:
-        """Return configs that have local data directories."""
+        """Return configs that have local data directories.
+        
+        Returns:
+            list[str]: Dataset configuration names that are present under the local data path.
+        """
         found = []
         for cfg in self.ALL_CONFIGS:
             cfg_dir = self.local_path / cfg
@@ -123,7 +127,15 @@ class LegalDatasetLoader:
         return found
 
     def describe(self, config: str = "summary_en", split: str = "train") -> dict:
-        """Return quick metadata about a config/split without loading all data."""
+        """Return quick metadata about a config and split without loading the full dataset.
+        
+        Args:
+            config (str): Dataset configuration to inspect.
+            split (str): Dataset split to inspect.
+        
+        Returns:
+            dict: Lightweight metadata describing the selected dataset slice.
+        """
         records = self.load(config, split, limit=5)
         return {
             "config": config,

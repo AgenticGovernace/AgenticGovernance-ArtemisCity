@@ -9,6 +9,11 @@ from src.utils.run_logger import init_run_logger
 
 
 def parse_cli_args() -> argparse.Namespace:
+    """Parse command-line arguments for the CLI entry point.
+    
+    Returns:
+        argparse.Namespace: Parsed command-line arguments.
+    """
     parser = argparse.ArgumentParser(
         description="Run MCP and optionally send a one-off instruction to an agent.",
         allow_abbrev=True,
@@ -48,9 +53,15 @@ def parse_cli_args() -> argparse.Namespace:
 
 
 def setup_example_task_note(obs_manager: Any, memory_bus: Optional[Any] = None) -> None:
-    """
-    Creates an example task note in the Obsidian Agent Inputs folder
+    """Creates an example task note in the Obsidian Agent Inputs folder
     if one doesn't already exist, for demonstration purposes.
+    
+    Args:
+        obs_manager (Any): Obsidian manager instance used for vault access.
+        memory_bus (Optional[Any]): Memory bus instance used for note persistence.
+    
+    Returns:
+        None: This function does not return a value.
     """
     example_filename = "Example Research Task.md"
     relative_path = os.path.join(src.mcp.config.AGENT_INPUT_DIR, example_filename)
@@ -85,7 +96,18 @@ def handle_user_instruction(
     title: str | None = None,
     agent_name: str | None = None,
 ) -> None:
-    """Create a task from a user instruction and dispatch it based on capability or explicit agent selection."""
+    """Create a task from a user instruction and dispatch it based on capability or explicit agent selection.
+    
+    Args:
+        orchestrator (Orchestrator): Orchestrator instance used to route and execute tasks.
+        instruction (str): Instruction text supplied by the caller.
+        capability (str | None): Capability name used to route or classify work.
+        title (str | None): Human-readable title for the task, note, or report.
+        agent_name (str | None): Name of the agent involved in the operation.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     if not instruction.strip():
         logger.info("No instruction text provided. Skipping direct agent dispatch.")
         return
@@ -169,6 +191,11 @@ def handle_user_instruction(
 
 
 def main() -> None:
+    """Run the primary workflow exposed by this module.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     args = parse_cli_args()
 
     # Initialize run logger for comprehensive tracking

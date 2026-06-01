@@ -78,7 +78,7 @@ interface UsageStats {
   byDay: Record<string, { requests: number; tokens: number }>;
 }
 
-// Available models
+// Available models and providers
 const MODELS: ModelInfo[] = [
   {
     id: 'claude-3-opus-20240229',
@@ -152,7 +152,6 @@ const MODELS: ModelInfo[] = [
   }
 ];
 
-// Provider configurations
 const providers: Map<string, ProviderConfig> = new Map([
   ['anthropic', {
     name: 'Anthropic',
@@ -183,11 +182,19 @@ const usageLog: Array<{
   completionTokens: number;
 }> = [];
 
+/**
+ * Controller responsible for brokering model selection, simulated inference, and provider metadata for the demo API.
+ */
 export class LLMController {
   private defaultModel = 'claude-3-sonnet-20240229';
 
   /**
-   * Send a chat completion request
+   * Send a chat completion request.
+   *
+   * @param messages - Ordered chat messages to send to the selected model.
+   * @param model - Optional model identifier to use for the request.
+   * @param options - Optional generation settings for the request.
+   * @returns Simulated assistant response with usage metadata.
    */
   async chat(messages: Message[], model?: string, options: ChatOptions = {}): Promise<ChatResponse> {
     const selectedModel = model || this.defaultModel;
@@ -212,7 +219,12 @@ export class LLMController {
   }
 
   /**
-   * Send a text completion request
+   * Send a text completion request.
+   *
+   * @param prompt - Prompt text to wrap in a single user message.
+   * @param model - Optional model identifier to use for the request.
+   * @param options - Optional generation settings for the request.
+   * @returns Simulated assistant response for the supplied prompt.
    */
   async complete(prompt: string, model?: string, options: ChatOptions = {}): Promise<ChatResponse> {
     // Convert to chat format
@@ -221,7 +233,11 @@ export class LLMController {
   }
 
   /**
-   * Generate embeddings
+   * Generate embeddings for one or more text inputs.
+   *
+   * @param text - Text or texts to embed.
+   * @param model - Optional embedding model identifier to report in the response.
+   * @returns Simulated embedding vector with basic usage metadata.
    */
   async embed(text: string | string[], model?: string): Promise<EmbeddingResponse> {
     const texts = Array.isArray(text) ? text : [text];
@@ -246,7 +262,13 @@ export class LLMController {
   }
 
   /**
-   * Stream chat completion
+   * Stream a simulated chat completion one token chunk at a time.
+   *
+   * @param messages - Ordered chat messages to send to the selected model.
+   * @param model - Optional model identifier to use for the request.
+   * @param options - Optional generation settings for the request.
+   * @param onChunk - Callback invoked for each streamed chunk.
+   * @returns Promise that resolves after all chunks have been emitted.
    */
   async streamChat(
     messages: Message[],
@@ -274,7 +296,9 @@ export class LLMController {
   }
 
   /**
-   * List available models
+   * List models whose providers are currently enabled.
+   *
+   * @returns Available model definitions for enabled providers.
    */
   async listModels(): Promise<ModelInfo[]> {
     return MODELS.filter(model => {
@@ -284,7 +308,9 @@ export class LLMController {
   }
 
   /**
-   * Get configured providers
+   * Get the currently configured LLM providers.
+   *
+   * @returns Provider definitions that are currently available to the controller.
    */
   getProviders(): ProviderConfig[] {
     return Array.from(providers.values());
@@ -292,6 +318,10 @@ export class LLMController {
 
   /**
    * Configure a provider
+   *
+   * @param providerName - Provider name whose configuration should be updated.
+   * @param config - Configuration values to merge into the existing provider settings.
+   * @returns Promise resolving to a ProviderConfig value produced by configuring a provider.
    */
   async configureProvider(
     providerName: string,
@@ -315,6 +345,11 @@ export class LLMController {
 
   /**
    * Process an ATP message through LLM
+   *
+   * @param atpMessage - Structured ATP payload to transform into a model request.
+   * @param model - Optional model identifier to use for the request.
+   * @param agentId - Agent identifier associated with the ATP request.
+   * @returns Promise resolving to a ChatResponse value produced by processing an ATP message through LLM.
    */
   async processATP(
     atpMessage: any,
@@ -342,6 +377,9 @@ export class LLMController {
 
   /**
    * Get usage statistics
+   *
+   * @param filters - Optional filters such as date range or provider name.
+   * @returns Promise resolving to a UsageStats value produced by getting usage statistics.
    */
   async getUsage(filters: {
     startDate?: string;

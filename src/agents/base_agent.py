@@ -120,7 +120,11 @@ class BaseAgent(ABC):
 
     @property
     def logger(self) -> Logger:
-        """Get the agent's logger instance."""
+        """Get the agent's logger instance.
+        
+        Returns:
+            Logger: Resulting Logger value produced by the operation.
+        """
         return self._logger
 
     @abstractmethod
@@ -169,20 +173,22 @@ class BaseAgent(ABC):
         pass
 
     def report_status(self, message: str) -> None:
-        """
-        Report agent progress or status.
-
+        """Report agent progress or status.
+        
         This method provides a standard way for agents to communicate
         their current status during task execution. Status messages
         are logged at INFO level.
-
+        
         Args:
             message: Status message to report. Should be concise but
                     informative about the current operation.
-
+        
         Example:
             >>> self.report_status("Parsing input documents...")
             >>> self.report_status("Analysis complete, generating summary")
+        
+        Returns:
+            None: This function does not return a value.
         """
         self._logger.info(message)
 

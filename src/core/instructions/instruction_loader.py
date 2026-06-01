@@ -51,7 +51,14 @@ class InstructionSet:
     metadata: Dict = field(default_factory=dict)
 
     def add_scope(self, scope: InstructionScope) -> None:
-        """Add an instruction scope and re-sort by priority."""
+        """Add an instruction scope and re-sort by priority.
+        
+        Args:
+            scope (InstructionScope): Scope value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         self.scopes.append(scope)
         self.scopes.sort(key=lambda s: s.priority)
 

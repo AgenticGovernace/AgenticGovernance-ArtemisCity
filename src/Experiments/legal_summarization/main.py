@@ -62,6 +62,11 @@ logger = logging.getLogger("legal_summarization.cli")
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the command-line parser for the module entry point.
+    
+    Returns:
+        argparse.ArgumentParser: Resulting argparse.ArgumentParser value produced by the operation.
+    """
     p = argparse.ArgumentParser(
         description="Legal Judgment Summarization — Codex Experiment",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -156,6 +161,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """Run the primary workflow exposed by this module.
+    
+    Args:
+        argv (list[str] | None): Argv value used by this operation.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     args = build_parser().parse_args(argv)
 
     loader = LegalDatasetLoader(local_path=args.dataset_path)

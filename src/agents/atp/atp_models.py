@@ -79,7 +79,11 @@ class ATPMessage:
 
     @property
     def has_atp_headers(self) -> bool:
-        """Check if message has any ATP headers parsed."""
+        """Check if message has any ATP headers parsed.
+        
+        Returns:
+            bool: Boolean outcome for the requested check.
+        """
         return (
             self.mode != ATPMode.UNKNOWN
             or self.context is not None
@@ -89,7 +93,11 @@ class ATPMessage:
 
     @property
     def is_complete(self) -> bool:
-        """Check if message has minimum required ATP fields."""
+        """Check if message has minimum required ATP fields.
+        
+        Returns:
+            bool: Boolean outcome for the requested check.
+        """
         return (
             self.mode != ATPMode.UNKNOWN
             and self.context is not None
@@ -97,7 +105,11 @@ class ATPMessage:
         )
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert ATP message to dictionary format."""
+        """Convert ATP message to dictionary format.
+        
+        Returns:
+            Dict[str, Any]: Dictionary containing the resulting data.
+        """
         return {
             "mode": self.mode.value,
             "context": self.context,

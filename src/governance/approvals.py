@@ -31,6 +31,8 @@ CODE_CHANGE_MONITORED_MIN = 0.01  # > 1% -> at least monitored
 
 
 class ApprovalTier(str, Enum):
+    """Enumerate the approval tiers used for self-update governance.
+    """
     AUTO = "auto"
     MONITORED = "monitored"
     HUMAN = "human"
@@ -50,12 +52,25 @@ class UpdateProposal:
 
 @dataclass
 class ApprovalDecision:
+    """Represent the approval outcome returned by the self-update governor.
+    
+    Attributes:
+        tier (ApprovalTier): Stored value on the ApprovalDecision instance.
+        auto_approved (bool): Stored value on the ApprovalDecision instance.
+        requires_human (bool): Stored value on the ApprovalDecision instance.
+        reasons (List[str]): Stored value on the ApprovalDecision instance.
+    """
     tier: ApprovalTier
     auto_approved: bool
     requires_human: bool
     reasons: List[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
+        """To dict.
+        
+        Returns:
+            dict: Dictionary containing the resulting data.
+        """
         return {
             "tier": self.tier.value,
             "auto_approved": self.auto_approved,
@@ -83,7 +98,16 @@ class SelfUpdateGovernor:
         has_history: bool = True,
     ) -> ApprovalDecision:
         """Classify a proposal. ``has_history=False`` forces human review
-        ("unknown agent") regardless of the computed trust score."""
+        ("unknown agent") regardless of the computed trust score.
+        
+        Args:
+            proposal (UpdateProposal): Self-update proposal being classified.
+            trust_score (float): Trust score used for approval or routing decisions.
+            has_history (bool): Has history value used by this operation.
+        
+        Returns:
+            ApprovalDecision: Resulting ApprovalDecision value produced by the operation.
+        """
         reasons: List[str] = []
 
         # --- Hard escalators: always human review ---

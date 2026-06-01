@@ -32,6 +32,9 @@ export interface UpdateProposalInput {
   affects_governance?: boolean;
 }
 
+/**
+ * Controller responsible for proxying governance calculations and update evaluations to the Python bridge.
+ */
 export class GovernanceController {
   /**
    * Compute (and optionally persist) an agent's trust score from metrics.
@@ -53,6 +56,10 @@ export class GovernanceController {
    * Classify a proposed self-update into an approval tier. Trust is taken
    * from `trust_score`, else computed from `metrics`, else the persisted
    * registry value.
+   *
+   * @param agentName - Agent name to forward to the Python bridge.
+   * @param proposal - Update proposal payload to classify.
+   * @returns Promise resolving to the operation result produced by classifying a proposed self-update into an approval tier. Trust is taken.
    */
   async evaluateUpdate(agentName: string, proposal: UpdateProposalInput): Promise<any> {
     return callBridge('governance.evaluate_update', {

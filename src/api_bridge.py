@@ -240,8 +240,16 @@ COMMANDS: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
 
 def dispatch(command: str, payload: Dict[str, Any] | None = None) -> Dict[str, Any]:
     """Run a bridge command and return its JSON-able result dict.
-
+    
     Raises :class:`BridgeError` for unknown commands or handler failures.
+    
+    Args:
+        command (str): Command text to process.
+        payload (Dict[str, Any] | None): Request payload passed through the bridge or API
+            layer.
+    
+    Returns:
+        Dict[str, Any]: Dictionary containing the resulting data.
     """
     handler = COMMANDS.get(command)
     if handler is None:
@@ -250,7 +258,14 @@ def dispatch(command: str, payload: Dict[str, Any] | None = None) -> Dict[str, A
 
 
 def main(argv=None) -> int:
-    """CLI entry point: read one JSON request from stdin, write one to stdout."""
+    """CLI entry point: read one JSON request from stdin, write one to stdout.
+    
+    Args:
+        argv: Argv value used by this operation.
+    
+    Returns:
+        int: Integer result produced by the operation.
+    """
     raw = sys.stdin.read()
     try:
         request = json.loads(raw) if raw.strip() else {}

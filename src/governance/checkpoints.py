@@ -60,9 +60,19 @@ class CheckpointStore:
         config_snapshot: Optional[dict] = None,
     ) -> dict:
         """Persist a checkpoint and return its record.
-
+        
         ``registry_snapshot`` and the optional ``config_snapshot`` are hashed
         for integrity. The retention window is computed from ``retention_days``.
+        
+        Args:
+            registry_snapshot (dict): Registry snapshot value used by this operation.
+            checkpoint_type (str): Checkpoint type value used by this operation.
+            metadata (Optional[dict]): Optional metadata stored with the resulting record.
+            retention_days (int): Retention days value used by this operation.
+            config_snapshot (Optional[dict]): Config snapshot value used by this operation.
+        
+        Returns:
+            dict: Dictionary containing the resulting data.
         """
         if checkpoint_type not in CHECKPOINT_TYPES:
             raise ValueError(
@@ -113,7 +123,14 @@ class CheckpointStore:
         return record
 
     def get_checkpoint(self, checkpoint_id: str) -> Optional[dict]:
-        """Load a checkpoint record, or None if it does not exist."""
+        """Load a checkpoint record, or None if it does not exist.
+        
+        Args:
+            checkpoint_id (str): Checkpoint id value used by this operation.
+        
+        Returns:
+            Optional[dict]: Matching value when available; otherwise None.
+        """
         path = self._path(checkpoint_id)
         if not path.is_file():
             return None
@@ -121,7 +138,11 @@ class CheckpointStore:
             return json.load(fh)
 
     def list_checkpoints(self) -> List[dict]:
-        """Return all checkpoint records, newest first."""
+        """Return all checkpoint records, newest first.
+        
+        Returns:
+            List[dict]: Stored checkpoint records ordered from newest to oldest.
+        """
         records = []
         for path in self.checkpoint_dir.glob("*.json"):
             try:
@@ -133,10 +154,16 @@ class CheckpointStore:
 
     def verify_checkpoint(self, checkpoint_id: str) -> bool:
         """Recompute integrity hashes and compare against stored values.
-
+        
         Verifies both ``system_hash`` (over the combined registry + config
         snapshot) and ``config_hash`` (over the config snapshot alone), so
         tampering with either captured field is detected.
+        
+        Args:
+            checkpoint_id (str): Checkpoint id value used by this operation.
+        
+        Returns:
+            bool: Boolean outcome for the requested check.
         """
         record = self.get_checkpoint(checkpoint_id)
         if record is None:
@@ -151,11 +178,13 @@ class CheckpointStore:
         return system_ok and config_ok
 
     def prune_expired(self, now: Optional[datetime] = None) -> int:
-        """Delete checkpoints whose retention window has passed. Returns count.
-
-        A non-null ``locked_until`` defers pruning only while the lock is
-        still in the future; once the lock timestamp has passed, the
-        checkpoint is eligible for the normal expiration check.
+        """Delete checkpoints whose retention window has passed.
+        
+        Args:
+            now (Optional[datetime]): Optional timestamp used instead of the current time.
+        
+        Returns:
+            int: Number of expired checkpoints that were removed.
         """
         now = now or _now()
         now_iso = _iso(now)
@@ -188,10 +217,15 @@ class RollbackManager:
         details: str = "",
     ) -> dict:
         """Validate checkpoint integrity and return the state to restore.
-
-        Raises ``ValueError`` if the checkpoint is missing or fails integrity
-        verification. Returns a rollback record including the verified
-        ``registry_snapshot`` for the caller to apply.
+        
+        Args:
+            checkpoint_id (str): Checkpoint identifier to restore from.
+            initiated_by (str): Actor requesting the rollback.
+            reason (str): Reason recorded for the rollback request.
+            details (str): Supplemental detail text recorded with the rollback.
+        
+        Returns:
+            dict: Rollback metadata and the verified state snapshot to restore.
         """
         record = self.store.get_checkpoint(checkpoint_id)
         if record is None:

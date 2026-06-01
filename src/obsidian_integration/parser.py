@@ -3,9 +3,10 @@ from ..utils.helpers import logger
 
 
 class ObsidianParser:
+    """Provide the ObsidianParser abstraction used by this module.
+    """
     def parse_task_note(self, content: str) -> dict | None:
-        """
-        Parses an Obsidian note expected to contain a task.
+        """Parses an Obsidian note expected to contain a task.
         Assumes a structure like:
         ---
         task_id: T123
@@ -18,6 +19,12 @@ class ObsidianParser:
         Target: [[Some Other Note]]
         - [ ] Subtask 1
         - [ ] Subtask 2
+        
+        Args:
+            content (str): Primary content payload to parse, store, or process.
+        
+        Returns:
+            dict | None: Resulting dict | None value produced by the operation.
         """
         task_data = {}
 
@@ -70,9 +77,16 @@ class ObsidianParser:
     def update_status_in_note(
         self, original_content: str, new_status: str, task_id: str = None
     ) -> str:
-        """
-        Updates the 'status' field in the YAML front matter of a note, or adds it.
+        """Updates the 'status' field in the YAML front matter of a note, or adds it.
         If task_id is provided, it tries to match and update a specific task.
+        
+        Args:
+            original_content (str): Original note content prior to modification.
+            new_status (str): Status value to persist in the note or record.
+            task_id (str): Identifier of the task being processed.
+        
+        Returns:
+            str: String result produced by the operation.
         """
         updated_content = original_content
 

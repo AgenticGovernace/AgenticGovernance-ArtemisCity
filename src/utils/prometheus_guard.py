@@ -21,10 +21,18 @@ except ImportError:  # pragma: no cover - optional dependency
 
 def safe_metric(cls, name, *args, **kwargs):
     """Create a Prometheus metric, returning the existing one on re-import.
-
+    
     ``cls`` is the metric class (``Counter``, ``Gauge``, ``Histogram``,
     ``Summary``); remaining args mirror that class's constructor. Looks
     up against the default ``REGISTRY`` only.
+    
+    Args:
+        name: Name of the item, class, or environment to resolve.
+        *args: Parsed command-line arguments for the current invocation.
+        **kwargs: Kwargs value used by this operation.
+    
+    Returns:
+        None: This function does not return a value.
     """
     try:
         return cls(name, *args, **kwargs)

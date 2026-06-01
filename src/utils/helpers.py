@@ -4,7 +4,11 @@ from logging import Logger
 
 
 def setup_logging():
-    """Configure the standard Python logger for MCP system."""
+    """Configure the standard Python logger for MCP system.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     log_file = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "../../Concept_Demos/src", "..", "mcp_obsidian.log"
     )

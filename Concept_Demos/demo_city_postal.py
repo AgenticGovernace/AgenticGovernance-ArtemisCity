@@ -16,30 +16,89 @@ except ImportError:
 
     # Create mock functions for demo purposes
     class MockPostOffice:
+        """Fallback postal service used when the memory integration layer is unavailable."""
         def send_mail(self, sender, recipient, subject, content, priority="normal"):
+            """Simulate sending a piece of mail between two city agents.
+
+            Args:
+                sender: Agent sending the message.
+                recipient: Agent receiving the message.
+                subject: Message subject line.
+                content: Message body content.
+                priority: Delivery priority label for the mock packet.
+
+            Returns:
+                str: Human-readable summary of the simulated delivery.
+            """
             return f"📧 Mail from {sender} to {recipient}: {subject}"
 
         def check_mailbox(self, agent):
+            """Return the mock mailbox contents for an agent.
+
+            Args:
+                agent: Agent whose mailbox should be inspected.
+
+            Returns:
+                list: Empty list because the demo fallback does not persist mail.
+            """
             return []
 
         def send_to_archives(self, sender, archive_section, title, content):
+            """Simulate sending a record to the city archives.
+
+            Args:
+                sender: Agent filing the archive entry.
+                archive_section: Archive section name.
+                title: Archive document title.
+                content: Archive document body.
+
+            Returns:
+                MockResponse: Success marker for the simulated archive write.
+            """
             class MockResponse:
+                """Minimal response object returned by the archive mock."""
                 success = True
 
             return MockResponse()
 
         def request_from_archives(self, requester, query, section):
+            """Simulate an archive search request.
+
+            Args:
+                requester: Agent requesting archived material.
+                query: Search query text.
+                section: Archive section being searched.
+
+            Returns:
+                list: Empty search results for the fallback implementation.
+            """
             return []
 
         def get_postal_report(self):
+            """Return a canned postal activity summary.
+
+            Returns:
+                str: Fixed report text for demo mode.
+            """
             return "Mock postal report"
 
     class MockTrust:
+        """Fallback trust service used when the real trust interface is unavailable."""
         def get_trust_score(self, citizen):
+            """Return a fixed trust score object for the requested citizen.
+
+            Args:
+                citizen: Citizen identifier being evaluated.
+
+            Returns:
+                MockScore: Fixed score object representing a trusted citizen.
+            """
             class MockScore:
+                """Simple trust score container used by the demo fallback."""
                 score = 0.75
 
                 class MockLevel:
+                    """Simple trust level container used by the demo fallback."""
                     value = "TRUSTED"
 
                 level = MockLevel()
@@ -47,17 +106,40 @@ except ImportError:
             return MockScore()
 
         def can_perform_operation(self, citizen, operation):
+            """Allow every mocked operation in demo mode.
+
+            Args:
+                citizen: Citizen attempting the operation.
+                operation: Operation name being authorized.
+
+            Returns:
+                bool: Always ``True`` for the fallback trust service.
+            """
             return True
 
     def get_post_office():
+        """Return the mock postal service implementation for demo mode.
+
+        Returns:
+            MockPostOffice: Mock postal service instance.
+        """
         return MockPostOffice()
 
     def get_trust_interface():
+        """Return the mock trust service implementation for demo mode.
+
+        Returns:
+            MockTrust: Mock trust service instance.
+        """
         return MockTrust()
 
 
 def city_welcome():
-    """Welcome message for Artemis City."""
+    """Welcome message for Artemis City.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     print("\n" + "=" * 70)
     print("  WELCOME TO ARTEMIS CITY")
     print("=" * 70)
@@ -74,7 +156,11 @@ def city_welcome():
 
 
 def demo_mail_delivery():
-    """Demonstrate inter-agent mail delivery."""
+    """Demonstrate inter-agent mail delivery.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     print("\n" + "=" * 70)
     print("SCENARIO 1: Inter-Agent Mail Delivery")
     print("=" * 70)
@@ -114,7 +200,11 @@ The city thrives through our collaboration.
 
 
 def demo_mailbox_check():
-    """Demonstrate checking agent mailboxes."""
+    """Demonstrate checking agent mailboxes.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     print("\n\n" + "=" * 70)
     print("SCENARIO 2: Checking Mailboxes")
     print("=" * 70)
@@ -136,7 +226,11 @@ def demo_mailbox_check():
 
 
 def demo_archival_system():
-    """Demonstrate City Archives filing."""
+    """Demonstrate City Archives filing.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     print("\n\n" + "=" * 70)
     print("SCENARIO 3: City Archives")
     print("=" * 70)
@@ -181,7 +275,11 @@ The city is alive and thriving.
 
 
 def demo_archive_search():
-    """Demonstrate searching City Archives."""
+    """Demonstrate searching City Archives.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     print("\n\n" + "=" * 70)
     print("SCENARIO 4: Archive Research")
     print("=" * 70)
@@ -205,7 +303,11 @@ def demo_archive_search():
 
 
 def demo_trust_clearances():
-    """Demonstrate trust-based clearance system."""
+    """Demonstrate trust-based clearance system.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     print("\n\n" + "=" * 70)
     print("SCENARIO 5: Citizen Clearance Levels")
     print("=" * 70)
@@ -246,7 +348,11 @@ def demo_trust_clearances():
 
 
 def demo_postal_report():
-    """Generate final postal service report."""
+    """Generate final postal service report.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     print("\n\n" + "=" * 70)
     print("FINALE: Postal Service Report")
     print("=" * 70)
@@ -270,7 +376,11 @@ def demo_postal_report():
 
 
 def main():
-    """Run the Artemis City postal service demonstration."""
+    """Run the Artemis City postal service demonstration.
+    
+    Returns:
+        None: This function does not return a value.
+    """
 
     city_welcome()
 

@@ -58,20 +58,49 @@ class TrustMetrics:
 
     @property
     def has_execution_history(self) -> bool:
+        """Return whether execution history.
+        
+        Returns:
+            bool: Boolean outcome for the requested check.
+        """
         return self.total_executions > 0
 
 
 def success_rate(m: TrustMetrics) -> float:
+    """Success rate.
+    
+    Args:
+        m (TrustMetrics): Trust metrics input used to compute a score.
+    
+    Returns:
+        float: Numeric result produced by the operation.
+    """
     if m.total_executions <= 0:
         return 1.0
     return _clamp(m.successful_executions / m.total_executions)
 
 
 def security_score(m: TrustMetrics) -> float:
+    """Security score.
+    
+    Args:
+        m (TrustMetrics): Trust metrics input used to compute a score.
+    
+    Returns:
+        float: Numeric result produced by the operation.
+    """
     return max(0.0, 1.0 - VIOLATION_PENALTY_PER * max(0, m.recent_violation_count))
 
 
 def code_quality(m: TrustMetrics) -> float:
+    """Code quality.
+    
+    Args:
+        m (TrustMetrics): Trust metrics input used to compute a score.
+    
+    Returns:
+        float: Numeric result produced by the operation.
+    """
     return _clamp(
         (
             _clamp(m.coverage_ratio)
@@ -83,19 +112,42 @@ def code_quality(m: TrustMetrics) -> float:
 
 
 def audit_approvals(m: TrustMetrics) -> float:
+    """Audit approvals.
+    
+    Args:
+        m (TrustMetrics): Trust metrics input used to compute a score.
+    
+    Returns:
+        float: Numeric result produced by the operation.
+    """
     if m.total_update_attempts <= 0:
         return 1.0
     return _clamp(m.approved_updates / m.total_update_attempts)
 
 
 def uptime(m: TrustMetrics) -> float:
+    """Uptime.
+    
+    Args:
+        m (TrustMetrics): Trust metrics input used to compute a score.
+    
+    Returns:
+        float: Numeric result produced by the operation.
+    """
     if m.total_hours <= 0:
         return 1.0
     return _clamp(1.0 - m.downtime_hours / m.total_hours)
 
 
 def trust_breakdown(m: TrustMetrics) -> Dict[str, float]:
-    """Return each normalised sub-metric and its weighted contribution."""
+    """Return each normalized trust sub-metric and its weighted contribution.
+    
+    Args:
+        m (TrustMetrics): Trust-metric inputs used for the calculation.
+    
+    Returns:
+        Dict[str, float]: Nested component, weight, and contribution values for the trust formula.
+    """
     components = {
         "success_rate": success_rate(m),
         "security_score": security_score(m),
@@ -119,7 +171,14 @@ def trust_breakdown(m: TrustMetrics) -> Dict[str, float]:
 
 
 def compute_trust_score(m: TrustMetrics) -> float:
-    """Compute the weighted trust score in ``[0, 1]``."""
+    """Compute the weighted trust score in ``[0, 1]``.
+    
+    Args:
+        m (TrustMetrics): Trust metrics input used to compute a score.
+    
+    Returns:
+        float: Numeric result produced by the operation.
+    """
     return _clamp(
         success_rate(m) * WEIGHT_SUCCESS_RATE
         + security_score(m) * WEIGHT_SECURITY

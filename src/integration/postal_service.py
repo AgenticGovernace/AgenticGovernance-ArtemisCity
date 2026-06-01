@@ -66,6 +66,8 @@ class MailPacket:
 
 
 class PostOffice:
+    """Provide the PostOffice abstraction used by this module.
+    """
     def __init__(self) -> None:
         self.memory_client = src.integration.memory_client.MemoryClient()
         self.trust_office: src.integration.trust_interface.TrustInterface = src.integration.trust_interface.get_trust_interface()

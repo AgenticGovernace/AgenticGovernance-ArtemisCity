@@ -15,7 +15,11 @@ from src.integration import MemoryClient
 
 
 def demo_memory_client():
-    """Demonstrate memory client operations."""
+    """Demonstrate memory client operations.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     print("=" * 70)
     print("DEMO 1: Memory Client (MCP Server Connection)")
     print("=" * 70)
@@ -37,7 +41,11 @@ def demo_memory_client():
 
 
 def demo_trust_interface():
-    """Demonstrate trust interface operations."""
+    """Demonstrate trust interface operations.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     print("\n" + "=" * 70)
     print("DEMO 2: Trust Interface")
     print("=" * 70)
@@ -107,7 +115,14 @@ def demo_trust_interface():
 
 
 def demo_context_loader(client: MemoryClient):
-    """Demonstrate context loading from Obsidian."""
+    """Demonstrate context loading from Obsidian.
+    
+    Args:
+        client (MemoryClient): Client value used by this operation.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     print("\n" + "=" * 70)
     print("DEMO 3: Context Loader (Obsidian Vault)")
     print("=" * 70)
@@ -159,7 +174,14 @@ def demo_context_loader(client: MemoryClient):
 
 
 def demo_integrated_workflow(client: MemoryClient):
-    """Demonstrate integrated agent-memory workflow."""
+    """Demonstrate integrated agent-memory workflow.
+    
+    Args:
+        client (MemoryClient): Client value used by this operation.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     print("\n" + "=" * 70)
     print("DEMO 4: Integrated Agent-Memory Workflow")
     print("=" * 70)
@@ -221,7 +243,11 @@ def demo_integrated_workflow(client: MemoryClient):
 
 
 def demo_trust_decay():
-    """Demonstrate trust decay over time."""
+    """Demonstrate trust decay over time.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     print("\n" + "=" * 70)
     print("DEMO 5: Trust Decay Model")
     print("=" * 70)
@@ -261,7 +287,11 @@ def demo_trust_decay():
 
 
 def main():
-    """Run all memory integration demos."""
+    """Run all memory integration demos.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     print("\n")
     print("╔" + "═" * 68 + "╗")
     print("║" + " " * 15 + "MEMORY LAYER INTEGRATION DEMO" + " " * 24 + "║")

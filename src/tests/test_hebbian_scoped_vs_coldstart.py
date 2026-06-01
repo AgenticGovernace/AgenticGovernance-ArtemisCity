@@ -62,7 +62,15 @@ PRE_TRAIN_CYCLES = 600  # The 600-cycle threshold
 
 
 def generate_scoped_corpus(scope, n_samples=PRE_TRAIN_CYCLES):
-    """Generate scoped training data for each agent specialty."""
+    """Generate scoped training data for each agent specialty.
+    
+    Args:
+        scope: Scope value used by this operation.
+        n_samples: N samples value used by this operation.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     np.random.seed(scope)  # Deterministic per scope
     X = np.random.uniform(-5, 5, (n_samples, 3))
     noise = np.random.normal(0, 0.5, n_samples)
@@ -90,7 +98,14 @@ def generate_scoped_corpus(scope, n_samples=PRE_TRAIN_CYCLES):
 
 
 def create_agent(seed):
-    """Standard high-capacity agent."""
+    """Standard high-capacity agent.
+    
+    Args:
+        seed: Seed value used by this operation.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     return MLPRegressor(
         hidden_layer_sizes=(100, 50),
         activation="relu",
@@ -101,7 +116,16 @@ def create_agent(seed):
 
 
 def pre_train_agent(agent, X_corpus, y_corpus):
-    """Pre-train an agent on its scoped corpus for 600 cycles."""
+    """Pre-train an agent on its scoped corpus for 600 cycles.
+    
+    Args:
+        agent: Agent instance or agent identifier associated with the operation.
+        X_corpus: X corpus value used by this operation.
+        y_corpus: Y corpus value used by this operation.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     for i in range(len(X_corpus)):
         x_t = X_corpus[i].reshape(1, -1)
         y_t = y_corpus[i : i + 1]
@@ -124,15 +148,22 @@ def run_simulation(
     label="Simulation",
     use_atp_context=False,
 ):
-    """
-    Run Hebbian routing simulation with full telemetry.
+    """Run a Hebbian-routing simulation and collect telemetry for analysis.
 
-    Returns dict with:
-    - errors: per-step absolute errors
-    - weights_history: weight snapshots per step
-    - selections: which agent was selected per step
-    - sign_changes: per-agent sign change counts (sawtooth detection)
-    - phase_dominance: which agent dominated each phase
+    Args:
+        agents: Sequence of agents that can be selected for each prediction step.
+        weights: Current Hebbian routing weights for the candidate agents.
+        X: Feature matrix that is replayed through the simulation loop.
+        y: Target values paired with ``X`` for online evaluation and fitting.
+        decay_rate: Multiplicative decay applied to every routing weight after each step.
+        success_threshold: Absolute-error cutoff that counts a prediction as successful.
+        label: Human-readable label attached to the returned telemetry bundle.
+        use_atp_context: Whether to apply phase-aware ATP routing bonuses during selection.
+
+    Returns:
+        dict[str, object]: Telemetry bundle containing per-step errors, weight history,
+        agent selections, sign-change counts, phase-dominance counts, and the
+        supplied simulation label.
     """
     n_agents = len(agents)
     errors = []
@@ -289,10 +320,14 @@ result_scoped_atp = run_simulation(
 
 
 def watchdog_analysis(result, window=50, oscillation_threshold=0.4):
-    """
-    Sentinel agent logic: monitor sign-change frequency.
+    """Sentinel agent logic: monitor sign-change frequency.
     Flags steps where oscillation rate exceeds threshold.
     Returns: alert_steps (where human review would trigger)
+    
+    Args:
+        result: Result object produced by the helper.
+        window: Window value used by this operation.
+        oscillation_threshold: Oscillation threshold value used by this operation.
     """
     selections = result["selections"]
     errors = result["errors"]

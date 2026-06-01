@@ -537,8 +537,15 @@ class Orchestrator:
     def update_task_status_in_obsidian(
         self, relative_note_path: str, new_status: str, task_id: str = None
     ):
-        """
-        Updates the status of a specific task note in Obsidian.
+        """Updates the status of a specific task note in Obsidian.
+        
+        Args:
+            relative_note_path (str): Vault-relative note path to read or update.
+            new_status (str): Status value to persist in the note or record.
+            task_id (str): Identifier of the task being processed.
+        
+        Returns:
+            None: This function does not return a value.
         """
         logger.info(
             "Updating status for task note '%s' to '%s'",
@@ -577,9 +584,14 @@ class Orchestrator:
     def create_new_task_in_obsidian(
         self, task_data: dict, filename: str | None = None
     ) -> str:
-        """
-        Creates a new task note in the AGENT_INPUT_DIR of Obsidian.
-        Returns the relative path to the new note.
+        """Create a new task note in the Obsidian input directory.
+        
+        Args:
+            task_data (dict): Structured task payload to serialize into a note.
+            filename (str | None): Optional filename override for the created note.
+        
+        Returns:
+            str: Vault-relative path to the newly created task note.
         """
         task_title = task_data.get("title", "new_agent_task")
         resolved_capability = self._resolve_required_capability(task_data)
@@ -621,9 +633,10 @@ class Orchestrator:
         return relative_path
 
     def execute_all_pending_tasks(self) -> dict:
-        """
-        Executes every pending task discovered in the Obsidian input directory.
-        Returns a summary with counts and per-task results.
+        """Execute every pending task discovered in the Obsidian input directory.
+        
+        Returns:
+            dict: Batch summary containing task counts and per-task execution results.
         """
         pending_tasks = self.check_for_new_tasks_from_obsidian()
         summary = {
@@ -715,8 +728,10 @@ class Orchestrator:
         return enriched
 
     def show_hebbian_network_summary(self):
-        """
-        Display Hebbian network statistics.
+        """Display Hebbian network statistics.
+        
+        Returns:
+            None: This function does not return a value.
         """
         summary = self.hebbian.get_network_summary()
         logger.info("\n" + "=" * 60)
@@ -730,7 +745,14 @@ class Orchestrator:
         logger.info("=" * 60 + "\n")
 
     def show_agent_hebbian_stats(self, agent_name: str):
-        """Display Hebbian statistics for a specific agent."""
+        """Display Hebbian statistics for a specific agent.
+        
+        Args:
+            agent_name (str): Name of the agent involved in the operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         avg_weight = self.hebbian.get_agent_average_weight(agent_name)
         success_rate = self.hebbian.get_agent_success_rate(agent_name)
         connections = self.hebbian.get_strongest_connections(agent_name, limit=10)
