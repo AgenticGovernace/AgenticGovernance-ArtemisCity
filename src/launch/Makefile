@@ -4,7 +4,9 @@
 # Convenient commands for development tasks
 # Usage: make <target>
 
-.PHONY: help install lint format test clean security check pre-commit setup-hooks
+.PHONY: help install install-dev setup-hooks lint lint-fix format check security secrets \
+        test test-cov pre-commit pre-commit-update clean clean-env run demo server \
+        build docs docs-serve all ci
 
 # Default target
 .DEFAULT_GOAL := help
@@ -48,9 +50,9 @@ setup-hooks: ## Install pre-commit hooks
 lint: ## Run all linters
 	@echo "Running linters..."
 	@echo "\n--- Flake8 ---"
-	flake8 . || true
+	flake8 main.py interface/ || true
 	@echo "\n--- Pylint ---"
-	pylint agents/ core/ interface/ memory/ || true
+	pylint main.py interface/ || true
 	@echo "\nLinting complete!"
 
 lint-fix: ## Run linters with auto-fix
@@ -98,11 +100,11 @@ secrets: ## Check for accidentally committed secrets
 
 test: ## Run tests (when available)
 	@echo "Running tests..."
-	pytest tests/ -v || echo "WARNING: No tests directory found"
+	pytest ../tests/ -v || echo "WARNING: No tests directory found"
 
 test-cov: ## Run tests with coverage
 	@echo "Running tests with coverage..."
-	pytest tests/ --cov=. --cov-report=html --cov-report=term || echo "WARNING: No tests directory found"
+	pytest ../tests/ --cov=.. --cov-report=html --cov-report=term || echo "WARNING: No tests directory found"
 
 # ============================================
 # PRE-COMMIT
@@ -141,23 +143,23 @@ clean-env: ## Remove virtual environment
 # DEVELOPMENT
 # ============================================
 
-run: ## Run the CLI interactively
-	@echo "Starting Artemis City CLI..."
-	python interface/Artemis_cli.py
+run: ## Run the launch CLI interactively
+	@echo "Starting Artemis City launcher..."
+	python main.py
 
 demo: ## Run all demos
 	@echo "Running demos..."
 	@echo "\n--- Artemis Features Demo ---"
-	python demo_artemis.py
+	python ../../Concept_Demos/demo_artemis.py
 	@echo "\n--- Memory Integration Demo ---"
-	python demo_memory_integration.py
+	python ../../Concept_Demos/demo_memory_integration.py
 	@echo "\n--- City Postal Demo ---"
-	python demo_city_postal.py
+	python ../../Concept_Demos/demo_city_postal.py
 	@echo "\nDemos complete!"
 
 server: ## Start MCP server (Memory Layer)
 	@echo "Starting MCP server..."
-	cd "Artemis Agentic Memory Layer " && npm run dev
+	cd "../Artemis Agentic Memory Layer" && npm run dev
 
 # ============================================
 # BUILD & PACKAGE
