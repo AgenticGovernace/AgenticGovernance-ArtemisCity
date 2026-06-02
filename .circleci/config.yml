@@ -4,7 +4,7 @@ executors:
   py:
     docker:
       - image: cimg/python:3.13
-    working_directory: ~/project
+    working_directory: ./
 
 autoscaling:
   cancel_unfinished: false
