@@ -1,5 +1,9 @@
 # CLAUDE.md — Implementation Notes for Artemis City
 
+> **This file is mirrored byte-for-byte in `AGENTS.md`** so that
+> non-Claude coding agents (Codex, Cursor, Aider, Replit, etc.) get the
+> same guidance. When you edit one, edit the other in the same commit.
+
 This file is for AI agents and developers **editing code in this repo**. It
 is intentionally narrow: it covers the active code surfaces, the
 TypeScript ↔ Python bridge protocol, conventions for adding code, and
@@ -26,7 +30,8 @@ win**.
 | `docs/Agent Implementation Guide.md` | Dual-track Concept_Demos → src/ graduation path |
 | `docs/LIVING_CITY.md` | The Mayor / Postmaster / City Manager metaphor |
 | `docs/ENVIRONMENTS.md` | `dev → staging → prod` branch flow and `ARTEMIS_ENV` |
-| `AGENTS.md` | Test plan (pyramid, coverage bars, naming convention) |
+| `AGENTS.md` | Tool-neutral mirror of this file (for non-Claude agents) |
+| `docs/TEST_PLAN.md` | Test plan (pyramid, coverage bars, naming convention) |
 | `SECURITY.md` | Secret handling, key rotation, incident response |
 
 ---
@@ -144,7 +149,7 @@ and `docs/API_REFERENCE.md`.
    `name`, `capabilities`, and `perform_task(task_context: dict) -> dict`.
 3. Register the agent in the orchestrator's `__init__`
    (`src/mcp/orchestrator.py`).
-4. Add unit tests under `src/tests/` per `AGENTS.md` (naming:
+4. Add unit tests under `src/tests/` per `docs/TEST_PLAN.md` (naming:
    `test_<module>_<function>_<scenario>`).
 
 ### Adding an HTTP endpoint
@@ -159,7 +164,7 @@ already used there.
 
 ### Tests
 
-`AGENTS.md` is the canonical test plan (pyramid, coverage targets,
+`docs/TEST_PLAN.md` is the canonical test plan (pyramid, coverage targets,
 naming, marker conventions). Don't restate it here. To run the suite
 locally: `make test` (calls `pytest src/tests/`). CI runs the same on
 Python 3.10 / 3.11 / 3.12 plus a config-validation step.
