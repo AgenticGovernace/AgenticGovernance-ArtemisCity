@@ -24,7 +24,10 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     environment:
-      POSTGRES_PASSWORD: postgres
+      # Local-only dev database. Use passwordless trust auth so no secret is
+      # committed (GitGuardian-clean); never use this for anything reachable
+      # outside the devcontainer.
+      POSTGRES_HOST_AUTH_METHOD: trust
       POSTGRES_USER: postgres
       POSTGRES_DB: postgres
 
