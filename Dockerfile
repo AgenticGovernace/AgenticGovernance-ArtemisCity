@@ -26,8 +26,15 @@ FROM node:24-alpine
 WORKDIR /app
 
 # Set environment variables for production
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    ARTEMIS_REPO_ROOT=/app \
+    ARTEMIS_PYTHON=python3
 
+# Express spawns ``python3 -m src.api_bridge`` for every registry /
+# governance call (see app/api/lib/pythonBridge.ts). The bridge itself is
+# stdlib-only by design, so we install just the interpreter -- no pip
+# packages -- and copy the ``src`` tree so the import resolves at cwd.
+RUN apk add --no-cache python3
 
 # Copy only the compiled application from the builder stage and install a
 # fresh production-only node_modules. Doing the install here (instead of
@@ -37,8 +44,14 @@ COPY --from=builder /src/dist/ ./dist
 COPY --from=builder /src/package.json /src/package-lock.json ./
 RUN npm ci --omit=dev
 
-# Expose the port the app runs on
-EXPOSE 3000
+# Copy the Python bridge tree last so changes to it don't invalidate the
+# npm-install cache layer.
+COPY --from=builder /src/src/ ./src
+
+# Expose the port the Express API listens on. Matches the API_PORT default
+# in app/api/index.ts (4000) and avoids the 3000 collision with Grafana
+# in docker-compose.yml. Override at runtime with `-e API_PORT=...`.
+EXPOSE 4000
 
 # Run as a non-root user for security best practices
 # The node:alpine image typically creates a 'node' user with appropriate permissions
@@ -48,5 +61,5 @@ USER node
 CMD ["npm", "start"]
 # Healthcheck to ensure the container is running correctly
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (res) => res.statusCode === 200 ? process.exit(0) : process.exit(1))";
+  CMD node -e "require('http').get('http://localhost:4000/health', (res) => res.statusCode === 200 ? process.exit(0) : process.exit(1))";
 

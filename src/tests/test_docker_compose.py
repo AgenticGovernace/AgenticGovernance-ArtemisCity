@@ -1,5 +1,5 @@
 """
-Unit tests for validating the docker-compose.yaml configuration.
+Unit tests for validating the docker-compose.yml configuration.
 
 Tests the structure, services, and security constraints defined in the file.
 """
@@ -12,13 +12,13 @@ import yaml
 
 @pytest.fixture
 def docker_compose_path():
-    """Fixture to get the path to docker-compose.yaml."""
-    return Path(__file__).parent.parent.parent / "docker-compose.yaml"
+    """Fixture to get the path to docker-compose.yml."""
+    return Path(__file__).parent.parent.parent / "docker-compose.yml"
 
 
 @pytest.fixture
 def docker_compose_config(docker_compose_path):
-    """Fixture to load and parse the docker-compose.yaml file."""
+    """Fixture to load and parse the docker-compose.yml file."""
     assert docker_compose_path.exists(), f"File not found: {docker_compose_path}"
     with open(docker_compose_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
@@ -39,8 +39,7 @@ class TestDockerCompose:
         services = docker_compose_config["services"]
         expected_services = [
             "kernel",
-            "memory-bus",
-            "registry",
+            "express-api",
             "redis",
             "vector-store",
             "prometheus",
@@ -52,18 +51,17 @@ class TestDockerCompose:
     def test_kernel_service_configuration(self, docker_compose_config):
         """Test the configuration of the kernel service."""
         kernel = docker_compose_config["services"]["kernel"]
-        
-        # Check dependencies
+
+        # Check dependencies (memory-bus / registry are in-process for now)
         depends_on = kernel.get("depends_on", [])
-        assert "registry" in depends_on
-        assert "memory-bus" in depends_on
         assert "redis" in depends_on
+        assert "vector-store" in depends_on
 
         # Check environment configurations
         env = kernel.get("environment", [])
         assert "ARTEMIS_ENV=production" in env
-        assert "ARTEMIS_REGISTRY_URL=http://registry:8002" in env
-        assert "ARTEMIS_MEMORY_BUS_URL=http://memory-bus:8001" in env
+        assert "ARTEMIS_REDIS_URL=redis://redis:6379" in env
+        assert "ARTEMIS_VECTOR_STORE_URL=http://vector-store:6333" in env
 
         # Check networking
         networks = kernel.get("networks", [])
@@ -85,10 +83,10 @@ class TestDockerCompose:
     def test_service_healthchecks(self, docker_compose_config):
         """Test that key services define healthchecks."""
         services = docker_compose_config["services"]
-        
+
         assert "healthcheck" in services["kernel"], "Kernel missing healthcheck"
-        assert "healthcheck" in services["registry"], "Registry missing healthcheck"
-        
+        assert "healthcheck" in services["express-api"], "Express API missing healthcheck"
+
         # Validate healthcheck structure
         kernel_hc = services["kernel"]["healthcheck"]
         assert "curl" in kernel_hc["test"]

@@ -2,23 +2,32 @@ version: '3.8'
 
 services:
   # Core Artemis Services
+  #
+  # The DEPLOYMENT.md spec calls for three Python services on 8000/8001/
+  # 8002 (Kernel / Memory Bus / Registry). Today only the FastAPI
+  # dashboard at app/api/main.py is wired up as an HTTP server; the
+  # memory bus and registry are in-process libraries used by the
+  # orchestrator. They run inside the ``kernel`` container until they
+  # graduate to standalone services -- when they do, add ``memory-bus``
+  # and ``registry`` entries below that build from Dockerfile.python with
+  # their own CMDs, and split the volumes out.
   kernel:
     build:
       context: .
-      dockerfile: Dockerfile
-      target: kernel
+      dockerfile: Dockerfile.python
     ports:
       - "8000:8000"
     environment:
       - ARTEMIS_ENV=production
       - ARTEMIS_LOG_LEVEL=INFO
-      - ARTEMIS_REGISTRY_URL=http://registry:8002
-      - ARTEMIS_MEMORY_BUS_URL=http://memory-bus:8001
+      - ARTEMIS_OBSIDIAN_VAULT_PATH=/data/vault
+      - ARTEMIS_VECTOR_STORE_URL=http://vector-store:6333
       - ARTEMIS_REDIS_URL=redis://redis:6379
+      - ARTEMIS_MEMORY_WRITE_TIMEOUT_MS=200
+      - ARTEMIS_MEMORY_SYNC_TIMEOUT_MS=300
     depends_on:
-      - registry
-      - memory-bus
       - redis
+      - vector-store
     volumes:
       - ./vault:/data/vault
       - ./data/checkpoints:/data/checkpoints
@@ -32,46 +41,28 @@ services:
       timeout: 10s
       retries: 3
 
-  memory-bus:
+  # TS Express boundary (app/api/index.ts). Public /api/v1/* HTTP layer
+  # that forwards to the Python core via the api_bridge subprocess.
+  # The image (root Dockerfile) ships python3 + src/ so the bridge can
+  # spawn ``python3 -m src.api_bridge`` in-container.
+  express-api:
     build:
       context: .
       dockerfile: Dockerfile
-      target: memory-bus
     ports:
-      - "8001:8001"
+      - "4000:4000"
     environment:
-      - ARTEMIS_ENV=production
-      - ARTEMIS_OBSIDIAN_VAULT_PATH=/data/vault
-      - ARTEMIS_VECTOR_STORE_URL=http://vector-store:6333
-      - ARTEMIS_REDIS_URL=redis://redis:6379
-      - ARTEMIS_MEMORY_WRITE_TIMEOUT_MS=200
-      - ARTEMIS_MEMORY_SYNC_TIMEOUT_MS=300
+      - NODE_ENV=production
+      - API_PORT=4000
+      - ARTEMIS_KERNEL_URL=http://kernel:8000
+      - ARTEMIS_API_KEY_DEFAULT=${ARTEMIS_API_KEY_DEFAULT:?ARTEMIS_API_KEY_DEFAULT must be set}
     depends_on:
-      - vector-store
-      - redis
-    volumes:
-      - ./vault:/data/vault
-    networks:
-      - artemis
-    restart: unless-stopped
-
-  registry:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: registry
-    ports:
-      - "8002:8002"
-    environment:
-      - ARTEMIS_ENV=production
-      - ARTEMIS_REDIS_URL=redis://redis:6379
-    depends_on:
-      - redis
+      - kernel
     networks:
       - artemis
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/health', (res) => res.statusCode === 200 ? process.exit(0) : process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
