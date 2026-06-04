@@ -93,7 +93,7 @@ def benchmark_hebbian_sync_batch(iterations=100, batch_size=100):
 
         # Measure flush latency
         start_time = time.perf_counter()
-        result = service.flush_batch()
+        service.flush_batch()
         end_time = time.perf_counter()
 
         latency_ms = (end_time - start_time) * 1000
@@ -121,7 +121,7 @@ def benchmark_atp_parsing(iterations=10000):
         atp = atp_samples[iteration % len(atp_samples)]
 
         start_time = time.perf_counter()
-        result = parser.parse_with_metrics(atp)
+        parser.parse_with_metrics(atp)
         end_time = time.perf_counter()
 
         latency_ms = (end_time - start_time) * 1000
