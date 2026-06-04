@@ -13,6 +13,11 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+# Import for side effects: loads repo-root .env values without overriding real
+# process environment variables. This keeps direct demo/script runs aligned with
+# the documented setup_secrets.sh flow.
+from src.mcp import config as _mcp_config  # noqa: F401
+
 
 class MCPOperation(Enum):
     """MCP server operation types."""

@@ -1,3 +1,57 @@
+import { spawn } from 'child_process';
+import { existsSync } from 'fs';
+import { dirname, join, resolve } from 'path';
+
+import { APIError } from '../middleware/errorHandler';
+
+type BridgeSuccessEnvelope = {
+  ok: true;
+  data: unknown;
+};
+
+type BridgeErrorEnvelope = {
+  ok: false;
+  error: string;
+  code: string;
+};
+
+type BridgeEnvelope = BridgeSuccessEnvelope | BridgeErrorEnvelope;
+
+const CODE_TO_STATUS: Record<string, number> = {
+  NOT_FOUND: 404,
+  INVALID_REQUEST: 400,
+  INVALID_JSON: 400,
+  UNKNOWN_COMMAND: 500,
+  BRIDGE_ERROR: 500,
+  INTERNAL_ERROR: 500,
+  BRIDGE_UNAVAILABLE: 500,
+};
+
+function findRepoRoot(): string {
+  if (process.env.ARTEMIS_REPO_ROOT) {
+    return resolve(process.env.ARTEMIS_REPO_ROOT);
+  }
+
+  const startingPoints = [__dirname, process.cwd()];
+
+  for (const start of startingPoints) {
+    let current = resolve(start);
+
+    while (current !== dirname(current)) {
+      if (existsSync(join(current, 'src', 'api_bridge.py'))) {
+        return current;
+      }
+      current = dirname(current);
+    }
+  }
+
+  throw new APIError(
+    'Could not locate repository root containing src/api_bridge.py',
+    500,
+    'BRIDGE_UNAVAILABLE'
+  );
+}
+
 /**
  * Run one Python bridge command and resolve with its `data` payload.
  * Throws an `APIError` mapped to the appropriate HTTP status when the bridge fails.
@@ -20,14 +74,14 @@ export function callBridge(command: string, payload: Record<string, any> = {}): 
     let stdout = '';
     let stderr = '';
 
-    child.stdout.on('data', (chunk) => {
+    child.stdout.on('data', (chunk: Buffer) => {
       stdout += chunk.toString();
     });
-    child.stderr.on('data', (chunk) => {
+    child.stderr.on('data', (chunk: Buffer) => {
       stderr += chunk.toString();
     });
 
-    child.on('error', (err) => {
+    child.on('error', (err: Error) => {
       reject(new APIError(`Failed to spawn Python bridge: ${err.message}`, 500, 'BRIDGE_UNAVAILABLE'));
     });
 

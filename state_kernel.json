@@ -1,0 +1,13 @@
+{
+  "history": [
+    {
+      "type": "command",
+      "content": "hey"
+    },
+    {
+      "type": "command",
+      "content": "research"
+    }
+  ],
+  "boot_count": 2
+}

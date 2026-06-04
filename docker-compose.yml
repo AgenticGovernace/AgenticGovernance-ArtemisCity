@@ -9,12 +9,12 @@ services:
   # memory bus and registry are in-process libraries used by the
   # orchestrator. They run inside the ``kernel`` container until they
   # graduate to standalone services -- when they do, add ``memory-bus``
-  # and ``registry`` entries below that build from Dockerfile.python with
+  # and ``registry`` entries below that build from Dockerfile-python with
   # their own CMDs, and split the volumes out.
   kernel:
     build:
       context: .
-      dockerfile: Dockerfile.python
+      dockerfile: Dockerfile-python
     ports:
       - "8000:8000"
     environment:
