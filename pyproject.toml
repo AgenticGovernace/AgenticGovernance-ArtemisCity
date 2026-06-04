@@ -3,7 +3,7 @@ name = "artemis-city"
 version = "0.1.0"
 description = "Architectural framework for agentic reasoning with transparent, accountable action across distributed intelligence systems"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 authors = [
     {name = "Prinston Palmer", email = "prinstonpalmer879@gmail.com"}
@@ -73,6 +73,7 @@ dependencies = [
     "requests>=2.33.0",
     "responses>=0.22.0",
     "rich>=13.7.0",
+    "ruff>=0.15.15",
     "safety>=2.3.0",
     "setuptools>=78.1.1",
     "sqlalchemy>=1.4.0",
@@ -111,7 +112,7 @@ enhanced = [
 [project.urls]
 
 
-    [project.scripts]
+[project.scripts]
 
 [build-system]
 requires = ["hatchling"]

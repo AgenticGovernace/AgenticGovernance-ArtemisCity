@@ -270,7 +270,7 @@ def main():
 
         try:
             orchestrator.route_and_execute_task(direct_task_context)
-            logger.info(f"Direct summary task completed. Report written to Obsidian.")
+            logger.info("Direct summary task completed. Report written to Obsidian.")
         except ValueError as e:
             logger.error(f"Failed to assign direct task: {e}")
     else:
