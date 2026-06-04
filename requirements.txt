@@ -1,6 +1,6 @@
 
 # Testing framework
-pytest>=7.4.0
+pytest>=9.0.3
 pytest-cov>=4.1.0  # Coverage reporting
 pytest-asyncio>=0.21.0  # Async test support
 pytest-mock>=3.12.0  # Mocking utilities
@@ -86,20 +86,20 @@ pre-commit>=3.5.0
 # ============================================
 
 # Data validation (for future API work)
-pydantic>=2.0.0
+pydantic>=2.4.0
 
 # Legal summarization experiment (Codex_Experiments)
 datasets>=2.18.0  # HuggingFace dataset loading
-pyarrow>=15.0.0  # Parquet file support
+pyarrow>=23.0.1  # Parquet file support
 
 # HTTP library (if extending beyond urllib)
-requests>=2.31.0
+requests>=2.33.0
 httpx>=0.25.0  # Modern async HTTP
 
 # Environment management
 
 
-setuptools>=65.0.0  # For packaging and distribution
-wheel>=0.36.0  # For building wheel distributions
+setuptools>=78.1.1  # For packaging and distribution
+wheel>=0.38.1  # For building wheel distributions
 twine>=3.0.0  # For uploading packages to PyPI
 entrypoints>=0.4.0  # For defining CLI entry points
