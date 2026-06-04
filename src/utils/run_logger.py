@@ -717,8 +717,8 @@ def get_recent_runs(db_path: str = "data/run_logs.db", limit: int = 20) -> List[
 
 def get_run_events(
     db_path: str = "data/run_logs.db",
-    run_id: str = None,
-    event_type: str = None,
+    run_id: Optional[str] = None,
+    event_type: Optional[str] = None,
     limit: int = 100,
 ) -> List[Dict]:
     """

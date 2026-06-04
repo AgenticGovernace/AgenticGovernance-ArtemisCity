@@ -3,7 +3,7 @@ name = "artemis-city"
 version = "0.1.0"
 description = "Architectural framework for agentic reasoning with transparent, accountable action across distributed intelligence systems"
 readme = "README.md"
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.11"
 
 authors = [
     {name = "Prinston Palmer", email = "prinstonpalmer879@gmail.com"}
@@ -26,9 +26,62 @@ classifiers = [
 ]
 
 dependencies = [
-    "fastapi>=0.136.3",
+    "alembic>=1.7.0",
+    "autopep8>=1.5.0",
+    "bandit>=1.7.0",
+    "build>=1.0.0",
+    "click>=8.1.0",
+    "coverage>=7.0.0",
+    "coverage-badge>=1.0.0",
+    "datasets>=2.18.0",
+    "entrypoints>=0.4.0",
+    "faker>=18.0.0",
+    "fastapi>=0.109.1",
+    "flake8>=6.0.0",
+    "flake8-docstrings>=1.7.0",
+    "httpx>=0.23.0",
+    "ipdb>=0.13.13",
+    "ipython>=8.18.0",
+    "mcp>=1.26.0",
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.0.0",
+    "mkdocstrings[python]>=0.24.0",
+    "mypy>=1.5.0",
+    "numpy>=1.24.0",
+    "pandas>=1.5.0",
+    "pdbpp>=0.10.3",
+    "pre-commit>=3.5.0",
+    "prometheus-client>=0.14.0",
+    "prompt-toolkit>=3.0.0",
+    "psycopg2-binary>=2.9.0",
+    "pyarrow>=23.0.1",
+    "pydantic>=2.4.0",
+    "pylint>=3.0.0",
     "pytest>=9.0.3",
+    "pytest-asyncio>=0.16.0",
+    "pytest-cases>=3.7.0",
+    "pytest-cov>=3.0.0",
+    "pytest-factoryboy>=2.0.0",
+    "pytest-fixture-config>=1.0.0",
+    "pytest-html>=3.2.0",
+    "pytest-mock>=3.7.0",
+    "pytest-xdist>=3.0.0",
+    "python-dotenv>=1.2.2",
+    "python-multipart>=0.0.27",
     "pyyaml>=6.0.1,<7.0.0",
+    "redis>=4.0.0",
+    "requests>=2.33.0",
+    "responses>=0.22.0",
+    "rich>=13.7.0",
+    "ruff>=0.15.15",
+    "safety>=2.3.0",
+    "setuptools>=78.1.1",
+    "sqlalchemy>=1.4.0",
+    "twine>=3.0.0",
+    "types-pyyaml>=6.0.0",
+    "uvicorn[standard]>=0.15.0",
+    "wheel>=0.38.1",
+    "yapf>=0.32.0",
 ]
 
 [project.optional-dependencies]
@@ -59,7 +112,7 @@ enhanced = [
 [project.urls]
 
 
-    [project.scripts]
+[project.scripts]
 
 [build-system]
 requires = ["hatchling"]

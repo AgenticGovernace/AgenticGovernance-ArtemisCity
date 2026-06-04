@@ -535,7 +535,7 @@ class Orchestrator:
         return new_tasks
 
     def update_task_status_in_obsidian(
-        self, relative_note_path: str, new_status: str, task_id: str = None
+        self, relative_note_path: str, new_status: str, task_id: Optional[str] = None
     ):
         """Updates the status of a specific task note in Obsidian.
         

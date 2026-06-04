@@ -14,12 +14,13 @@ Date: 2024
 
 from __future__ import annotations
 
+import sys
 from typing import Any, Dict, List, Literal, Optional, Union
 
-# Use typing_extensions for Python 3.8-3.10 compatibility
-try:
+# `NotRequired` landed in stdlib `typing` in 3.11; use typing_extensions on 3.10.
+if sys.version_info >= (3, 11):
     from typing import NotRequired, TypedDict
-except ImportError:
+else:
     from typing_extensions import NotRequired, TypedDict
 
 
