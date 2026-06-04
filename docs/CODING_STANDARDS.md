@@ -689,7 +689,7 @@ Current version: **0.1.0** (Version Zero - Alpha)
 - **Google Python Style Guide**: Modern Python best practices
 - **PEP 8 - Style Guide for Python Code**: Python community standards
 - **Clean Code**: Robert C. Martin - Principles applied here
-- **Daemon Manifesto** (`Daemon/manifesto.md`): Agentic governance principles
+- **Agentic Manifesto** (`Agentic_Constitution/manifesto.md`): Agentic governance principles
 
 ---
 
