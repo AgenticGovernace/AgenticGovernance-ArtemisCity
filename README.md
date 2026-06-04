@@ -329,8 +329,8 @@ That path gives you the orchestration core first, then the public API surfaces, 
 
 - `Concept_Demos/README.md` — demo-specific usage
 - `src/Artemis Agentic Memory Layer/README.md` — standalone MCP server setup and API details
-- `AGENTS.md` — project-specific contributor guidance
-- `CLAUDE.md` — implementation notes about the active code surfaces and bridge behavior
+- `CLAUDE.md` / `AGENTS.md` — implementation notes on the active code surfaces and bridge behavior (byte-for-byte mirrors: `CLAUDE.md` for Claude, `AGENTS.md` for other coding agents)
+- `docs/TEST_PLAN.md` — test strategy, coverage targets, and test-naming conventions
 
 ## License
 

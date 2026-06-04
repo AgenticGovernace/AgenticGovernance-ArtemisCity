@@ -15,6 +15,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  docs-mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: CLAUDE.md and AGENTS.md must stay byte-for-byte mirrors
+        run: |
+          if ! diff -q CLAUDE.md AGENTS.md >/dev/null; then
+            echo "::error::CLAUDE.md and AGENTS.md have drifted — they must be byte-for-byte identical. Edit both in the same commit." >&2
+            diff CLAUDE.md AGENTS.md || true
+            exit 1
+          fi
+          echo "CLAUDE.md and AGENTS.md are in sync."
+
   python:
     runs-on: ubuntu-latest
     strategy:
