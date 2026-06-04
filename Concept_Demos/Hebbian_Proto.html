@@ -925,7 +925,7 @@
           duties: ['Deliver mail', 'Maintain postal logs', 'Route messages'],
         },
         daemon: {
-          name: 'Codex Daemon',
+          name: 'Daemon Daemon',
           role: 'City Manager',
           title: 'Operations Center',
           icon: 'settings',
@@ -3203,14 +3203,14 @@
             id: 0,
             node: 'user',
             label: '1. User Input',
-            desc: `User types: $ codex run "${liveContext.substring(0, 30)}${liveContext.length > 30 ? '...' : ''}"`,
+            desc: `User types: $ Daemon run "${liveContext.substring(0, 30)}${liveContext.length > 30 ? '...' : ''}"`,
             color: '#22d3ee',
           },
           {
             id: 1,
             node: 'cli',
             label: '2. CLI Parse',
-            desc: `codex_cli.py parses args, mode=${liveMode}`,
+            desc: `Daemon_cli.py parses args, mode=${liveMode}`,
             color: '#22d3ee',
           },
           {
@@ -3266,7 +3266,7 @@
             id: 9,
             node: 'cli',
             label: '10. Return Result',
-            desc: 'codex_cli.py prints result to user terminal',
+            desc: 'Daemon_cli.py prints result to user terminal',
             color: '#22d3ee',
           },
           {
@@ -3286,7 +3286,7 @@
             y: 100,
             w: 130,
             h: 35,
-            label: 'codex_cli.py',
+            label: 'Daemon_cli.py',
             sublabel: 'CLI Interface',
             color: '#22d3ee',
           },
@@ -3315,7 +3315,7 @@
             w: 110,
             h: 45,
             label: 'agents/*.py',
-            sublabel: 'Codex, Planner',
+            sublabel: 'Daemon, Planner',
             color: '#ff6b6b',
           },
           memory: {
@@ -8860,7 +8860,7 @@ print(f'Agents: {report[\"total_entities\"]}')
 to system resources, data, and other agents]
 
 **Semantic Role:** [Primary function and
-purpose within the Codex]
+purpose within the Daemon]
 
 **Energy Signature:** [Computational/resource
 footprint - Low/Moderate/High-compute]
@@ -9339,16 +9339,16 @@ Author: Artemis City Framework`}
                       }}
                     >
                       {`[[Mode]]: Build
-[[Context]]: Initial Codex CLI Trigger Script
+[[Context]]: Initial Daemon CLI Trigger Script
 [[Priority]]: High
 [[ActionType]]: Scaffold
-[[TargetZone]]: /Projects/Codex_Experiments/
+[[TargetZone]]: /Projects/Daemon_Experiments/
 [[SpecialNotes]]: Must be Git-safe compatible
 
 ---
 
 Building a Python trigger that allows
-Codex to repackage files after a push.`}
+Daemon to repackage files after a push.`}
                     </pre>
                     <div
                       style={{

@@ -90,3 +90,7 @@ venv/
 README\#OnDisk.md
 README-Multi-Agent Coordination Platform (MCP)-1.eraserdiagram
 AgenticGovernance-ArtemisCity.code-workspace
+MCP/
+CLAUDE.html
+.agents/
+/.run

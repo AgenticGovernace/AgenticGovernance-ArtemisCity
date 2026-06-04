@@ -263,7 +263,7 @@ class CitySimulation:
             return self._audit(resident, zone)
         if "Pack Rat" in resident.name:
             return self._deliver_mail(resident, zone)
-        if "Codex" in resident.name:
+        if "Daemon" in resident.name:
             return self._index_memory(resident, zone)
         if "Sentinel" in resident.name:
             return self._patrol(resident, zone)
@@ -536,7 +536,7 @@ class CitySimulation:
                 energy=0.75,
             ),
             Resident(
-                name="Codex Daemon",
+                name="Daemon",
                 role="Memory caretaker",
                 focus_zone="Library",
                 trust=0.85,

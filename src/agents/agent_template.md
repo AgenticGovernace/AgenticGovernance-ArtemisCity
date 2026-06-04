@@ -3,7 +3,7 @@
 # Agent Template
 >   **Purpose:** This document provides a standardized template for defining new agents within the Artemis City framework. It ensures that all agents are consistently documented with clear operational parameters, security boundaries, and functional roles. **Usage:** To create a new agent, copy this template and fill in the specified fields. This process is crucial for maintaining system transparency, security, and accountability.  
 
-This template defines the essential characteristics and operational parameters for any new agent integrated into the Agentic Codex.
+This template defines the essential characteristics and operational parameters for any new agent integrated into the Agentic Daemon.
 
 ---
 
@@ -11,7 +11,7 @@ This template defines the essential characteristics and operational parameters f
 
 **System Access Scope:** [Describe the boundaries of the agent's access to system resources, data, and other agents. E.g., "Read-only access to memory logs", "Write access to specific communication channels", "Full access to Sandbox City simulation parameters"]
 
-**Semantic Role:** [A clear, concise description of the agent's primary function and purpose within the Codex. E.g., "Mayor protocol, governance", "Courier role, safe transfer", "System anchor, memory interface", "Companion, elastic augmentation"]
+**Semantic Role:** [A clear, concise description of the agent's primary function and purpose within the Daemon. E.g., "Mayor protocol, governance", "Courier role, safe transfer", "System anchor, memory interface", "Companion, elastic augmentation"]
 
 **Energy Signature:** [Describe the computational or resource footprint of the agent. E.g., "Low-compute, event-driven", "High-compute, continuous monitoring", "Moderate, on-demand processing"]
 
@@ -26,7 +26,7 @@ This template defines the essential characteristics and operational parameters f
 **Notes for Implementation:**
 
 - Ensure all fields are thoroughly documented before agent deployment.
-- Regularly review and update agent definitions as the Codex evolves.
+- Regularly review and update agent definitions as the Daemon evolves.
 - Consider the implications of the agent's role on system security and stability.## ---Benefit | Why It Matters
 Memory | You know exactly what each agent was originally supposed to do.
 🧩 Modularity | You can swap agents or rebuild agents without breaking the system.
@@ -170,15 +170,15 @@ Each new thought, prompt, request, or voice note should be prefaced with the ATP
 ## Example Entry
 ```markdown
 [[Mode]]: Build
-[[Context]]: Initial Codex CLI Trigger Script
+[[Context]]: Initial Daemon CLI Trigger Script
 [[Priority]]: High
 [[ActionType]]: Scaffold
-[[TargetZone]]: /Projects/Codex_Experiments/scripts/
+[[TargetZone]]: /Projects/Daemon_Experiments/scripts/
 [[SpecialNotes]]: Must be compatible with Git safe-commit checks.
 
 ---
 
-Building a Python trigger that allows Codex to repackage files after a push event.
+Building a Python trigger that allows Daemon to repackage files after a push event.
 ```
 ---
 

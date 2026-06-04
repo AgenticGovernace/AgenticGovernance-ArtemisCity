@@ -1141,12 +1141,12 @@ def project_structure(tmp_path):
     """Create temporary project structure."""
     # Create directories
     (tmp_path / "agents").mkdir()
-    (tmp_path / "codex").mkdir()
+    (tmp_path / "Daemon").mkdir()
     (tmp_path / ".git").mkdir()
 
     # Create files
     (tmp_path / "pyproject.toml").write_text("[project]\nname = 'test'")
-    (tmp_path / "codex.md").write_text("# Project Instructions")
+    (tmp_path / "Daemon.md").write_text("# Project Instructions")
 
     return tmp_path
 

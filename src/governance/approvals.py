@@ -17,7 +17,7 @@ human review.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import dataclasses
 from enum import Enum
 from typing import List
 
@@ -38,7 +38,7 @@ class ApprovalTier(str, Enum):
     HUMAN = "human"
 
 
-@dataclass
+@dataclasses.dataclass
 class UpdateProposal:
     """A proposed self-update and its risk characteristics."""
 
@@ -50,7 +50,7 @@ class UpdateProposal:
     affects_governance: bool = False  # modifies the governance system itself
 
 
-@dataclass
+@dataclasses.dataclass
 class ApprovalDecision:
     """Represent the approval outcome returned by the self-update governor.
     
@@ -63,7 +63,7 @@ class ApprovalDecision:
     tier: ApprovalTier
     auto_approved: bool
     requires_human: bool
-    reasons: List[str] = field(default_factory=list)
+    reasons: List[str] = dataclasses.field(default_factory=list)
 
     def to_dict(self) -> dict:
         """To dict.

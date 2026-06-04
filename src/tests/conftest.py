@@ -105,7 +105,7 @@ def project_structure(tmp_path):
     """
     # Create directories
     (tmp_path / "agents").mkdir()
-    (tmp_path / "codex").mkdir()
+    (tmp_path / "Daemon").mkdir()
     (tmp_path / ".git").mkdir()
     (tmp_path / "tests").mkdir()
 
@@ -113,7 +113,7 @@ def project_structure(tmp_path):
     (tmp_path / "pyproject.toml").write_text(
         "[project]\nname = 'test-project'\nversion = '0.1.0'"
     )
-    (tmp_path / "codex.md").write_text("# Project Instructions\n\nTest instructions.")
+    (tmp_path / "Daemon.md").write_text("# Project Instructions\n\nTest instructions.")
     (tmp_path / "README.md").write_text("# Test Project\n\nTest readme.")
 
     # Create sample agent file
@@ -226,7 +226,7 @@ def sample_trust_scores():
         "artemis": 0.95,
         "copilot": 0.90,
         "pack_rat": 0.85,
-        "codex_daemon": 0.80,
+        "daemon": 0.80,
         "new_agent": 0.50,
         "untrusted": 0.20,
     }

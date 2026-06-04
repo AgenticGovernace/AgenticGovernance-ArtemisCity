@@ -133,7 +133,7 @@ class TrustInterface:
         core_agents = {
             "artemis": (0.95, TrustLevel.FULL),
             "pack_rat": (0.85, TrustLevel.HIGH),
-            "codex_daemon": (0.85, TrustLevel.HIGH),
+            "daemon": (0.85, TrustLevel.HIGH),
             "copilot": (0.80, TrustLevel.HIGH),
         }
 

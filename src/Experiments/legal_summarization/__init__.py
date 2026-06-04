@@ -1,4 +1,4 @@
-"""Legal Judgment Summarization — Codex Experiment.
+"""Legal Judgment Summarization — Daemon Experiment.
 
 Batch-summarizes Pakistani legal judgments (en/ur/sd) via the Agentic
 Governance pipeline, routing inference through the local EXO cluster.
