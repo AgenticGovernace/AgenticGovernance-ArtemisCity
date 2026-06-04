@@ -25,7 +25,8 @@ try:
     _METRICS_ENABLED = True
 except ImportError:
     _METRICS_ENABLED = False
-    Counter = Histogram = None
+    Counter = None  # type: ignore
+    Histogram = None  # type: ignore
 
 if _METRICS_ENABLED:
     # safe_metric is reimport-tolerant; without it, sys.modules.pop +

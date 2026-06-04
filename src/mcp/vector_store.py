@@ -243,7 +243,7 @@ class LocalVectorStore:
         start_time = time.perf_counter()
 
         query_embedding = self.embedding_fn(text)
-        scored: List[Tuple[str, float, Dict]] = []
+        scored: List[Tuple] = []
         for record in self.fetch_all():
             score = _cosine_similarity(query_embedding, record.embedding)
             if include_content:

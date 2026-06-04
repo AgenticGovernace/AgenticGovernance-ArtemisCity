@@ -511,7 +511,7 @@ class RunLogger:
             None: This function does not return a value.
         """
         start = time.perf_counter()
-        context = {"metadata": metadata or {}}
+        context: Dict[str, Any] = {"metadata": metadata or {}}
         try:
             yield context
             status = context.get("status", "success")

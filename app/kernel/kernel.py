@@ -11,6 +11,7 @@ main entry point for processing user requests through its agent network.
 
 import json
 import os
+from typing import Any, Dict
 
 from .agent_router import AgentRouter
 from .agents import DaemonAgent, PlannerAgent
@@ -49,7 +50,7 @@ class Kernel:
         disk if available, or initialized with defaults.
         """
         self.booted = False
-        self.state = {}
+        self.state: Dict[str, Any] = {}
         self.router = None
         self.memory = None
         self.boot()

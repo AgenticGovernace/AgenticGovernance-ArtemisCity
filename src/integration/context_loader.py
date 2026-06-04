@@ -68,7 +68,7 @@ class ContextLoader:
         """
         # Get note content
         response = self.client.get_context(path)
-        if not response.success:
+        if not response.success or response.data is None:
             return None
 
         content = response.data.get("content", "")
@@ -103,7 +103,7 @@ class ContextLoader:
             List of matching ContextEntry objects
         """
         response = self.client.search_notes(query, context_length)
-        if not response.success:
+        if not response.success or response.data is None:
             return []
 
         results = response.data.get("results", [])[:limit]
@@ -132,7 +132,7 @@ class ContextLoader:
         """
         # List notes in folder
         response = self.client.list_notes(folder)
-        if not response.success:
+        if not response.success or response.data is None:
             return []
 
         note_paths = response.data.get("notes", [])
@@ -173,7 +173,7 @@ class ContextLoader:
         """
         # Get agent context via memory client
         response = self.client.get_agent_context(agent_name, limit)
-        if not response.success:
+        if not response.success or response.data is None:
             return []
 
         results = response.data.get("results", [])
