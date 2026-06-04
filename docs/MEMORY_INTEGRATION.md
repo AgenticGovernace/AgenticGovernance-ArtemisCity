@@ -1,6 +1,6 @@
 ---
 title: "Memory Layer Integration"
-description: "Integration between Artemis City core and the Artemis Agentic Memory Layer (MCP Server
+description: "Integration between Artemis City core and the Artemis Agentic Memory Layer (MCP Server)"
 author: "Prinston Palmer"
 date: "2025-11-23"
 version: "1.0.0"
@@ -21,7 +21,7 @@ The memory integration bridge connects the Python-based Artemis City agent syste
 
 ## Architecture
 ```ascii
-┌────────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────┐
 │ Artemis City Core │
 │ ┌──────────────┐ ┌─────────────────┐ ┌────────────────┐ │
 │ │ Agents │ │ ATP Protocol │ │ Instructions │ │
@@ -30,17 +30,17 @@ The memory integration bridge connects the Python-based Artemis City agent syste
 │ └──────┬───────┘ └─────────────────┘ └────────────────┘ │
 │ │ │
 │ ▼ │
-│ ┌──────────────────────────────────────────────────────────┐ │
+│ ┌──────────────────────────────────────────────┐ │
 │ │ Memory Integration Bridge │ │
 │ │ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ │ │
 │ │ │ Memory │ │ Trust │ │ Context │ │ │
 │ │ │ Client │◄─┤ Interface │──► Loader │ │ │
 │ │ └──────────────┘ └──────────────┘ └──────────────┘ │ │
-│ └──────────────────┬───────────────────────────────────────┘ │
-└─────────────────────┼───────────────────────────────────────┘
+│ └──────────────────┬──────────────────────────────┐ │
+└─────────────────────┼──────────────────────────────┘
 │ REST API (Bearer Token)
 ▼
-┌─────────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────┐
 │ Artemis Agentic Memory Layer (MCP Server)        
 │ ┌──────────┐    ┌──────────┐   ┌──────────┐   ┌──────────┐ 
 │ │ Express  │──► │ Auth     │──►│ Router   │──►│ Tools    │ 
@@ -51,7 +51,7 @@ The memory integration bridge connects the Python-based Artemis City agent syste
 │ │ Obsidian REST   │                                │   
 │ │ API Service     │ │                                  
 │ └────────┬────────┘                                 │
-└─────────────────────────────────────────────────────┼─────────┘
+└───────────────────────────────────────────┼─────────┘
 │
 ▼
 ┌─────────────────┐
@@ -63,7 +63,7 @@ The memory integration bridge connects the Python-based Artemis City agent syste
 
 ## Components
 
-### 1. Memory Client (`memory/integration/memory_client.py`)
+### 1. Memory Client (`src/integration/memory_client.py`)
 
 Python REST client for the MCP server with full coverage of 8 MCP operations.
 
@@ -105,7 +105,7 @@ client.store_agent_context(
 )
 ```
 
-### 2. Trust Interface (`memory/integration/trust_interface.py`)
+### 2. Trust Interface (`src/integration/trust_interface.py`)
 
 Trust-based access control for memory operations with decay model.
 
@@ -146,7 +146,7 @@ report = trust.get_trust_report()
 print(f"Total entities: {report['total_entities']}")
 ```
 
-### 3. Context Loader (`memory/integration/context_loader.py`)
+### 3. Context Loader (`src/integration/context_loader.py`)
 
 High-level interface for loading and organizing context from vault.
 
