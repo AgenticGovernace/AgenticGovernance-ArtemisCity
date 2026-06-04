@@ -34,7 +34,7 @@ Artemis City transforms technical operations into a vibrant urban experience:
 - **Duties**: Deliver mail, maintain postal logs, route messages, manage vault operations
 - **Office**: Post Office
 - **Capabilities**: `read` , `write` , `search` , `organize` , `archive` 
-### Codex Daemon / CompSuite (City Manager)
+### Daemon Daemon / CompSuite (City Manager)
 - **Role**: System monitoring, background services, and operations
 - **Clearance**: HIGH (0.85)
 - **Duties**: Monitor city health, manage configuration, status reports, background tasks
@@ -234,7 +234,7 @@ print(f"Connection weakened to {new_weight}")
 post_office = get_post_office()
 
 # Artemis sends morning briefing
-for citizen in ["pack_rat", "copilot", "codex_daemon"]:
+for citizen in ["pack_rat", "copilot", "Daemon_daemon"]:
     post_office.send_mail(
         sender="artemis",
         recipient=citizen,

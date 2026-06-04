@@ -3,12 +3,11 @@ name = "artemis-city"
 version = "0.1.0"
 description = "Architectural framework for agentic reasoning with transparent, accountable action across distributed intelligence systems"
 readme = "README.md"
-requires-python = ">=3.11"
-
+requires-python = ">=3.11,<3.15"
 authors = [
-    {name = "Prinston Palmer", email = "prinstonpalmer879@gmail.com"}
+    { name = "Prinston Palmer", email = "prinstonpalmer879@gmail.com" }
 ]
-license = {text = "Apache License 2.0"}
+license = { text = "Apache License 2.0" }
 keywords = ["agents", "ai", "agentic", "governance", "trust", "memory", "distributed-systems", "artificial-intelligence"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -17,46 +16,51 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-
 dependencies = [
-    "alembic>=1.7.0",
-    "autopep8>=1.5.0",
-    "bandit>=1.7.0",
-    "build>=1.0.0",
     "click>=8.1.0",
-    "coverage>=7.0.0",
-    "coverage-badge>=1.0.0",
     "datasets>=2.18.0",
+    "django>=5.2.15",
+    "docker>=7.1.0",
     "entrypoints>=0.4.0",
-    "faker>=18.0.0",
     "fastapi>=0.109.1",
-    "flake8>=6.0.0",
-    "flake8-docstrings>=1.7.0",
+    "fastmcp>=3.4.0",
     "httpx>=0.23.0",
-    "ipdb>=0.13.13",
-    "ipython>=8.18.0",
     "mcp>=1.26.0",
-    "mkdocs>=1.5.0",
-    "mkdocs-material>=9.0.0",
-    "mkdocstrings[python]>=0.24.0",
-    "mypy>=1.5.0",
     "numpy>=1.24.0",
     "pandas>=1.5.0",
-    "pdbpp>=0.10.3",
-    "pre-commit>=3.5.0",
     "prometheus-client>=0.14.0",
     "prompt-toolkit>=3.0.0",
     "psycopg2-binary>=2.9.0",
     "pyarrow>=23.0.1",
     "pydantic>=2.4.0",
-    "pylint>=3.0.0",
+    "python-dotenv>=1.2.2",
+    "python-multipart==0.0.31",
+    "pyyaml>=6.0.1,<7.0.0",
+    "redis>=4.0.0",
+    "requests>=2.33.0",
+    "rich>=13.7.0",
+    "sqlalchemy>=1.4.0",
+    "uvicorn[standard]>=0.15.0",
+    "vite>=1.5.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ipdb>=0.13.13",
+    "ipython>=8.18.0",
+    "pdbpp>=0.10.3",
+    "pre-commit>=3.5.0",
+]
+test = [
+    "coverage>=7.0.0",
+    "coverage-badge>=1.0.0",
+    "faker>=18.0.0",
     "pytest>=9.0.3",
     "pytest-asyncio>=0.16.0",
     "pytest-cases>=3.7.0",
@@ -66,53 +70,41 @@ dependencies = [
     "pytest-html>=3.2.0",
     "pytest-mock>=3.7.0",
     "pytest-xdist>=3.0.0",
-    "python-dotenv>=1.2.2",
-    "python-multipart>=0.0.27",
-    "pyyaml>=6.0.1,<7.0.0",
-    "redis>=4.0.0",
-    "requests>=2.33.0",
     "responses>=0.22.0",
-    "rich>=13.7.0",
+]
+lint = [
+    "autopep8>=1.5.0",
+    "bandit>=1.7.0",
+    "flake8>=6.0.0",
+    "flake8-docstrings>=1.7.0",
+    "mypy>=1.5.0",
+    "pylint>=3.0.0",
     "ruff>=0.15.15",
     "safety>=2.3.0",
-    "setuptools>=78.1.1",
-    "sqlalchemy>=1.4.0",
-    "twine>=3.0.0",
     "types-pyyaml>=6.0.0",
-    "uvicorn[standard]>=0.15.0",
-    "wheel>=0.38.1",
     "yapf>=0.32.0",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=9.0.3",
-    "pytest-cov>=4.1.0",
-    "pytest-asyncio>=0.21.0",
-    "black>=26.3.1",
-    "isort>=5.12.0",
-    "flake8>=6.0.0",
-    "mypy>=1.5.0",
-    "bandit>=1.7.0",
-    "ipython>=8.18.0",
-    "rich>=13.7.0",
 ]
 docs = [
     "mkdocs>=1.5.0",
     "mkdocs-material>=9.0.0",
     "mkdocstrings[python]>=0.24.0",
 ]
-enhanced = [
-    "pydantic>=2.4.0",
-    "requests>=2.33.0",
-    "click>=8.1.0",
-    "prompt-toolkit>=3.0.0",
+build = [
+    "alembic>=1.7.0",
+    "build>=1.0.0",
+    "hatchling>=1.21.0",
+    "twine>=3.0.0",
+    "wheel>=0.38.1",
+]
+all = [
+    "artemis-city[dev,test,lint,docs,build]",
 ]
 
 [project.urls]
-
-
-[project.scripts]
+GitHub = "https://github.com/AgenticGovernace/AgenticGovernance-ArtemisCity.git"
+Documentation = "https://artemiscity.mintlify.app/"
+Website = "https://artemiscity.com/"
+Demo = "https://artemiscity.com/demos"
 
 [build-system]
 requires = ["hatchling"]
@@ -122,34 +114,16 @@ build-backend = "hatchling.build"
 # Project name normalizes to "artemis_city" but the importable package
 # is "src" (no artemis_city/ directory exists). Tell hatch what to ship.
 # Also ship the "app" package so installed consumers can import
-# app.kernel.* (the kernel layer added in #67 Phase A). Narrow the include
-# to the kernel + app marker -- app/api (fastapi/express, not declared as
-# runtime deps), app/web (frontend), and app/scripts (dev scripts) must
-# not ship in the wheel.
+# app.kernel.* (the kernel layer). Narrow the include to the kernel + app
+# marker -- app/api (fastapi/express, not declared as runtime deps),
+# app/web (frontend), and app/scripts (dev scripts) must not ship in the
+# wheel.
 packages = ["src", "app"]
 exclude = [
   "app/api/**",
   "app/web/**",
   "app/scripts/**",
 ]
-
-[tool.black]
-line-length = 100
-target-version = ['py38']
-include = '\.pyi?$'
-skip-string-normalization = true
-exclude = '''
-/(
-    \.git
-  | \.venv
-  | build
-  | dist
-)/
-'''
-
-[tool.isort]
-profile = "black"
-line_length = 100
 
 [tool.pytest.ini_options]
 addopts = "-ra -q --strict-markers"

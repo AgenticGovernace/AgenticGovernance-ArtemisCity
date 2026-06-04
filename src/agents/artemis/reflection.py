@@ -96,8 +96,8 @@ class ConceptGraph:
             self.concepts[key1].relate_to(key2)
             self.concepts[key2].relate_to(key1)
 
-            pair = tuple(sorted([key1, key2]))
-            self.concept_pairs.add(pair)
+            a, b = sorted([key1, key2])
+            self.concept_pairs.add((a, b))
 
     def get_top_concepts(self, n: int = 10) -> List[ConceptNode]:
         """Get top N concepts by importance.

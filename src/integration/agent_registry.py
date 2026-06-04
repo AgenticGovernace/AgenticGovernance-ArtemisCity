@@ -612,16 +612,16 @@ class AgentRegistry:
         self.agents[agent.name] = agent
         self.scores[agent.name] = persisted_score
         # Seed governance cache from the freshly-persisted defaults.
-        self.governance[agent.name] = self.store.get_governance_state(agent.name)
+        self.governance[agent.name] = self.store.get_governance_state(agent.name) or {}
 
-    def get_agent(self, agent_name: str) -> BaseAgent:
-        """Return agent.
-        
+    def get_agent(self, agent_name: str) -> Optional[BaseAgent]:
+        """Return agent, or None if no agent with that name is registered.
+
         Args:
             agent_name (str): Name of the agent involved in the operation.
-        
+
         Returns:
-            BaseAgent: Resulting BaseAgent value produced by the operation.
+            Optional[BaseAgent]: The registered agent, or None if not found.
         """
         return self.agents.get(agent_name)
 
@@ -650,7 +650,7 @@ class AgentRegistry:
             dict: Dictionary containing the resulting data.
         """
         result = self.store.record_violation(agent_name, violation_type, details)
-        self.governance[agent_name] = self.store.get_governance_state(agent_name)
+        self.governance[agent_name] = self.store.get_governance_state(agent_name) or {}
         return result
 
     def get_violations(
@@ -683,7 +683,7 @@ class AgentRegistry:
             int: Integer result produced by the operation.
         """
         cleared = self.store.clear_violations(agent_name, rationale, override_tier)
-        self.governance[agent_name] = self.store.get_governance_state(agent_name)
+        self.governance[agent_name] = self.store.get_governance_state(agent_name) or {}
         return cleared
 
     def set_trust_tier(self, agent_name: str, tier: str):
@@ -697,7 +697,7 @@ class AgentRegistry:
             None: This function does not return a value.
         """
         self.store.set_trust_tier(agent_name, tier)
-        self.governance[agent_name] = self.store.get_governance_state(agent_name)
+        self.governance[agent_name] = self.store.get_governance_state(agent_name) or {}
 
     def set_trust_score(self, agent_name: str, score: float):
         """Persist a computed trust score (0.0-1.0).
@@ -710,7 +710,7 @@ class AgentRegistry:
             None: This function does not return a value.
         """
         self.store.set_trust_score(agent_name, score)
-        self.governance[agent_name] = self.store.get_governance_state(agent_name)
+        self.governance[agent_name] = self.store.get_governance_state(agent_name) or {}
 
     def get_governance_state(self, agent_name: str) -> Optional[dict]:
         """Return cached governance metadata for an agent, or None if unknown.

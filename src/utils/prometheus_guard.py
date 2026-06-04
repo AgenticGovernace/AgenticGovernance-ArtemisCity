@@ -16,7 +16,7 @@ try:
     METRICS_AVAILABLE = True
 except ImportError:  # pragma: no cover - optional dependency
     METRICS_AVAILABLE = False
-    REGISTRY = None  # type: ignore[assignment]
+    REGISTRY = None  # type: ignore
 
 
 def safe_metric(cls, name, *args, **kwargs):

@@ -278,7 +278,7 @@ class MemoryClient:
         Returns:
             MCPResponse with tag data or success status
         """
-        data = {"path": path, "action": action}
+        data: Dict[str, Any] = {"path": path, "action": action}
         if tags:
             data["tags"] = tags
 

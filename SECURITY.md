@@ -153,7 +153,7 @@ logger.info(f"API key: {api_key}")
 **Docker:**
 
 ```bash
-# Use env_file or environment in docker-compose.yml
+ # Use env_file or environment in docker-compose.yml
 docker-compose --env-file .env.production up
 ```
 **Cloud Platform Examples:**

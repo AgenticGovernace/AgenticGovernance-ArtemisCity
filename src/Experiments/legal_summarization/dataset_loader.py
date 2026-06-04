@@ -23,7 +23,7 @@ logger = logging.getLogger("legal_summarization.dataset_loader")
 # Default local clone of the HF repo inside the Exo Homelab folder.
 _DEFAULT_LOCAL_PATH = os.getenv(
     "LEGAL_DATASET_PATH",
-    "/Volumes/projects/GitHub/AgenticGovernance-ArtemisCity/Projects/Codex_Experiments/legal_summarization/legal-judgements-en-ur-sd",
+    "/Volumes/projects/GitHub/AgenticGovernance-ArtemisCity/src/Experiments/legal_summarization/legal-judgements-en-ur-sd",
 )
 
 HF_REPO_ID = "amjadali070/legal-judgements-en-ur-sd"

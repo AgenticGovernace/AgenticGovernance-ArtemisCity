@@ -94,9 +94,9 @@ class InstructionLoader:
     """Loads and merges instructions from multiple hierarchical scopes.
 
     Scope priority (ascending):
-    1. Global (~/.codex/instructions.md, ~/.artemis/config.md)
-    2. Project root (codex.md, WARP.md, .artemis/instructions.md)
-    3. Current directory (codex.md, instructions.md)
+    1. Global (~/.Daemon/instructions.md, ~/.artemis/config.md)
+    2. Project root (Daemon.md, WARP.md, .artemis/instructions.md)
+    3. Current directory (Daemon.md, instructions.md)
     4. Agent-specific (agents/<agent_name>/instructions.md)
     """
 
@@ -260,7 +260,7 @@ class InstructionLoader:
         markers = [
             ".git",
             ".artemis",
-            "codex.md",
+            "Daemon.md",
             "WARP.md",
             "pyproject.toml",
             "package.json",

@@ -4,25 +4,25 @@
 Examples:
 
     # Summarize 10 English judgments with default settings
-    python -m Projects.Codex_Experiments.legal_summarization.main --limit 10
+    python -m src.Experiments.legal_summarization.main --limit 10
 
     # Summarize Urdu judgments for a general audience
-    python -m Projects.Codex_Experiments.legal_summarization.main \\
+    python -m src.Experiments.legal_summarization.main \\
         --config summary_ur --audience general_public --limit 20
 
     # Aggregated batch summary across 5 judgments
-    python -m Projects.Codex_Experiments.legal_summarization.main \\
+    python -m src.Experiments.legal_summarization.main \\
         --config summary_en --aggregation batch --limit 5
 
     # List previous runs
-    python -m Projects.Codex_Experiments.legal_summarization.main --list-runs
+    python -m src.Experiments.legal_summarization.main --list-runs
 
     # Compare two runs side-by-side
-    python -m Projects.Codex_Experiments.legal_summarization.main \\
+    python -m src.Experiments.legal_summarization.main \\
         --compare 20260327_120000 20260327_130000
 
     # Describe the dataset without running summarization
-    python -m Projects.Codex_Experiments.legal_summarization.main --describe
+    python -m src.Experiments.legal_summarization.main --describe
 """
 
 from __future__ import annotations
@@ -33,20 +33,22 @@ import logging
 from pathlib import Path
 from sys import path
 
-# Ensure repo root is importable
+# Ensure repo root is importable so ``src.*`` resolves when running this
+# module directly (python src/Experiments/.../main.py) outside an installed
+# package context.
 _repo_root = Path(__file__).resolve().parents[3]
 path.insert(0, str(_repo_root))
 
-from Projects.Codex_Experiments.legal_summarization.batch_runner import (
+from src.Experiments.legal_summarization.batch_runner import (
     BatchRunner,  # noqa: E402
 )
-from Projects.Codex_Experiments.legal_summarization.dataset_loader import (  # noqa: E402
+from src.Experiments.legal_summarization.dataset_loader import (  # noqa: E402
     LegalDatasetLoader,
 )
-from Projects.Codex_Experiments.legal_summarization.run_store import (
+from src.Experiments.legal_summarization.run_store import (
     RunStore,  # noqa: E402
 )
-from Projects.Codex_Experiments.legal_summarization.summarization_config import (  # noqa: E402
+from src.Experiments.legal_summarization.summarization_config import (  # noqa: E402
     AggregationLevel,
     AudienceLevel,
     SummarizationConfig,
@@ -68,7 +70,7 @@ def build_parser() -> argparse.ArgumentParser:
         argparse.ArgumentParser: Resulting argparse.ArgumentParser value produced by the operation.
     """
     p = argparse.ArgumentParser(
-        description="Legal Judgment Summarization — Codex Experiment",
+        description="Legal Judgment Summarization — Daemon Experiment",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 

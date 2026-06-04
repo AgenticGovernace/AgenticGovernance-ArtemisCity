@@ -33,10 +33,10 @@ try:
     from src.utils.helpers import logger
 except Exception as e:
     import_error = e
-    Orchestrator = None  # type: ignore[assignment]
+    Orchestrator = None  # type: ignore
     AGENT_OUTPUT_DIR = "Agent Outputs"
     AGENT_INPUT_DIR = "Agent Inputs"
-    OBSIDIAN_VAULT_PATH = os.environ.get("OBSIDIAN_VAULT_PATH")
+    OBSIDIAN_VAULT_PATH = os.environ.get("OBSIDIAN_VAULT_PATH", "")
     logger = logging.getLogger("mcp_dashboard_api")
     if not logger.handlers:
         logging.basicConfig(level=logging.INFO)
@@ -353,7 +353,7 @@ try:
 except Exception as e:
     logger.error("Failed to initialize Orchestrator: %s", _sanitize_for_log(e))
     # Depending on the severity, you might want to exit or provide a fallback
-    orchestrator = None  # type: ignore
+    orchestrator = None
 
 
 async def startup_event():
@@ -463,7 +463,7 @@ async def create_task(task_data: TaskData, _key: None = Depends(_require_api_key
     try:
         payload = task_data.model_dump()
         relative_path = orchestrator.create_new_task_in_obsidian(payload)
-        resolved_capability = orchestrator._resolve_required_capability(payload)  # type: ignore
+        resolved_capability = orchestrator._resolve_required_capability(payload)
         return {
             "message": "Task created successfully",
             "path": relative_path,
@@ -605,7 +605,7 @@ async def execute_pending_task(
                 status_code=400, detail="Task is not pending or could not be parsed."
             )
 
-        resolved_capability = orchestrator._resolve_required_capability(task_data)  # type: ignore
+        resolved_capability = orchestrator._resolve_required_capability(task_data)
         if resolved_capability:
             task_data["required_capability"] = resolved_capability
         else:

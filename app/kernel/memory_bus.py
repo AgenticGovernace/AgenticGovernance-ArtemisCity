@@ -46,11 +46,12 @@ class MemoryBackend(ABC):
         pass
 
     @abstractmethod
-    def read(self, query):
+    def read(self, query, limit: int = 10):
         """Read content from the memory backend matching a query.
 
         Args:
             query: Search query string to match against stored content.
+            limit: Maximum number of results (backends may ignore this).
 
         Returns:
             List of matching content entries.
@@ -110,7 +111,7 @@ class FileMemoryBackend(MemoryBackend):
             print(f"[Memory] Write failed: {e}")
             return None
 
-    def read(self, query):
+    def read(self, query, limit: int = 10):
         """Search stored memories for content matching a query.
 
         Performs a case-insensitive substring search across all
@@ -153,7 +154,7 @@ class VectorMemoryBackend(MemoryBackend):
     def __init__(self):
         """Initialize vector memory backend."""
         try:
-            from MCP.src.vector_store import VectorStore
+            from MCP.src.vector_store import VectorStore  # type: ignore
 
             self.vector_store = VectorStore()
             self._available = True
@@ -172,7 +173,7 @@ class VectorMemoryBackend(MemoryBackend):
         Returns:
             Document ID if successful, None otherwise
         """
-        if not self._available:
+        if not self._available or self.vector_store is None:
             print("[Memory] Vector backend not available")
             return None
 
@@ -192,7 +193,7 @@ class VectorMemoryBackend(MemoryBackend):
         Returns:
             List of matching entries
         """
-        if not self._available:
+        if not self._available or self.vector_store is None:
             return []
 
         try:
@@ -274,10 +275,7 @@ class MemoryBus:
         Returns:
             List of matching memory entries from the backend.
         """
-        # FileMemoryBackend doesn't support limit, VectorMemoryBackend does
-        if hasattr(self.backend, "read") and self.backend_type == "vector":
-            return self.backend.read(query, limit=limit)
-        return self.backend.read(query)
+        return self.backend.read(query, limit=limit)
 
     def is_semantic(self) -> bool:
         """Check if backend supports semantic search.

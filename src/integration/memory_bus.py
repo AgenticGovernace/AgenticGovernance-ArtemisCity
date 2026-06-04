@@ -39,7 +39,9 @@ try:
     METRICS_ENABLED = True
 except ImportError:  # pragma: no cover - optional dependency
     METRICS_ENABLED = False
-    Counter = Gauge = Histogram = None
+    Counter = None  # type: ignore
+    Gauge = None  # type: ignore
+    Histogram = None  # type: ignore
 
 if METRICS_ENABLED:
     # safe_metric is reimport-tolerant; without it, sys.modules.pop +

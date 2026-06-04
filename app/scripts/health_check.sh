@@ -12,9 +12,9 @@ else
 fi
 
 if [ $(($RANDOM % 2)) -eq 0 ]; then
-    echo "  Codex Daemon: OK"
+    echo "  Daemon: OK"
 else
-    echo "  Codex Daemon: ALERT - Memory interface latency detected"
+    echo "  Daemon: ALERT - Memory interface latency detected"
 fi
 
 # Simulate checking memory stack integrity

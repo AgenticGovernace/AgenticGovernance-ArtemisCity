@@ -139,7 +139,7 @@ def handle_command(command: str, agent_router: AgentRouterConfig) -> None:
 
 
 def main() -> None:
-    """Initialize and run the Agentic Codex Command-Line Interface.
+    """Initialize and run the Agentic Daemon Command-Line Interface.
     
     Sets up argument parsing, loads agent router configuration, and
     either processes a single command or enters interactive mode.
@@ -153,11 +153,11 @@ def main() -> None:
     Returns:
         None: This function does not return a value.
     """
-    parser = argparse.ArgumentParser(description="Agentic Codex CLI Interface")
+    parser = argparse.ArgumentParser(description="Agentic Daemon CLI Interface")
     parser.add_argument(
         "command",
         nargs="?",
-        help="The command to send to the Codex (e.g., 'status', 'ask artemis')",
+        help="The command to send to the Daemon (e.g., 'status', 'ask artemis')",
     )
     parser.add_argument(
         "--config",
@@ -166,7 +166,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    print("--- Agentic Codex CLI ---")
+    print("--- Agentic Daemon CLI ---")
     print("Type 'exit' or 'quit' to close.")
 
     # Load agent router configuration
@@ -194,18 +194,18 @@ def _run_interactive_loop(router_config: AgentRouterConfig) -> None:
     """
     while True:
         try:
-            user_input = input("codex> ").strip()
+            user_input = input("Daemon> ").strip()
             if user_input.lower() in ["exit", "quit"]:
-                print("Exiting Codex CLI. Goodbye!")
+                print("Exiting Daemon CLI. Goodbye!")
                 break
             if not user_input:
                 continue
             handle_command(user_input, router_config)
         except KeyboardInterrupt:
-            print("\nExiting Codex CLI. Goodbye!")
+            print("\nExiting Daemon CLI. Goodbye!")
             break
         except EOFError:
-            print("\nExiting Codex CLI. Goodbye!")
+            print("\nExiting Daemon CLI. Goodbye!")
             break
 
 
