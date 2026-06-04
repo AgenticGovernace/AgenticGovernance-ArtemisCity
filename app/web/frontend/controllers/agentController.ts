@@ -96,9 +96,14 @@ const defaultAgents: AgentCard[] = [
 // Initialize store with default agents
 defaultAgents.forEach(agent => store.agents.set(agent.id, agent));
 
+/**
+ * Controller responsible for managing the in-memory agent registry used by the demo API.
+ */
 export class AgentController {
   /**
    * Get all registered agents
+   *
+   * @returns Promise resolving to an array of AgentCard values produced by getting all registered agents.
    */
   async getAllAgents(): Promise<AgentCard[]> {
     return Array.from(store.agents.values());
@@ -106,6 +111,9 @@ export class AgentController {
 
   /**
    * Get a specific agent by ID
+   *
+   * @param id - Agent identifier to look up or mutate.
+   * @returns Promise resolving to a AgentCard | null value produced by getting a specific agent by ID.
    */
   async getAgent(id: string): Promise<AgentCard | null> {
     return store.agents.get(id) || null;
@@ -113,6 +121,9 @@ export class AgentController {
 
   /**
    * Register a new agent
+   *
+   * @param agentData - Partial agent definition used to create a new registry entry.
+   * @returns Promise resolving to a AgentCard value produced by registering a new agent.
    */
   async registerAgent(agentData: Partial<AgentCard>): Promise<AgentCard> {
     const id = agentData.id || this.generateId(agentData.name || 'agent');
@@ -136,6 +147,10 @@ export class AgentController {
 
   /**
    * Update an existing agent
+   *
+   * @param id - Agent identifier to look up or mutate.
+   * @param updates - Field updates to merge into the existing agent definition.
+   * @returns Promise resolving to a AgentCard | null value produced by updating an existing agent.
    */
   async updateAgent(id: string, updates: Partial<AgentCard>): Promise<AgentCard | null> {
     const existing = store.agents.get(id);
@@ -154,6 +169,9 @@ export class AgentController {
 
   /**
    * Delete an agent
+   *
+   * @param id - Agent identifier to look up or mutate.
+   * @returns Promise resolving to whether delete an agent.
    */
   async deleteAgent(id: string): Promise<boolean> {
     return store.agents.delete(id);
@@ -161,6 +179,10 @@ export class AgentController {
 
   /**
    * Suspend an agent
+   *
+   * @param id - Agent identifier to look up or mutate.
+   * @param reason - Reason to record alongside the suspension operation.
+   * @returns Promise resolving to a AgentCard | null value produced by suspending an agent.
    */
   async suspendAgent(id: string, reason?: string): Promise<AgentCard | null> {
     const agent = store.agents.get(id);
@@ -177,6 +199,9 @@ export class AgentController {
 
   /**
    * Activate an agent
+   *
+   * @param id - Agent identifier to look up or mutate.
+   * @returns Promise resolving to a AgentCard | null value produced by activating an agent.
    */
   async activateAgent(id: string): Promise<AgentCard | null> {
     const agent = store.agents.get(id);
@@ -193,6 +218,9 @@ export class AgentController {
 
   /**
    * Get agent's card (formatted for display)
+   *
+   * @param id - Agent identifier to look up or mutate.
+   * @returns Promise resolving to a Record<string, any> | null value produced by getting agent's card (formatted for display).
    */
   async getAgentCard(id: string): Promise<Record<string, any> | null> {
     const agent = store.agents.get(id);
@@ -209,6 +237,9 @@ export class AgentController {
 
   /**
    * Get agents by zone
+   *
+   * @param zone - Zone name used to filter matching agents.
+   * @returns Promise resolving to an array of AgentCard values produced by getting agents by zone.
    */
   async getAgentsByZone(zone: string): Promise<AgentCard[]> {
     return Array.from(store.agents.values()).filter(
@@ -218,6 +249,9 @@ export class AgentController {
 
   /**
    * Get agents by capability
+   *
+   * @param capability - Capability name used to filter matching agents.
+   * @returns Promise resolving to an array of AgentCard values produced by getting agents by capability.
    */
   async getAgentsByCapability(capability: string): Promise<AgentCard[]> {
     return Array.from(store.agents.values()).filter(
@@ -227,6 +261,9 @@ export class AgentController {
 
   /**
    * Get agents by status
+   *
+   * @param status - Agent status used to filter matching agents.
+   * @returns Promise resolving to an array of AgentCard values produced by getting agents by status.
    */
   async getAgentsByStatus(status: string): Promise<AgentCard[]> {
     return Array.from(store.agents.values()).filter(

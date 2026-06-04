@@ -75,10 +75,13 @@ class InstructionCache:
         self, current_dir: Optional[str] = None, agent_name: Optional[str] = None
     ) -> None:
         """Invalidate cache entry for specific directory/agent combination.
-
+        
         Args:
             current_dir: Directory to invalidate
             agent_name: Agent name to invalidate
+        
+        Returns:
+            None: This function does not return a value.
         """
         current_dir = current_dir or os.getcwd()
         cache_key = self._make_cache_key(current_dir, agent_name)
@@ -86,7 +89,11 @@ class InstructionCache:
             del self._cache[cache_key]
 
     def clear(self) -> None:
-        """Clear entire cache."""
+        """Clear entire cache.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         self._cache.clear()
 
     def get_stats(self) -> Dict:
@@ -146,7 +153,11 @@ def get_global_cache(ttl_seconds: int = 300) -> InstructionCache:
 
 
 def reset_global_cache() -> None:
-    """Reset global cache instance."""
+    """Reset global cache instance.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     global _global_cache
     if _global_cache is not None:
         _global_cache.clear()

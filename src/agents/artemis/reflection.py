@@ -28,12 +28,26 @@ class ConceptNode:
     importance_score: float = 0.0
 
     def add_context(self, context: str) -> None:
-        """Add a context where this concept appeared."""
+        """Add a context where this concept appeared.
+        
+        Args:
+            context (str): Context value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         self.contexts.append(context)
         self.frequency += 1
 
     def relate_to(self, other_concept: str) -> None:
-        """Mark another concept as related."""
+        """Mark another concept as related.
+        
+        Args:
+            other_concept (str): Other concept value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         self.related_concepts.add(other_concept)
 
 
@@ -51,10 +65,13 @@ class ConceptGraph:
 
     def add_concept(self, concept: str, context: str) -> None:
         """Add or update a concept in the graph.
-
+        
         Args:
             concept: Concept text
             context: Context where concept appeared
+        
+        Returns:
+            None: This function does not return a value.
         """
         concept_key = concept.lower()
         if concept_key not in self.concepts:
@@ -64,10 +81,13 @@ class ConceptGraph:
 
     def relate_concepts(self, concept1: str, concept2: str) -> None:
         """Create relationship between two concepts.
-
+        
         Args:
             concept1: First concept
             concept2: Second concept
+        
+        Returns:
+            None: This function does not return a value.
         """
         key1 = concept1.lower()
         key2 = concept2.lower()
@@ -143,9 +163,12 @@ class ReflectionEngine:
 
     def add_conversation(self, text: str) -> None:
         """Add a conversation to the reflection corpus.
-
+        
         Args:
             text: Conversation text to analyze
+        
+        Returns:
+            None: This function does not return a value.
         """
         self.conversation_history.append(text)
 

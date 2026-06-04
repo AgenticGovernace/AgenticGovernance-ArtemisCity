@@ -4,6 +4,13 @@ export type ToolSuccess = { success: true; data?: unknown; message?: string };
 export type ToolFailure = { success: false; error: string };
 export type ToolResult = ToolSuccess | ToolFailure;
 
+/**
+ * Wrap an asynchronous MCP tool handler with consistent logging and success/error envelopes.
+ *
+ * @param name - Human-readable tool name used in log messages.
+ * @param fn - Asynchronous handler that returns the successful tool payload.
+ * @returns Wrapped handler that always resolves to a `ToolResult` object.
+ */
 export function wrapTool<Args extends unknown[]>(
   name: string,
   fn: (...args: Args) => Promise<Omit<ToolSuccess, 'success'>>,

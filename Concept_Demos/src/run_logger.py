@@ -168,15 +168,17 @@ class RunLogger:
         message: Optional[str] = None,
         duration_ms: Optional[float] = None,
     ):
-        """
-        Log a general event.
-
+        """Log a general event.
+        
         Args:
             event_type: Type of event (e.g., 'task_start', 'db_write', 'error')
             component: Component name (e.g., 'orchestrator', 'memory_bus')
             metadata: Additional structured data
             message: Human-readable message
             duration_ms: Operation duration if applicable
+        
+        Returns:
+            None: This function does not return a value.
         """
         timestamp = datetime.now().isoformat()
         created_at = time.time()
@@ -236,9 +238,8 @@ class RunLogger:
         metadata: Optional[Dict] = None,
         latency_ms: Optional[float] = None,
     ):
-        """
-        Log a vector store operation.
-
+        """Log a vector store operation.
+        
         Args:
             doc_id: Document identifier
             operation: Operation type ('upsert', 'query', 'delete')
@@ -246,6 +247,9 @@ class RunLogger:
             embedding: The embedding vector
             metadata: Additional metadata
             latency_ms: Operation latency
+        
+        Returns:
+            None: This function does not return a value.
         """
         timestamp = datetime.now().isoformat()
         created_at = time.time()
@@ -306,9 +310,8 @@ class RunLogger:
         rows_affected: int = 1,
         latency_ms: Optional[float] = None,
     ):
-        """
-        Log a database write operation.
-
+        """Log a database write operation.
+        
         Args:
             database: Database name/path
             table_name: Table being written to
@@ -317,6 +320,9 @@ class RunLogger:
             data: Data being written (will be previewed)
             rows_affected: Number of rows affected
             latency_ms: Operation latency
+        
+        Returns:
+            None: This function does not return a value.
         """
         timestamp = datetime.now().isoformat()
         created_at = time.time()
@@ -375,7 +381,18 @@ class RunLogger:
         duration_ms: float,
         metadata: Optional[Dict] = None,
     ):
-        """Log task execution details."""
+        """Log task execution details.
+        
+        Args:
+            task_id (str): Identifier of the task being processed.
+            agent_name (str): Name of the agent involved in the operation.
+            status (str): Status value to persist or return.
+            duration_ms (float): Duration ms value used by this operation.
+            metadata (Optional[Dict]): Optional metadata stored with the resulting record.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         self.log_event(
             f"task_{status}",
             "orchestrator",
@@ -398,7 +415,19 @@ class RunLogger:
         new_weight: float,
         latency_ms: Optional[float] = None,
     ):
-        """Log Hebbian weight updates."""
+        """Log Hebbian weight updates.
+        
+        Args:
+            origin (str): Origin value used by this operation.
+            target (str): Target value used by this operation.
+            operation (str): Operation name to validate or record.
+            old_weight (float): Old weight value used by this operation.
+            new_weight (float): New weight value used by this operation.
+            latency_ms (Optional[float]): Latency ms value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         self.log_event(
             f"hebbian_{operation}",
             "hebbian_weights",
@@ -433,7 +462,20 @@ class RunLogger:
         total_latency_ms: Optional[float] = None,
         metadata: Optional[Dict] = None,
     ):
-        """Log memory bus operations."""
+        """Log memory bus operations.
+        
+        Args:
+            operation (str): Operation name to validate or record.
+            path (str): Filesystem or vault-relative path involved in the operation.
+            status (str): Status value to persist or return.
+            vector_latency_ms (Optional[float]): Vector latency ms value used by this operation.
+            file_latency_ms (Optional[float]): File latency ms value used by this operation.
+            total_latency_ms (Optional[float]): Total latency ms value used by this operation.
+            metadata (Optional[Dict]): Optional metadata stored with the resulting record.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         self.log_event(
             f"memory_bus_{operation}",
             "memory_bus",
@@ -453,13 +495,20 @@ class RunLogger:
     def timed_operation(
         self, event_type: str, component: str, metadata: Optional[Dict] = None
     ):
-        """
-        Context manager for timing operations.
-
+        """Context manager for timing operations.
+        
         Usage:
             with run_logger.timed_operation("task_execution", "orchestrator") as op:
                 # do work
                 op["result"] = "success"
+        
+        Args:
+            event_type (str): Event type to filter by.
+            component (str): Component value used by this operation.
+            metadata (Optional[Dict]): Optional metadata stored with the resulting record.
+        
+        Returns:
+            None: This function does not return a value.
         """
         start = time.perf_counter()
         context = {"metadata": metadata or {}}
@@ -481,12 +530,14 @@ class RunLogger:
             )
 
     def finalize_run(self, status: str = "completed", summary: Optional[Dict] = None):
-        """
-        Finalize the run log with summary statistics.
-
+        """Finalize the run log with summary statistics.
+        
         Args:
             status: Final run status
             summary: Optional summary data
+        
+        Returns:
+            None: This function does not return a value.
         """
         run_duration_ms = (time.perf_counter() - self.run_start_time) * 1000
 
@@ -558,7 +609,11 @@ class RunLogger:
         self._append_md_section(summary_md)
 
     def get_run_stats(self) -> Dict:
-        """Get statistics for the current run."""
+        """Get statistics for the current run.
+        
+        Returns:
+            Dict: Resulting Dict value produced by the operation.
+        """
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
 
@@ -583,7 +638,11 @@ _run_logger: Optional[RunLogger] = None
 
 
 def get_run_logger() -> RunLogger:
-    """Get or create the global run logger instance."""
+    """Get or create the global run logger instance.
+    
+    Returns:
+        RunLogger: Resulting RunLogger value produced by the operation.
+    """
     global _run_logger
     if _run_logger is None:
         _run_logger = RunLogger()
@@ -595,7 +654,16 @@ def init_run_logger(
     db_path: str = "data/run_logs.db",
     run_id: Optional[str] = None,
 ) -> RunLogger:
-    """Initialize a new run logger (resets the global instance)."""
+    """Initialize a new run logger (resets the global instance).
+    
+    Args:
+        log_dir (str): Log dir value used by this operation.
+        db_path (str): Path to the SQLite database file.
+        run_id (Optional[str]): Identifier of the run being queried or updated.
+    
+    Returns:
+        RunLogger: Resulting RunLogger value produced by the operation.
+    """
     global _run_logger
     _run_logger = RunLogger(log_dir=log_dir, db_path=db_path, run_id=run_id)
     return _run_logger

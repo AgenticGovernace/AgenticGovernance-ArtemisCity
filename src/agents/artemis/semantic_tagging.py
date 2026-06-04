@@ -27,7 +27,14 @@ class SemanticTag:
     description: Optional[str] = None
 
     def add_reference(self, reference: str) -> None:
-        """Add a reference to this tag."""
+        """Add a reference to this tag.
+        
+        Args:
+            reference (str): Reference value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         self.references.add(reference)
 
     def __str__(self) -> str:
@@ -52,7 +59,11 @@ class Citation:
     line_number: Optional[int] = None
 
     def format(self) -> str:
-        """Format citation for display."""
+        """Format citation for display.
+        
+        Returns:
+            str: String result produced by the operation.
+        """
         if self.citation_type == "file":
             path = Path(self.target)
             if self.line_number:
@@ -92,11 +103,14 @@ class SemanticTagger:
 
     def tag_item(self, item: str, tags: List[str], category: str = "concept") -> None:
         """Tag an item with semantic tags.
-
+        
         Args:
             item: Item to tag (file path, concept, etc.)
             tags: List of tag names
             category: Tag category
+        
+        Returns:
+            None: This function does not return a value.
         """
         for tag_name in tags:
             tag_key = self._normalize_tag(tag_name)
@@ -137,14 +151,28 @@ class SemanticTagger:
         return citation
 
     def get_items_by_tag(self, tag: str) -> List[str]:
-        """Get all items with a specific tag."""
+        """Get all items with a specific tag.
+        
+        Args:
+            tag (str): Tag value used by this operation.
+        
+        Returns:
+            List[str]: List containing the resulting items.
+        """
         tag_key = self._normalize_tag(tag)
         if tag_key in self.tags:
             return list(self.tags[tag_key].references)
         return []
 
     def get_tags_for_item(self, item: str) -> List[str]:
-        """Get all tags for an item."""
+        """Get all tags for an item.
+        
+        Args:
+            item (str): Single item under inspection.
+        
+        Returns:
+            List[str]: List containing the resulting items.
+        """
         if item in self.item_tags:
             return [
                 self.tags[tag_key].tag
@@ -154,7 +182,14 @@ class SemanticTagger:
         return []
 
     def find_related_items(self, item: str) -> List[str]:
-        """Find items related to given item through shared tags."""
+        """Find items related to given item through shared tags.
+        
+        Args:
+            item (str): Single item under inspection.
+        
+        Returns:
+            List[str]: List containing the resulting items.
+        """
         if item not in self.item_tags:
             return []
 
@@ -170,13 +205,27 @@ class SemanticTagger:
         return list(related)
 
     def extract_tags_from_text(self, text: str) -> List[str]:
-        """Extract hashtags from text."""
+        """Extract hashtags from text.
+        
+        Args:
+            text (str): Text value to parse, search, or transform.
+        
+        Returns:
+            List[str]: List containing the resulting items.
+        """
         pattern = r"#([\w-]+)"
         matches = re.findall(pattern, text)
         return matches
 
     def extract_citations_from_text(self, text: str) -> List[Citation]:
-        """Extract citations from text."""
+        """Extract citations from text.
+        
+        Args:
+            text (str): Text value to parse, search, or transform.
+        
+        Returns:
+            List[Citation]: List containing the resulting items.
+        """
         citations = []
 
         file_pattern = r"(?:^|[\\s(])([\\/~][\\w\\/.-]+\\.[\\w]+)"
@@ -204,7 +253,11 @@ class SemanticTagger:
         return citations
 
     def generate_tag_summary(self) -> str:
-        """Generate summary of all tags and their usage."""
+        """Generate summary of all tags and their usage.
+        
+        Returns:
+            str: String result produced by the operation.
+        """
         if not self.tags:
             return "No tags defined yet."
 
@@ -225,7 +278,14 @@ class SemanticTagger:
         return "\n".join(parts)
 
     def get_citation_context(self, target: str) -> List[str]:
-        """Get all contexts where a target was cited."""
+        """Get all contexts where a target was cited.
+        
+        Args:
+            target (str): Target value used by this operation.
+        
+        Returns:
+            List[str]: List containing the resulting items.
+        """
         contexts = []
         for citation in self.citations:
             if citation.target == target and citation.context:
@@ -239,7 +299,11 @@ class SemanticTagger:
         return normalized
 
     def get_stats(self) -> Dict:
-        """Get tagging system statistics."""
+        """Get tagging system statistics.
+        
+        Returns:
+            Dict: Resulting Dict value produced by the operation.
+        """
         return {
             "total_tags": len(self.tags),
             "total_citations": len(self.citations),

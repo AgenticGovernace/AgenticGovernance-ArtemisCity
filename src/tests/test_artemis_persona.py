@@ -18,12 +18,20 @@ class TestArtemisPersona:
     """Test Artemis Persona functionality."""
 
     def test_persona_initialization(self):
-        """Test that ArtemisPersona can be initialized."""
+        """Test that ArtemisPersona can be initialized.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         persona = ArtemisPersona()
         assert persona is not None
 
     def test_response_modes(self):
-        """Test response mode enum values."""
+        """Test response mode enum values.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         assert ResponseMode.TECHNICAL is not None
         assert ResponseMode.CONVERSATIONAL is not None
         assert ResponseMode.REFLECTIVE is not None
@@ -31,7 +39,11 @@ class TestArtemisPersona:
         assert ResponseMode.POETIC is not None
 
     def test_persona_with_mode(self):
-        """Test creating persona with specific mode."""
+        """Test creating persona with specific mode.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         persona = ArtemisPersona()
         persona.set_mode(ResponseMode.REFLECTIVE)
         assert persona is not None
@@ -42,19 +54,31 @@ class TestReflectionEngine:
     """Test Reflection Engine functionality."""
 
     def test_reflection_engine_initialization(self):
-        """Test that ReflectionEngine can be initialized."""
+        """Test that ReflectionEngine can be initialized.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         engine = ReflectionEngine()
         assert engine is not None
 
     def test_concept_graph_creation(self):
-        """Test creating a concept graph."""
+        """Test creating a concept graph.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         from src.agents.artemis import ConceptGraph
 
         graph = ConceptGraph()
         assert graph is not None
 
     def test_add_concept_node(self):
-        """Test adding concept nodes to graph."""
+        """Test adding concept nodes to graph.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         from src.agents.artemis import ConceptGraph, ConceptNode
 
         _ = ConceptGraph()  # Verify graph can be created
@@ -69,12 +93,20 @@ class TestSemanticTagger:
     """Test Semantic Tagger functionality."""
 
     def test_semantic_tagger_initialization(self):
-        """Test that SemanticTagger can be initialized."""
+        """Test that SemanticTagger can be initialized.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         tagger = SemanticTagger()
         assert tagger is not None
 
     def test_semantic_tag_creation(self):
-        """Test creating semantic tags."""
+        """Test creating semantic tags.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         from src.agents.artemis import SemanticTag
 
         tag = SemanticTag(
@@ -85,7 +117,11 @@ class TestSemanticTagger:
         assert tag.description == "System governance"
 
     def test_tag_text(self):
-        """Test tagging text content."""
+        """Test tagging text content.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         tagger = SemanticTagger()
         item = "test-document.md"
         tags = ["governance", "system"]
@@ -100,7 +136,11 @@ class TestCitationSystem:
     """Test citation and reference system."""
 
     def test_citation_creation(self):
-        """Test creating citations."""
+        """Test creating citations.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         from src.agents.artemis import Citation
 
         citation = Citation(

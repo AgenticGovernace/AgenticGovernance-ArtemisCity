@@ -23,11 +23,27 @@ class _StubAgent(BaseAgent):
 
 @pytest.fixture
 def registry(tmp_path):
+    """Registry.
+    
+    Args:
+        tmp_path: Tmp path value used by this operation.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     return AgentRegistry(db_path=str(tmp_path / "registry.db"))
 
 
 @pytest.fixture
 def alpha(registry):
+    """Alpha.
+    
+    Args:
+        registry: Agent registry used to persist and read governance state.
+    
+    Returns:
+        None: This function does not return a value.
+    """
     agent = _StubAgent("Alpha", capabilities=["research"])
     registry.register_agent(agent)
     return agent
@@ -37,7 +53,18 @@ def alpha(registry):
 # Defaults on registration
 # ---------------------------------------------------------------------------
 class TestGovernanceDefaults:
+    """Provide the TestGovernanceDefaults abstraction used by this module.
+    """
     def test_new_agent_defaults(self, registry, alpha):
+        """Test that new agent defaults.
+        
+        Args:
+            registry: Agent registry used to persist and read governance state.
+            alpha: Alpha value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         state = registry.get_governance_state("Alpha")
         assert state["trust_tier"] == "monitored"
         assert state["status"] == "active"
@@ -45,9 +72,26 @@ class TestGovernanceDefaults:
         assert state["quarantined_at"] is None
 
     def test_unknown_agent_state_is_none(self, registry):
+        """Test that unknown agent state is none.
+        
+        Args:
+            registry: Agent registry used to persist and read governance state.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         assert registry.get_governance_state("ghost") is None
 
     def test_not_blocked_by_default(self, registry, alpha):
+        """Test that not blocked by default.
+        
+        Args:
+            registry: Agent registry used to persist and read governance state.
+            alpha: Alpha value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         assert registry._is_blocked("Alpha") is False
         assert registry.is_quarantined("Alpha") is False
 
@@ -56,7 +100,18 @@ class TestGovernanceDefaults:
 # Violation logging + auto-quarantine
 # ---------------------------------------------------------------------------
 class TestViolations:
+    """Provide the TestViolations abstraction used by this module.
+    """
     def test_first_violation_logged_not_quarantined(self, registry, alpha):
+        """Test that first violation logged not quarantined.
+        
+        Args:
+            registry: Agent registry used to persist and read governance state.
+            alpha: Alpha value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         result = registry.record_violation(
             "Alpha", "unauthorized_tool", {"tool_name": "rm"}
         )
@@ -65,6 +120,15 @@ class TestViolations:
         assert registry.is_quarantined("Alpha") is False
 
     def test_third_violation_quarantines(self, registry, alpha):
+        """Test that third violation quarantines.
+        
+        Args:
+            registry: Agent registry used to persist and read governance state.
+            alpha: Alpha value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         for _ in range(QUARANTINE_THRESHOLD - 1):
             registry.record_violation("Alpha", "rate_limit", {})
         result = registry.record_violation("Alpha", "rate_limit", {})
@@ -76,14 +140,40 @@ class TestViolations:
         assert state["quarantined_at"] is not None
 
     def test_unknown_violation_type_raises(self, registry, alpha):
+        """Test that unknown violation type raises.
+        
+        Args:
+            registry: Agent registry used to persist and read governance state.
+            alpha: Alpha value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         with pytest.raises(ValueError, match="violation_type"):
             registry.record_violation("Alpha", "bogus", {})
 
     def test_violation_on_unknown_agent_raises(self, registry):
+        """Test that violation on unknown agent raises.
+        
+        Args:
+            registry: Agent registry used to persist and read governance state.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         with pytest.raises(ValueError, match="Unknown agent"):
             registry.record_violation("ghost", "rate_limit", {})
 
     def test_get_violations_newest_first(self, registry, alpha):
+        """Test that get violations newest first.
+        
+        Args:
+            registry: Agent registry used to persist and read governance state.
+            alpha: Alpha value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         registry.record_violation("Alpha", "unauthorized_tool", {"n": 1})
         registry.record_violation("Alpha", "unauthorized_path", {"n": 2})
         violations = registry.get_violations("Alpha")
@@ -92,6 +182,15 @@ class TestViolations:
         assert violations[0]["details"] == {"n": 2}
 
     def test_get_violations_excludes_cleared_by_default(self, registry, alpha):
+        """Test that get violations excludes cleared by default.
+        
+        Args:
+            registry: Agent registry used to persist and read governance state.
+            alpha: Alpha value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         registry.record_violation("Alpha", "rate_limit", {})
         registry.clear_violations("Alpha", rationale="reviewed")
         assert registry.get_violations("Alpha") == []
@@ -102,7 +201,18 @@ class TestViolations:
 # Clearing / override
 # ---------------------------------------------------------------------------
 class TestClearViolations:
+    """Provide the TestClearViolations abstraction used by this module.
+    """
     def test_clear_releases_quarantine(self, registry, alpha):
+        """Test that clear releases quarantine.
+        
+        Args:
+            registry: Agent registry used to persist and read governance state.
+            alpha: Alpha value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         for _ in range(QUARANTINE_THRESHOLD):
             registry.record_violation("Alpha", "rate_limit", {})
         assert registry.is_quarantined("Alpha") is True
@@ -115,6 +225,15 @@ class TestClearViolations:
         assert state["quarantined_at"] is None
 
     def test_clear_with_tier_override(self, registry, alpha):
+        """Test that clear with tier override.
+        
+        Args:
+            registry: Agent registry used to persist and read governance state.
+            alpha: Alpha value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         registry.record_violation("Alpha", "rate_limit", {})
         registry.clear_violations(
             "Alpha", rationale="trusted", override_tier="auto"
@@ -122,23 +241,87 @@ class TestClearViolations:
         assert registry.get_governance_state("Alpha")["trust_tier"] == "auto"
 
     def test_clear_with_invalid_tier_raises(self, registry, alpha):
+        """Test that clear with invalid tier raises.
+        
+        Args:
+            registry: Agent registry used to persist and read governance state.
+            alpha: Alpha value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         with pytest.raises(ValueError, match="trust_tier"):
             registry.clear_violations("Alpha", rationale="x", override_tier="god")
+
+    def test_clear_does_not_reactivate_suspended_agent(self, registry, alpha, tmp_path):
+        """clear_violations must not turn a 'suspended' status into 'active'.
+        
+        Args:
+            registry: Agent registry used to persist and read governance state.
+            alpha: Alpha value used by this operation.
+            tmp_path: Tmp path value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
+        # Manually suspend (bypass facade — no public API for it yet).
+        import sqlite3 as _sqlite
+
+        with _sqlite.connect(str(tmp_path / "registry.db")) as conn:
+            conn.execute(
+                "UPDATE agents SET status = 'suspended' WHERE name = 'Alpha'"
+            )
+            conn.commit()
+        registry.record_violation("Alpha", "rate_limit", {})
+        registry.clear_violations("Alpha", rationale="reviewed")
+        # Reload state from the store to confirm DB-level value.
+        state = registry.store.get_governance_state("Alpha")
+        assert state["status"] == "suspended"
+        assert state["violation_count"] == 0
 
 
 # ---------------------------------------------------------------------------
 # Trust tier + score
 # ---------------------------------------------------------------------------
 class TestTrust:
+    """Provide the TestTrust abstraction used by this module.
+    """
     def test_set_trust_tier(self, registry, alpha):
+        """Test that set trust tier.
+        
+        Args:
+            registry: Agent registry used to persist and read governance state.
+            alpha: Alpha value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         registry.set_trust_tier("Alpha", "human")
         assert registry.get_governance_state("Alpha")["trust_tier"] == "human"
 
     def test_set_trust_tier_invalid(self, registry, alpha):
+        """Test that set trust tier invalid.
+        
+        Args:
+            registry: Agent registry used to persist and read governance state.
+            alpha: Alpha value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         with pytest.raises(ValueError):
             registry.set_trust_tier("Alpha", "nonsense")
 
     def test_set_trust_score_clamped(self, registry, alpha):
+        """Test that set trust score clamped.
+        
+        Args:
+            registry: Agent registry used to persist and read governance state.
+            alpha: Alpha value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         registry.set_trust_score("Alpha", 1.5)
         assert registry.get_governance_state("Alpha")["trust_score"] == 1.0
         registry.set_trust_score("Alpha", -0.2)
@@ -149,7 +332,17 @@ class TestTrust:
 # Routing excludes blocked agents
 # ---------------------------------------------------------------------------
 class TestRoutingExcludesBlocked:
+    """Provide the TestRoutingExcludesBlocked abstraction used by this module.
+    """
     def test_quarantined_agent_excluded(self, registry):
+        """Test that quarantined agent excluded.
+        
+        Args:
+            registry: Agent registry used to persist and read governance state.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         a = _StubAgent("Alpha", capabilities=["research"])
         b = _StubAgent("Beta", capabilities=["research"])
         registry.register_agent(a)
@@ -161,6 +354,14 @@ class TestRoutingExcludesBlocked:
         assert registry.route_task({"required_capability": "research"}) == "Beta"
 
     def test_all_blocked_raises(self, registry):
+        """Test that all blocked raises.
+        
+        Args:
+            registry: Agent registry used to persist and read governance state.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         a = _StubAgent("Alpha", capabilities=["research"])
         registry.register_agent(a)
         for _ in range(QUARANTINE_THRESHOLD):
@@ -173,7 +374,17 @@ class TestRoutingExcludesBlocked:
 # Persistence + migration
 # ---------------------------------------------------------------------------
 class TestPersistenceAndMigration:
+    """Provide the TestPersistenceAndMigration abstraction used by this module.
+    """
     def test_governance_state_survives_reload(self, tmp_path):
+        """Test that governance state survives reload.
+        
+        Args:
+            tmp_path: Tmp path value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         db = str(tmp_path / "registry.db")
         reg1 = AgentRegistry(db_path=db)
         reg1.register_agent(_StubAgent("Alpha", capabilities=["research"]))
@@ -187,7 +398,14 @@ class TestPersistenceAndMigration:
         assert state["violation_count"] == 1
 
     def test_migration_adds_columns_to_legacy_table(self, tmp_path):
-        """A pre-governance agents table is migrated in place on open."""
+        """A pre-governance agents table is migrated in place on open.
+        
+        Args:
+            tmp_path: Tmp path value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         db = str(tmp_path / "legacy.db")
         with sqlite3.connect(db) as conn:
             conn.execute(

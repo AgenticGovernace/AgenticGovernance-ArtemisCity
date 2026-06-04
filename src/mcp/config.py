@@ -20,6 +20,14 @@ try:
     from dotenv import load_dotenv
 except ImportError:  # python-dotenv is pinned in Pipfile but degrade gracefully
     def load_dotenv(*_args, **_kwargs) -> bool:  # type: ignore[misc]
+        """Provide a no-op ``load_dotenv`` fallback when python-dotenv is unavailable.
+        Args:
+            *_args: Positional arguments accepted for API compatibility with ``python-dotenv``.
+            **_kwargs: Keyword arguments accepted for API compatibility with ``python-dotenv``.
+
+        Returns:
+            bool: Always returns ``False`` to indicate that no environment file was loaded.
+        """
         return False
 
 # config.py lives at <repo-root>/src/mcp/config.py, so parents[2] is the repo

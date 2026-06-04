@@ -4,10 +4,20 @@ import random
 
 
 class ResearchAgent(BaseAgent):
+    """Implement the research-oriented agent used for discovery tasks.
+    """
     def __init__(self, name: str = "Research Agent"):
         super().__init__(name, capabilities=["web_search", "document_analysis"])
 
     def perform_task(self, task_context: dict) -> dict:
+        """Perform task.
+        
+        Args:
+            task_context (dict): Structured task context passed to the agent.
+        
+        Returns:
+            dict: Dictionary containing the resulting data.
+        """
         topic = task_context.get("topic", task_context.get("title", "unknown topic"))
         keywords = task_context.get("keywords", "").split(",")
         depth = task_context.get("depth", "overview")

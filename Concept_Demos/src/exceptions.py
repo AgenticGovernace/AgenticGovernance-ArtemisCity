@@ -75,7 +75,11 @@ class ArtemisError(Exception):
         return self.message
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert exception to dictionary for API responses."""
+        """Convert exception to dictionary for API responses.
+        
+        Returns:
+            Dict[str, Any]: Dictionary containing the resulting data.
+        """
         result: Dict[str, Any] = {
             "error": self.__class__.__name__,
             "message": self.message,

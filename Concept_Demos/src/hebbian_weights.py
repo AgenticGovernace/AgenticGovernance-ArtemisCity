@@ -388,7 +388,11 @@ class HebbianWeightManager:
         return pruned_count
 
     def reset_weights(self):
-        """Reset all weights (for testing/debugging)."""
+        """Reset all weights (for testing/debugging).
+        
+        Returns:
+            None: This function does not return a value.
+        """
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("DELETE FROM node_connections")
             conn.commit()

@@ -25,11 +25,13 @@ class GovernanceMonitor:
             self.log_path.parent.mkdir(parents=True, exist_ok=True)
 
     def record_failure(self, event: Dict) -> bool:
-        """
-        Record a failed sync/divergence event.
-
+        """Record a failed sync/divergence event.
+        
         Returns:
             True if alert threshold reached and rollback/inspection is advised.
+        
+        Args:
+            event (Dict): Structured event payload to record.
         """
         self._failure_streak += 1
         event = dict(event)
@@ -52,7 +54,11 @@ class GovernanceMonitor:
         return False
 
     def record_success(self):
-        """Reset failure streak after successful operation."""
+        """Reset failure streak after successful operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         if self._failure_streak:
             logger.info("Memory bus recovered; resetting failure streak.")
         self._failure_streak = 0
@@ -66,8 +72,20 @@ class GovernanceMonitor:
             logger.warning("Failed to write governance event log.")
 
     def get_failure_streak(self) -> int:
+        """Return failure streak.
+        
+        Returns:
+            int: Integer result produced by the operation.
+        """
         return self._failure_streak
 
     def get_recent_events(self, limit: int = 50) -> List[Dict]:
-        """Return recent events from memory; does not re-read the file."""
+        """Return recent governance events from in-memory history.
+        
+        Args:
+            limit (int): Maximum number of recent events to return.
+        
+        Returns:
+            List[Dict]: Most recent governance events without re-reading the log file.
+        """
         return self._events[-limit:]

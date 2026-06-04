@@ -188,11 +188,19 @@ class MemoryBus:
         relative_path: Optional[str] = None,
         max_results: int = 3,
     ) -> List[Dict]:
-        """
-        Retrieve knowledge via hierarchical lookup.
-
+        """Retrieve knowledge via hierarchical lookup.
+        
         Order: exact path lookup → keyword scan across configured folders →
         vector recall as a final fallback.
+        
+        Args:
+            query (str): Search query or prompt text to evaluate.
+            relative_path (Optional[str]): Vault-relative path associated with the note or
+                record.
+            max_results (int): Maximum number of retrieval results to return.
+        
+        Returns:
+            List[Dict]: List containing the resulting items.
         """
         start = time.perf_counter()
         results: List[Dict] = []

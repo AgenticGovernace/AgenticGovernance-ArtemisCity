@@ -63,19 +63,37 @@ def get_all_agent_instances() -> List[BaseAgent]:
 
 @pytest.fixture(params=get_all_agent_classes())
 def agent_class(request) -> Type[BaseAgent]:
-    """Parametrized fixture providing each agent class."""
+    """Parametrized fixture providing each agent class.
+    
+    Args:
+        request: Request payload being handled by the endpoint or agent.
+    
+    Returns:
+        Type[BaseAgent]: Resulting Type[BaseAgent] value produced by the operation.
+    """
     return request.param
 
 
 @pytest.fixture(params=get_all_agent_instances(), ids=lambda a: a.name)
 def agent_instance(request) -> BaseAgent:
-    """Parametrized fixture providing each agent instance."""
+    """Parametrized fixture providing each agent instance.
+    
+    Args:
+        request: Request payload being handled by the endpoint or agent.
+    
+    Returns:
+        BaseAgent: Resulting BaseAgent value produced by the operation.
+    """
     return request.param
 
 
 @pytest.fixture
 def minimal_task_context() -> Dict[str, Any]:
-    """Minimal valid task context for testing."""
+    """Minimal valid task context for testing.
+    
+    Returns:
+        Dict[str, Any]: Dictionary containing the resulting data.
+    """
     return {
         "task_id": "test_task_001",
         "title": "Test Task",
@@ -86,7 +104,11 @@ def minimal_task_context() -> Dict[str, Any]:
 
 @pytest.fixture
 def empty_task_context() -> Dict[str, Any]:
-    """Empty task context for edge case testing."""
+    """Empty task context for edge case testing.
+    
+    Returns:
+        Dict[str, Any]: Dictionary containing the resulting data.
+    """
     return {}
 
 
@@ -99,13 +121,27 @@ class TestInterfaceCompliance:
     """Verify all agents implement the BaseAgent interface."""
 
     def test_agent_inherits_from_base_agent(self, agent_class: Type[BaseAgent]) -> None:
-        """All agent classes must inherit from BaseAgent."""
+        """All agent classes must inherit from BaseAgent.
+        
+        Args:
+            agent_class (Type[BaseAgent]): Agent class value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         assert issubclass(
             agent_class, BaseAgent
         ), f"{agent_class.__name__} must inherit from BaseAgent"
 
     def test_agent_has_perform_task_method(self, agent_instance: BaseAgent) -> None:
-        """All agents must implement perform_task method."""
+        """All agents must implement perform_task method.
+        
+        Args:
+            agent_instance (BaseAgent): Agent instance value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         assert hasattr(
             agent_instance, "perform_task"
         ), f"{agent_instance.name} missing perform_task method"
@@ -114,7 +150,14 @@ class TestInterfaceCompliance:
         ), f"{agent_instance.name}.perform_task must be callable"
 
     def test_agent_has_report_status_method(self, agent_instance: BaseAgent) -> None:
-        """All agents must have report_status method (inherited or overridden)."""
+        """All agents must have report_status method (inherited or overridden).
+        
+        Args:
+            agent_instance (BaseAgent): Agent instance value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         assert hasattr(
             agent_instance, "report_status"
         ), f"{agent_instance.name} missing report_status method"
@@ -123,7 +166,14 @@ class TestInterfaceCompliance:
         ), f"{agent_instance.name}.report_status must be callable"
 
     def test_agent_has_name_attribute(self, agent_instance: BaseAgent) -> None:
-        """All agents must have a non-empty name attribute."""
+        """All agents must have a non-empty name attribute.
+        
+        Args:
+            agent_instance (BaseAgent): Agent instance value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         assert hasattr(agent_instance, "name"), f"Agent missing name attribute"
         assert isinstance(
             agent_instance.name, str
@@ -131,7 +181,14 @@ class TestInterfaceCompliance:
         assert len(agent_instance.name) > 0, f"Agent name cannot be empty"
 
     def test_agent_has_capabilities_attribute(self, agent_instance: BaseAgent) -> None:
-        """All agents must have a capabilities list attribute."""
+        """All agents must have a capabilities list attribute.
+        
+        Args:
+            agent_instance (BaseAgent): Agent instance value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         assert hasattr(
             agent_instance, "capabilities"
         ), f"{agent_instance.name} missing capabilities attribute"
@@ -140,7 +197,14 @@ class TestInterfaceCompliance:
         ), f"{agent_instance.name}.capabilities must be a list"
 
     def test_agent_has_logger_attribute(self, agent_instance: BaseAgent) -> None:
-        """All agents must have a logger attribute."""
+        """All agents must have a logger attribute.
+        
+        Args:
+            agent_instance (BaseAgent): Agent instance value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         assert hasattr(
             agent_instance, "logger"
         ), f"{agent_instance.name} missing logger attribute"
@@ -155,7 +219,14 @@ class TestContractCompliance:
     """Verify method signatures match the base class contract."""
 
     def test_perform_task_signature(self, agent_class: Type[BaseAgent]) -> None:
-        """perform_task must accept task_context dict and return dict."""
+        """perform_task must accept task_context dict and return dict.
+        
+        Args:
+            agent_class (Type[BaseAgent]): Agent class value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         sig = inspect.signature(agent_class.perform_task)
         params = list(sig.parameters.keys())
 
@@ -167,7 +238,16 @@ class TestContractCompliance:
     def test_perform_task_accepts_dict(
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
     ) -> None:
-        """perform_task must accept a dictionary argument."""
+        """perform_task must accept a dictionary argument.
+        
+        Args:
+            agent_instance (BaseAgent): Agent instance value used by this operation.
+            minimal_task_context (Dict[str, Any]): Minimal task context value used by this
+                operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         # Should not raise TypeError for dict input
         try:
             result = agent_instance.perform_task(minimal_task_context)
@@ -178,7 +258,16 @@ class TestContractCompliance:
     def test_perform_task_returns_dict(
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
     ) -> None:
-        """perform_task must return a dictionary."""
+        """perform_task must return a dictionary.
+        
+        Args:
+            agent_instance (BaseAgent): Agent instance value used by this operation.
+            minimal_task_context (Dict[str, Any]): Minimal task context value used by this
+                operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         result = agent_instance.perform_task(minimal_task_context)
         assert isinstance(result, dict), (
             f"{agent_instance.name}.perform_task must return dict, "
@@ -197,7 +286,16 @@ class TestBehaviorCompliance:
     def test_result_has_status_field(
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
     ) -> None:
-        """All task results must include a 'status' field."""
+        """All task results must include a 'status' field.
+        
+        Args:
+            agent_instance (BaseAgent): Agent instance value used by this operation.
+            minimal_task_context (Dict[str, Any]): Minimal task context value used by this
+                operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         result = agent_instance.perform_task(minimal_task_context)
         assert (
             "status" in result
@@ -206,7 +304,16 @@ class TestBehaviorCompliance:
     def test_result_status_is_valid(
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
     ) -> None:
-        """Status field must be 'success' or 'failed'."""
+        """Status field must be 'success' or 'failed'.
+        
+        Args:
+            agent_instance (BaseAgent): Agent instance value used by this operation.
+            minimal_task_context (Dict[str, Any]): Minimal task context value used by this
+                operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         result = agent_instance.perform_task(minimal_task_context)
         assert result.get("status") in (
             "success",
@@ -216,7 +323,16 @@ class TestBehaviorCompliance:
     def test_result_has_summary_field(
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
     ) -> None:
-        """All task results must include a 'summary' field."""
+        """All task results must include a 'summary' field.
+        
+        Args:
+            agent_instance (BaseAgent): Agent instance value used by this operation.
+            minimal_task_context (Dict[str, Any]): Minimal task context value used by this
+                operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         result = agent_instance.perform_task(minimal_task_context)
         assert (
             "summary" in result
@@ -225,14 +341,30 @@ class TestBehaviorCompliance:
     def test_result_summary_is_string(
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
     ) -> None:
-        """Summary field must be a string."""
+        """Summary field must be a string.
+        
+        Args:
+            agent_instance (BaseAgent): Agent instance value used by this operation.
+            minimal_task_context (Dict[str, Any]): Minimal task context value used by this
+                operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         result = agent_instance.perform_task(minimal_task_context)
         assert isinstance(
             result.get("summary"), str
         ), f"{agent_instance.name} summary must be string"
 
     def test_capabilities_are_strings(self, agent_instance: BaseAgent) -> None:
-        """All capability entries must be strings."""
+        """All capability entries must be strings.
+        
+        Args:
+            agent_instance (BaseAgent): Agent instance value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         for cap in agent_instance.capabilities:
             assert isinstance(
                 cap, str
@@ -250,7 +382,16 @@ class TestErrorHandling:
     def test_empty_context_does_not_crash(
         self, agent_instance: BaseAgent, empty_task_context: Dict[str, Any]
     ) -> None:
-        """Agents should handle empty task context without crashing."""
+        """Agents should handle empty task context without crashing.
+        
+        Args:
+            agent_instance (BaseAgent): Agent instance value used by this operation.
+            empty_task_context (Dict[str, Any]): Empty task context value used by this
+                operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         try:
             result = agent_instance.perform_task(empty_task_context)
             # Should return a dict, possibly with failed status
@@ -263,14 +404,28 @@ class TestErrorHandling:
             ), f"{agent_instance.name} crashed on empty context: {e}"
 
     def test_report_status_accepts_string(self, agent_instance: BaseAgent) -> None:
-        """report_status should accept string messages without error."""
+        """report_status should accept string messages without error.
+        
+        Args:
+            agent_instance (BaseAgent): Agent instance value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         try:
             agent_instance.report_status("Test status message")
         except Exception as e:
             pytest.fail(f"{agent_instance.name}.report_status failed: {e}")
 
     def test_agent_repr_does_not_crash(self, agent_instance: BaseAgent) -> None:
-        """Agent __repr__ should not raise exceptions."""
+        """Agent __repr__ should not raise exceptions.
+        
+        Args:
+            agent_instance (BaseAgent): Agent instance value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         try:
             repr_str = repr(agent_instance)
             assert isinstance(repr_str, str)
@@ -287,7 +442,14 @@ class TestLiskovSubstitution:
     """Verify agents can be substituted for BaseAgent without breaking behavior."""
 
     def test_agent_as_base_type(self, agent_instance: BaseAgent) -> None:
-        """Agent should work when typed as BaseAgent."""
+        """Agent should work when typed as BaseAgent.
+        
+        Args:
+            agent_instance (BaseAgent): Agent instance value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         base_ref: BaseAgent = agent_instance
 
         # Should be able to call base class methods
@@ -299,7 +461,15 @@ class TestLiskovSubstitution:
     def test_polymorphic_task_execution(
         self, minimal_task_context: Dict[str, Any]
     ) -> None:
-        """All agents should work polymorphically with same task context."""
+        """All agents should work polymorphically with same task context.
+        
+        Args:
+            minimal_task_context (Dict[str, Any]): Minimal task context value used by this
+                operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         results = []
         for agent in get_all_agent_instances():
             result = agent.perform_task(minimal_task_context)
@@ -320,20 +490,32 @@ class TestAgentDiscovery:
     """Verify agent discovery and registration patterns."""
 
     def test_all_agents_have_unique_names(self) -> None:
-        """All agent instances must have unique names."""
+        """All agent instances must have unique names.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         agents = get_all_agent_instances()
         names = [a.name for a in agents]
         assert len(names) == len(set(names)), f"Duplicate agent names found: {names}"
 
     def test_all_agents_have_at_least_one_capability(self) -> None:
-        """All agents should declare at least one capability."""
+        """All agents should declare at least one capability.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         for agent in get_all_agent_instances():
             assert (
                 len(agent.capabilities) > 0
             ), f"{agent.name} has no capabilities declared"
 
     def test_minimum_agent_count(self) -> None:
-        """System should have at least 3 agents registered."""
+        """System should have at least 3 agents registered.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         agents = get_all_agent_classes()
         assert len(agents) >= 3, f"Expected at least 3 agents, found {len(agents)}"
 

@@ -25,12 +25,14 @@ interface ApiKeyEntry {
  * Load API keys from environment variables.
  *
  * Expected format per key env var:
- *   ARTEMIS_API_KEY_<NAME>=<key>:<role>:<perm1,perm2, ...>
+ *   ARTEMIS_API_KEY_<NAME>=<key>:<role>:<perm1,perm2,...>
  *
  * Example:
  *   ARTEMIS_API_KEY_ADMIN=my-secret-key:admin:read,write,delete,admin
  *
  * Falls back to MCP_API_KEY with admin role if no ARTEMIS_API_KEY_* vars are set.
+ *
+ * @returns Mapping of API key strings to the associated user and permission metadata.
  */
 function loadApiKeys(): Record<string, ApiKeyEntry> {
   const keys: Record<string, ApiKeyEntry> = {};
@@ -53,7 +55,6 @@ function loadApiKeys(): Record<string, ApiKeyEntry> {
     };
   }
 
-  // Fallback: use MCP_API_KEY if no ARTEMIS_API_KEY_* vars were found
   if (Object.keys(keys).length === 0) {
     const fallbackKey = process.env.MCP_API_KEY;
     if (fallbackKey) {
@@ -73,10 +74,14 @@ function loadApiKeys(): Record<string, ApiKeyEntry> {
 const API_KEYS = loadApiKeys();
 
 /**
- * Main authentication middleware
+ * Authenticate an API request with a bearer token or X-API-Key header.
+ *
+ * @param req - Express request object for the current HTTP call.
+ * @param res - Express response object used to send the HTTP response.
+ * @param next - Express callback that passes control to the next middleware.
+ * @returns Nothing. The middleware completes its work through side effects on the request/response cycle.
  */
 export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-  // Skip auth only when explicitly in development with SKIP_AUTH
   if (process.env.NODE_ENV === 'development' && process.env.SKIP_AUTH === 'true') {
     console.warn('[AUTH] WARNING: Auth bypass active (SKIP_AUTH=true). Do NOT use in production.');
     req.user = {
@@ -88,12 +93,10 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
     return;
   }
 
-  // Block auth bypass if NODE_ENV is not explicitly set
   if (process.env.SKIP_AUTH === 'true' && process.env.NODE_ENV !== 'development') {
     console.error('[AUTH] SKIP_AUTH ignored: NODE_ENV is not "development".');
   }
 
-  // Extract API key from header
   const authHeader = req.headers.authorization;
   const apiKey = req.headers['x-api-key'] as string;
 
@@ -114,7 +117,6 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
     return;
   }
 
-  // Validate API key
   const keyData = API_KEYS[key];
   if (!keyData) {
     res.status(401).json({
@@ -125,7 +127,6 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
     return;
   }
 
-  // Attach user info to request
   req.user = {
     id: keyData.userId,
     role: keyData.role,
@@ -137,7 +138,10 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
 };
 
 /**
- * Permission check middleware factory
+ * Create middleware that requires a specific permission.
+ *
+ * @param permission - Permission that the generated middleware should require.
+ * @returns Express middleware that rejects callers missing the requested permission.
  */
 export const requirePermission = (permission: string) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
@@ -163,7 +167,10 @@ export const requirePermission = (permission: string) => {
 };
 
 /**
- * Role check middleware factory
+ * Create middleware that requires one of the supplied roles.
+ *
+ * @param roles - Allowed roles for the generated middleware.
+ * @returns Express middleware that rejects callers outside the allowed role set.
  */
 export const requireRole = (...roles: string[]) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
@@ -189,16 +196,19 @@ export const requireRole = (...roles: string[]) => {
 };
 
 /**
- * Rate limiting state
+ * Rate limiting state.
  */
 const rateLimitStore: Map<string, { count: number; resetTime: number }> = new Map();
 
 /**
- * Rate limiting middleware
+ * Create request-rate-limiting middleware.
+ *
+ * @param options - Optional rate-limit settings such as window size and request budget.
+ * @returns Express middleware that enforces the configured request budget.
  */
 export const rateLimit = (options: { windowMs?: number; maxRequests?: number } = {}) => {
-  const windowMs = options.windowMs || 60000; // 1 minute default
-  const maxRequests = options.maxRequests || 100; // 100 requests per window
+  const windowMs = options.windowMs || 60000;
+  const maxRequests = options.maxRequests || 100;
 
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     const key = req.apiKey || req.ip || 'anonymous';
@@ -213,7 +223,6 @@ export const rateLimit = (options: { windowMs?: number; maxRequests?: number } =
     record.count++;
     rateLimitStore.set(key, record);
 
-    // Set rate limit headers
     res.setHeader('X-RateLimit-Limit', maxRequests.toString());
     res.setHeader('X-RateLimit-Remaining', Math.max(0, maxRequests - record.count).toString());
     res.setHeader('X-RateLimit-Reset', record.resetTime.toString());

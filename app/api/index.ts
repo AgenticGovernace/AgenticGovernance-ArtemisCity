@@ -8,6 +8,11 @@
  * Version: 1.0.0
  */
 
+// Load app/api/.env into process.env BEFORE any other import. The auth
+// middleware reads process.env at module-load time (loadApiKeys()), so any
+// later side-effecting import would see an empty env.
+import 'dotenv/config';
+
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -16,6 +21,7 @@ import helmet from 'helmet';
 import {
   agentRoutes,
   registryRoutes,
+  governanceRoutes,
   memoryRoutes,
   atpRoutes,
   trustRoutes,
@@ -56,6 +62,7 @@ app.use(`/api/${API_VERSION}/health`, healthRoutes);
 // Protected routes (require auth)
 app.use(`/api/${API_VERSION}/agents`, authMiddleware, agentRoutes);
 app.use(`/api/${API_VERSION}/registry`, authMiddleware, registryRoutes);
+app.use(`/api/${API_VERSION}/governance`, authMiddleware, governanceRoutes);
 app.use(`/api/${API_VERSION}/memory`, authMiddleware, memoryRoutes);
 app.use(`/api/${API_VERSION}/atp`, authMiddleware, atpRoutes);
 app.use(`/api/${API_VERSION}/trust`, authMiddleware, trustRoutes);
@@ -71,6 +78,7 @@ app.get(`/api/${API_VERSION}`, (req: Request, res: Response) => {
       health: '/health',
       agents: `/api/${API_VERSION}/agents`,
       registry: `/api/${API_VERSION}/registry`,
+      governance: `/api/${API_VERSION}/governance`,
       memory: `/api/${API_VERSION}/memory`,
       atp: `/api/${API_VERSION}/atp`,
       trust: `/api/${API_VERSION}/trust`,
@@ -96,6 +104,11 @@ app.use(errorHandler);
 // Server Start
 // ============================================================================
 
+/**
+ * Start the Express API server and log the public endpoints.
+ *
+ * @returns Nothing. The operation completes through side effects.
+ */
 export function startServer(): void {
   app.listen(PORT, () => {
     console.log('='.repeat(50));

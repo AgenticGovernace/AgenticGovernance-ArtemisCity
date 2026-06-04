@@ -23,7 +23,11 @@ class TestATPMessage:
     """Test ATP message construction and validation."""
 
     def test_create_basic_message(self):
-        """Test creating a basic ATP message."""
+        """Test creating a basic ATP message.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         message = ATPMessage(
             mode=ATPMode.BUILD,
             context="Test task",
@@ -37,7 +41,11 @@ class TestATPMessage:
         assert message.priority == ATPPriority.NORMAL
 
     def test_create_critical_message(self):
-        """Test creating a critical priority message."""
+        """Test creating a critical priority message.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         message = ATPMessage(
             mode=ATPMode.REVIEW,
             context="Security audit",
@@ -54,7 +62,11 @@ class TestATPParser:
     """Test ATP message parsing."""
 
     def test_parse_simple_message(self):
-        """Test parsing a simple ATP formatted message."""
+        """Test parsing a simple ATP formatted message.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         parser = ATPParser()
         message_text = """
         #Mode: Build
@@ -70,7 +82,11 @@ class TestATPParser:
         assert result.priority == ATPPriority.HIGH
 
     def test_parse_empty_message(self):
-        """Test parsing an empty message."""
+        """Test parsing an empty message.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         parser = ATPParser()
         result = parser.parse("")
         # Parser returns a message with UNKNOWN mode for empty input
@@ -79,7 +95,11 @@ class TestATPParser:
         assert result.mode == ATPMode.UNKNOWN
 
     def test_parse_malformed_message(self):
-        """Test parsing a malformed message."""
+        """Test parsing a malformed message.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         parser = ATPParser()
         message_text = "This is not an ATP message"
         result = parser.parse(message_text)
@@ -91,7 +111,11 @@ class TestATPValidator:
     """Test ATP message validation."""
 
     def test_validate_valid_message(self):
-        """Test validation of a valid ATP message."""
+        """Test validation of a valid ATP message.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         validator = ATPValidator()
         message = ATPMessage(
             mode=ATPMode.BUILD,
@@ -105,7 +129,11 @@ class TestATPValidator:
         assert result.is_valid is True
 
     def test_validate_empty_context(self):
-        """Test validation of message with empty context."""
+        """Test validation of message with empty context.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         validator = ATPValidator()
         message = ATPMessage(
             mode=ATPMode.BUILD,

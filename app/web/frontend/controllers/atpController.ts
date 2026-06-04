@@ -46,14 +46,19 @@ const VALID_MODES: ATPMode[] = ['RESEARCH', 'EXECUTE', 'REPORT', 'DELEGATE', 'QU
 const VALID_PRIORITIES: ATPPriority[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'BACKGROUND'];
 const VALID_ACTION_TYPES: ATPActionType[] = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'SEARCH', 'ANALYZE', 'SYNC', 'NOTIFY'];
 
+/**
+ * Controller responsible for validating, formatting, and routing ATP messages for the demo API.
+ */
 export class ATPController {
   /**
-   * Send an ATP message
+   * Validate, enrich, and enqueue an incoming ATP message.
+   *
+   * @param message - Partial ATP payload submitted by the caller.
+   * @returns Response envelope containing the generated message ID and routing result, or validation error details.
    */
   async sendMessage(message: Partial<ATPMessage>): Promise<ATPResponse> {
     const startTime = Date.now();
 
-    // Validate and complete the message
     const validation = this.validateMessage(message);
     if (!validation.valid) {
       return {
@@ -63,10 +68,8 @@ export class ATPController {
       };
     }
 
-    // Generate message ID
     const messageId = this.generateMessageId();
 
-    // Build complete message
     const completeMessage: ATPMessage = {
       header: {
         mode: message.header?.mode || 'QUERY',
@@ -84,10 +87,8 @@ export class ATPController {
       metadata: message.metadata || {}
     };
 
-    // Store message
     messageHistory.set(messageId, completeMessage);
 
-    // Route message
     const routeResult = await this.routeMessage(completeMessage);
 
     const response: ATPResponse = {
@@ -102,12 +103,14 @@ export class ATPController {
   }
 
   /**
-   * Route a message to appropriate handler
+   * Route a fully populated ATP message to the appropriate destination.
+   *
+   * @param message - ATP message to route through the controller.
+   * @returns Routing summary describing the destination, simulated action, and queue status.
    */
   async routeMessage(message: ATPMessage): Promise<any> {
     const { mode, actionType, targetZone, receiverId } = message.header;
 
-    // Determine routing based on mode and target
     const routingInfo = {
       routed: true,
       destination: receiverId || this.determineDestination(targetZone),
@@ -116,10 +119,8 @@ export class ATPController {
       timestamp: new Date().toISOString()
     };
 
-    // Add to queue for processing
     messageQueue.push(message);
 
-    // Simulate processing based on action type
     switch (actionType) {
       case 'CREATE':
         return { ...routingInfo, action: 'Creating resource', status: 'queued' };
@@ -143,34 +144,32 @@ export class ATPController {
   }
 
   /**
-   * Validate an ATP message
+   * Validate ATP header fields and report any issues.
+   *
+   * @param message - Partial ATP message to validate.
+   * @returns Validation outcome containing any blocking error or non-fatal warnings.
    */
   validateMessage(message: Partial<ATPMessage>): { valid: boolean; error?: string; warnings?: string[] } {
     const warnings: string[] = [];
 
-    // Check required header fields
     if (!message.header) {
       return { valid: false, error: 'Message header is required' };
     }
 
     const { mode, priority, actionType, targetZone, senderId } = message.header;
 
-    // Validate mode
     if (mode && !VALID_MODES.includes(mode)) {
       return { valid: false, error: `Invalid mode: ${mode}. Valid modes: ${VALID_MODES.join(', ')}` };
     }
 
-    // Validate priority
     if (priority && !VALID_PRIORITIES.includes(priority)) {
       return { valid: false, error: `Invalid priority: ${priority}. Valid priorities: ${VALID_PRIORITIES.join(', ')}` };
     }
 
-    // Validate action type
     if (actionType && !VALID_ACTION_TYPES.includes(actionType)) {
       return { valid: false, error: `Invalid actionType: ${actionType}. Valid types: ${VALID_ACTION_TYPES.join(', ')}` };
     }
 
-    // Warnings for missing optional fields
     if (!targetZone) {
       warnings.push('No targetZone specified, defaulting to "system"');
     }
@@ -183,7 +182,10 @@ export class ATPController {
   }
 
   /**
-   * Format a message for display
+   * Format an ATP message for terminal-friendly display.
+   *
+   * @param message - ATP message to render.
+   * @returns Human-readable banner string that summarizes the ATP message.
    */
   formatMessage(message: ATPMessage): string {
     const { header, payload } = message;
@@ -227,7 +229,9 @@ export class ATPController {
   }
 
   /**
-   * Get available modes
+   * List the ATP modes supported by the controller.
+   *
+   * @returns ATP mode definitions with human-readable descriptions.
    */
   getModes(): { name: ATPMode; description: string }[] {
     return [
@@ -240,7 +244,9 @@ export class ATPController {
   }
 
   /**
-   * Get available priorities
+   * List the ATP priorities supported by the controller.
+   *
+   * @returns ATP priority definitions with descriptions and display colors.
    */
   getPriorities(): { name: ATPPriority; description: string; color: string }[] {
     return [
@@ -253,7 +259,9 @@ export class ATPController {
   }
 
   /**
-   * Get available action types
+   * List the ATP action types supported by the controller.
+   *
+   * @returns ATP action-type definitions with human-readable descriptions.
    */
   getActionTypes(): { name: ATPActionType; description: string }[] {
     return [
@@ -269,21 +277,29 @@ export class ATPController {
   }
 
   /**
-   * Get message by ID
+   * Retrieve a previously stored ATP message.
+   *
+   * @param messageId - ATP message identifier to retrieve.
+   * @returns Stored ATP message, or `null` when the identifier is unknown.
    */
   getMessage(messageId: string): ATPMessage | null {
     return messageHistory.get(messageId) || null;
   }
 
   /**
-   * Get response by message ID
+   * Retrieve a previously stored ATP response.
+   *
+   * @param messageId - ATP message identifier whose response should be returned.
+   * @returns Stored ATP response, or `null` when the identifier is unknown.
    */
   getResponse(messageId: string): ATPResponse | null {
     return responseHistory.get(messageId) || null;
   }
 
   /**
-   * Get message queue status
+   * Inspect the in-memory ATP queue.
+   *
+   * @returns Snapshot of queued message count plus the most recent queued messages.
    */
   getQueueStatus(): { pending: number; recent: ATPMessage[] } {
     return {

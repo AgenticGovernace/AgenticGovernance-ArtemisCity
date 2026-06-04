@@ -1,145 +1,157 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ============================================
 #  ARTEMIS CITY - SECRET SETUP SCRIPT
 # ============================================
-# This script helps set up secure environment files
+# Generates fresh keys and populates the four env files used across the
+# repo, each in the location its consumer expects:
+#
+#   .env                                       Python core (orchestrator,
+#                                              memory bus, registry, FastAPI
+#                                              dashboard in app/api/main.py)
+#   app/api/.env                               TypeScript Express API
+#                                              (app/api/index.ts and routes)
+#   src/.env                                   Legacy / memory-layer Python
+#   src/Artemis Agentic Memory Layer/.env      Memory-layer MCP server
+#                                              (if the directory exists)
+#
+# Generated keys:
+#   MCP_API_KEY              shared MCP / FastAPI auth (matches across files)
+#   FASTAPI_API_KEY          FastAPI dashboard (app/api/main.py)
+#   ARTEMIS_API_KEY_DEFAULT  TS Express admin key (key:role:perms tuple)
+#
 # Usage: ./setup_secrets.sh
 
-set -e
+set -euo pipefail
 
-echo "  Artemis City - Secure Environment Setup"
-echo "============================================"
-echo ""
-
-# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Function to generate secure random key
+REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$REPO_ROOT"
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
 generate_key() {
-    if command -v openssl &> /dev/null; then
+    if command -v openssl >/dev/null 2>&1; then
         openssl rand -hex 32
     else
         python3 -c "import secrets; print(secrets.token_hex(32))"
     fi
 }
 
-# Function to check if file exists
-check_file() {
-    if [ -f "$1" ]; then
-        echo -e "${YELLOW}  $1 already exists${NC}"
-        read -p "Overwrite? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            return 1
-        fi
+# sed -i is portable when called via this wrapper.
+inplace_sed() {
+    local script="$1" file="$2"
+    if [[ "${OSTYPE:-}" == "darwin"* ]]; then
+        sed -i '' "$script" "$file"
+    else
+        sed -i "$script" "$file"
     fi
-    return 0
 }
 
-# Step 1: Root .env file
-echo -e "${BLUE} Setting up root .env file...${NC}"
-if check_file ".env"; then
-    if [ -f ".env.example" ]; then
-        cp .env.example .env
-        
-        # Generate and insert MCP API key
-        MCP_KEY=$(generate_key)
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "s/your_secure_api_key_here/$MCP_KEY/" .env
-        else
-            sed -i "s/your_secure_api_key_here/$MCP_KEY/" .env
-        fi
-        
-        echo -e "${GREEN} Created .env with generated MCP_API_KEY${NC}"
-        
-        # Set secure permissions
-        chmod 600 .env
-        echo -e "${GREEN} Set permissions to 600${NC}"
+# Substitute a placeholder with a value in a file. Skips silently when the
+# placeholder is absent (file may legitimately not declare that key).
+set_value() {
+    local placeholder="$1" value="$2" file="$3"
+    if grep -q "$placeholder" "$file" 2>/dev/null; then
+        local escaped
+        escaped=$(printf '%s' "$value" | sed -e 's/[\/&]/\\&/g')
+        inplace_sed "s/$placeholder/$escaped/g" "$file"
+    fi
+}
+
+# Prompt before overwriting an existing file. Returns 0 to proceed.
+should_write() {
+    local target="$1"
+    if [[ ! -f "$target" ]]; then
+        return 0
+    fi
+    echo -e "${YELLOW}!${NC}  $target already exists"
+    read -p "   Overwrite? (y/N): " -r reply
+    [[ "$reply" =~ ^[Yy]$ ]]
+}
+
+# Copy an example file to its target, apply all known key substitutions, and
+# lock permissions. Pure no-op if the example is missing.
+provision_env() {
+    local example="$1" target="$2" label="$3"
+
+    echo -e "${BLUE}>${NC} $label"
+    echo "  example: $example"
+    echo "  target:  $target"
+
+    if [[ ! -f "$example" ]]; then
+        echo -e "  ${YELLOW}skip${NC} — example not found"
+        echo ""
+        return 0
+    fi
+
+    if ! should_write "$target"; then
+        echo -e "  ${YELLOW}skip${NC} — kept existing"
+        echo ""
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$target")"
+    cp "$example" "$target"
+
+    # Apply substitutions. Each is a no-op when the placeholder is absent.
+    set_value "your_secure_api_key_here" "$MCP_KEY" "$target"
+    set_value "your_fastapi_api_key_here" "$FASTAPI_KEY" "$target"
+    set_value "your_default_api_key_here" "$TS_KEY" "$target"
+
+    chmod 600 "$target"
+
+    if git check-ignore "$target" >/dev/null 2>&1; then
+        echo -e "  ${GREEN}ok${NC} written (chmod 600, git-ignored)"
     else
-        echo -e "${RED} .env.example not found${NC}"
-        exit 1
+        echo -e "  ${RED}!!${NC} written but NOT git-ignored — fix .gitignore before committing"
     fi
-fi
+    echo ""
+}
 
-echo ""
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 
-# Step 2: Memory Layer .env file
-echo -e "${BLUE} Setting up Memory Layer .env file...${NC}"
-MEMORY_DIR="src"
-if [ -d "$MEMORY_DIR" ]; then
-    if check_file "$MEMORY_DIR/.env"; then
-        if [ -f "$MEMORY_DIR/.env.example" ]; then
-            cp "$MEMORY_DIR/.env.example" "$MEMORY_DIR/.env"
-            
-            # Use the same MCP API key
-            if [[ "$OSTYPE" == "darwin"* ]]; then
-                sed -i '' "s/your_secure_api_key_here/$MCP_KEY/" "$MEMORY_DIR/.env"
-            else
-                sed -i "s/your_secure_api_key_here/$MCP_KEY/" "$MEMORY_DIR/.env"
-            fi
-            
-            echo -e "${GREEN} Created Memory Layer .env with same MCP_API_KEY${NC}"
-            
-            # Set secure permissions
-            chmod 600 "$MEMORY_DIR/.env"
-            echo -e "${GREEN} Set permissions to 600${NC}"
-        else
-            echo -e "${RED} $MEMORY_DIR/.env.example not found${NC}"
-        fi
-    fi
-else
-    echo -e "${YELLOW}  Memory Layer directory not found${NC}"
-fi
-
+echo "Artemis City — Secure Environment Setup"
+echo "========================================"
 echo ""
 
-# Step 3: Display next steps
-echo -e "${GREEN} Setup complete!${NC}"
-echo ""
-echo " Next steps:"
-echo ""
-echo "1. Edit .env files and add your Obsidian API key:"
-echo -e "   ${YELLOW}OBSIDIAN_API_KEY=your_obsidian_api_key_here${NC}"
-echo ""
-echo "2. Get your Obsidian API key:"
-echo "   - Open Obsidian"
-echo "   - Go to Settings → Local REST API"
-echo "   - Copy the API key"
-echo ""
-echo "3. Start the MCP server:"
-echo -e "   ${BLUE}cd \"Artemis Agentic Memory Layer \"${NC}"
-echo -e "   ${BLUE}npm install${NC}"
-echo -e "   ${BLUE}npm run dev${NC}"
-echo ""
-echo "4. In another terminal, run Python demos:"
-echo -e "   ${BLUE}source .venv/bin/activate${NC}"
-echo -e "   ${BLUE}python demo_city_postal.py${NC}"
-echo ""
-echo " Your generated MCP_API_KEY has been set in both .env files"
-echo "   (both files must use the SAME key for authentication)"
-echo ""
-echo " For more information, see SECURITY.md"
-echo ""
+MCP_KEY="$(generate_key)"
+FASTAPI_KEY="$(generate_key)"
+TS_KEY="$(generate_key)"
 
-# Optional: Verify .gitignore is working
-echo -e "${BLUE} Verifying .gitignore protection...${NC}"
-if git check-ignore .env &> /dev/null; then
-    echo -e "${GREEN} .env is properly ignored by git${NC}"
-else
-    echo -e "${RED}  WARNING: .env may not be ignored by git!${NC}"
-fi
+provision_env ".env.example"     ".env"     "Python core (.env)"
+provision_env "app/api/.env.example" "app/api/.env" "TypeScript Express API (app/api/.env)"
+provision_env "src/.env.example" "src/.env" "Memory-layer Python (src/.env)"
+provision_env \
+    "src/Artemis Agentic Memory Layer/.env.example" \
+    "src/Artemis Agentic Memory Layer/.env" \
+    "Memory-layer MCP server"
 
-if [ -f "$MEMORY_DIR/.env" ]; then
-    if git check-ignore "$MEMORY_DIR/.env" &> /dev/null; then
-        echo -e "${GREEN} Memory Layer .env is properly ignored by git${NC}"
-    else
-        echo -e "${RED}  WARNING: Memory Layer .env may not be ignored by git!${NC}"
-    fi
-fi
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
 
+echo -e "${GREEN}Setup complete.${NC}"
 echo ""
-echo " Artemis City is ready for secure development!"
+echo "Generated keys were written only to files marked ok above."
+echo "Skipped existing files were left unchanged; read the corresponding .env files locally if you need their current values."
+echo ""
+echo "Next steps:"
+echo "  1. Add your Obsidian REST API key to .env:"
+echo -e "     ${YELLOW}OBSIDIAN_API_KEY=<your key from Obsidian > Settings > Local REST API>${NC}"
+echo "  2. Set OBSIDIAN_VAULT_PATH if your vault isn't at <repo>/obsidian_vault."
+echo "  3. If you skipped any existing .env, confirm MCP_API_KEY matches across"
+echo "     consumers before starting cross-service workflows."
+echo ""
+echo "Security notes:"
+echo "  - All written .env files are chmod 600."
+echo "  - .gitignore covers .env at any depth — verified per file above."
+echo "  - Re-running this script prompts before overwriting each file."

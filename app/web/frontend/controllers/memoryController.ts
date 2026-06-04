@@ -62,6 +62,9 @@ const sampleEntries: MemoryEntry[] = [
 
 sampleEntries.forEach(entry => memoryStore.set(entry.path, entry));
 
+/**
+ * Controller responsible for reading, writing, searching, and summarizing vault content for the demo API.
+ */
 export class MemoryController {
   private vaultPath: string;
 
@@ -70,16 +73,17 @@ export class MemoryController {
   }
 
   /**
-   * Read a file from the vault
+   * Read a file from the vault.
+   *
+   * @param filePath - Vault-relative file path to read.
+   * @returns Stored memory entry, or `null` when the file cannot be found.
    */
   async readFile(filePath: string): Promise<MemoryEntry | null> {
-    // Check in-memory store first
     if (memoryStore.has(filePath)) {
       this.updateContext(filePath, 'read');
       return memoryStore.get(filePath)!;
     }
 
-    // Try to read from actual vault
     try {
       const fullPath = path.join(this.vaultPath, filePath);
       const content = await fs.readFile(fullPath, 'utf-8');
@@ -101,7 +105,12 @@ export class MemoryController {
   }
 
   /**
-   * Write content to the vault
+   * Write content to the vault.
+   *
+   * @param filePath - Vault-relative file path to write.
+   * @param content - Markdown content to persist.
+   * @param metadata - Optional metadata to store with the entry.
+   * @returns Persisted memory entry after the write completes.
    */
   async writeFile(filePath: string, content: string, metadata?: Record<string, any>): Promise<MemoryEntry> {
     const now = new Date().toISOString();
@@ -118,13 +127,11 @@ export class MemoryController {
     memoryStore.set(filePath, entry);
     this.updateContext(filePath, 'write');
 
-    // Try to write to actual vault
     try {
       const fullPath = path.join(this.vaultPath, filePath);
       await fs.mkdir(path.dirname(fullPath), { recursive: true });
       await fs.writeFile(fullPath, content, 'utf-8');
     } catch (error) {
-      // Store in memory if file system write fails
       console.warn(`Could not write to vault: ${error}`);
     }
 
@@ -132,12 +139,14 @@ export class MemoryController {
   }
 
   /**
-   * Delete a file from the vault
+   * Delete a file from the vault.
+   *
+   * @param filePath - Vault-relative file path to delete.
+   * @returns Whether a file was removed from the in-memory store.
    */
   async deleteFile(filePath: string): Promise<boolean> {
     const deleted = memoryStore.delete(filePath);
 
-    // Try to delete from actual vault
     try {
       const fullPath = path.join(this.vaultPath, filePath);
       await fs.unlink(fullPath);
@@ -149,7 +158,11 @@ export class MemoryController {
   }
 
   /**
-   * Search the vault
+   * Search the vault.
+   *
+   * @param query - Search query to match against the stored content.
+   * @param options - Optional path, tag, and result-limit filters.
+   * @returns Matching files ranked by relevance score.
    */
   async search(query: string, options?: { path?: string; tags?: string[]; limit?: number }): Promise<SearchResult[]> {
     const results: SearchResult[] = [];
@@ -157,12 +170,10 @@ export class MemoryController {
     const queryLower = query.toLowerCase();
 
     for (const [filePath, entry] of memoryStore) {
-      // Filter by path if specified
       if (options?.path && !filePath.startsWith(options.path)) {
         continue;
       }
 
-      // Filter by tags if specified
       if (options?.tags && options.tags.length > 0) {
         const entryTags = entry.metadata.tags || [];
         if (!options.tags.some(tag => entryTags.includes(tag))) {
@@ -170,12 +181,9 @@ export class MemoryController {
         }
       }
 
-      // Search in content
-      const contentLower = entry.content.toLowerCase();
       const matches: string[] = [];
       let score = 0;
 
-      // Find matching lines
       const lines = entry.content.split('\n');
       for (const line of lines) {
         if (line.toLowerCase().includes(queryLower)) {
@@ -184,7 +192,6 @@ export class MemoryController {
         }
       }
 
-      // Check filename
       if (filePath.toLowerCase().includes(queryLower)) {
         score += 5;
       }
@@ -198,14 +205,16 @@ export class MemoryController {
       }
     }
 
-    // Sort by score and limit
     return results
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
   }
 
   /**
-   * List files in a directory
+   * List files in a directory.
+   *
+   * @param dirPath - Vault-relative directory path to inspect.
+   * @returns Sorted list of matching file and directory paths.
    */
   async listFiles(dirPath: string = ''): Promise<string[]> {
     const files: string[] = [];
@@ -216,15 +225,11 @@ export class MemoryController {
       }
     }
 
-    // Try to list from actual vault
     try {
-      // Resolve the requested directory safely within the vault
       const vaultRoot = path.resolve(this.vaultPath);
       const fullPath = path.resolve(vaultRoot, dirPath);
 
-      // Ensure the resolved path is contained within the vault root
       if (!fullPath.startsWith(vaultRoot + path.sep) && fullPath !== vaultRoot) {
-        // Outside of vault: skip filesystem access and fall back to memory store
         throw new Error('Requested path is outside of vault root');
       }
 
@@ -244,14 +249,20 @@ export class MemoryController {
   }
 
   /**
-   * Get current context
+   * Get the current in-memory context snapshot.
+   *
+   * @returns Current recent-files list, active topics, and session context data.
    */
   async getContext(): Promise<ContextData> {
     return { ...contextStore };
   }
 
   /**
-   * Update context
+   * Update one key in the in-memory session context.
+   *
+   * @param key - Session-context key to update.
+   * @param value - Value to store for the provided key.
+   * @returns Updated context snapshot after the new key/value pair is stored.
    */
   async updateContextData(key: string, value: any): Promise<ContextData> {
     contextStore.sessionContext[key] = value;
@@ -259,7 +270,9 @@ export class MemoryController {
   }
 
   /**
-   * Clear context
+   * Clear the in-memory context caches.
+   *
+   * @returns Promise that resolves after recent files, active topics, and session data are reset.
    */
   async clearContext(): Promise<void> {
     contextStore.recentFiles = [];
@@ -268,7 +281,9 @@ export class MemoryController {
   }
 
   /**
-   * Get vault statistics
+   * Compute summary statistics for the cached vault contents.
+   *
+   * @returns Summary of file counts, content sizes, content types, and recent activity.
    */
   async getStats(): Promise<Record<string, any>> {
     const files = Array.from(memoryStore.values());
@@ -293,11 +308,9 @@ export class MemoryController {
   private async extractMetadata(content: string): Promise<Record<string, any>> {
     const metadata: Record<string, any> = {};
 
-    // Extract YAML frontmatter if present
     const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
     if (frontmatterMatch) {
       const yaml = frontmatterMatch[1];
-      // Simple YAML parsing
       yaml.split('\n').forEach(line => {
         const [key, ...valueParts] = line.split(':');
         if (key && valueParts.length > 0) {
@@ -311,7 +324,6 @@ export class MemoryController {
       });
     }
 
-    // Extract tags from content
     const tagMatches = content.match(/#[\w-]+/g);
     if (tagMatches) {
       metadata.inlineTags = [...new Set(tagMatches.map(t => t.slice(1)))];
@@ -321,10 +333,8 @@ export class MemoryController {
   }
 
   private updateContext(filePath: string, operation: string): void {
-    // Update recent files
     contextStore.recentFiles = [filePath, ...contextStore.recentFiles.filter(f => f !== filePath)].slice(0, 20);
 
-    // Extract topics from path
     const pathParts = filePath.split('/');
     if (pathParts.length > 1) {
       const topic = pathParts[0];

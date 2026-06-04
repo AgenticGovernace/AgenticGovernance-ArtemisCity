@@ -26,6 +26,11 @@ def _config_path(name: str) -> Path:
 
 
 def current_environment() -> str:
+    """Resolve the active deployment environment from process settings.
+    
+    Returns:
+        str: String result produced by the operation.
+    """
     name = os.environ.get("ARTEMIS_ENV", DEFAULT_ENVIRONMENT).strip().lower()
     if name not in VALID_ENVIRONMENTS:
         raise ValueError(
@@ -35,6 +40,14 @@ def current_environment() -> str:
 
 
 def load_environment(name: str | None = None) -> Dict[str, Any]:
+    """Load the YAML configuration for the selected deployment environment.
+    
+    Args:
+        name (str | None): Name of the item, class, or environment to resolve.
+    
+    Returns:
+        Dict[str, Any]: Dictionary containing the resulting data.
+    """
     env = name or current_environment()
     path = _config_path(env)
     if not path.exists():

@@ -130,6 +130,11 @@ const generateRequestId = (): string => {
 
 /**
  * Request logger middleware
+ *
+ * @param req - Express request object for the current HTTP call.
+ * @param res - Express response object used to send the HTTP response.
+ * @param next - Express callback that passes control to the next middleware.
+ * @returns Nothing. The middleware completes its work through side effects on the request/response cycle.
  */
 export const requestLogger = (req: Request, res: Response, next: NextFunction): void => {
   const startTime = Date.now();
@@ -173,6 +178,9 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
 
 /**
  * Get recent logs
+ *
+ * @param count - Maximum number of records to return.
+ * @returns An array of logentry values produced by getting recent logs.
  */
 export const getRecentLogs = (count: number = 100): LogEntry[] => {
   return logBuffer.slice(-count);
@@ -180,6 +188,9 @@ export const getRecentLogs = (count: number = 100): LogEntry[] => {
 
 /**
  * Get logs by level
+ *
+ * @param level - Log level to filter or emit.
+ * @returns An array of logentry values produced by getting logs by level.
  */
 export const getLogsByLevel = (level: LogLevel): LogEntry[] => {
   return logBuffer.filter(log => log.level === level);
@@ -187,6 +198,9 @@ export const getLogsByLevel = (level: LogLevel): LogEntry[] => {
 
 /**
  * Get logs by path pattern
+ *
+ * @param pathPattern - Regular expression pattern used to match logged request paths.
+ * @returns An array of logentry values produced by getting logs by path pattern.
  */
 export const getLogsByPath = (pathPattern: string): LogEntry[] => {
   const regex = new RegExp(pathPattern);
@@ -195,6 +209,8 @@ export const getLogsByPath = (pathPattern: string): LogEntry[] => {
 
 /**
  * Clear logs
+ *
+ * @returns Nothing. The operation completes through side effects.
  */
 export const clearLogs = (): void => {
   logBuffer.length = 0;
@@ -202,6 +218,11 @@ export const clearLogs = (): void => {
 
 /**
  * Manual log function
+ *
+ * @param level - Log level to filter or emit.
+ * @param message - Human-readable message associated with the log or ATP payload.
+ * @param context - Optional structured fields to merge into the emitted log entry.
+ * @returns Nothing. The operation completes through side effects.
  */
 export const log = (level: LogLevel, message: string, context?: Partial<LogEntry>): void => {
   const entry: LogEntry = {

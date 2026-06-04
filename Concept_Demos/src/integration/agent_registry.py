@@ -17,13 +17,24 @@ except ImportError:
 
 @dataclass
 class AgentScore:
+    """Provide the AgentScore abstraction used by this module.
+    
+    Attributes:
+        alignment (float): Stored value on the AgentScore instance.
+        accuracy (float): Stored value on the AgentScore instance.
+        efficiency (float): Stored value on the AgentScore instance.
+    """
     alignment: float  # 0.0-1.0 policy adherence
     accuracy: float  # 0.0-1.0 output quality
     efficiency: float  # 0.0-1.0 speed/cost metric
 
     @property
     def composite_score(self) -> float:
-        """Weighted composite score"""
+        """Weighted composite score
+        
+        Returns:
+            float: Numeric result produced by the operation.
+        """
         return self.alignment * 0.4 + self.accuracy * 0.4 + self.efficiency * 0.2
 
 
@@ -63,7 +74,11 @@ class AgentRegistryStore:
             conn.commit()
 
     def load_scores(self) -> Dict[str, AgentScore]:
-        """Load persisted scores for all agents."""
+        """Load persisted scores for all agents.
+        
+        Returns:
+            Dict[str, AgentScore]: Dictionary containing the resulting data.
+        """
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute("""
                 SELECT name, alignment, accuracy, efficiency
@@ -81,7 +96,15 @@ class AgentRegistryStore:
             return scores
 
     def upsert_agent(self, agent: BaseAgent, default_score: AgentScore) -> AgentScore:
-        """Insert agent metadata if new; return persisted or default score."""
+        """Insert agent metadata if new; return persisted or default score.
+        
+        Args:
+            agent (BaseAgent): Agent instance or agent identifier associated with the operation.
+            default_score (AgentScore): Fallback score to persist when no score exists yet.
+        
+        Returns:
+            AgentScore: Resulting AgentScore value produced by the operation.
+        """
         capabilities_json = json.dumps(agent.capabilities)
         timestamp = time.time()
 
@@ -135,7 +158,15 @@ class AgentRegistryStore:
         return persisted_score
 
     def update_score(self, agent_id: str, score: AgentScore):
-        """Persist updated score for an agent."""
+        """Persist updated score for an agent.
+        
+        Args:
+            agent_id (str): Identifier of the agent being processed.
+            score (AgentScore): Score value being computed or persisted.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 """
@@ -155,13 +186,22 @@ class AgentRegistryStore:
 
 
 class AgentRegistry:
+    """Provide the AgentRegistry abstraction used by this module.
+    """
     def __init__(self, db_path: str = "data/agent_registry.db"):
         self.store = AgentRegistryStore(db_path=db_path)
         self.agents: Dict[str, BaseAgent] = {}
         self.scores: Dict[str, AgentScore] = self.store.load_scores()
 
     def register_agent(self, agent: BaseAgent):
-        """Registers a new agent."""
+        """Registers a new agent.
+        
+        Args:
+            agent (BaseAgent): Agent instance or agent identifier associated with the operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         if agent.name in self.agents:
             logger.info(
                 f"Agent '{agent.name}' already registered; skipping duplicate registration."
@@ -173,10 +213,25 @@ class AgentRegistry:
         self.scores[agent.name] = persisted_score
 
     def get_agent(self, agent_name: str) -> BaseAgent:
+        """Return agent.
+        
+        Args:
+            agent_name (str): Name of the agent involved in the operation.
+        
+        Returns:
+            BaseAgent: Resulting BaseAgent value produced by the operation.
+        """
         return self.agents.get(agent_name)
 
     def route_task(self, task: dict) -> str:
-        """Route task to highest-scoring capable agent"""
+        """Route task to highest-scoring capable agent
+        
+        Args:
+            task (dict): Task payload being routed or updated.
+        
+        Returns:
+            str: String result produced by the operation.
+        """
         required_capability = task.get("required_capability")
         if not required_capability:
             raise ValueError(
@@ -202,7 +257,16 @@ class AgentRegistry:
         return best_agent_name
 
     def update_score(self, agent_id: str, dimension: str, delta: float):
-        """Update agent score dimension with decay"""
+        """Update agent score dimension with decay
+        
+        Args:
+            agent_id (str): Identifier of the agent being processed.
+            dimension (str): Score dimension to update.
+            delta (float): Delta to apply to the selected score dimension.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         if agent_id not in self.scores:
             return
 
@@ -224,13 +288,27 @@ class AgentRegistry:
         )
 
     def get_all_agents(self) -> List[BaseAgent]:
+        """Return all agents.
+        
+        Returns:
+            List[BaseAgent]: List containing the resulting items.
+        """
         return list(self.agents.values())
 
     def get_agent_names(self) -> List[str]:
+        """Return agent names.
+        
+        Returns:
+            List[str]: List containing the resulting items.
+        """
         return list(self.agents.keys())
 
     def get_all_agents_with_scores(self) -> List[Dict]:
-        """Return all agents with their capabilities and performance scores."""
+        """Return all agents with their capabilities and performance scores.
+        
+        Returns:
+            List[Dict]: Agent score records sorted by composite score in descending order.
+        """
         result = []
         for agent in self.agents.values():
             score = self.scores.get(agent.name, AgentScore(0.5, 0.5, 0.5))

@@ -54,9 +54,13 @@ class BatchRunner:
 
     def run(self, config: Optional[SummarizationConfig] = None) -> dict:
         """Execute a full summarization run.
-
+        
         Returns:
             dict with run_id, status, completed, failed, duration_ms, report_path.
+        
+        Args:
+            config (Optional[SummarizationConfig]): Configuration payload used to control
+                behavior.
         """
         config = config or SummarizationConfig()
         run_id = datetime.now().strftime("%Y%m%d_%H%M%S")

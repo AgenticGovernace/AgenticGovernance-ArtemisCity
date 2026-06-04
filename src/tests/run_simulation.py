@@ -20,7 +20,16 @@ from typing import Dict, List, Optional
 
 
 def clamp(value: float, minimum: float = 0.0, maximum: float = 1.0) -> float:
-    """Clamp a numeric value into the inclusive [minimum, maximum] range."""
+    """Clamp a numeric value into the inclusive [minimum, maximum] range.
+    
+    Args:
+        value (float): Value to sanitize, persist, or transform.
+        minimum (float): Minimum value used by this operation.
+        maximum (float): Maximum value used by this operation.
+    
+    Returns:
+        float: Numeric result produced by the operation.
+    """
     return max(minimum, min(maximum, value))
 
 
@@ -38,12 +47,26 @@ class ZoneState:
     def apply_delta(
         self, stability: float = 0.0, load: float = 0.0, risk: float = 0.0
     ) -> None:
-        """Adjust metrics while keeping them within sane bounds."""
+        """Adjust metrics while keeping them within sane bounds.
+        
+        Args:
+            stability (float): Stability value used by this operation.
+            load (float): Load value used by this operation.
+            risk (float): Risk value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         self.stability = clamp(self.stability + stability)
         self.load = clamp(self.load + load)
         self.risk = clamp(self.risk + risk)
 
     def as_dict(self) -> Dict[str, float]:
+        """As dict.
+        
+        Returns:
+            Dict[str, float]: Dictionary containing the resulting data.
+        """
         return {
             "stability": round(self.stability, 3),
             "load": round(self.load, 3),
@@ -65,11 +88,26 @@ class Resident:
     def apply_delta(
         self, morale: float = 0.0, energy: float = 0.0, trust: float = 0.0
     ) -> None:
+        """Apply delta.
+        
+        Args:
+            morale (float): Morale value used by this operation.
+            energy (float): Energy value used by this operation.
+            trust (float): Trust value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         self.morale = clamp(self.morale + morale)
         self.energy = clamp(self.energy + energy)
         self.trust = clamp(self.trust + trust)
 
     def as_dict(self) -> Dict[str, float]:
+        """As dict.
+        
+        Returns:
+            Dict[str, float]: Dictionary containing the resulting data.
+        """
         return {
             "morale": round(self.morale, 3),
             "energy": round(self.energy, 3),
@@ -90,7 +128,14 @@ class CityEvent:
     positive: bool = False
 
     def apply_to_zone(self, zone_state: ZoneState) -> None:
-        """Modify zone metrics based on severity and polarity."""
+        """Modify zone metrics based on severity and polarity.
+        
+        Args:
+            zone_state (ZoneState): Zone state value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         sign = 1 if self.positive else -1
         zone_state.apply_delta(
             stability=sign
@@ -132,7 +177,17 @@ class CitySimulation:
         summary_every: int = 1,
         json_out: Optional[str] = None,
     ) -> Dict[str, object]:
-        """Advance the simulation for `ticks` steps."""
+        """Advance the simulation for `ticks` steps.
+        
+        Args:
+            ticks (int): Ticks value used by this operation.
+            verbose (bool): Verbose value used by this operation.
+            summary_every (int): Summary every value used by this operation.
+            json_out (Optional[str]): Json out value used by this operation.
+        
+        Returns:
+            Dict[str, object]: Dictionary containing the resulting data.
+        """
         for _ in range(ticks):
             self.tick += 1
             events = self._spawn_events()

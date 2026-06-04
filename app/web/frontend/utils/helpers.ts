@@ -5,7 +5,12 @@
  */
 
 /**
- * Paginate an array
+ * Paginate an array of items.
+ *
+ * @param items - Source items to paginate.
+ * @param page - One-based page number to return.
+ * @param limit - Maximum number of items to include on the page.
+ * @returns Slice of items plus pagination metadata for the current page.
  */
 export const paginate = <T>(
   items: T[],
@@ -41,7 +46,11 @@ interface PaginationInfo {
 }
 
 /**
- * Deep merge objects
+ * Deeply merge two objects.
+ *
+ * @param target - Base object that receives merged fields.
+ * @param source - Partial object whose fields should override the target.
+ * @returns Deeply merged object with nested plain-object fields combined recursively.
  */
 export const deepMerge = <T extends Record<string, any>>(target: T, source: Partial<T>): T => {
   const output: Record<string, any> = { ...target };
@@ -58,7 +67,11 @@ export const deepMerge = <T extends Record<string, any>>(target: T, source: Part
 };
 
 /**
- * Pick specific keys from an object
+ * Pick specific keys from an object.
+ *
+ * @param obj - Source object to read from.
+ * @param keys - Keys to copy into the new object.
+ * @returns New object containing only the requested keys.
  */
 export const pick = <T extends Record<string, any>, K extends keyof T>(
   obj: T,
@@ -74,7 +87,11 @@ export const pick = <T extends Record<string, any>, K extends keyof T>(
 };
 
 /**
- * Omit specific keys from an object
+ * Omit specific keys from an object.
+ *
+ * @param obj - Source object to clone.
+ * @param keys - Keys to remove from the cloned object.
+ * @returns New object without the omitted keys.
  */
 export const omit = <T extends Record<string, any>, K extends keyof T>(
   obj: T,
@@ -88,7 +105,11 @@ export const omit = <T extends Record<string, any>, K extends keyof T>(
 };
 
 /**
- * Debounce function
+ * Debounce a function call.
+ *
+ * @param fn - Function to invoke after the quiet period elapses.
+ * @param delay - Quiet period, in milliseconds, before the function runs.
+ * @returns Debounced wrapper that resets its timer whenever it is called again.
  */
 export const debounce = <T extends (...args: any[]) => any>(
   fn: T,
@@ -103,7 +124,11 @@ export const debounce = <T extends (...args: any[]) => any>(
 };
 
 /**
- * Throttle function
+ * Throttle a function call.
+ *
+ * @param fn - Function to invoke at most once per throttle window.
+ * @param limit - Window size, in milliseconds, between allowed invocations.
+ * @returns Throttled wrapper that drops calls made during the active window.
  */
 export const throttle = <T extends (...args: any[]) => any>(
   fn: T,
@@ -121,14 +146,21 @@ export const throttle = <T extends (...args: any[]) => any>(
 };
 
 /**
- * Sleep/delay function
+ * Sleep for a fixed amount of time.
+ *
+ * @param ms - Delay duration in milliseconds.
+ * @returns Promise that resolves after the delay elapses.
  */
 export const sleep = (ms: number): Promise<void> => {
   return new Promise(resolve => setTimeout(resolve, ms));
 };
 
 /**
- * Retry function with exponential backoff
+ * Retry an asynchronous function with exponential backoff.
+ *
+ * @param fn - Asynchronous operation to retry.
+ * @param options - Retry settings such as maximum attempts, initial delay, and backoff multiplier.
+ * @returns Promise resolving to the first successful result returned by `fn`.
  */
 export const retry = async <T>(
   fn: () => Promise<T>,
@@ -155,7 +187,10 @@ export const retry = async <T>(
 };
 
 /**
- * Generate a unique ID
+ * Generate a unique identifier string.
+ *
+ * @param prefix - Optional prefix to prepend to the generated identifier.
+ * @returns Generated identifier string.
  */
 export const generateId = (prefix: string = ''): string => {
   const timestamp = Date.now().toString(36);
@@ -164,14 +199,20 @@ export const generateId = (prefix: string = ''): string => {
 };
 
 /**
- * Format date to ISO string
+ * Format a date-like value as an ISO timestamp.
+ *
+ * @param date - Date-like value to format.
+ * @returns ISO 8601 timestamp string.
  */
 export const formatDate = (date: Date | string | number): string => {
   return new Date(date).toISOString();
 };
 
 /**
- * Parse query string parameters
+ * Parse raw query-string values into booleans and numbers when possible.
+ *
+ * @param query - Raw query parameter map.
+ * @returns New object with primitive values normalized for downstream use.
  */
 export const parseQueryParams = (query: Record<string, any>): Record<string, any> => {
   const parsed: Record<string, any> = {};
@@ -192,7 +233,10 @@ export const parseQueryParams = (query: Record<string, any>): Record<string, any
 };
 
 /**
- * Sanitize string for safe use
+ * Sanitize a string for safe display or logging.
+ *
+ * @param str - String to sanitize.
+ * @returns Sanitized string with unsafe protocol prefixes and angle brackets removed.
  */
 export const sanitize = (str: string): string => {
   return str
@@ -204,7 +248,10 @@ export const sanitize = (str: string): string => {
 };
 
 /**
- * Validate email format
+ * Validate basic email address formatting.
+ *
+ * @param email - Email address to validate.
+ * @returns Whether the email matches a basic address pattern.
  */
 export const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -212,7 +259,10 @@ export const isValidEmail = (email: string): boolean => {
 };
 
 /**
- * Validate URL format
+ * Validate whether a string can be parsed as a URL.
+ *
+ * @param url - URL string to validate.
+ * @returns Whether the string can be parsed as a valid URL.
  */
 export const isValidUrl = (url: string): boolean => {
   try {
@@ -224,14 +274,22 @@ export const isValidUrl = (url: string): boolean => {
 };
 
 /**
- * Clamp a number between min and max
+ * Clamp a number between a minimum and maximum.
+ *
+ * @param num - Number to clamp.
+ * @param min - Lower bound allowed for the number.
+ * @param max - Upper bound allowed for the number.
+ * @returns Number constrained to the inclusive `min`/`max` range.
  */
 export const clamp = (num: number, min: number, max: number): number => {
   return Math.min(Math.max(num, min), max);
 };
 
 /**
- * Check if object is empty
+ * Check whether a value should be treated as empty.
+ *
+ * @param obj - Value to inspect.
+ * @returns Whether the supplied value is nullish, blank, or contains no items/keys.
  */
 export const isEmpty = (obj: any): boolean => {
   if (obj === null || obj === undefined) return true;
@@ -242,7 +300,11 @@ export const isEmpty = (obj: any): boolean => {
 };
 
 /**
- * Create response envelope
+ * Create a standard success response envelope.
+ *
+ * @param data - Payload to include in the response body.
+ * @param options - Optional response message and metadata.
+ * @returns Success envelope containing the payload and any optional extras.
  */
 export const createResponse = <T>(
   data: T,
@@ -257,7 +319,10 @@ export const createResponse = <T>(
 };
 
 /**
- * Hash a string (simple non-crypto hash for IDs)
+ * Hash a string with a deterministic non-cryptographic algorithm.
+ *
+ * @param str - String to hash.
+ * @returns Base-36 hash string derived from the input text.
  */
 export const simpleHash = (str: string): string => {
   let hash = 0;

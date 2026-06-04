@@ -70,6 +70,12 @@ interface ErrorResponse {
 
 /**
  * Main error handler middleware
+ *
+ * @param err - Error instance that was raised while handling the request.
+ * @param req - Express request object for the current HTTP call.
+ * @param res - Express response object used to send the HTTP response.
+ * @param next - Express callback that passes control to the next middleware.
+ * @returns Nothing. The middleware completes its work through side effects on the request/response cycle.
  */
 export const errorHandler = (
   err: Error | APIError,
@@ -133,6 +139,10 @@ export const errorHandler = (
 
 /**
  * Not found handler for unmatched routes
+ *
+ * @param req - Express request object for the current HTTP call.
+ * @param res - Express response object used to send the HTTP response.
+ * @returns Nothing. The middleware completes its work through side effects on the request/response cycle.
  */
 export const notFoundHandler = (req: Request, res: Response): void => {
   res.status(404).json({
@@ -149,6 +159,9 @@ export const notFoundHandler = (req: Request, res: Response): void => {
 
 /**
  * Async handler wrapper to catch async errors
+ *
+ * @param fn - Function or handler to invoke inside the helper wrapper.
+ * @returns A request, res: response, next: nextfunction): void value produced by asyncing handler wrapper to catch async errors.
  */
 export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) => {
   return (req: Request, res: Response, next: NextFunction): void => {

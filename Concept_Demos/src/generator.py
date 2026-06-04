@@ -2,7 +2,16 @@ import datetime
 
 
 def generate_agent_report(agent_name: str, task_id: str, results: dict) -> str:
-    """Generates a Markdown report from agent results."""
+    """Generates a Markdown report from agent results.
+    
+    Args:
+        agent_name (str): Name of the agent involved in the operation.
+        task_id (str): Identifier of the task being processed.
+        results (dict): Result payload to serialize or summarize.
+    
+    Returns:
+        str: String result produced by the operation.
+    """
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     report_title = f"Agent Report: {agent_name} - {task_id}"
 
@@ -28,8 +37,17 @@ def generate_agent_report(agent_name: str, task_id: str, results: dict) -> str:
 
 class ObsidianGenerator:
 
+    """Provide the ObsidianGenerator abstraction used by this module.
+    """
     def generate_task_note(self, task_data: dict) -> str:
-        """Generates a new task note from structured data."""
+        """Generates a new task note from structured data.
+        
+        Args:
+            task_data (dict): Structured task data to serialize or dispatch.
+        
+        Returns:
+            str: String result produced by the operation.
+        """
         title = task_data.get("title", "New Agent Task")
         agent = task_data.get("agent", "general")
         required_capability = task_data.get("required_capability")

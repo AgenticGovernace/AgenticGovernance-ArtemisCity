@@ -60,9 +60,19 @@ class CheckpointStore:
         config_snapshot: Optional[dict] = None,
     ) -> dict:
         """Persist a checkpoint and return its record.
-
+        
         ``registry_snapshot`` and the optional ``config_snapshot`` are hashed
         for integrity. The retention window is computed from ``retention_days``.
+        
+        Args:
+            registry_snapshot (dict): Registry snapshot value used by this operation.
+            checkpoint_type (str): Checkpoint type value used by this operation.
+            metadata (Optional[dict]): Optional metadata stored with the resulting record.
+            retention_days (int): Retention days value used by this operation.
+            config_snapshot (Optional[dict]): Config snapshot value used by this operation.
+        
+        Returns:
+            dict: Dictionary containing the resulting data.
         """
         if checkpoint_type not in CHECKPOINT_TYPES:
             raise ValueError(
@@ -113,7 +123,14 @@ class CheckpointStore:
         return record
 
     def get_checkpoint(self, checkpoint_id: str) -> Optional[dict]:
-        """Load a checkpoint record, or None if it does not exist."""
+        """Load a checkpoint record, or None if it does not exist.
+        
+        Args:
+            checkpoint_id (str): Checkpoint id value used by this operation.
+        
+        Returns:
+            Optional[dict]: Matching value when available; otherwise None.
+        """
         path = self._path(checkpoint_id)
         if not path.is_file():
             return None
@@ -121,7 +138,11 @@ class CheckpointStore:
             return json.load(fh)
 
     def list_checkpoints(self) -> List[dict]:
-        """Return all checkpoint records, newest first."""
+        """Return all checkpoint records, newest first.
+        
+        Returns:
+            List[dict]: Stored checkpoint records ordered from newest to oldest.
+        """
         records = []
         for path in self.checkpoint_dir.glob("*.json"):
             try:
@@ -132,29 +153,49 @@ class CheckpointStore:
         return sorted(records, key=lambda r: r.get("timestamp", ""), reverse=True)
 
     def verify_checkpoint(self, checkpoint_id: str) -> bool:
-        """Recompute the integrity hash and compare against the stored value."""
+        """Recompute integrity hashes and compare against stored values.
+        
+        Verifies both ``system_hash`` (over the combined registry + config
+        snapshot) and ``config_hash`` (over the config snapshot alone), so
+        tampering with either captured field is detected.
+        
+        Args:
+            checkpoint_id (str): Checkpoint id value used by this operation.
+        
+        Returns:
+            bool: Boolean outcome for the requested check.
+        """
         record = self.get_checkpoint(checkpoint_id)
         if record is None:
             return False
         state = record.get("state", {})
-        recomputed = _hash_state(
-            {
-                "registry": state.get("registry_snapshot", {}),
-                "config": state.get("config_snapshot", {}),
-            }
-        )
-        return recomputed == state.get("system_hash")
+        registry_snapshot = state.get("registry_snapshot", {})
+        config_snapshot = state.get("config_snapshot", {})
+        system_ok = _hash_state(
+            {"registry": registry_snapshot, "config": config_snapshot}
+        ) == state.get("system_hash")
+        config_ok = _hash_state(config_snapshot) == state.get("config_hash")
+        return system_ok and config_ok
 
     def prune_expired(self, now: Optional[datetime] = None) -> int:
-        """Delete checkpoints whose retention window has passed. Returns count."""
+        """Delete checkpoints whose retention window has passed.
+        
+        Args:
+            now (Optional[datetime]): Optional timestamp used instead of the current time.
+        
+        Returns:
+            int: Number of expired checkpoints that were removed.
+        """
         now = now or _now()
+        now_iso = _iso(now)
         removed = 0
         for record in self.list_checkpoints():
-            expires_at = record.get("retention", {}).get("expires_at")
-            locked_until = record.get("retention", {}).get("locked_until")
-            if locked_until is not None:
+            retention = record.get("retention", {})
+            expires_at = retention.get("expires_at")
+            locked_until = retention.get("locked_until")
+            if locked_until is not None and locked_until >= now_iso:
                 continue
-            if expires_at and expires_at < _iso(now):
+            if expires_at and expires_at < now_iso:
                 self._path(record["checkpoint_id"]).unlink(missing_ok=True)
                 removed += 1
         if removed:
@@ -176,10 +217,15 @@ class RollbackManager:
         details: str = "",
     ) -> dict:
         """Validate checkpoint integrity and return the state to restore.
-
-        Raises ``ValueError`` if the checkpoint is missing or fails integrity
-        verification. Returns a rollback record including the verified
-        ``registry_snapshot`` for the caller to apply.
+        
+        Args:
+            checkpoint_id (str): Checkpoint identifier to restore from.
+            initiated_by (str): Actor requesting the rollback.
+            reason (str): Reason recorded for the rollback request.
+            details (str): Supplemental detail text recorded with the rollback.
+        
+        Returns:
+            dict: Rollback metadata and the verified state snapshot to restore.
         """
         record = self.store.get_checkpoint(checkpoint_id)
         if record is None:

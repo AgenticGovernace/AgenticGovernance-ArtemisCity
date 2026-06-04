@@ -49,21 +49,43 @@ class _StubMemoryClient:
 # ContextEntry
 # ---------------------------------------------------------------------------
 class TestContextEntry:
+    """Provide the TestContextEntry abstraction used by this module.
+    """
     def test_get_summary_short(self):
+        """Test that get summary short.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         entry = ContextEntry(path="a.md", content="short", tags=[], frontmatter={})
         assert entry.get_summary() == "short"
 
     def test_get_summary_truncated(self):
+        """Test that get summary truncated.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         entry = ContextEntry(path="a.md", content="x" * 300, tags=[], frontmatter={})
         s = entry.get_summary(200)
         assert len(s) == 203  # 200 + "..."
         assert s.endswith("...")
 
     def test_get_summary_exact_length(self):
+        """Test that get summary exact length.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         entry = ContextEntry(path="a.md", content="x" * 200, tags=[], frontmatter={})
         assert entry.get_summary(200) == "x" * 200
 
     def test_relevance_score(self):
+        """Test that relevance score.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         entry = ContextEntry(
             path="a.md", content="c", tags=[], frontmatter={}, relevance_score=0.95
         )
@@ -74,8 +96,16 @@ class TestContextEntry:
 # ContextLoader.load_note
 # ---------------------------------------------------------------------------
 class TestLoadNote:
+    """Provide the TestLoadNote abstraction used by this module.
+    """
+
     @pytest.fixture
     def client(self):
+        """Client.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         c = _StubMemoryClient()
         c.set_response(
             "get_context", MCPResponse(success=True, data={"content": "hello"})
@@ -90,6 +120,14 @@ class TestLoadNote:
         return c
 
     def test_load_note_success(self, client):
+        """Test that load note success.
+        
+        Args:
+            client: Client value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         loader = ContextLoader(memory_client=client)
         entry = loader.load_note("notes/test.md")
         assert entry is not None
@@ -98,6 +136,11 @@ class TestLoadNote:
         assert entry.frontmatter == {"date": "2025-01-01"}
 
     def test_load_note_failure(self):
+        """Test that load note failure.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         client = _StubMemoryClient()
         client.set_response(
             "get_context", MCPResponse(success=False, error="not found")
@@ -106,12 +149,28 @@ class TestLoadNote:
         assert loader.load_note("missing.md") is None
 
     def test_load_note_no_tags(self, client):
+        """Test that load note no tags.
+        
+        Args:
+            client: Client value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         client.set_response("manage_tags", MCPResponse(success=False))
         loader = ContextLoader(memory_client=client)
         entry = loader.load_note("test.md")
         assert entry.tags == []
 
     def test_load_note_no_frontmatter(self, client):
+        """Test that load note no frontmatter.
+        
+        Args:
+            client: Client value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         client.set_response("manage_frontmatter", MCPResponse(success=False))
         loader = ContextLoader(memory_client=client)
         entry = loader.load_note("test.md")
@@ -122,7 +181,14 @@ class TestLoadNote:
 # ContextLoader.search_context
 # ---------------------------------------------------------------------------
 class TestSearchContext:
+    """Provide the TestSearchContext abstraction used by this module.
+    """
     def test_search_success(self):
+        """Test that search success.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         client = _StubMemoryClient()
         client.set_response(
             "search_notes",
@@ -148,6 +214,11 @@ class TestSearchContext:
         assert entries[0].relevance_score == 0.9
 
     def test_search_with_limit(self):
+        """Test that search with limit.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         client = _StubMemoryClient()
         client.set_response(
             "search_notes",
@@ -163,6 +234,11 @@ class TestSearchContext:
         assert len(entries) == 3
 
     def test_search_failure(self):
+        """Test that search failure.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         client = _StubMemoryClient()
         client.set_response("search_notes", MCPResponse(success=False))
         loader = ContextLoader(memory_client=client)
@@ -173,7 +249,14 @@ class TestSearchContext:
 # ContextLoader.load_folder_context
 # ---------------------------------------------------------------------------
 class TestLoadFolderContext:
+    """Provide the TestLoadFolderContext abstraction used by this module.
+    """
     def test_load_folder(self):
+        """Test that load folder.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         client = _StubMemoryClient()
         client.set_response(
             "list_notes",
@@ -189,6 +272,11 @@ class TestLoadFolderContext:
         assert len(entries) == 2
 
     def test_load_folder_failure(self):
+        """Test that load folder failure.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         client = _StubMemoryClient()
         client.set_response("list_notes", MCPResponse(success=False))
         loader = ContextLoader(memory_client=client)
@@ -199,7 +287,14 @@ class TestLoadFolderContext:
 # ContextLoader.load_tagged_context
 # ---------------------------------------------------------------------------
 class TestLoadTaggedContext:
+    """Provide the TestLoadTaggedContext abstraction used by this module.
+    """
     def test_delegates_to_search(self):
+        """Test that delegates to search.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         client = _StubMemoryClient()
         client.set_response(
             "search_notes",
@@ -217,7 +312,14 @@ class TestLoadTaggedContext:
 # ContextLoader.load_agent_history
 # ---------------------------------------------------------------------------
 class TestLoadAgentHistory:
+    """Provide the TestLoadAgentHistory abstraction used by this module.
+    """
     def test_load_agent_history(self):
+        """Test that load agent history.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         client = _StubMemoryClient()
         client.set_response(
             "get_agent_context",
@@ -236,6 +338,11 @@ class TestLoadAgentHistory:
         assert len(entries) == 1
 
     def test_load_agent_history_failure(self):
+        """Test that load agent history failure.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         client = _StubMemoryClient()
         client.set_response("get_agent_context", MCPResponse(success=False))
         loader = ContextLoader(memory_client=client)
@@ -246,14 +353,38 @@ class TestLoadAgentHistory:
 # ContextLoader.get_context_summary
 # ---------------------------------------------------------------------------
 class TestGetContextSummary:
+    """Provide the TestGetContextSummary abstraction used by this module.
+    """
+
     @pytest.fixture
     def loader(self):
+        """Loader.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         return ContextLoader(memory_client=_StubMemoryClient())
 
     def test_empty(self, loader):
+        """Test that empty.
+        
+        Args:
+            loader: Loader value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         assert "No context" in loader.get_context_summary([])
 
     def test_normal(self, loader):
+        """Test that normal.
+        
+        Args:
+            loader: Loader value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         entries = [
             ContextEntry(
                 path="a.md", content="hello world", tags=["tag1"], frontmatter={}
@@ -266,6 +397,14 @@ class TestGetContextSummary:
         assert "tag1" in summary
 
     def test_overflow(self, loader):
+        """Test that overflow.
+        
+        Args:
+            loader: Loader value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         entries = [
             ContextEntry(path=f"{i}.md", content="c", tags=[], frontmatter={})
             for i in range(10)
@@ -278,11 +417,27 @@ class TestGetContextSummary:
 # ContextLoader.filter_by_date_range
 # ---------------------------------------------------------------------------
 class TestFilterByDateRange:
+    """Provide the TestFilterByDateRange abstraction used by this module.
+    """
+
     @pytest.fixture
     def loader(self):
+        """Loader.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         return ContextLoader(memory_client=_StubMemoryClient())
 
     def test_filter_with_dates(self, loader):
+        """Test that filter with dates.
+        
+        Args:
+            loader: Loader value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         entries = [
             ContextEntry(
                 path="a.md", content="", tags=[], frontmatter={"date": "2025-01-15"}
@@ -302,6 +457,14 @@ class TestFilterByDateRange:
         assert paths == {"a.md", "b.md"}
 
     def test_filter_no_date_in_frontmatter(self, loader):
+        """Test that filter no date in frontmatter.
+        
+        Args:
+            loader: Loader value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         entries = [
             ContextEntry(path="a.md", content="", tags=[], frontmatter={}),
         ]
@@ -309,6 +472,14 @@ class TestFilterByDateRange:
         assert filtered == []
 
     def test_filter_with_created_field(self, loader):
+        """Test that filter with created field.
+        
+        Args:
+            loader: Loader value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         entries = [
             ContextEntry(
                 path="a.md", content="", tags=[], frontmatter={"created": "2025-02-01"}
@@ -318,6 +489,14 @@ class TestFilterByDateRange:
         assert len(filtered) == 1
 
     def test_filter_no_bounds(self, loader):
+        """Test that filter no bounds.
+        
+        Args:
+            loader: Loader value used by this operation.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         entries = [
             ContextEntry(
                 path="a.md", content="", tags=[], frontmatter={"date": "2025-01-01"}
@@ -331,7 +510,14 @@ class TestFilterByDateRange:
 # ContextLoader.get_related_context
 # ---------------------------------------------------------------------------
 class TestGetRelatedContext:
+    """Provide the TestGetRelatedContext abstraction used by this module.
+    """
     def test_get_related(self):
+        """Test that get related.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         client = _StubMemoryClient()
         client.set_response(
             "get_context", MCPResponse(success=True, data={"content": "c"})
@@ -358,6 +544,11 @@ class TestGetRelatedContext:
         assert "notes/test.md" not in paths  # self excluded
 
     def test_get_related_note_not_found(self):
+        """Test that get related note not found.
+        
+        Returns:
+            None: This function does not return a value.
+        """
         client = _StubMemoryClient()
         client.set_response("get_context", MCPResponse(success=False))
         loader = ContextLoader(memory_client=client)

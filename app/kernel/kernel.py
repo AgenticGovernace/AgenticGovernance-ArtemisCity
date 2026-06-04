@@ -56,10 +56,13 @@ class Kernel:
 
     def boot(self):
         """Initialize kernel subsystems: Router, Memory, and Agents.
-
+        
         Loads persistent state from disk, initializes the AgentRouter
         for command routing, and creates the MemoryBus for memory
         operations. Sets the booted flag to True upon completion.
+        
+        Returns:
+            None: This function does not return a value.
         """
         self._load_state()
         self.router = AgentRouter()
