@@ -1,8 +1,10 @@
-# CLAUDE.md — Implementation Notes for Artemis City
+# Implementation Notes for Artemis City
 
-> **This file is mirrored byte-for-byte in `AGENTS.md`** so that
-> non-Claude coding agents (Codex, Cursor, Aider, Replit, etc.) get the
-> same guidance. When you edit one, edit the other in the same commit.
+> **`CLAUDE.md` and `AGENTS.md` are byte-for-byte mirrors** so that every
+> coding agent gets the same guidance — Claude reads `CLAUDE.md`, and
+> non-Claude agents (Codex, Cursor, Aider, Replit, etc.) read `AGENTS.md`
+> per the open AGENTS.md standard. Edit both in the same commit; CI fails
+> if they drift.
 
 This file is for AI agents and developers **editing code in this repo**. It
 is intentionally narrow: it covers the active code surfaces, the
@@ -30,7 +32,7 @@ win**.
 | `docs/Agent Implementation Guide.md` | Dual-track Concept_Demos → src/ graduation path |
 | `docs/LIVING_CITY.md` | The Mayor / Postmaster / City Manager metaphor |
 | `docs/ENVIRONMENTS.md` | `dev → staging → prod` branch flow and `ARTEMIS_ENV` |
-| `AGENTS.md` | Tool-neutral mirror of this file (for non-Claude agents) |
+| `AGENTS.md` | Tool-neutral mirror of `CLAUDE.md` (for non-Claude agents) |
 | `docs/TEST_PLAN.md` | Test plan (pyramid, coverage bars, naming convention) |
 | `SECURITY.md` | Secret handling, key rotation, incident response |
 

@@ -7,14 +7,14 @@
 
 ## Table of Contents
 
-1. [Test Strategy Overview](about:blank#test-strategy-overview)
-2. [Test Directory Structure](about:blank#test-directory-structure)
-3. [Unit Tests](about:blank#unit-tests)
-4. [Integration Tests](about:blank#integration-tests)
-5. [End-to-End Tests](about:blank#end-to-end-tests)
-6. [Test Fixtures & Utilities](about:blank#test-fixtures--utilities)
-7. [Running Tests](about:blank#running-tests)
-8. [Coverage Requirements](about:blank#coverage-requirements)
+1. [Test Strategy Overview](#test-strategy-overview)
+2. [Test Directory Structure](#test-directory-structure)
+3. [Unit Tests](#unit-tests)
+4. [Integration Tests](#integration-tests)
+5. [End-to-End Tests](#end-to-end-tests)
+6. [Test Fixtures & Utilities](#test-fixtures--utilities)
+7. [Running Tests](#running-tests)
+8. [Coverage Requirements](#coverage-requirements)
 
 ---
 
