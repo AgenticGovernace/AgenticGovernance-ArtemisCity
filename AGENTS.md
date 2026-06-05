@@ -1,3 +1,599 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+This is a Multi-Agent Coordination Platform (MCP) that integrates Python-based agents with an Obsidian vault. Agents can read tasks from Markdown notes, execute them, and write results back to the vault, creating a human-readable, persistent memory system.
+
+## Architecture
+
+### Core Components
+
+**Three-Layer Architecture:**
+
+1. **MCP Layer** (`src/mcp/`): Central orchestration
+    - `orchestrator.py`: Coordinates agent lifecycle, task assignment, and Obsidian synchronization
+    - `config.py`: System configuration loaded from `.env` file
+
+2. **Obsidian Integration Layer** (`src/obsidian_integration/`): Vault I/O abstraction
+    - `manager.py`: File system operations (read/write notes, list folders)
+    - `parser.py`: Parses Markdown with YAML front matter into structured task data
+    - `generator.py`: Generates formatted Markdown reports and task notes
+
+3. **Agent Layer** (`src/agents/`): Extensible agent implementations
+    - `base_agent.py`: Abstract base class defining `perform_task(task_context: dict) -> dict`
+    - Concrete agents (e.g., `research_agent.py`, `summarizer_agent.py`) implement task logic
+
+### Data Flow
+
+1. Tasks are defined in Markdown notes in `Agent Inputs/` folder with YAML front matter
+2. Orchestrator polls for `status: pending` tasks via `check_for_new_tasks_from_obsidian()`
+3. Tasks are parsed, assigned to agents by name, and executed
+4. Results are written to `Agent Outputs/` as formatted Markdown reports
+5. Original task notes have their status updated (`in progress` → `completed`/`failed`)
+
+### Task Note Format
+
+Tasks use YAML front matter:
+
+```yaml
+---
+task_id: T123
+agent: research_agent
+status: pending
+tags: ["example"]
+---
+
+# Task Title
+Context: Description here
+Keywords: keyword1, keyword2
+```
+
+## Development Commands
+
+### Environment Setup
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure Obsidian vault path in .env
+echo "OBSIDIAN_VAULT_PATH=/path/to/your/vault" > .env
+```
+
+### Running the System
+
+```bash
+# Run the main orchestrator (polls for tasks and executes)
+python main.py
+```
+
+This will:
+
+- Create `Agent Inputs/` and `Agent Outputs/` folders in the vault
+- Generate an example task on first run
+- Execute any pending tasks found in the input folder
+
+## Adding New Agents
+
+1. Create a new file in `src/agents/` (e.g., `my_agent.py`)
+2. Inherit from `BaseAgent` and implement `perform_task(task_context: dict) -> dict`
+3. Register in `orchestrator.py`:
+   ```python
+   self.agents = {
+       "my_agent": MyAgent(),
+       # existing agents...
+   }
+   ```
+4. Create task notes with `agent: my_agent` in front matter
+
+## Key Implementation Details
+
+- **Agent Registration**: Agents are hardcoded in `Orchestrator.__init__()` dictionary
+- **Task Polling**: Current implementation uses synchronous polling (no real-time triggering)
+- **Status Updates**: Parser modifies YAML front matter in-place to track task state
+- **Report Naming**: `{agent_name}_Report_{task_id}_{result_dict_length}.md`
+- **Logging**: Centralized logger in `src/utils/helpers.py` writes to `mcp_obsidian.log`
+
+## Configuration
+
+Environment variables in `.env`:
+
+- `OBSIDIAN_VAULT_PATH`: Absolute path to Obsidian vault (required)
+
+Default folders (configured in `src/mcp/config.py`):
+
+- `AGENT_INPUT_DIR = "Agent Inputs"`
+- `AGENT_OUTPUT_DIR = "Agent Outputs"`
+
+## Project Structure
+
+```
+mcp_obsidian_system/
+├── src/
+│   ├── mcp/                      # Core MCP components (orchestration, config)
+│   │   ├── __init__.py
+│   │   ├── orchestrator.py       # The central coordinator of agents
+│   │   └── config.py             # System-wide configuration
+│   ├── agents/                   # Agent definitions
+│   │   ├── __init__.py
+│   │   ├── base_agent.py         # Abstract base class for all agents
+│   │   ├── research_agent.py     # Example agent: reads, processes, writes
+│   │   └── summarizer_agent.py   # Example agent: takes text, summarizes, writes
+│   ├── obsidian_integration/     # Layer for Obsidian vault interaction
+│   │   ├── __init__.py
+│   │   ├── manager.py            # Handles direct file I/O with Obsidian vault
+│   │   ├── parser.py             # Parses Markdown notes into structured data
+│   │   └── generator.py          # Generates Markdown notes from structured data
+│   └── utils/                    # Generic utility functions
+│       ├── __init__.py
+│       └── helpers.py            # Generic utility functions (e.g., logging)
+├── main.py                       # Entry point for the MCP system
+├── README.md                     # Explanation of the project
+├── requirements.txt              # Python dependencies
+└── .env                          # Environment variables (e.g., Obsidian vault path)
+```
+
+## How the System Works
+
+### First Run Experience
+
+When you run `main.py` for the first time:
+
+1. Creates `Agent Inputs/` and `Agent Outputs/` folders in your Obsidian vault
+2. Generates `Example Research Task.md` in `Agent Inputs/` with `status: pending`
+3. Executes a direct task with the Summarizer Agent (demonstrates programmatic task assignment)
+4. Scans for pending tasks in Obsidian and processes them
+5. Writes reports to `Agent Outputs/` folder
+6. Updates task status to `completed` or `failed`
+
+### Obsidian-Triggered Workflow
+
+1. Create a Markdown file in `<vault>/Agent Inputs/` with YAML front matter:
+   ```yaml
+   ---
+   task_id: T_NEW_RESEARCH
+   agent: research_agent
+   status: pending
+   ---
+
+   # New Topic for Research
+
+   Topic: The future of renewable energy technologies
+   Context: Research emerging trends and key players.
+   Keywords: solar, wind, geothermal, fusion
+   ```
+
+2. Run `python main.py` - the orchestrator will:
+    - Detect the pending task
+    - Update status to `in progress`
+    - Assign to the specified agent
+    - Execute the task
+    - Write a report to `Agent Outputs/`
+    - Update original note status to `completed`
+
+### Direct Task Assignment (Code-Triggered)
+
+You can also assign tasks programmatically in `main.py`:
+
+```python
+task_context = {
+    "task_id": "T001",
+    "title": "Summarize provided text",
+    "content": "Your text here...",
+    "agent": "summarizer_agent",
+}
+results = orchestrator.assign_and_execute_task("summarizer_agent", task_context)
+```
+
+## Detailed Component Documentation
+
+### ObsidianManager (src/obsidian_integration/manager.py)
+
+Handles all file system operations within the Obsidian vault:
+
+- `read_note(relative_path: str) -> str | None`: Reads a note's content
+- `write_note(relative_path: str, content: str, overwrite: bool = True)`: Writes/appends to notes
+- `list_notes_in_folder(relative_folder_path: str, suffix: str = ".md") -> list[str]`: Lists all .md files in a folder
+- `create_folder(relative_folder_path: str)`: Ensures a folder exists
+
+All paths are relative to the vault root specified in `OBSIDIAN_VAULT_PATH`.
+
+### ObsidianParser (src/obsidian_integration/parser.py)
+
+Converts Markdown to structured data:
+
+- `parse_task_note(content: str) -> dict | None`: Parses YAML front matter and content sections into task dictionary. Supports:
+    - YAML front matter fields (task_id, agent, status, tags)
+    - H1 headings as titles
+    - Key-value pairs (e.g., `Context: Some text`)
+    - Checkbox lists for subtasks
+
+- `update_status_in_note(original_content: str, new_status: str, task_id: str = None) -> str`: Updates or adds status field in YAML front matter
+
+### ObsidianGenerator (src/obsidian_integration/generator.py)
+
+Creates formatted Markdown from structured data:
+
+- `generate_agent_report(agent_name: str, task_id: str, results: dict) -> str`: Generates a report with:
+    - YAML front matter (task_id, agent, timestamp, status, tags)
+    - Summary section
+    - Structured output of all result dictionary keys
+    - Optional next steps checklist
+
+- `generate_task_note(task_data: dict) -> str`: Creates a new task note from dictionary
+
+### Orchestrator (src/mcp/orchestrator.py)
+
+The central coordinator managing all agent operations:
+
+**Key Methods:**
+
+- `assign_and_execute_task(agent_name: str, task_context: dict, original_task_note_path: str = None) -> dict`:
+    - Assigns task to agent
+    - Executes via `agent.perform_task()`
+    - Writes report to Obsidian
+    - Updates original task status if path provided
+
+- `check_for_new_tasks_from_obsidian() -> list[tuple[str, dict]]`:
+    - Scans `AGENT_INPUT_DIR` for .md files
+    - Parses each note
+    - Returns list of (note_path, task_data) for `status: pending` tasks
+
+- `update_task_status_in_obsidian(relative_note_path: str, new_status: str, task_id: str = None)`:
+    - Updates status field in original task note
+
+- `create_new_task_in_obsidian(task_data: dict, filename: str | None = None) -> str`:
+    - Programmatically creates new task notes
+
+### BaseAgent (src/agents/base_agent.py)
+
+Abstract base class that all agents inherit from:
+
+```python
+class BaseAgent(ABC):
+    def __init__(self, name: str):
+        self.name = name
+        self.logger = logger.getChild(self.name.replace(" ", "_"))
+
+    @abstractmethod
+    def perform_task(self, task_context: dict) -> dict:
+        """Must return a dictionary with at minimum a 'summary' key"""
+        pass
+
+    def report_status(self, message: str):
+        """Logs progress messages"""
+        self.logger.info(message)
+```
+
+**Agent Implementation Pattern:**
+
+```python
+class MyAgent(BaseAgent):
+    def __init__(self, name: str = "My Agent"):
+        super().__init__(name)
+
+    def perform_task(self, task_context: dict) -> dict:
+        # Access task data
+        topic = task_context.get('topic', 'unknown')
+        context = task_context.get('context', '')
+
+        # Report progress
+        self.report_status(f"Starting work on {topic}...")
+
+        # Do work here
+        result = self._do_work(topic, context)
+
+        # Return structured results
+        return {
+            "summary": "Brief overview of what was accomplished",
+            "findings": ["Finding 1", "Finding 2"],
+            "recommendations": ["Recommendation 1"],
+            "custom_field": "Any custom data"
+        }
+```
+
+### Example Agents
+
+**ResearchAgent** (src/agents/research_agent.py):
+
+- Simulates research activity with sleep delays
+- Extracts topic, keywords, and depth from task context
+- Returns findings, sources, and recommendations
+
+**SummarizerAgent** (src/agents/summarizer_agent.py):
+
+- Takes text from `content` field in task context
+- Produces summary (currently simple truncation, ~20% of original)
+- Returns original length, summary, and extracted main points
+
+## Common Development Tasks
+
+### Testing Agent Behavior
+
+To test a single agent without Obsidian:
+
+```python
+from src.agents.research_agent import ResearchAgent
+
+agent = ResearchAgent()
+task_context = {
+    "topic": "Test Topic",
+    "keywords": "keyword1, keyword2",
+    "depth": "overview"
+}
+results = agent.perform_task(task_context)
+print(results)
+```
+
+### Debugging Task Parsing
+
+To test how a note will be parsed:
+
+```python
+from src.obsidian_integration.parser import ObsidianParser
+
+parser = ObsidianParser()
+content = """---
+task_id: T123
+agent: research_agent
+status: pending
+---
+
+# My Task
+Context: Some context here
+"""
+task_data = parser.parse_task_note(content)
+print(task_data)
+```
+
+### Creating Tasks Programmatically
+
+Instead of manually creating Markdown files:
+
+```python
+orchestrator = Orchestrator()
+task_data = {
+    "task_id": "T_AUTO_001",
+    "title": "Automated Task",
+    "agent": "research_agent",
+    "status": "pending",
+    "context": "Research this topic",
+    "keywords": "AI, ML"
+}
+path = orchestrator.create_new_task_in_obsidian(task_data)
+print(f"Created task at: {path}")
+```
+
+## Tips for Development
+
+### Logging
+
+All components use centralized logging via `src/utils/helpers.py`:
+
+- Logs to both console (StreamHandler) and file (`mcp_obsidian.log`)
+- Agent-specific loggers are created via `logger.getChild(agent_name)`
+- Use `self.report_status(message)` in agents for consistent logging
+
+### Error Handling
+
+Current implementation:
+
+- File not found errors are logged as warnings
+- Agent not found raises `ValueError`
+- Task failures update status to `'failed'` in Obsidian
+- Unhandled exceptions in tasks are caught in main loop and logged
+
+### Task Status Lifecycle
+
+```
+pending → in progress → completed
+                     → failed
+                     → agent_not_found
+```
+
+Statuses are strings stored in YAML front matter and case-insensitive when checked.
+
+### Extending the Parser
+
+To support additional Markdown structures, modify `ObsidianParser.parse_task_note()`:
+
+- Currently supports: YAML front matter, H1 titles, key-value pairs, checkbox lists
+- Add custom parsing logic for tables, code blocks, embedded notes, etc.
+
+### Virtual Environment
+
+The project includes a `.venv/` directory. Activate it:
+
+```bash
+# macOS/Linux
+source .venv/bin/activate
+
+# Windows
+.venv\Scripts\activate
+```
+
+## Next Steps and Future Enhancements
+
+### Real-Time Task Triggering
+
+Current limitation: Synchronous polling requires manual runs of `main.py`.
+
+**Solutions:**
+
+1. **Obsidian Plugin**: Develop a custom plugin that sends webhooks when notes are created/modified with `status: pending`
+2. **File Watcher**: Use `watchdog` library to monitor `Agent Inputs/` folder
+3. **Scheduled Polling**: Run `main.py` on a cron job/scheduled task
+
+### Asynchronous Processing
+
+Current agents run synchronously, blocking the orchestrator.
+
+**Enhancement:**
+
+```python
+import asyncio
+
+class BaseAgent(ABC):
+    @abstractmethod
+    async def perform_task(self, task_context: dict) -> dict:
+        pass
+
+# In orchestrator
+async def process_tasks():
+    tasks = self.check_for_new_tasks_from_obsidian()
+    await asyncio.gather(*[
+        self.assign_and_execute_task(agent_name, task_data)
+        for _, task_data in tasks
+    ])
+```
+
+### More Robust Markdown Parsing
+
+Current parser is regex-based and simple.
+
+**Improvements:**
+
+- Use `markdown-it-py` or `mistune` for proper AST parsing
+- Support Obsidian-specific syntax:
+    - `[[Wiki Links]]`
+    - `![[Embedded Notes]]`
+    - `#tags` and nested tags
+    - Dataview queries
+    - Block references `^block-id`
+
+### Agent Communication
+
+Enable multi-agent workflows where agents collaborate:
+
+```python
+# Agent A creates a task for Agent B
+orchestrator.create_new_task_in_obsidian({
+    "title": "Follow-up Research",
+    "agent": "research_agent",
+    "status": "pending",
+    "context": f"Build on results from task {self.current_task_id}",
+    "parent_task": self.current_task_id
+})
+```
+
+### Dynamic Agent Registration
+
+Instead of hardcoding agents in `Orchestrator.__init__()`:
+
+```python
+# Auto-discover agents in src/agents/
+import importlib
+import inspect
+
+agents = {}
+for file in Path("src/agents").glob("*_agent.py"):
+    module = importlib.import_module(f"src.agents.{file.stem}")
+    for name, obj in inspect.getmembers(module):
+        if inspect.isclass(obj) and issubclass(obj, BaseAgent) and obj != BaseAgent:
+            agent_instance = obj()
+            agents[file.stem] = agent_instance
+```
+
+### Persistent Task Queue with Database
+
+Move beyond filesystem-based task tracking:
+
+```python
+# Use SQLite or PostgreSQL
+class TaskQueue:
+    def enqueue(self, task_data: dict) -> str:
+        """Add task to database, return task_id"""
+
+    def get_pending_tasks(self) -> list[dict]:
+        """Query for status='pending'"""
+
+    def update_status(self, task_id: str, status: str):
+        """Update task status"""
+```
+
+Still sync to Obsidian for human readability, but use DB as source of truth.
+
+### Security Best Practices
+
+When agents access external APIs:
+
+1. **Never commit API keys**:
+   ```python
+   # In .env
+   OPENAI_API_KEY=sk-...
+   SERP_API_KEY=...
+
+   # In agent
+   api_key = os.getenv("OPENAI_API_KEY")
+   ```
+
+2. **Update .gitignore**:
+   ```
+   .env
+   *.log
+   __pycache__/
+   .venv/
+   ```
+
+3. **Validate input from Obsidian notes** to prevent injection attacks if agents execute code/commands
+
+### Web Dashboard
+
+Create a Flask/FastAPI interface:
+
+```python
+from fastapi import FastAPI
+app = FastAPI()
+
+@app.get("/tasks")
+def get_tasks():
+    return orchestrator.check_for_new_tasks_from_obsidian()
+
+@app.post("/tasks")
+def create_task(task_data: dict):
+    return orchestrator.create_new_task_in_obsidian(task_data)
+
+@app.get("/agents")
+def list_agents():
+    return list(orchestrator.agents.keys())
+```
+
+### Error Handling Improvements
+
+Add retry logic and more granular error tracking:
+
+```python
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+class ResilientAgent(BaseAgent):
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+    def perform_task(self, task_context: dict) -> dict:
+        # Task logic with automatic retries on failure
+        pass
+```
+
+Track errors in reports:
+
+```python
+{
+    "summary": "Task failed",
+    "error": str(exception),
+    "error_type": exception.__class__.__name__,
+    "stack_trace": traceback.format_exc(),
+    "retry_count": 3
+}
+```
+
+## Support and Documentation
+
+- Project documentation is primarily in this CLAUDE.md file
+- Additional context in `README.md` and `Plan.md.md`
+- Code is documented with docstrings
+- Log files in `mcp_obsidian.log` provide runtime debugging information
+
+
 # Implementation Notes for Artemis City
 
 > **`CLAUDE.md` and `AGENTS.md` are byte-for-byte mirrors** so that every
@@ -258,700 +854,3 @@ point.
 | ATP parser / validator | `src/agents/atp/` |
 | Environment loader | `src/utils/environments.py` |
 | Test conftest | `src/tests/conftest.py` |
-
-
-Origin Claude MD
-# CLAUDE.md - AI Assistant Guide for Artemis City
-
-> **Purpose:** This document provides comprehensive context for AI assistants (like Claude) working with the Artemis City codebase. It explains the project structure, philosophy, key conventions, and development workflows to ensure consistent and informed assistance.
-
----
-
-## Table of Contents
-
-1. [Project Overview](docs/Archived/CLAUDE.md#project-overview)
-2. [Core Philosophy & Principles](docs/Archived/CLAUDE.md#core-philosophy--principles)
-3. [Repository Structure](docs/Archived/CLAUDE.md#repository-structure)
-4. [Agent System Architecture](docs/Archived/CLAUDE.md#agent-system-architecture)
-5. [Key Protocols & Models](docs/Archived/CLAUDE.md#key-protocols--models)
-6. [Development Workflows](docs/Archived/CLAUDE.md#development-workflows)
-7. [Coding Conventions](docs/Archived/CLAUDE.md#coding-conventions)
-8. [Important Files Reference](docs/Archived/CLAUDE.md#important-files-reference)
-9. [Working with This Codebase](docs/Archived/CLAUDE.md#working-with-this-codebase)
-10. [Communication Patterns](docs/Archived/CLAUDE.md#communication-patterns)
-
----
-
-## Project Overview
-
-**Artemis City** is an architectural framework designed to align agentic reasoning with transparent, accountable action across distributed intelligence systems—both human and machine. This is **Version Zero**, providing foundational scaffolding for:
-
-- Defining agents with clear roles and boundaries
-- Managing memory with trust decay models
-- Establishing secure communication interfaces
-- Simulating environments for testing agent interactions
-
-### Key Metadata
-
-- **Project Name:** Artemis City (agentic-Daemon)
-- **Version:** 0.1.0
-- **License:** MIT
-- **Primary Language:** Python 3.13+
-- **Main Entry Point:** `interface/Daemon_cli.py`
-- **Demo Scripts:** `demo_artemis.py`, `demo_memory_integration.py`
-- **Author:** Prinston Palmer
-
-### Mission Statement
-
-Balance **trust**, **entropy**, and **collaboration** to achieve "net good over noise" through iterative clarity and accountable collaboration.
-
----
-
-## Core Philosophy & Principles
-
-The project follows the **Daemon Manifesto** (`Daemon/manifesto.md`), which establishes these core tenets:
-
-### 1. **Iterative Clarity, Not Static Truth**
-
-- The Daemon is a living document
-- Evolves with understanding and experience
-- Embrace continuous improvement
-
-### 2. **Net Good Over Noise**
-
-- Prioritize actions that contribute positively to system goals
-- Filter information through ethical boundaries
-- Focus on meaningful contributions
-
-### 3. **Transparent Accountability**
-
-- Every agent's actions are auditable and attributable
-- Clear documentation of roles and responsibilities
-- Traceable decision-making processes
-
-### 4. **Collaborative Autonomy**
-
-- Agents operate with defined autonomy within a collaborative framework
-- Clear boundaries prevent scope creep
-- Interdependencies are explicitly defined
-
-### 5. **Resilience through Entropy Management**
-
-- Acknowledge natural decay and drift in complex systems
-- Implement countermeasures proactively
-- Use Trust Decay Model to manage reliability
-
----
-
-## Repository Structure
-
-```
-Artemis-City/
-│
-├── agents/                    # Agent definitions and specifications
-│   ├── agent_template.md      # Template for creating new agents
-│   ├── artemis.md            # Mayor protocol, governance agent
-│   ├── copilot.md            # Companion, elastic augmentation agent
-│   ├── pack_rat.md           # Courier role, secure data transfer agent
-│   ├── Daemon_daemon.md       # System anchor, memory interface agent
-│   ├── artemis/              # Artemis agent Python implementation
-│   │   ├── __init__.py       # Exports ArtemisPersona, ReflectionEngine, SemanticTagger
-│   │   ├── persona.py        # ArtemisPersona class and ResponseMode enum
-│   │   ├── reflection.py     # ReflectionEngine, ConceptGraph, ConceptNode
-│   │   └── semantic_tagging.py # SemanticTagger, SemanticTag, Citation
-│   └── atp/                  # Artemis Transmission Protocol implementation
-│       ├── __init__.py       # Exports ATPMessage, ATPParser, ATPValidator
-│       ├── atp_models.py     # ATPMessage, ATPMode, ATPPriority, ATPActionType
-│       ├── atp_parser.py     # ATPParser for parsing ATP-formatted messages
-│       └── atp_validator.py  # ATPValidator, ValidationResult
-│
-├── Daemon/                     # Core principles and philosophy
-│   └── manifesto.md          # Foundational principles document
-│
-├── core/                      # Core system functionality
-│   ├── __init__.py
-│   └── instructions/         # Instruction management system
-│       ├── __init__.py       # Exports InstructionLoader, InstructionSet, cache utilities
-│       ├── instruction_loader.py  # InstructionLoader, InstructionSet dataclass
-│       └── instruction_cache.py   # InstructionCache for caching loaded instructions
-│
-├── interface/                 # User-facing components
-│   ├── Daemon_cli.py          # Main CLI for interacting with agents
-│   ├── agent_router.yaml     # Keyword-based routing configuration
-│   └── translator_protocol.md # Communication encoding standards
-│
-├── launch/                    # Governance and release management
-│   ├── open_source_covenant.md # Open source principles
-│   └── release_gatecheck.md   # Release validation criteria
-│
-├── memory/                    # Memory management frameworks
-│   ├── trust_decay_model.md  # Trust scoring and decay mechanics
-│   ├── memory_lawyer.md      # Memory validation protocols
-│   └── validation_simulations.md # Testing frameworks
-│   ├── validation_simulations.md # Testing frameworks
-│   └── integration/          # Memory integration Python implementation
-│       ├── __init__.py       # Exports MemoryClient, TrustInterface, ContextLoader
-│       ├── memory_client.py  # MemoryClient, MCPResponse, MCPOperation
-│       ├── trust_interface.py # TrustInterface, TrustScore, TrustLevel
-│       └── context_loader.py # ContextLoader, ContextEntry
-│
-├── sandbox_city/             # Simulation environment
-│   ├── index.md              # Overview of sandbox environment
-│   ├── semantic_zones.md     # Zone definitions
-│   └── networked_scripts/
-│       └── mail_delivery_sim.py # Secure mail transfer simulation
-│
-├── Artemis Agentic Memory Layer/  # External memory layer integration
-│   ├── README.md             # Memory layer documentation
-│   ├── docker-compose.yml    # Docker configuration for memory services
-│   └── pyproject.toml        # Memory layer Python configuration
-│
-├── demo_artemis.py           # Demo script for Artemis agent features
-├── demo_memory_integration.py # Demo script for memory integration
-├── ARTEMIS_FEATURES.md       # Artemis agent feature documentation
-├── MEMORY_INTEGRATION.md     # Memory integration documentation
-├── WARP.md                   # Warp terminal integration documentation
-├── CLAUDE.md                 # AI assistant guide (this file)
-├── .gitignore                # Comprehensive ignore patterns
-├── LICENSE                   # MIT License
-├── README.md                 # User-facing documentation
-├── requirements.txt          # Python dependencies (PyYAML>=6.0)
-├── package.json              # Project metadata
-└── pyproject.toml            # Python project configuration
-```
-
----
-
-## Agent System Architecture
-
-### Agent Definition Framework
-
-All agents follow a standardized template (`agents/agent_template.md`) with these required fields:
-
-| Field                        | Description                                         |
-|------------------------------|-----------------------------------------------------|
-| **Agent Name**               | Unique identifier (e.g., "Artemis", "Pack Rat")     |
-| **System Access Scope**      | Boundaries of resource/data access                  |
-| **Semantic Role**            | Primary function and purpose                        |
-| **Energy Signature**         | Computational footprint (low/moderate/high-compute) |
-| **Linked Protocols**         | Communication and operational protocols             |
-| **Drift Countermeasures**    | Mechanisms to prevent behavioral deviation          |
-| **Trust Threshold Triggers** | Conditions that trigger trust re-evaluation         |
-
-### Current Agents
-
-#### 1. **Artemis** (Mayor Protocol, Governance)
-
-- **Role:** System overseer, governance, dispute resolution
-- **Access:** Full read access to agent/memory logs, write to governance protocols
-- **Energy:** Moderate, event-driven (policy violations, disputes, audits)
-- **Keywords:** `artemis`, `governance`, `policy`, `audit`, `dispute`, `review`
-
-#### 2. **Copilot** (Companion, Elastic Augmentation)
-
-- **Role:** Real-time assistant, contextual information provider
-- **Access:** Read current agent context and public memory, write to communication channels
-- **Energy:** Moderate, on-demand, scales with interaction
-- **Keywords:** `help`, `assist`, `explain`, `augment`, `clarify`, `suggest`
-
-#### 3. **Pack Rat** (Courier Role, Safe Transfer)
-
-- **Role:** Secure data transfer between agents/components
-- **Access:** Read/write to secure transfer zones, limited read to communication channels
-- **Energy:** Low-compute, transaction-based
-- **Keywords:** `transfer`, `send`, `receive`, `courier`, `data`, `secure`
-
-#### 4. **CompSuite** (formerly Daemon Daemon - System Anchor, Memory Interface)
-
-- **Role:** System status monitoring, memory interface, configuration management
-- **Access:** System-level access to memory and configuration
-- **Energy:** Low-compute, continuous monitoring
-- **Keywords:** `memory`, `system`, `daemon`, `config`, `status`, `health`
-
-### Agent Routing Mechanism
-
-The CLI uses keyword-based routing defined in `interface/agent_router.yaml`:
-
-1. User inputs command
-2. System matches keywords against agent definitions
-3. Command routed to appropriate agent
-4. Agent performs action within defined scope
-5. Results returned through interface
-
----
-
-## Key Protocols & Models
-
-### 1. **Trust Decay Model** (`memory/trust_decay_model.md`)
-
-Dynamic trust evaluation framework with these components:
-
-- **Initial Trust Score:** Baseline trust for new agents/memories/protocols
-- **Decay Rate:** Natural erosion over time without reinforcement
-- **Reinforcement Events:** Successful tasks, validations, protocol adherence increase trust
-- **Negative Events:** Failures, violations, inconsistencies decrease trust
-- **Trust Thresholds:** Trigger re-evaluation, restricted access, or increased scrutiny
-
-**Applications:**
-
-- Agent Trust: Influences resource access and reliability
-- Memory Trust: Determines weight given to memory entries
-- Protocol Trust: Confidence in protocol effectiveness
-
-### 2. **Translator Protocol** (`interface/translator_protocol.md`)
-
-Ensures consistent communication across languages and encoding systems:
-
-- **Standard Encoding:** UTF-8 for all internal communications
-- **Transliteration Rules:** Algorithms for converting text between writing systems
-- **Language Detection:** Identify source language of incoming text
-- **Error Reporting:** Automated alerts for encoding/transliteration issues
-- **Human Review Loop:** Triggered for complex or ambiguous cases
-
-### 3. **Artemis Transmission Protocol (ATP)**
-
-Structured communication system with signal tags:
-
-| Tag              | Purpose                                                               |
-|------------------|-----------------------------------------------------------------------|
-| `#Mode:`         | Overall intent (Build, Review, Organize, Capture, Synthesize, Commit) |
-| `#Context:`      | Brief mission goal or purpose                                         |
-| `#Priority:`     | Urgency level (Critical, High, Normal, Low)                           |
-| `#ActionType:`   | Expected response (Summarize, Scaffold, Execute, Reflect)             |
-| `#TargetZone:`   | Project/folder area for the work                                      |
-| `#SpecialNotes:` | Unusual instructions, warnings, or exceptions                         |
-
----
-
-## Development Workflows
-
-### Setting Up Development Environment
-
-```bash
-# 1. Clone repository
-git clone <repository-url>
-cd Artemis-City
-
-# 2. Create virtual environment
-python -m venv venv
-
-# 3. Activate virtual environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows:
-.\venv\Scripts\activate
-
-# 4. Install dependencies
-pip install -r requirements.txt
-```
-
-### Running the CLI
-
-**Interactive Mode:**
-
-```bash
-python interface/Daemon_cli.py
-```
-
-**Single Command Mode:**
-
-```bash
-python interface/Daemon_cli.py "ask artemis about system status"
-```
-
-### Running Simulations
-
-```bash
-python sandbox_city/networked_scripts/mail_delivery_sim.py
-```
-
-### Testing Workflow
-
-Currently, the project uses manual testing:
-
-- Test CLI routing with various commands
-- Run simulations to verify agent interactions
-- Validate protocol compliance manually
-
-**Note:** Test infrastructure is pending (`package.json` shows "no test specified")
-
----
-
-## Coding Conventions
-
-### Python Style Guidelines
-
-1. **Documentation:**
-    - Use Google-style docstrings for all public functions
-    - Include Args, Returns, and Raises sections
-    - Document module-level functionality at the top
-
-2. **Code Organization:**
-    - Keep functions focused and single-purpose
-    - Use descriptive variable and function names
-    - Maintain clear separation of concerns
-
-3. **Error Handling:**
-    - Fail gracefully with informative messages
-    - Return empty/default values when appropriate
-    - Log errors for debugging
-
-4. **Configuration:**
-    - Use YAML for configuration files
-    - Keep configuration separate from code
-    - Validate configuration on load
-
-### Example from `Daemon_cli.py`:
-
-```python
-def load_agent_router_config(config_path):
-    """Loads agent routing configurations from a specified YAML file.
-
-    This function reads a YAML file that defines the routing logic for different
-    agents based on command keywords. It's designed to fail gracefully by
-    returning an empty dictionary if the file doesn't exist.
-
-    Args:
-        config_path (str): The full path to the agent router YAML config file.
-
-    Returns:
-        dict: A dictionary containing the agent router configuration. Returns an
-              empty dictionary if the configuration file cannot be found.
-    """
-    if not os.path.exists(config_path):
-        print(f"Error: Agent router config not found at {config_path}")
-        return {}
-    with open(config_path, 'r') as f:
-        return yaml.safe_load(f)
-```
-
-### Agent Definition Conventions
-
-When creating new agents:
-
-1. Copy `agents/agent_template.md`
-2. Fill in all required fields completely
-3. Ensure semantic role is clear and concise
-4. Define precise access boundaries
-5. Specify concrete drift countermeasures
-6. List specific trust threshold triggers
-7. Update `interface/agent_router.yaml` with keywords
-
-### File Naming Conventions
-
-- **Agents:** lowercase with underscores (e.g., `pack_rat.md`)
-- **Python scripts:** lowercase with underscores (e.g., `Daemon_cli.py`)
-- **Documentation:** lowercase with underscores (e.g., `trust_decay_model.md`)
-- **Configuration:** lowercase with underscores (e.g., `agent_router.yaml`)
-
----
-
-## Important Files Reference
-
-### Configuration Files
-
-| File                          | Purpose                    | Format |
-|-------------------------------|----------------------------|--------|
-| `interface/agent_router.yaml` | Agent keyword routing      | YAML   |
-| `requirements.txt`            | Python dependencies        | Text   |
-| `package.json`                | Project metadata           | JSON   |
-| `pyproject.toml`              | Python project config      | TOML   |
-| `.gitignore`                  | Version control exclusions | Text   |
-
-### Documentation Files
-
-| File                               | Purpose                                 |
-|------------------------------------|-----------------------------------------|
-| `README.md`                        | User-facing project documentation       |
-| `CLAUDE.md`                        | AI assistant guide (this file)          |
-| `ARTEMIS_FEATURES.md`              | Artemis agent feature documentation     |
-| `MEMORY_INTEGRATION.md`            | Memory integration documentation        |
-| `WARP.md`                          | Warp terminal integration documentation |
-| `Daemon/manifesto.md`               | Core principles and philosophy          |
-| `agents/agent_template.md`         | Template for new agents                 |
-| `launch/open_source_covenant.md`   | Open source principles                  |
-| `interface/translator_protocol.md` | Communication standards                 |
-| `memory/trust_decay_model.md`      | Trust scoring mechanics                 |
-
-### Executable Files
-
-| File                                                  | Purpose                                |
-|-------------------------------------------------------|----------------------------------------|
-| `interface/Daemon_cli.py`                              | Main CLI entry point                   |
-| `demo_artemis.py`                                     | Demo script for Artemis agent features |
-| `demo_memory_integration.py`                          | Demo script for memory integration     |
-| `sandbox_city/networked_scripts/mail_delivery_sim.py` | Mail delivery simulation               |
-
-### Python Modules
-
-| Module                | Purpose                                          |
-|-----------------------|--------------------------------------------------|
-| `agents/artemis/`     | ArtemisPersona, ReflectionEngine, SemanticTagger |
-| `agents/atp/`         | ATPMessage, ATPParser, ATPValidator              |
-| `core/instructions/`  | InstructionLoader, InstructionCache              |
-| `memory/integration/` | MemoryClient, TrustInterface, ContextLoader      |
-
----
-
-## Working with This Codebase
-
-### When Adding New Features
-
-1. **Understand the Philosophy:**
-    - Read `Daemon/manifesto.md` first
-    - Ensure alignment with core tenets
-    - Prioritize "net good over noise"
-
-2. **Define Scope Clearly:**
-    - Identify which agents are affected
-    - Check system access boundaries
-    - Document expected behavior
-
-3. **Follow Existing Patterns:**
-    - Use existing code as examples
-    - Maintain consistent documentation style
-    - Follow Google-style docstrings
-
-4. **Consider Trust & Security:**
-    - How does this affect trust scores?
-    - What drift countermeasures are needed?
-    - Are access boundaries respected?
-
-### When Creating New Agents
-
-1. Start with `agents/agent_template.md`
-2. Define semantic role precisely
-3. Set appropriate energy signature
-4. Link relevant protocols
-5. Specify drift countermeasures
-6. Add keywords to `agent_router.yaml`
-7. Test routing through CLI
-8. Document in this file
-
-### When Modifying Existing Agents
-
-1. Review current agent definition
-2. Check impact on linked protocols
-3. Update trust threshold triggers if needed
-4. Modify `agent_router.yaml` if keywords change
-5. Test routing thoroughly
-6. Update documentation
-
-### When Working with Memory/Trust
-
-1. Understand Trust Decay Model first
-2. Consider how changes affect trust scores
-3. Document trust implications
-4. Implement appropriate logging
-5. Test edge cases for trust thresholds
-
----
-
-## Communication Patterns
-
-### For AI Assistants Working with This Codebase
-
-1. **Always Consider Context:**
-    - This is a multi-agent system
-    - Actions have trust implications
-    - Transparency is paramount
-
-2. **Respect Agent Boundaries:**
-    - Don't suggest features that violate access scopes
-    - Maintain separation of concerns
-    - Follow defined protocols
-
-3. **Prioritize Documentation:**
-    - All changes should be documented
-    - Use Google-style docstrings
-    - Update relevant markdown files
-
-4. **Think in Terms of Roles:**
-    - Which agent would handle this?
-    - What is the semantic purpose?
-    - How does this align with the manifesto?
-
-5. **Consider Entropy Management:**
-    - How might this drift over time?
-    - What countermeasures are needed?
-    - How is trust maintained?
-
-### When Uncertain
-
-1. Ask clarifying questions about scope
-2. Reference the Daemon Manifesto for guidance
-3. Check existing agent definitions for patterns
-4. Suggest consulting relevant protocol documents
-5. Propose human review for critical decisions
-
----
-
-## Version Control & Git Conventions
-
-### Ignored Files (see `.gitignore`)
-
-The project maintains a comprehensive `.gitignore` covering:
-
-- **Secrets:** `.env`, `.Renviron`, `.httr-oauth`
-- **Python artifacts:** `__pycache__/`, `*.pyc`, `.ipynb_checkpoints/`
-- **Build outputs:** `build/`, `dist/`, `*.egg-info/`
-- **IDE files:** `.vscode/`, `.idea/`, `*.swp`
-- **OS files:** `.DS_Store`, `Thumbs.db`, `desktop.ini`
-- **Logs and outputs:** `*.log`, `outputs/`, `logs/`
-
-### Commit Message Guidelines
-
-While not explicitly documented, follow these best practices:
-
-- Use clear, descriptive commit messages
-- Start with a verb (Add, Update, Fix, Remove, Rename)
-- Reference agent names when relevant
-- Mention protocol changes explicitly
-
-**Examples:**
-
-- "Add Pack Rat secure transfer validation"
-- "Update Artemis governance review process"
-- "Fix routing issue in Daemon_cli.py"
-- "Rename Daemon Daemon to CompSuite and update roles"
-
----
-
-## Dependencies & Requirements
-
-### Python Dependencies
-
-Current dependencies (from `requirements.txt`):
-
-- **PyYAML >= 6.0:** For YAML configuration parsing
-
-### System Requirements
-
-- **Python:** 3.13 or higher (as specified in pyproject.toml)
-- **pip:** Python package installer (or uv)
-- **Operating System:** Cross-platform (Linux, macOS, Windows)
-
-### Optional Tools
-
-- **Virtual environment:** `venv` or `virtualenv` (recommended)
-- **Text editor/IDE:** Any Python-compatible editor
-
----
-
-## Project Status & Roadmap
-
-### Current State (Version 0.1.0)
-
-**Completed:**
-
-- Agent architecture framework
-- Basic CLI with keyword routing and ATP integration
-- Core documentation (Manifesto, protocols, templates)
-- Trust Decay Model definition
-- Sandbox simulation environment
-- Initial agent definitions (Artemis, Copilot, Pack Rat, CompSuite)
-- Artemis agent Python implementation (persona, reflection, semantic tagging)
-- ATP (Artemis Transmission Protocol) parser and validator
-- Memory integration layer (MemoryClient, TrustInterface, ContextLoader)
-- Core instruction loading and caching system
-
-**In Progress:**
-
-- Memory management implementation
-- Trust scoring system implementation
-- Expanded simulation scenarios
-- Memory layer integration with MCP servers
-
-**Planned:**
-
-- ⏳ Automated testing infrastructure
-- ⏳ Contributing guidelines (`CONTRIBUTING.md`)
-- ⏳ Advanced agent interactions
-- ⏳ External API integrations
-- ⏳ Enhanced security protocols
-
-### Known Limitations
-
-1. **No Automated Tests:** Test infrastructure needs implementation
-2. **Simulated Routing:** CLI routing is keyword-based simulation, not full agent execution
-3. **Manual Trust Management:** Trust Decay Model defined but not automated
-4. **Limited Simulations:** Only mail delivery simulation currently implemented
-
----
-
-## Quick Reference: Common Tasks
-
-### Add a New Agent
-
-```bash
-1. cp agents/agent_template.md agents/new_agent.md
-2. Edit agents/new_agent.md (fill all fields)
-3. Update interface/agent_router.yaml (add keywords)
-4. Test: python interface/Daemon_cli.py "command with keyword"
-5. Update CLAUDE.md (this file) with agent details
-```
-
-### Modify Agent Routing
-
-```bash
-1. Edit interface/agent_router.yaml
-2. Update keywords, roles, or action descriptions
-3. Test routing: python interface/Daemon_cli.py
-4. Verify all expected keywords route correctly
-```
-
-### Run All Simulations
-
-```bash
-# Currently only one simulation exists
-python sandbox_city/networked_scripts/mail_delivery_sim.py
-```
-
-### Check System Dependencies
-
-```bash
-python --version  # Should be 3.8+
-pip list          # Should show PyYAML>=6.0
-```
-
----
-
-## Additional Resources
-
-### Key Concepts to Understand
-
-1. **Agentic Reasoning:** Decision-making processes distributed across specialized agents
-2. **Trust Decay:** Quantitative trust scoring that changes over time and with interactions
-3. **Semantic Zones:** Conceptual areas within Sandbox City for testing
-4. **Drift Countermeasures:** Mechanisms to prevent agent behavior deviation
-5. **Energy Signatures:** Computational resource 
-
-### For AI Assistants
-
-**This file should be updated when:**
-
-- New agents are added
-- Agent definitions significantly change
-- New protocols are introduced
-- Major architectural changes occur
-- Dependencies are added or updated
-- Project version changes
-
-**Keep this file:**
-
-- Comprehensive but focused
-- Clear and accessible
-- Aligned with actual codebase state
-- Updated with each major change
-
-**Version History:**
-
-- **1.0.0** (2025-11-14): Initial comprehensive CLAUDE.md created
-- **1.1.0** (2025-11-23): Updated structure with new Python modules, demo scripts, and documentation files
-
----
-
-**Last Updated:** 2025-11-23
-**Document Version:** 1.1.0
-**Codebase Version:** 0.1.0
-**Maintained By:** AI Assistants & Project Contributors

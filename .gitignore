@@ -95,3 +95,7 @@ CLAUDE.html
 .agents/
 /.run
 /memory_store
+data/run_logs.db-journal
+state_kernel.json
+obsidian_vault/Agent Inputs/ethics_research_20260605104845.md
+obsidian_vault/Agent Outputs/Research_Agent_Report_user_instruction_20260605104845_5.md

@@ -15,7 +15,11 @@
     {
       "type": "command",
       "content": "system status "
+    },
+    {
+      "type": "command",
+      "content": "memory"
     }
   ],
-  "boot_count": 5
+  "boot_count": 7
 }

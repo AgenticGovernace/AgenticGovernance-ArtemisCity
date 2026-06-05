@@ -9,27 +9,29 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+# Put the repo root on sys.path and import via the `src.` package prefix, matching
+# src/tests/conftest.py. (Adding src/ itself instead breaks the agents/integration
+# packages, whose internals use `from src...` / `from ..utils` absolute imports.)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import statistics
 import time
 
-# The memory_decay / hebbian_sync services are scoped for future implementation;
-# import them lazily so this script still runs the ATP benchmark today and the
-# memory ones light up automatically once the modules land.
+# memory_decay / hebbian_sync are imported lazily so this script still runs the
+# ATP benchmark even if they are unavailable; both now ship in src/integration/.
 try:
-    from integration.memory_decay import (MemoryDecayService,  # type: ignore
-                                          MemoryNode)
+    from src.integration.memory_decay import (MemoryDecayService,  # type: ignore
+                                              MemoryNode)
 except ModuleNotFoundError:
     MemoryDecayService = MemoryNode = None  # type: ignore[assignment]
 
 try:
-    from integration.hebbian_sync import HebbianSyncService  # type: ignore
-    from integration.hebbian_sync import WeightUpdate
+    from src.integration.hebbian_sync import HebbianSyncService  # type: ignore
+    from src.integration.hebbian_sync import WeightUpdate
 except ModuleNotFoundError:
     HebbianSyncService = WeightUpdate = None  # type: ignore[assignment]
 
-from agents.atp.atp_parser import ATPParser
+from src.agents.atp.atp_parser import ATPParser
 
 
 class BenchmarkResults:
@@ -200,7 +202,7 @@ def main():
             print(f"Error in memory decay benchmark: {e}")
     else:
         print(
-            "\nSkipping Memory Decay benchmark: integration.memory_decay not available."
+            "\nSkipping Memory Decay benchmark: src.integration.memory_decay not available."
         )
 
     if HebbianSyncService is not None:
@@ -211,7 +213,7 @@ def main():
             print(f"Error in Hebbian sync benchmark: {e}")
     else:
         print(
-            "\nSkipping Hebbian Sync benchmark: integration.hebbian_sync not available."
+            "\nSkipping Hebbian Sync benchmark: src.integration.hebbian_sync not available."
         )
 
     try:
