@@ -1,3 +1,599 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+This is a Multi-Agent Coordination Platform (MCP) that integrates Python-based agents with an Obsidian vault. Agents can read tasks from Markdown notes, execute them, and write results back to the vault, creating a human-readable, persistent memory system.
+
+## Architecture
+
+### Core Components
+
+**Three-Layer Architecture:**
+
+1. **MCP Layer** (`src/mcp/`): Central orchestration
+    - `orchestrator.py`: Coordinates agent lifecycle, task assignment, and Obsidian synchronization
+    - `config.py`: System configuration loaded from `.env` file
+
+2. **Obsidian Integration Layer** (`src/obsidian_integration/`): Vault I/O abstraction
+    - `manager.py`: File system operations (read/write notes, list folders)
+    - `parser.py`: Parses Markdown with YAML front matter into structured task data
+    - `generator.py`: Generates formatted Markdown reports and task notes
+
+3. **Agent Layer** (`src/agents/`): Extensible agent implementations
+    - `base_agent.py`: Abstract base class defining `perform_task(task_context: dict) -> dict`
+    - Concrete agents (e.g., `research_agent.py`, `summarizer_agent.py`) implement task logic
+
+### Data Flow
+
+1. Tasks are defined in Markdown notes in `Agent Inputs/` folder with YAML front matter
+2. Orchestrator polls for `status: pending` tasks via `check_for_new_tasks_from_obsidian()`
+3. Tasks are parsed, assigned to agents by name, and executed
+4. Results are written to `Agent Outputs/` as formatted Markdown reports
+5. Original task notes have their status updated (`in progress` → `completed`/`failed`)
+
+### Task Note Format
+
+Tasks use YAML front matter:
+
+```yaml
+---
+task_id: T123
+agent: research_agent
+status: pending
+tags: ["example"]
+---
+
+# Task Title
+Context: Description here
+Keywords: keyword1, keyword2
+```
+
+## Development Commands
+
+### Environment Setup
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure Obsidian vault path in .env
+echo "OBSIDIAN_VAULT_PATH=/path/to/your/vault" > .env
+```
+
+### Running the System
+
+```bash
+# Run the main orchestrator (polls for tasks and executes)
+python main.py
+```
+
+This will:
+
+- Create `Agent Inputs/` and `Agent Outputs/` folders in the vault
+- Generate an example task on first run
+- Execute any pending tasks found in the input folder
+
+## Adding New Agents
+
+1. Create a new file in `src/agents/` (e.g., `my_agent.py`)
+2. Inherit from `BaseAgent` and implement `perform_task(task_context: dict) -> dict`
+3. Register in `orchestrator.py`:
+   ```python
+   self.agents = {
+       "my_agent": MyAgent(),
+       # existing agents...
+   }
+   ```
+4. Create task notes with `agent: my_agent` in front matter
+
+## Key Implementation Details
+
+- **Agent Registration**: Agents are hardcoded in `Orchestrator.__init__()` dictionary
+- **Task Polling**: Current implementation uses synchronous polling (no real-time triggering)
+- **Status Updates**: Parser modifies YAML front matter in-place to track task state
+- **Report Naming**: `{agent_name}_Report_{task_id}_{result_dict_length}.md`
+- **Logging**: Centralized logger in `src/utils/helpers.py` writes to `mcp_obsidian.log`
+
+## Configuration
+
+Environment variables in `.env`:
+
+- `OBSIDIAN_VAULT_PATH`: Absolute path to Obsidian vault (required)
+
+Default folders (configured in `src/mcp/config.py`):
+
+- `AGENT_INPUT_DIR = "Agent Inputs"`
+- `AGENT_OUTPUT_DIR = "Agent Outputs"`
+
+## Project Structure
+
+```
+mcp_obsidian_system/
+├── src/
+│   ├── mcp/                      # Core MCP components (orchestration, config)
+│   │   ├── __init__.py
+│   │   ├── orchestrator.py       # The central coordinator of agents
+│   │   └── config.py             # System-wide configuration
+│   ├── agents/                   # Agent definitions
+│   │   ├── __init__.py
+│   │   ├── base_agent.py         # Abstract base class for all agents
+│   │   ├── research_agent.py     # Example agent: reads, processes, writes
+│   │   └── summarizer_agent.py   # Example agent: takes text, summarizes, writes
+│   ├── obsidian_integration/     # Layer for Obsidian vault interaction
+│   │   ├── __init__.py
+│   │   ├── manager.py            # Handles direct file I/O with Obsidian vault
+│   │   ├── parser.py             # Parses Markdown notes into structured data
+│   │   └── generator.py          # Generates Markdown notes from structured data
+│   └── utils/                    # Generic utility functions
+│       ├── __init__.py
+│       └── helpers.py            # Generic utility functions (e.g., logging)
+├── main.py                       # Entry point for the MCP system
+├── README.md                     # Explanation of the project
+├── requirements.txt              # Python dependencies
+└── .env                          # Environment variables (e.g., Obsidian vault path)
+```
+
+## How the System Works
+
+### First Run Experience
+
+When you run `main.py` for the first time:
+
+1. Creates `Agent Inputs/` and `Agent Outputs/` folders in your Obsidian vault
+2. Generates `Example Research Task.md` in `Agent Inputs/` with `status: pending`
+3. Executes a direct task with the Summarizer Agent (demonstrates programmatic task assignment)
+4. Scans for pending tasks in Obsidian and processes them
+5. Writes reports to `Agent Outputs/` folder
+6. Updates task status to `completed` or `failed`
+
+### Obsidian-Triggered Workflow
+
+1. Create a Markdown file in `<vault>/Agent Inputs/` with YAML front matter:
+   ```yaml
+   ---
+   task_id: T_NEW_RESEARCH
+   agent: research_agent
+   status: pending
+   ---
+
+   # New Topic for Research
+
+   Topic: The future of renewable energy technologies
+   Context: Research emerging trends and key players.
+   Keywords: solar, wind, geothermal, fusion
+   ```
+
+2. Run `python main.py` - the orchestrator will:
+    - Detect the pending task
+    - Update status to `in progress`
+    - Assign to the specified agent
+    - Execute the task
+    - Write a report to `Agent Outputs/`
+    - Update original note status to `completed`
+
+### Direct Task Assignment (Code-Triggered)
+
+You can also assign tasks programmatically in `main.py`:
+
+```python
+task_context = {
+    "task_id": "T001",
+    "title": "Summarize provided text",
+    "content": "Your text here...",
+    "agent": "summarizer_agent",
+}
+results = orchestrator.assign_and_execute_task("summarizer_agent", task_context)
+```
+
+## Detailed Component Documentation
+
+### ObsidianManager (src/obsidian_integration/manager.py)
+
+Handles all file system operations within the Obsidian vault:
+
+- `read_note(relative_path: str) -> str | None`: Reads a note's content
+- `write_note(relative_path: str, content: str, overwrite: bool = True)`: Writes/appends to notes
+- `list_notes_in_folder(relative_folder_path: str, suffix: str = ".md") -> list[str]`: Lists all .md files in a folder
+- `create_folder(relative_folder_path: str)`: Ensures a folder exists
+
+All paths are relative to the vault root specified in `OBSIDIAN_VAULT_PATH`.
+
+### ObsidianParser (src/obsidian_integration/parser.py)
+
+Converts Markdown to structured data:
+
+- `parse_task_note(content: str) -> dict | None`: Parses YAML front matter and content sections into task dictionary. Supports:
+    - YAML front matter fields (task_id, agent, status, tags)
+    - H1 headings as titles
+    - Key-value pairs (e.g., `Context: Some text`)
+    - Checkbox lists for subtasks
+
+- `update_status_in_note(original_content: str, new_status: str, task_id: str = None) -> str`: Updates or adds status field in YAML front matter
+
+### ObsidianGenerator (src/obsidian_integration/generator.py)
+
+Creates formatted Markdown from structured data:
+
+- `generate_agent_report(agent_name: str, task_id: str, results: dict) -> str`: Generates a report with:
+    - YAML front matter (task_id, agent, timestamp, status, tags)
+    - Summary section
+    - Structured output of all result dictionary keys
+    - Optional next steps checklist
+
+- `generate_task_note(task_data: dict) -> str`: Creates a new task note from dictionary
+
+### Orchestrator (src/mcp/orchestrator.py)
+
+The central coordinator managing all agent operations:
+
+**Key Methods:**
+
+- `assign_and_execute_task(agent_name: str, task_context: dict, original_task_note_path: str = None) -> dict`:
+    - Assigns task to agent
+    - Executes via `agent.perform_task()`
+    - Writes report to Obsidian
+    - Updates original task status if path provided
+
+- `check_for_new_tasks_from_obsidian() -> list[tuple[str, dict]]`:
+    - Scans `AGENT_INPUT_DIR` for .md files
+    - Parses each note
+    - Returns list of (note_path, task_data) for `status: pending` tasks
+
+- `update_task_status_in_obsidian(relative_note_path: str, new_status: str, task_id: str = None)`:
+    - Updates status field in original task note
+
+- `create_new_task_in_obsidian(task_data: dict, filename: str | None = None) -> str`:
+    - Programmatically creates new task notes
+
+### BaseAgent (src/agents/base_agent.py)
+
+Abstract base class that all agents inherit from:
+
+```python
+class BaseAgent(ABC):
+    def __init__(self, name: str):
+        self.name = name
+        self.logger = logger.getChild(self.name.replace(" ", "_"))
+
+    @abstractmethod
+    def perform_task(self, task_context: dict) -> dict:
+        """Must return a dictionary with at minimum a 'summary' key"""
+        pass
+
+    def report_status(self, message: str):
+        """Logs progress messages"""
+        self.logger.info(message)
+```
+
+**Agent Implementation Pattern:**
+
+```python
+class MyAgent(BaseAgent):
+    def __init__(self, name: str = "My Agent"):
+        super().__init__(name)
+
+    def perform_task(self, task_context: dict) -> dict:
+        # Access task data
+        topic = task_context.get('topic', 'unknown')
+        context = task_context.get('context', '')
+
+        # Report progress
+        self.report_status(f"Starting work on {topic}...")
+
+        # Do work here
+        result = self._do_work(topic, context)
+
+        # Return structured results
+        return {
+            "summary": "Brief overview of what was accomplished",
+            "findings": ["Finding 1", "Finding 2"],
+            "recommendations": ["Recommendation 1"],
+            "custom_field": "Any custom data"
+        }
+```
+
+### Example Agents
+
+**ResearchAgent** (src/agents/research_agent.py):
+
+- Simulates research activity with sleep delays
+- Extracts topic, keywords, and depth from task context
+- Returns findings, sources, and recommendations
+
+**SummarizerAgent** (src/agents/summarizer_agent.py):
+
+- Takes text from `content` field in task context
+- Produces summary (currently simple truncation, ~20% of original)
+- Returns original length, summary, and extracted main points
+
+## Common Development Tasks
+
+### Testing Agent Behavior
+
+To test a single agent without Obsidian:
+
+```python
+from src.agents.research_agent import ResearchAgent
+
+agent = ResearchAgent()
+task_context = {
+    "topic": "Test Topic",
+    "keywords": "keyword1, keyword2",
+    "depth": "overview"
+}
+results = agent.perform_task(task_context)
+print(results)
+```
+
+### Debugging Task Parsing
+
+To test how a note will be parsed:
+
+```python
+from src.obsidian_integration.parser import ObsidianParser
+
+parser = ObsidianParser()
+content = """---
+task_id: T123
+agent: research_agent
+status: pending
+---
+
+# My Task
+Context: Some context here
+"""
+task_data = parser.parse_task_note(content)
+print(task_data)
+```
+
+### Creating Tasks Programmatically
+
+Instead of manually creating Markdown files:
+
+```python
+orchestrator = Orchestrator()
+task_data = {
+    "task_id": "T_AUTO_001",
+    "title": "Automated Task",
+    "agent": "research_agent",
+    "status": "pending",
+    "context": "Research this topic",
+    "keywords": "AI, ML"
+}
+path = orchestrator.create_new_task_in_obsidian(task_data)
+print(f"Created task at: {path}")
+```
+
+## Tips for Development
+
+### Logging
+
+All components use centralized logging via `src/utils/helpers.py`:
+
+- Logs to both console (StreamHandler) and file (`mcp_obsidian.log`)
+- Agent-specific loggers are created via `logger.getChild(agent_name)`
+- Use `self.report_status(message)` in agents for consistent logging
+
+### Error Handling
+
+Current implementation:
+
+- File not found errors are logged as warnings
+- Agent not found raises `ValueError`
+- Task failures update status to `'failed'` in Obsidian
+- Unhandled exceptions in tasks are caught in main loop and logged
+
+### Task Status Lifecycle
+
+```
+pending → in progress → completed
+                     → failed
+                     → agent_not_found
+```
+
+Statuses are strings stored in YAML front matter and case-insensitive when checked.
+
+### Extending the Parser
+
+To support additional Markdown structures, modify `ObsidianParser.parse_task_note()`:
+
+- Currently supports: YAML front matter, H1 titles, key-value pairs, checkbox lists
+- Add custom parsing logic for tables, code blocks, embedded notes, etc.
+
+### Virtual Environment
+
+The project includes a `.venv/` directory. Activate it:
+
+```bash
+# macOS/Linux
+source .venv/bin/activate
+
+# Windows
+.venv\Scripts\activate
+```
+
+## Next Steps and Future Enhancements
+
+### Real-Time Task Triggering
+
+Current limitation: Synchronous polling requires manual runs of `main.py`.
+
+**Solutions:**
+
+1. **Obsidian Plugin**: Develop a custom plugin that sends webhooks when notes are created/modified with `status: pending`
+2. **File Watcher**: Use `watchdog` library to monitor `Agent Inputs/` folder
+3. **Scheduled Polling**: Run `main.py` on a cron job/scheduled task
+
+### Asynchronous Processing
+
+Current agents run synchronously, blocking the orchestrator.
+
+**Enhancement:**
+
+```python
+import asyncio
+
+class BaseAgent(ABC):
+    @abstractmethod
+    async def perform_task(self, task_context: dict) -> dict:
+        pass
+
+# In orchestrator
+async def process_tasks():
+    tasks = self.check_for_new_tasks_from_obsidian()
+    await asyncio.gather(*[
+        self.assign_and_execute_task(agent_name, task_data)
+        for _, task_data in tasks
+    ])
+```
+
+### More Robust Markdown Parsing
+
+Current parser is regex-based and simple.
+
+**Improvements:**
+
+- Use `markdown-it-py` or `mistune` for proper AST parsing
+- Support Obsidian-specific syntax:
+    - `[[Wiki Links]]`
+    - `![[Embedded Notes]]`
+    - `#tags` and nested tags
+    - Dataview queries
+    - Block references `^block-id`
+
+### Agent Communication
+
+Enable multi-agent workflows where agents collaborate:
+
+```python
+# Agent A creates a task for Agent B
+orchestrator.create_new_task_in_obsidian({
+    "title": "Follow-up Research",
+    "agent": "research_agent",
+    "status": "pending",
+    "context": f"Build on results from task {self.current_task_id}",
+    "parent_task": self.current_task_id
+})
+```
+
+### Dynamic Agent Registration
+
+Instead of hardcoding agents in `Orchestrator.__init__()`:
+
+```python
+# Auto-discover agents in src/agents/
+import importlib
+import inspect
+
+agents = {}
+for file in Path("src/agents").glob("*_agent.py"):
+    module = importlib.import_module(f"src.agents.{file.stem}")
+    for name, obj in inspect.getmembers(module):
+        if inspect.isclass(obj) and issubclass(obj, BaseAgent) and obj != BaseAgent:
+            agent_instance = obj()
+            agents[file.stem] = agent_instance
+```
+
+### Persistent Task Queue with Database
+
+Move beyond filesystem-based task tracking:
+
+```python
+# Use SQLite or PostgreSQL
+class TaskQueue:
+    def enqueue(self, task_data: dict) -> str:
+        """Add task to database, return task_id"""
+
+    def get_pending_tasks(self) -> list[dict]:
+        """Query for status='pending'"""
+
+    def update_status(self, task_id: str, status: str):
+        """Update task status"""
+```
+
+Still sync to Obsidian for human readability, but use DB as source of truth.
+
+### Security Best Practices
+
+When agents access external APIs:
+
+1. **Never commit API keys**:
+   ```python
+   # In .env
+   OPENAI_API_KEY=sk-...
+   SERP_API_KEY=...
+
+   # In agent
+   api_key = os.getenv("OPENAI_API_KEY")
+   ```
+
+2. **Update .gitignore**:
+   ```
+   .env
+   *.log
+   __pycache__/
+   .venv/
+   ```
+
+3. **Validate input from Obsidian notes** to prevent injection attacks if agents execute code/commands
+
+### Web Dashboard
+
+Create a Flask/FastAPI interface:
+
+```python
+from fastapi import FastAPI
+app = FastAPI()
+
+@app.get("/tasks")
+def get_tasks():
+    return orchestrator.check_for_new_tasks_from_obsidian()
+
+@app.post("/tasks")
+def create_task(task_data: dict):
+    return orchestrator.create_new_task_in_obsidian(task_data)
+
+@app.get("/agents")
+def list_agents():
+    return list(orchestrator.agents.keys())
+```
+
+### Error Handling Improvements
+
+Add retry logic and more granular error tracking:
+
+```python
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+class ResilientAgent(BaseAgent):
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+    def perform_task(self, task_context: dict) -> dict:
+        # Task logic with automatic retries on failure
+        pass
+```
+
+Track errors in reports:
+
+```python
+{
+    "summary": "Task failed",
+    "error": str(exception),
+    "error_type": exception.__class__.__name__,
+    "stack_trace": traceback.format_exc(),
+    "retry_count": 3
+}
+```
+
+## Support and Documentation
+
+- Project documentation is primarily in this CLAUDE.md file
+- Additional context in `README.md` and `Plan.md.md`
+- Code is documented with docstrings
+- Log files in `mcp_obsidian.log` provide runtime debugging information
+
+
 # Implementation Notes for Artemis City
 
 > **`CLAUDE.md` and `AGENTS.md` are byte-for-byte mirrors** so that every
