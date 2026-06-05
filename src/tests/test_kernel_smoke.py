@@ -13,7 +13,7 @@ import importlib
 
 def test_kernel_package_modules_import():
     """Every module in app/kernel imports without error.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -32,11 +32,11 @@ def test_kernel_package_modules_import():
 
 def test_kernel_boots(tmp_path, monkeypatch):
     """Kernel() boots all subsystems without writing into the repo tree.
-    
+
     Args:
         tmp_path: Tmp path value used by this operation.
         monkeypatch: Monkeypatch value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -51,11 +51,11 @@ def test_kernel_boots(tmp_path, monkeypatch):
 
 def test_default_route_uses_daemon_agent(tmp_path, monkeypatch):
     """System/unmatched commands fall through to the daemon agent.
-    
+
     Args:
         tmp_path: Tmp path value used by this operation.
         monkeypatch: Monkeypatch value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -69,11 +69,11 @@ def test_default_route_uses_daemon_agent(tmp_path, monkeypatch):
 
 def test_planner_route_uses_planner_agent(tmp_path, monkeypatch):
     """Planning keywords route to the planner agent.
-    
+
     Args:
         tmp_path: Tmp path value used by this operation.
         monkeypatch: Monkeypatch value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -86,7 +86,7 @@ def test_planner_route_uses_planner_agent(tmp_path, monkeypatch):
 
 def test_router_default_is_daemon() -> None:
     """The router's fallback agent is the lowercase ``daemon`` id.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -100,11 +100,11 @@ def test_unimplemented_persona_route_falls_back_to_daemon(tmp_path, monkeypatch)
     """Routes declared in YAML but lacking a concrete agent (artemis/
     pack_rat/copilot) are handled by the daemon, and the response reports
     the actual handler rather than the routed persona name.
-    
+
     Args:
         tmp_path: Tmp path value used by this operation.
         monkeypatch: Monkeypatch value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """

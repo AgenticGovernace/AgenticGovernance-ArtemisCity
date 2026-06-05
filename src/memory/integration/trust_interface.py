@@ -203,12 +203,12 @@ class TrustInterface:
         self, entity_id: str, entity_type: str = "agent", amount: float = 0.02
     ):
         """Record successful operation (reinforces trust).
-        
+
         Args:
             entity_id: Entity identifier
             entity_type: Type of entity
             amount: Amount to reinforce
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -219,12 +219,12 @@ class TrustInterface:
         self, entity_id: str, entity_type: str = "agent", amount: float = 0.05
     ):
         """Record failed operation (penalizes trust).
-        
+
         Args:
             entity_id: Entity identifier
             entity_type: Type of entity
             amount: Amount to penalize
-        
+
         Returns:
             None: This function does not return a value.
         """

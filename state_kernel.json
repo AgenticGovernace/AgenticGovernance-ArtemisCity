@@ -11,7 +11,11 @@
     {
       "type": "command",
       "content": "research "
+    },
+    {
+      "type": "command",
+      "content": "system status "
     }
   ],
-  "boot_count": 3
+  "boot_count": 5
 }

@@ -1,19 +1,20 @@
 """Integration tests for ATP parser metrics."""
 
 import sys
+import time
 from enum import Enum
 
 import pytest
-import time
-from src.agents.atp.atp_parser import ATPParser
+
 from src.agents.atp.atp_models import ATPMessage, ATPMode, ATPPriority
+from src.agents.atp.atp_parser import ATPParser
 
 
 def test_atp_parser_reimport_does_not_crash_on_duplicate_metrics():
     # Prometheus' default REGISTRY rejects duplicate names. Without the
     # safe_metric guard, sys.modules.pop + reimport raises ValueError.
     """Test that atp parser reimport does not crash on duplicate metrics.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -23,7 +24,7 @@ def test_atp_parser_reimport_does_not_crash_on_duplicate_metrics():
 
 def test_memory_bus_reimport_does_not_crash_on_duplicate_metrics():
     """Test that memory bus reimport does not crash on duplicate metrics.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -37,7 +38,7 @@ class TestParseWithMetricsBasic:
     @pytest.fixture
     def parser(self):
         """Parser.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -45,10 +46,10 @@ class TestParseWithMetricsBasic:
 
     def test_returns_tuple(self, parser):
         """parse_with_metrics returns a (ATPMessage, dict) tuple.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -58,10 +59,10 @@ class TestParseWithMetricsBasic:
 
     def test_first_element_is_atp_message(self, parser):
         """First element of the tuple is an ATPMessage.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -70,10 +71,10 @@ class TestParseWithMetricsBasic:
 
     def test_second_element_is_dict(self, parser):
         """Second element of the tuple is a metrics dict.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -82,10 +83,10 @@ class TestParseWithMetricsBasic:
 
     def test_metrics_has_required_keys(self, parser):
         """Metrics dict has all expected keys.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -109,7 +110,7 @@ class TestLatencyTracking:
     @pytest.fixture
     def parser(self):
         """Parser.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -117,10 +118,10 @@ class TestLatencyTracking:
 
     def test_latency_non_negative(self, parser):
         """Parse latency is a non-negative float.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -129,10 +130,10 @@ class TestLatencyTracking:
 
     def test_latency_consistency(self, parser):
         """Similar inputs produce latencies in the same order of magnitude.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -143,10 +144,10 @@ class TestLatencyTracking:
 
     def test_throughput(self, parser):
         """Parser can handle multiple invocations quickly.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -163,7 +164,7 @@ class TestFormatDetection:
     @pytest.fixture
     def parser(self):
         """Parser.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -171,10 +172,10 @@ class TestFormatDetection:
 
     def test_hash_format_detected(self, parser):
         """Hash format (#Tag:) is correctly detected.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -183,10 +184,10 @@ class TestFormatDetection:
 
     def test_bracket_format_detected(self, parser):
         """Bracket format ([[Tag]]:) is correctly detected.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -195,10 +196,10 @@ class TestFormatDetection:
 
     def test_no_format_detected(self, parser):
         """Plain text returns None for format_detected.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -207,10 +208,10 @@ class TestFormatDetection:
 
     def test_has_headers_true(self, parser):
         """has_headers is True when ATP headers are present.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -219,10 +220,10 @@ class TestFormatDetection:
 
     def test_has_headers_false(self, parser):
         """has_headers is False for plain text.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -236,7 +237,7 @@ class TestFieldCounting:
     @pytest.fixture
     def parser(self):
         """Parser.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -244,10 +245,10 @@ class TestFieldCounting:
 
     def test_field_count_with_multiple_headers(self, parser):
         """field_count reflects number of populated ATP fields.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -257,10 +258,10 @@ class TestFieldCounting:
 
     def test_fields_populated_list(self, parser):
         """fields_populated is a list of field names.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -272,10 +273,10 @@ class TestFieldCounting:
 
     def test_field_count_zero_for_plain_text(self, parser):
         """field_count is 0 when no ATP headers are present.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -284,10 +285,10 @@ class TestFieldCounting:
 
     def test_field_count_matches_populated_length(self, parser):
         """field_count equals len(fields_populated).
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -302,7 +303,7 @@ class TestContentMetrics:
     @pytest.fixture
     def parser(self):
         """Parser.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -310,10 +311,10 @@ class TestContentMetrics:
 
     def test_raw_length(self, parser):
         """raw_length matches the input string length.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -323,10 +324,10 @@ class TestContentMetrics:
 
     def test_content_length_non_negative(self, parser):
         """content_length is non-negative.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -335,10 +336,10 @@ class TestContentMetrics:
 
     def test_empty_input(self, parser):
         """Empty string still produces valid metrics.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -354,7 +355,7 @@ class TestMessageParsing:
     @pytest.fixture
     def parser(self):
         """Parser.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -362,10 +363,10 @@ class TestMessageParsing:
 
     def test_mode_parsed(self, parser):
         """Mode header is correctly parsed into the message.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -374,10 +375,10 @@ class TestMessageParsing:
 
     def test_context_parsed(self, parser):
         """Context header is captured in the message.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -387,10 +388,10 @@ class TestMessageParsing:
 
     def test_priority_parsed(self, parser):
         """Priority header is parsed into the message.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -399,10 +400,10 @@ class TestMessageParsing:
 
     def test_plain_text_content(self, parser):
         """Plain text is stored as content with no headers.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -411,10 +412,10 @@ class TestMessageParsing:
 
     def test_metrics_stored_in_metadata(self, parser):
         """Metrics are also stored in message.metadata['parse_metrics'].
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -424,10 +425,10 @@ class TestMessageParsing:
 
     def test_complex_input(self, parser):
         """Complex ATP input with all fields parses correctly.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -448,10 +449,10 @@ class TestMessageParsing:
 
     def test_multiple_parses_independent(self, parser):
         """Multiple calls return independent results.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -467,7 +468,7 @@ class TestParserEdgeCases:
     @pytest.fixture
     def parser(self):
         """Parser.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -475,10 +476,10 @@ class TestParserEdgeCases:
 
     def test_is_atp_formatted_helper(self, parser):
         """is_atp_formatted mirrors detect_format behavior.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -487,10 +488,10 @@ class TestParserEdgeCases:
 
     def test_parse_enum_name_fallback_and_default(self, parser):
         """_parse_enum handles name lookup and default fallback.
-        
+
         Args:
             parser: Parser value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -504,11 +505,11 @@ class TestParserEdgeCases:
 
     def test_parse_with_metrics_re_raises_parse_errors(self, parser, monkeypatch):
         """Errors in parse() are surfaced to callers.
-        
+
         Args:
             parser: Parser value used by this operation.
             monkeypatch: Monkeypatch value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """

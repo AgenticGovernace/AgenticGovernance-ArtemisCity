@@ -148,10 +148,10 @@ class ArtemisPersona:
 
     def set_mode(self, mode: ResponseMode) -> None:
         """Set current response mode.
-        
+
         Args:
             mode: ResponseMode to activate
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -343,10 +343,10 @@ Response Style:
 
     def add_context_memory(self, context: str) -> None:
         """Add context to memory for chat archaeology.
-        
+
         Args:
             context: Context string to remember
-        
+
         Returns:
             None: This function does not return a value.
         """

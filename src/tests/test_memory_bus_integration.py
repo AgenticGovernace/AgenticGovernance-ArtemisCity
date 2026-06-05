@@ -1,7 +1,9 @@
 """Tests for the memory bus (src/integration/memory_bus.py)."""
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from src.integration.memory_bus import MemoryBus
 
 
@@ -71,13 +73,12 @@ class _StubGovernanceMonitor:
 # Tests
 # ---------------------------------------------------------------------------
 class TestMemoryBusWrite:
-    """Provide the TestMemoryBusWrite abstraction used by this module.
-    """
+    """Provide the TestMemoryBusWrite abstraction used by this module."""
 
     @pytest.fixture
     def bus(self):
         """Bus.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -87,10 +88,10 @@ class TestMemoryBusWrite:
 
     def test_write_to_both_stores(self, bus):
         """Test that write to both stores.
-        
+
         Args:
             bus: Bus value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -103,10 +104,10 @@ class TestMemoryBusWrite:
 
     def test_write_latencies_populated(self, bus):
         """Test that write latencies populated.
-        
+
         Args:
             bus: Bus value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -118,10 +119,10 @@ class TestMemoryBusWrite:
 
     def test_write_with_metadata(self, bus):
         """Test that write with metadata.
-        
+
         Args:
             bus: Bus value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -135,10 +136,10 @@ class TestMemoryBusWrite:
 
     def test_write_no_embed(self, bus):
         """Test that write no embed.
-        
+
         Args:
             bus: Bus value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -150,11 +151,11 @@ class TestMemoryBusWrite:
 
 
 class TestMemoryBusWriteFailure:
-    """Provide the TestMemoryBusWriteFailure abstraction used by this module.
-    """
+    """Provide the TestMemoryBusWriteFailure abstraction used by this module."""
+
     def test_obsidian_failure_rolls_back_vector(self):
         """Test that obsidian failure rolls back vector.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -169,7 +170,7 @@ class TestMemoryBusWriteFailure:
 
     def test_obsidian_failure_records_governance(self):
         """Test that obsidian failure records governance.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -184,7 +185,7 @@ class TestMemoryBusWriteFailure:
 
     def test_no_embed_no_rollback_on_failure(self):
         """Test that no embed no rollback on failure.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -199,7 +200,7 @@ class TestMemoryBusWriteFailure:
         # embed=False used to bypass governance entirely, so repeated
         # no-embed failures never tripped the alert streak.
         """Test that no embed failure still records governance.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -214,13 +215,12 @@ class TestMemoryBusWriteFailure:
 
 
 class TestMemoryBusRead:
-    """Provide the TestMemoryBusRead abstraction used by this module.
-    """
+    """Provide the TestMemoryBusRead abstraction used by this module."""
 
     @pytest.fixture
     def bus(self):
         """Bus.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -232,10 +232,10 @@ class TestMemoryBusRead:
 
     def test_read_exact_path(self, bus):
         """Test that read exact path.
-        
+
         Args:
             bus: Bus value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -247,10 +247,10 @@ class TestMemoryBusRead:
 
     def test_read_exact_path_not_found(self, bus):
         """Test that read exact path not found.
-        
+
         Args:
             bus: Bus value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -260,10 +260,10 @@ class TestMemoryBusRead:
 
     def test_read_vector_fallback(self, bus):
         """Test that read vector fallback.
-        
+
         Args:
             bus: Bus value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -272,7 +272,7 @@ class TestMemoryBusRead:
 
     def test_read_empty_vector_store(self):
         """Test that read empty vector store.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -284,10 +284,10 @@ class TestMemoryBusRead:
 
     def test_read_max_results(self, bus):
         """Test that read max results.
-        
+
         Args:
             bus: Bus value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -296,14 +296,14 @@ class TestMemoryBusRead:
 
 
 class TestMemoryBusKeywordScan:
-    """Provide the TestMemoryBusKeywordScan abstraction used by this module.
-    """
+    """Provide the TestMemoryBusKeywordScan abstraction used by this module."""
+
     def test_keyword_scan(self, tmp_path):
         """Test that keyword scan.
-        
+
         Args:
             tmp_path: Tmp path value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -323,7 +323,7 @@ class TestMemoryBusKeywordScan:
 
     def test_keyword_scan_no_vault_path(self):
         """Test that keyword scan no vault path.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -335,10 +335,10 @@ class TestMemoryBusKeywordScan:
 
     def test_keyword_scan_missing_folder(self, tmp_path):
         """Test that keyword scan missing folder.
-        
+
         Args:
             tmp_path: Tmp path value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -354,11 +354,11 @@ class TestMemoryBusKeywordScan:
 
 
 class TestMemoryBusGovernance:
-    """Provide the TestMemoryBusGovernance abstraction used by this module.
-    """
+    """Provide the TestMemoryBusGovernance abstraction used by this module."""
+
     def test_success_records_governance(self):
         """Test that success records governance.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -371,7 +371,7 @@ class TestMemoryBusGovernance:
 
     def test_no_governance_monitor_ok(self):
         """Test that no governance monitor ok.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -383,11 +383,11 @@ class TestMemoryBusGovernance:
 
 
 class TestNormalizeDocId:
-    """Provide the TestNormalizeDocId abstraction used by this module.
-    """
+    """Provide the TestNormalizeDocId abstraction used by this module."""
+
     def test_spaces_replaced(self):
         """Test that spaces replaced.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -395,7 +395,7 @@ class TestNormalizeDocId:
 
     def test_no_spaces(self):
         """Test that no spaces.
-        
+
         Returns:
             None: This function does not return a value.
         """

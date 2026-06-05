@@ -23,10 +23,10 @@ class ArtemisAgent(BaseAgent):
 
     def perform_task(self, task_context: Dict) -> Dict:
         """Perform task.
-        
+
         Args:
             task_context (Dict): Structured task context passed to the agent.
-        
+
         Returns:
             Dict: Resulting Dict value produced by the operation.
         """

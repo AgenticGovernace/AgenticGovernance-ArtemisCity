@@ -39,21 +39,14 @@ from sys import path
 _repo_root = Path(__file__).resolve().parents[3]
 path.insert(0, str(_repo_root))
 
-from src.Experiments.legal_summarization.batch_runner import (
-    BatchRunner,  # noqa: E402
-)
-from src.Experiments.legal_summarization.dataset_loader import (  # noqa: E402
-    LegalDatasetLoader,
-)
-from src.Experiments.legal_summarization.run_store import (
-    RunStore,  # noqa: E402
-)
+from src.Experiments.legal_summarization.batch_runner import \
+    BatchRunner  # noqa: E402
+from src.Experiments.legal_summarization.dataset_loader import \
+    LegalDatasetLoader  # noqa: E402
+from src.Experiments.legal_summarization.run_store import \
+    RunStore  # noqa: E402
 from src.Experiments.legal_summarization.summarization_config import (  # noqa: E402
-    AggregationLevel,
-    AudienceLevel,
-    SummarizationConfig,
-    SummarizationMode,
-)
+    AggregationLevel, AudienceLevel, SummarizationConfig, SummarizationMode)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -65,7 +58,7 @@ logger = logging.getLogger("legal_summarization.cli")
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the command-line parser for the module entry point.
-    
+
     Returns:
         argparse.ArgumentParser: Resulting argparse.ArgumentParser value produced by the operation.
     """
@@ -164,10 +157,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     """Run the primary workflow exposed by this module.
-    
+
     Args:
         argv (list[str] | None): Argv value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """

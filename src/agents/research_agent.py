@@ -1,20 +1,21 @@
-from .base_agent import BaseAgent
-import time
 import random
+import time
+
+from .base_agent import BaseAgent
 
 
 class ResearchAgent(BaseAgent):
-    """Implement the research-oriented agent used for discovery tasks.
-    """
+    """Implement the research-oriented agent used for discovery tasks."""
+
     def __init__(self, name: str = "Research Agent"):
         super().__init__(name, capabilities=["web_search", "document_analysis"])
 
     def perform_task(self, task_context: dict) -> dict:
         """Perform task.
-        
+
         Args:
             task_context (dict): Structured task context passed to the agent.
-        
+
         Returns:
             dict: Dictionary containing the resulting data.
         """

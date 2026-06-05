@@ -1,20 +1,21 @@
 from datetime import datetime
+
 from ..utils.helpers import logger
 
 
 class ObsidianGenerator:
-    """Provide the ObsidianGenerator abstraction used by this module.
-    """
+    """Provide the ObsidianGenerator abstraction used by this module."""
+
     def generate_agent_report(
         self, agent_name: str, task_id: str, results: dict
     ) -> str:
         """Generates a Markdown report from agent results.
-        
+
         Args:
             agent_name (str): Name of the agent involved in the operation.
             task_id (str): Identifier of the task being processed.
             results (dict): Result payload to serialize or summarize.
-        
+
         Returns:
             str: String result produced by the operation.
         """
@@ -42,10 +43,10 @@ class ObsidianGenerator:
 
     def generate_task_note(self, task_data: dict) -> str:
         """Generates a new task note from structured data.
-        
+
         Args:
             task_data (dict): Structured task data to serialize or dispatch.
-        
+
         Returns:
             str: String result produced by the operation.
         """

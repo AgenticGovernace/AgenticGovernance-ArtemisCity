@@ -26,10 +26,10 @@ class GovernanceMonitor:
 
     def record_failure(self, event: Dict) -> bool:
         """Record a failed sync/divergence event.
-        
+
         Returns:
             True if alert threshold reached and rollback/inspection is advised.
-        
+
         Args:
             event (Dict): Structured event payload to record.
         """
@@ -55,7 +55,7 @@ class GovernanceMonitor:
 
     def record_success(self):
         """Reset failure streak after successful operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -73,7 +73,7 @@ class GovernanceMonitor:
 
     def get_failure_streak(self) -> int:
         """Return failure streak.
-        
+
         Returns:
             int: Integer result produced by the operation.
         """
@@ -81,10 +81,10 @@ class GovernanceMonitor:
 
     def get_recent_events(self, limit: int = 50) -> List[Dict]:
         """Return recent governance events from in-memory history.
-        
+
         Args:
             limit (int): Maximum number of recent events to return.
-        
+
         Returns:
             List[Dict]: Most recent governance events without re-reading the log file.
         """

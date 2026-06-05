@@ -45,8 +45,7 @@ class RunStore:
 
     def _init_db(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS runs (
                     run_id          TEXT PRIMARY KEY,
                     started_at      TEXT NOT NULL,
@@ -60,10 +59,8 @@ class RunStore:
                     failed          INTEGER DEFAULT 0,
                     duration_ms     REAL
                 )
-            """
-            )
-            conn.execute(
-                """
+            """)
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS results (
                     id              INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id          TEXT NOT NULL REFERENCES runs(run_id),
@@ -78,8 +75,7 @@ class RunStore:
                     output_chars    INTEGER,
                     created_at      REAL NOT NULL
                 )
-            """
-            )
+            """)
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_results_run ON results(run_id)"
             )
@@ -98,14 +94,14 @@ class RunStore:
         total_records: int,
     ) -> None:
         """Start run.
-        
+
         Args:
             run_id (str): Identifier of the run being queried or updated.
             config_json (str): Serialized configuration payload for the run.
             dataset_config (str): Dataset configuration identifier for the summarization run.
             split (str): Dataset split name to process.
             total_records (int): Total number of records expected in the run.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -127,12 +123,12 @@ class RunStore:
 
     def finish_run(self, run_id: str, status: str, duration_ms: float) -> None:
         """Finish run.
-        
+
         Args:
             run_id (str): Identifier of the run being queried or updated.
             status (str): Status value to persist or return.
             duration_ms (float): Duration ms value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -178,7 +174,7 @@ class RunStore:
         inference_ms: float,
     ) -> None:
         """Store result.
-        
+
         Args:
             run_id (str): Identifier of the run being queried or updated.
             record_index (int): Position of the record within the run.
@@ -188,7 +184,7 @@ class RunStore:
             mode (str): Execution or summarization mode to apply.
             status (str): Status value to persist or return.
             inference_ms (float): Inference ms value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -222,10 +218,10 @@ class RunStore:
 
     def list_runs(self, limit: int = 20) -> list[dict]:
         """List runs.
-        
+
         Args:
             limit (int): Maximum number of records to return or process.
-        
+
         Returns:
             list[dict]: List containing the resulting items.
         """
@@ -238,10 +234,10 @@ class RunStore:
 
     def get_run(self, run_id: str) -> Optional[dict]:
         """Return run.
-        
+
         Args:
             run_id (str): Identifier of the run being queried or updated.
-        
+
         Returns:
             Optional[dict]: Matching value when available; otherwise None.
         """
@@ -254,11 +250,11 @@ class RunStore:
 
     def get_results(self, run_id: str, limit: int = 500) -> list[dict]:
         """Return results.
-        
+
         Args:
             run_id (str): Identifier of the run being queried or updated.
             limit (int): Maximum number of records to return or process.
-        
+
         Returns:
             list[dict]: List containing the resulting items.
         """
@@ -272,10 +268,10 @@ class RunStore:
 
     def compare_runs(self, run_ids: list[str]) -> list[dict]:
         """Return side-by-side run metadata for comparison.
-        
+
         Args:
             run_ids (list[str]): Run identifiers to fetch for comparison.
-        
+
         Returns:
             list[dict]: Run metadata records for the identifiers that were found.
         """
@@ -292,10 +288,10 @@ class RunStore:
 
     def write_report(self, run_id: str) -> Path:
         """Generate a Markdown report for a completed run.
-        
+
         Args:
             run_id (str): Identifier of the run being queried or updated.
-        
+
         Returns:
             Path: Resolved path produced by the operation.
         """

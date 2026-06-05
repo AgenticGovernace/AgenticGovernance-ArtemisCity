@@ -59,13 +59,14 @@ def _cosine_similarity(a: List[float], b: List[float]) -> float:
 @dataclass
 class VectorRecord:
     """Provide the VectorRecord abstraction used by this module.
-    
+
     Attributes:
         doc_id (str): Stored value on the VectorRecord instance.
         embedding (List[float]): Stored value on the VectorRecord instance.
         metadata (Dict): Stored value on the VectorRecord instance.
         content (str): Stored value on the VectorRecord instance.
     """
+
     doc_id: str
     embedding: List[float]
     metadata: Dict
@@ -110,12 +111,12 @@ class LocalVectorStore:
 
     def upsert(self, doc_id: str, content: str, metadata: Optional[Dict] = None):
         """Insert or replace a document with its embedding.
-        
+
         Args:
             doc_id (str): Stable document identifier for the stored vector record.
             content (str): Primary content payload to parse, store, or process.
             metadata (Optional[Dict]): Optional metadata stored with the resulting record.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -166,11 +167,11 @@ class LocalVectorStore:
 
     def upsert_many(self, records: Iterable[Tuple[str, str, Optional[Dict]]]):
         """Bulk upsert helper.
-        
+
         Args:
             records (Iterable[Tuple[str, str, Optional[Dict]]]): Record collection to upsert or
                 inspect.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -179,10 +180,10 @@ class LocalVectorStore:
 
     def delete(self, doc_id: str):
         """Delete.
-        
+
         Args:
             doc_id (str): Stable document identifier for the stored vector record.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -208,7 +209,7 @@ class LocalVectorStore:
 
     def fetch_all(self) -> Iterable[VectorRecord]:
         """Fetch all.
-        
+
         Returns:
             Iterable[VectorRecord]: Resulting Iterable[VectorRecord] value produced by the operation.
         """
@@ -275,7 +276,7 @@ class LocalVectorStore:
 
     def count(self) -> int:
         """Count.
-        
+
         Returns:
             int: Integer result produced by the operation.
         """

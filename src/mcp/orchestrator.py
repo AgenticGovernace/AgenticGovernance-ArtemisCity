@@ -44,19 +44,19 @@ import time
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
+from src.agents import SummarizerAgent
 from src.agents.artemis_agent import ArtemisAgent
 from src.agents.research_agent import ResearchAgent
-from src.agents import SummarizerAgent
+from src.obsidian_integration import (ObsidianGenerator, ObsidianManager,
+                                      ObsidianParser)
+from src.utils.helpers import logger
+
 from ..integration.agent_registry import AgentRegistry
 from ..integration.governance import GovernanceMonitor
 from ..integration.memory_bus import MemoryBus
 from ..mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
 from ..mcp.hebbian_weights import HebbianWeightManager
 from ..mcp.vector_store import LocalVectorStore
-from src.obsidian_integration import ObsidianGenerator
-from src.obsidian_integration import ObsidianManager
-from src.obsidian_integration import ObsidianParser
-from src.utils.helpers import logger
 
 if TYPE_CHECKING:
     pass
@@ -538,12 +538,12 @@ class Orchestrator:
         self, relative_note_path: str, new_status: str, task_id: Optional[str] = None
     ):
         """Updates the status of a specific task note in Obsidian.
-        
+
         Args:
             relative_note_path (str): Vault-relative note path to read or update.
             new_status (str): Status value to persist in the note or record.
             task_id (str): Identifier of the task being processed.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -585,11 +585,11 @@ class Orchestrator:
         self, task_data: dict, filename: str | None = None
     ) -> str:
         """Create a new task note in the Obsidian input directory.
-        
+
         Args:
             task_data (dict): Structured task payload to serialize into a note.
             filename (str | None): Optional filename override for the created note.
-        
+
         Returns:
             str: Vault-relative path to the newly created task note.
         """
@@ -634,7 +634,7 @@ class Orchestrator:
 
     def execute_all_pending_tasks(self) -> dict:
         """Execute every pending task discovered in the Obsidian input directory.
-        
+
         Returns:
             dict: Batch summary containing task counts and per-task execution results.
         """
@@ -729,7 +729,7 @@ class Orchestrator:
 
     def show_hebbian_network_summary(self):
         """Display Hebbian network statistics.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -746,10 +746,10 @@ class Orchestrator:
 
     def show_agent_hebbian_stats(self, agent_name: str):
         """Display Hebbian statistics for a specific agent.
-        
+
         Args:
             agent_name (str): Name of the agent involved in the operation.
-        
+
         Returns:
             None: This function does not return a value.
         """

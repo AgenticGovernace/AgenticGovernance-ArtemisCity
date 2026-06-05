@@ -1,12 +1,13 @@
 import os
 from pathlib import Path
+
 from ..mcp.config import OBSIDIAN_VAULT_PATH
 from ..utils.helpers import logger
 
 
 class ObsidianManager:
-    """Provide the ObsidianManager abstraction used by this module.
-    """
+    """Provide the ObsidianManager abstraction used by this module."""
+
     def __init__(self, vault_path: str = OBSIDIAN_VAULT_PATH):
         self.vault_path = Path(vault_path)
         if not self.vault_path.is_dir():
@@ -20,10 +21,10 @@ class ObsidianManager:
 
     def read_note(self, relative_path: str) -> str | None:
         """Reads the content of an Obsidian note.
-        
+
         Args:
             relative_path (str): Vault-relative path associated with the note or record.
-        
+
         Returns:
             str | None: Resulting str | None value produced by the operation.
         """
@@ -38,12 +39,12 @@ class ObsidianManager:
 
     def write_note(self, relative_path: str, content: str, overwrite: bool = True):
         """Writes content to an Obsidian note. Creates directories if necessary.
-        
+
         Args:
             relative_path (str): Vault-relative path associated with the note or record.
             content (str): Primary content payload to parse, store, or process.
             overwrite (bool): Overwrite value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -58,11 +59,11 @@ class ObsidianManager:
         self, relative_folder_path: str, suffix: str = ".md"
     ) -> list[str]:
         """Lists all notes (Markdown files) in a specified folder.
-        
+
         Args:
             relative_folder_path (str): Vault-relative folder path to inspect or create.
             suffix (str): Filename suffix used for filtering.
-        
+
         Returns:
             list[str]: List containing the resulting items.
         """
@@ -80,10 +81,10 @@ class ObsidianManager:
 
     def create_folder(self, relative_folder_path: str):
         """Ensures a folder exists within the vault.
-        
+
         Args:
             relative_folder_path (str): Vault-relative folder path to inspect or create.
-        
+
         Returns:
             None: This function does not return a value.
         """

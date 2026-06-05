@@ -4,20 +4,17 @@ import json
 from datetime import timedelta
 
 import pytest
-from src.governance.checkpoints import (
-    CheckpointStore,
-    RollbackManager,
-    _now,
-)
+
+from src.governance.checkpoints import CheckpointStore, RollbackManager, _now
 
 
 @pytest.fixture
 def store(tmp_path):
     """Store.
-    
+
     Args:
         tmp_path: Tmp path value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -31,14 +28,14 @@ SNAPSHOT = {"agents": {"Alpha": {"trust_tier": "monitored", "status": "active"}}
 # Creation
 # ---------------------------------------------------------------------------
 class TestCreate:
-    """Provide the TestCreate abstraction used by this module.
-    """
+    """Provide the TestCreate abstraction used by this module."""
+
     def test_create_returns_record(self, store):
         """Test that create returns record.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -50,10 +47,10 @@ class TestCreate:
 
     def test_create_persists_to_disk(self, store):
         """Test that create persists to disk.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -64,10 +61,10 @@ class TestCreate:
 
     def test_invalid_type_raises(self, store):
         """Test that invalid type raises.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -76,10 +73,10 @@ class TestCreate:
 
     def test_retention_window(self, store):
         """Test that retention window.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -91,14 +88,14 @@ class TestCreate:
 # Listing / retrieval
 # ---------------------------------------------------------------------------
 class TestListGet:
-    """Provide the TestListGet abstraction used by this module.
-    """
+    """Provide the TestListGet abstraction used by this module."""
+
     def test_get_missing_returns_none(self, store):
         """Test that get missing returns none.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -106,10 +103,10 @@ class TestListGet:
 
     def test_list_newest_first(self, store):
         """Test that list newest first.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -126,14 +123,14 @@ class TestListGet:
 # Verification
 # ---------------------------------------------------------------------------
 class TestVerify:
-    """Provide the TestVerify abstraction used by this module.
-    """
+    """Provide the TestVerify abstraction used by this module."""
+
     def test_intact_checkpoint_verifies(self, store):
         """Test that intact checkpoint verifies.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -142,10 +139,10 @@ class TestVerify:
 
     def test_tampered_checkpoint_fails(self, store):
         """Test that tampered checkpoint fails.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -158,10 +155,10 @@ class TestVerify:
 
     def test_verify_missing_is_false(self, store):
         """Test that verify missing is false.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -169,10 +166,10 @@ class TestVerify:
 
     def test_tampered_config_hash_detected(self, store):
         """Modifying config_snapshot must also invalidate verification.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -188,14 +185,14 @@ class TestVerify:
 # Pruning
 # ---------------------------------------------------------------------------
 class TestPrune:
-    """Provide the TestPrune abstraction used by this module.
-    """
+    """Provide the TestPrune abstraction used by this module."""
+
     def test_prune_expired(self, store):
         """Test that prune expired.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -209,10 +206,10 @@ class TestPrune:
 
     def test_locked_checkpoint_not_pruned(self, store):
         """Test that locked checkpoint not pruned.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -226,10 +223,10 @@ class TestPrune:
 
     def test_expired_lock_does_not_block_prune(self, store):
         """Once locked_until has passed, the normal expiration check applies.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -249,14 +246,14 @@ class TestPrune:
 # Rollback
 # ---------------------------------------------------------------------------
 class TestRollback:
-    """Provide the TestRollback abstraction used by this module.
-    """
+    """Provide the TestRollback abstraction used by this module."""
+
     def test_rollback_returns_state(self, store):
         """Test that rollback returns state.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -271,10 +268,10 @@ class TestRollback:
 
     def test_rollback_unknown_raises(self, store):
         """Test that rollback unknown raises.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -284,10 +281,10 @@ class TestRollback:
 
     def test_rollback_tampered_raises(self, store):
         """Test that rollback tampered raises.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """

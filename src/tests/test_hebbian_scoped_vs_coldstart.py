@@ -21,12 +21,13 @@ pytest.importorskip("pandas")
 pytest.importorskip("sklearn")
 pytest.importorskip("matplotlib")
 
+import warnings
+from pathlib import Path
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from pathlib import Path
 from sklearn.neural_network import MLPRegressor
-import matplotlib.pyplot as plt
-import warnings
 
 warnings.filterwarnings("ignore")
 
@@ -63,11 +64,11 @@ PRE_TRAIN_CYCLES = 600  # The 600-cycle threshold
 
 def generate_scoped_corpus(scope, n_samples=PRE_TRAIN_CYCLES):
     """Generate scoped training data for each agent specialty.
-    
+
     Args:
         scope: Scope value used by this operation.
         n_samples: N samples value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -99,10 +100,10 @@ def generate_scoped_corpus(scope, n_samples=PRE_TRAIN_CYCLES):
 
 def create_agent(seed):
     """Standard high-capacity agent.
-    
+
     Args:
         seed: Seed value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -117,12 +118,12 @@ def create_agent(seed):
 
 def pre_train_agent(agent, X_corpus, y_corpus):
     """Pre-train an agent on its scoped corpus for 600 cycles.
-    
+
     Args:
         agent: Agent instance or agent identifier associated with the operation.
         X_corpus: X corpus value used by this operation.
         y_corpus: Y corpus value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -323,7 +324,7 @@ def watchdog_analysis(result, window=50, oscillation_threshold=0.4):
     """Sentinel agent logic: monitor sign-change frequency.
     Flags steps where oscillation rate exceeds threshold.
     Returns: alert_steps (where human review would trigger)
-    
+
     Args:
         result: Result object produced by the helper.
         window: Window value used by this operation.

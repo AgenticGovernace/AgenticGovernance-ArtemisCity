@@ -13,7 +13,8 @@ repeated file I/O operations.
 import os
 import time
 from typing import Dict, Optional, Tuple
-from .instruction_loader import InstructionSet, InstructionLoader
+
+from .instruction_loader import InstructionLoader, InstructionSet
 
 
 class InstructionCache:
@@ -75,11 +76,11 @@ class InstructionCache:
         self, current_dir: Optional[str] = None, agent_name: Optional[str] = None
     ) -> None:
         """Invalidate cache entry for specific directory/agent combination.
-        
+
         Args:
             current_dir: Directory to invalidate
             agent_name: Agent name to invalidate
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -90,7 +91,7 @@ class InstructionCache:
 
     def clear(self) -> None:
         """Clear entire cache.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -154,7 +155,7 @@ def get_global_cache(ttl_seconds: int = 300) -> InstructionCache:
 
 def reset_global_cache() -> None:
     """Reset global cache instance.
-    
+
     Returns:
         None: This function does not return a value.
     """

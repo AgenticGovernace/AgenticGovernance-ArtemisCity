@@ -19,6 +19,7 @@ from pathlib import Path
 try:
     from dotenv import load_dotenv
 except ImportError:  # python-dotenv is pinned in Pipfile but degrade gracefully
+
     def load_dotenv(*_args, **_kwargs) -> bool:  # type: ignore[misc]
         """Provide a no-op ``load_dotenv`` fallback when python-dotenv is unavailable.
         Args:
@@ -29,6 +30,7 @@ except ImportError:  # python-dotenv is pinned in Pipfile but degrade gracefully
             bool: Always returns ``False`` to indicate that no environment file was loaded.
         """
         return False
+
 
 # config.py lives at <repo-root>/src/mcp/config.py, so parents[2] is the repo
 # root. (Earlier indices were off-by-one — likely a leftover from when this

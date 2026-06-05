@@ -1,6 +1,6 @@
-import sys
 import os
-from typing import List, Dict, Any
+import sys
+from typing import Any, Dict, List
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,8 +9,8 @@ from pydantic import BaseModel, Field
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from src.mcp.orchestrator import Orchestrator
 from src.mcp.config import AGENT_OUTPUT_DIR
+from src.mcp.orchestrator import Orchestrator
 from src.utils.helpers import logger
 
 

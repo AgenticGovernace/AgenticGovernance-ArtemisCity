@@ -5,18 +5,20 @@ import sys
 sys.modules.pop("src.agents.artemis.semantic_tagging", None)
 
 import pytest
-from src.agents.artemis.semantic_tagging import Citation, SemanticTag, SemanticTagger
+
+from src.agents.artemis.semantic_tagging import (Citation, SemanticTag,
+                                                 SemanticTagger)
 
 
 # ---------------------------------------------------------------------------
 # SemanticTag
 # ---------------------------------------------------------------------------
 class TestSemanticTag:
-    """Provide the TestSemanticTag abstraction used by this module.
-    """
+    """Provide the TestSemanticTag abstraction used by this module."""
+
     def test_creation(self):
         """Test that creation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -28,7 +30,7 @@ class TestSemanticTag:
 
     def test_add_reference(self):
         """Test that add reference.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -39,7 +41,7 @@ class TestSemanticTag:
 
     def test_add_reference_dedup(self):
         """Test that add reference dedup.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -50,7 +52,7 @@ class TestSemanticTag:
 
     def test_str(self):
         """Test that str.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -67,11 +69,11 @@ class TestSemanticTag:
 # Citation
 # ---------------------------------------------------------------------------
 class TestCitation:
-    """Provide the TestCitation abstraction used by this module.
-    """
+    """Provide the TestCitation abstraction used by this module."""
+
     def test_file_citation(self):
         """Test that file citation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -81,7 +83,7 @@ class TestCitation:
 
     def test_file_citation_with_line(self):
         """Test that file citation with line.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -91,7 +93,7 @@ class TestCitation:
 
     def test_concept_citation(self):
         """Test that concept citation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -100,7 +102,7 @@ class TestCitation:
 
     def test_agent_citation(self):
         """Test that agent citation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -109,7 +111,7 @@ class TestCitation:
 
     def test_url_citation(self):
         """Test that url citation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -121,13 +123,12 @@ class TestCitation:
 # SemanticTagger
 # ---------------------------------------------------------------------------
 class TestSemanticTagger:
-    """Provide the TestSemanticTagger abstraction used by this module.
-    """
+    """Provide the TestSemanticTagger abstraction used by this module."""
 
     @pytest.fixture
     def tagger(self):
         """Tagger.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -135,10 +136,10 @@ class TestSemanticTagger:
 
     def test_initial_state(self, tagger):
         """Test that initial state.
-        
+
         Args:
             tagger: Tagger value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -148,10 +149,10 @@ class TestSemanticTagger:
 
     def test_tag_item_single(self, tagger):
         """Test that tag item single.
-        
+
         Args:
             tagger: Tagger value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -162,10 +163,10 @@ class TestSemanticTagger:
 
     def test_tag_item_multiple_tags(self, tagger):
         """Test that tag item multiple tags.
-        
+
         Args:
             tagger: Tagger value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -175,10 +176,10 @@ class TestSemanticTagger:
 
     def test_tag_item_with_category(self, tagger):
         """Test that tag item with category.
-        
+
         Args:
             tagger: Tagger value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -187,10 +188,10 @@ class TestSemanticTagger:
 
     def test_add_citation(self, tagger):
         """Test that add citation.
-        
+
         Args:
             tagger: Tagger value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -204,10 +205,10 @@ class TestSemanticTagger:
 
     def test_get_items_by_tag(self, tagger):
         """Test that get items by tag.
-        
+
         Args:
             tagger: Tagger value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -219,10 +220,10 @@ class TestSemanticTagger:
 
     def test_get_items_by_tag_nonexistent(self, tagger):
         """Test that get items by tag nonexistent.
-        
+
         Args:
             tagger: Tagger value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -230,10 +231,10 @@ class TestSemanticTagger:
 
     def test_get_tags_for_item(self, tagger):
         """Test that get tags for item.
-        
+
         Args:
             tagger: Tagger value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -243,10 +244,10 @@ class TestSemanticTagger:
 
     def test_get_tags_for_item_nonexistent(self, tagger):
         """Test that get tags for item nonexistent.
-        
+
         Args:
             tagger: Tagger value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -254,10 +255,10 @@ class TestSemanticTagger:
 
     def test_find_related_items(self, tagger):
         """Test that find related items.
-        
+
         Args:
             tagger: Tagger value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -270,10 +271,10 @@ class TestSemanticTagger:
 
     def test_find_related_items_nonexistent(self, tagger):
         """Test that find related items nonexistent.
-        
+
         Args:
             tagger: Tagger value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -281,10 +282,10 @@ class TestSemanticTagger:
 
     def test_extract_tags_from_text(self, tagger):
         """Test that extract tags from text.
-        
+
         Args:
             tagger: Tagger value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -295,10 +296,10 @@ class TestSemanticTagger:
 
     def test_extract_tags_no_tags(self, tagger):
         """Test that extract tags no tags.
-        
+
         Args:
             tagger: Tagger value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -306,10 +307,10 @@ class TestSemanticTagger:
 
     def test_generate_tag_summary_empty(self, tagger):
         """Test that generate tag summary empty.
-        
+
         Args:
             tagger: Tagger value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -317,10 +318,10 @@ class TestSemanticTagger:
 
     def test_generate_tag_summary_with_tags(self, tagger):
         """Test that generate tag summary with tags.
-        
+
         Args:
             tagger: Tagger value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -336,10 +337,10 @@ class TestSemanticTagger:
 
     def test_get_citation_context(self, tagger):
         """Test that get citation context.
-        
+
         Args:
             tagger: Tagger value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -352,10 +353,10 @@ class TestSemanticTagger:
 
     def test_get_citation_context_no_context(self, tagger):
         """Test that get citation context no context.
-        
+
         Args:
             tagger: Tagger value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -364,7 +365,7 @@ class TestSemanticTagger:
 
     def test_normalize_tag(self):
         """Test that normalize tag.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -374,10 +375,10 @@ class TestSemanticTagger:
 
     def test_get_stats(self, tagger):
         """Test that get stats.
-        
+
         Args:
             tagger: Tagger value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """

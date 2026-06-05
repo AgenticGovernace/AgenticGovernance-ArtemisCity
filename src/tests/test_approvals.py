@@ -1,17 +1,15 @@
 """Tests for the self-update approval tier classifier."""
 
 import pytest
-from src.governance.approvals import (
-    ApprovalTier,
-    SelfUpdateGovernor,
-    UpdateProposal,
-)
+
+from src.governance.approvals import (ApprovalTier, SelfUpdateGovernor,
+                                      UpdateProposal)
 
 
 @pytest.fixture
 def governor():
     """Governor.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -23,14 +21,14 @@ def _proposal(**kwargs):
 
 
 class TestAutoTier:
-    """Provide the TestAutoTier abstraction used by this module.
-    """
+    """Provide the TestAutoTier abstraction used by this module."""
+
     def test_low_risk_high_trust_auto(self, governor):
         """Test that low risk high trust auto.
-        
+
         Args:
             governor: Governor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -42,10 +40,10 @@ class TestAutoTier:
     def test_auto_requires_trust_above_090(self, governor):
         # 0.89 trust, tiny change -> monitored, not auto
         """Test that auto requires trust above 090.
-        
+
         Args:
             governor: Governor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -54,14 +52,14 @@ class TestAutoTier:
 
 
 class TestMonitoredTier:
-    """Provide the TestMonitoredTier abstraction used by this module.
-    """
+    """Provide the TestMonitoredTier abstraction used by this module."""
+
     def test_midrange_trust_monitored(self, governor):
         """Test that midrange trust monitored.
-        
+
         Args:
             governor: Governor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -71,24 +69,22 @@ class TestMonitoredTier:
 
     def test_new_deps_force_monitored(self, governor):
         """Test that new deps force monitored.
-        
+
         Args:
             governor: Governor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
-        d = governor.classify(
-            _proposal(new_dependencies=True), trust_score=0.99
-        )
+        d = governor.classify(_proposal(new_dependencies=True), trust_score=0.99)
         assert d.tier == ApprovalTier.MONITORED
 
     def test_medium_code_change_monitored(self, governor):
         """Test that medium code change monitored.
-        
+
         Args:
             governor: Governor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -97,14 +93,14 @@ class TestMonitoredTier:
 
 
 class TestHumanTier:
-    """Provide the TestHumanTier abstraction used by this module.
-    """
+    """Provide the TestHumanTier abstraction used by this module."""
+
     def test_low_trust_human(self, governor):
         """Test that low trust human.
-        
+
         Args:
             governor: Governor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -114,24 +110,22 @@ class TestHumanTier:
 
     def test_breaking_change_human_even_high_trust(self, governor):
         """Test that breaking change human even high trust.
-        
+
         Args:
             governor: Governor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
-        d = governor.classify(
-            _proposal(breaking_changes=True), trust_score=0.99
-        )
+        d = governor.classify(_proposal(breaking_changes=True), trust_score=0.99)
         assert d.tier == ApprovalTier.HUMAN
 
     def test_large_change_human(self, governor):
         """Test that large change human.
-        
+
         Args:
             governor: Governor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -140,10 +134,10 @@ class TestHumanTier:
 
     def test_policy_change_human(self, governor):
         """Test that policy change human.
-        
+
         Args:
             governor: Governor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -152,24 +146,22 @@ class TestHumanTier:
 
     def test_affects_governance_human(self, governor):
         """Test that affects governance human.
-        
+
         Args:
             governor: Governor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
-        d = governor.classify(
-            _proposal(affects_governance=True), trust_score=0.99
-        )
+        d = governor.classify(_proposal(affects_governance=True), trust_score=0.99)
         assert d.tier == ApprovalTier.HUMAN
 
     def test_unknown_agent_human(self, governor):
         """Test that unknown agent human.
-        
+
         Args:
             governor: Governor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -181,14 +173,14 @@ class TestHumanTier:
 
 
 class TestDecisionShape:
-    """Provide the TestDecisionShape abstraction used by this module.
-    """
+    """Provide the TestDecisionShape abstraction used by this module."""
+
     def test_to_dict(self, governor):
         """Test that to dict.
-        
+
         Args:
             governor: Governor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -200,14 +192,18 @@ class TestDecisionShape:
 
     def test_reasons_present_for_each_tier(self, governor):
         """Test that reasons present for each tier.
-        
+
         Args:
             governor: Governor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
-        for trust, expect in [(0.95, ApprovalTier.AUTO), (0.8, ApprovalTier.MONITORED), (0.5, ApprovalTier.HUMAN)]:
+        for trust, expect in [
+            (0.95, ApprovalTier.AUTO),
+            (0.8, ApprovalTier.MONITORED),
+            (0.5, ApprovalTier.HUMAN),
+        ]:
             d = governor.classify(_proposal(), trust_score=trust)
             assert d.tier == expect
             assert d.reasons  # never empty

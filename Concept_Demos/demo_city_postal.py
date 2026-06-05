@@ -17,6 +17,7 @@ except ImportError:
     # Create mock functions for demo purposes
     class MockPostOffice:
         """Fallback postal service used when the memory integration layer is unavailable."""
+
         def send_mail(self, sender, recipient, subject, content, priority="normal"):
             """Simulate sending a piece of mail between two city agents.
 
@@ -55,8 +56,10 @@ except ImportError:
             Returns:
                 MockResponse: Success marker for the simulated archive write.
             """
+
             class MockResponse:
                 """Minimal response object returned by the archive mock."""
+
                 success = True
 
             return MockResponse()
@@ -84,6 +87,7 @@ except ImportError:
 
     class MockTrust:
         """Fallback trust service used when the real trust interface is unavailable."""
+
         def get_trust_score(self, citizen):
             """Return a fixed trust score object for the requested citizen.
 
@@ -93,12 +97,15 @@ except ImportError:
             Returns:
                 MockScore: Fixed score object representing a trusted citizen.
             """
+
             class MockScore:
                 """Simple trust score container used by the demo fallback."""
+
                 score = 0.75
 
                 class MockLevel:
                     """Simple trust level container used by the demo fallback."""
+
                     value = "TRUSTED"
 
                 level = MockLevel()
@@ -136,7 +143,7 @@ except ImportError:
 
 def city_welcome():
     """Welcome message for Artemis City.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -157,7 +164,7 @@ def city_welcome():
 
 def demo_mail_delivery():
     """Demonstrate inter-agent mail delivery.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -201,7 +208,7 @@ The city thrives through our collaboration.
 
 def demo_mailbox_check():
     """Demonstrate checking agent mailboxes.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -227,7 +234,7 @@ def demo_mailbox_check():
 
 def demo_archival_system():
     """Demonstrate City Archives filing.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -276,7 +283,7 @@ The city is alive and thriving.
 
 def demo_archive_search():
     """Demonstrate searching City Archives.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -304,7 +311,7 @@ def demo_archive_search():
 
 def demo_trust_clearances():
     """Demonstrate trust-based clearance system.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -349,7 +356,7 @@ def demo_trust_clearances():
 
 def demo_postal_report():
     """Generate final postal service report.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -377,7 +384,7 @@ def demo_postal_report():
 
 def main():
     """Run the Artemis City postal service demonstration.
-    
+
     Returns:
         None: This function does not return a value.
     """

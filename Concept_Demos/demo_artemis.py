@@ -64,14 +64,14 @@ _configure_import_path()
 # Optional: if you still get confusing import behavior, keep this warning.
 _warn_if_shadowed("src")
 
+from src.agents import ArtemisPersona, ReflectionEngine, SemanticTagger
 from src.agents.atp.atp_parser import ATPParser
 from src.core.instructions import InstructionLoader
-from src.agents import ArtemisPersona, ReflectionEngine, SemanticTagger
 
 
 def demo_atp_parsing():
     """Demonstrate ATP protocol parsing.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -119,7 +119,7 @@ Create message protocol with context hashing for agent-to-agent communication.
 
 def demo_instruction_loading():
     """Demonstrate instruction hierarchy loading.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -143,7 +143,7 @@ def demo_instruction_loading():
 
 def demo_artemis_persona():
     """Demonstrate Artemis personality and response modes.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -188,7 +188,7 @@ def demo_artemis_persona():
 
 def demo_reflection_engine():
     """Demonstrate reflection and concept synthesis.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -222,7 +222,7 @@ def demo_reflection_engine():
 
 def demo_semantic_tagging():
     """Demonstrate semantic tagging and citations.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -285,7 +285,7 @@ def demo_semantic_tagging():
 
 def main():
     """Run all demos.
-    
+
     Returns:
         None: This function does not return a value.
     """

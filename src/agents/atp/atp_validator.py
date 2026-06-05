@@ -26,10 +26,10 @@ class ValidationResult:
 
     def add_warning(self, message: str) -> None:
         """Add a warning message.
-        
+
         Args:
             message (str): ATP or status message handled by the function.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -37,10 +37,10 @@ class ValidationResult:
 
     def add_error(self, message: str) -> None:
         """Add an error message and mark as invalid.
-        
+
         Args:
             message (str): ATP or status message handled by the function.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -49,10 +49,10 @@ class ValidationResult:
 
     def add_suggestion(self, message: str) -> None:
         """Add a suggestion for improvement.
-        
+
         Args:
             message (str): ATP or status message handled by the function.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -61,7 +61,7 @@ class ValidationResult:
     @property
     def has_issues(self) -> bool:
         """Check if there are any warnings or errors.
-        
+
         Returns:
             bool: Boolean outcome for the requested check.
         """

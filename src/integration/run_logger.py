@@ -11,10 +11,10 @@ import json
 import os
 import sqlite3
 import time
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from contextlib import contextmanager
 
 
 class RunLogger:
@@ -169,14 +169,14 @@ class RunLogger:
         duration_ms: Optional[float] = None,
     ):
         """Log a general event.
-        
+
         Args:
             event_type: Type of event (e.g., 'task_start', 'db_write', 'error')
             component: Component name (e.g., 'orchestrator', 'memory_bus')
             metadata: Additional structured data
             message: Human-readable message
             duration_ms: Operation duration if applicable
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -239,7 +239,7 @@ class RunLogger:
         latency_ms: Optional[float] = None,
     ):
         """Log a vector store operation.
-        
+
         Args:
             doc_id: Document identifier
             operation: Operation type ('upsert', 'query', 'delete')
@@ -247,7 +247,7 @@ class RunLogger:
             embedding: The embedding vector
             metadata: Additional metadata
             latency_ms: Operation latency
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -311,7 +311,7 @@ class RunLogger:
         latency_ms: Optional[float] = None,
     ):
         """Log a database write operation.
-        
+
         Args:
             database: Database name/path
             table_name: Table being written to
@@ -320,7 +320,7 @@ class RunLogger:
             data: Data being written (will be previewed)
             rows_affected: Number of rows affected
             latency_ms: Operation latency
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -382,14 +382,14 @@ class RunLogger:
         metadata: Optional[Dict] = None,
     ):
         """Log task execution details.
-        
+
         Args:
             task_id (str): Identifier of the task being processed.
             agent_name (str): Name of the agent involved in the operation.
             status (str): Status value to persist or return.
             duration_ms (float): Duration ms value used by this operation.
             metadata (Optional[Dict]): Optional metadata stored with the resulting record.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -416,7 +416,7 @@ class RunLogger:
         latency_ms: Optional[float] = None,
     ):
         """Log Hebbian weight updates.
-        
+
         Args:
             origin (str): Origin value used by this operation.
             target (str): Target value used by this operation.
@@ -424,7 +424,7 @@ class RunLogger:
             old_weight (float): Old weight value used by this operation.
             new_weight (float): New weight value used by this operation.
             latency_ms (Optional[float]): Latency ms value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -463,7 +463,7 @@ class RunLogger:
         metadata: Optional[Dict] = None,
     ):
         """Log memory bus operations.
-        
+
         Args:
             operation (str): Operation name to validate or record.
             path (str): Filesystem or vault-relative path involved in the operation.
@@ -472,7 +472,7 @@ class RunLogger:
             file_latency_ms (Optional[float]): File latency ms value used by this operation.
             total_latency_ms (Optional[float]): Total latency ms value used by this operation.
             metadata (Optional[Dict]): Optional metadata stored with the resulting record.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -496,17 +496,17 @@ class RunLogger:
         self, event_type: str, component: str, metadata: Optional[Dict] = None
     ):
         """Context manager for timing operations.
-        
+
         Usage:
             with run_logger.timed_operation("task_execution", "orchestrator") as op:
                 # do work
                 op["result"] = "success"
-        
+
         Args:
             event_type (str): Event type to filter by.
             component (str): Component value used by this operation.
             metadata (Optional[Dict]): Optional metadata stored with the resulting record.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -531,11 +531,11 @@ class RunLogger:
 
     def finalize_run(self, status: str = "completed", summary: Optional[Dict] = None):
         """Finalize the run log with summary statistics.
-        
+
         Args:
             status: Final run status
             summary: Optional summary data
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -610,7 +610,7 @@ class RunLogger:
 
     def get_run_stats(self) -> Dict:
         """Get statistics for the current run.
-        
+
         Returns:
             Dict: Resulting Dict value produced by the operation.
         """
@@ -639,7 +639,7 @@ _run_logger: Optional[RunLogger] = None
 
 def get_run_logger() -> RunLogger:
     """Get or create the global run logger instance.
-    
+
     Returns:
         RunLogger: Resulting RunLogger value produced by the operation.
     """
@@ -655,12 +655,12 @@ def init_run_logger(
     run_id: Optional[str] = None,
 ) -> RunLogger:
     """Initialize a new run logger (resets the global instance).
-    
+
     Args:
         log_dir (str): Log dir value used by this operation.
         db_path (str): Path to the SQLite database file.
         run_id (Optional[str]): Identifier of the run being queried or updated.
-    
+
     Returns:
         RunLogger: Resulting RunLogger value produced by the operation.
     """

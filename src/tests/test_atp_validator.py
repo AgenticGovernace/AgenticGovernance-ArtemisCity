@@ -5,6 +5,7 @@ import sys
 sys.modules.pop("src.agents.atp.atp_validator", None)
 
 import pytest
+
 from src.agents.atp.atp_models import ATPActionType, ATPMessage, ATPMode
 from src.agents.atp.atp_validator import ATPValidator, ValidationResult
 
@@ -34,11 +35,11 @@ def _msg(
 # ValidationResult
 # ---------------------------------------------------------------------------
 class TestValidationResult:
-    """Represent the result data produced by the TestValidationResult workflow.
-    """
+    """Represent the result data produced by the TestValidationResult workflow."""
+
     def test_initial_state(self):
         """Test that initial state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -51,7 +52,7 @@ class TestValidationResult:
 
     def test_add_warning(self):
         """Test that add warning.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -63,7 +64,7 @@ class TestValidationResult:
 
     def test_add_error(self):
         """Test that add error.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -75,7 +76,7 @@ class TestValidationResult:
 
     def test_add_suggestion(self):
         """Test that add suggestion.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -87,7 +88,7 @@ class TestValidationResult:
 
     def test_str_no_issues(self):
         """Test that str no issues.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -96,7 +97,7 @@ class TestValidationResult:
 
     def test_str_with_all(self):
         """Test that str with all.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -117,13 +118,12 @@ class TestValidationResult:
 # ATPValidator – lenient mode (default)
 # ---------------------------------------------------------------------------
 class TestATPValidatorLenient:
-    """Provide the TestATPValidatorLenient abstraction used by this module.
-    """
+    """Provide the TestATPValidatorLenient abstraction used by this module."""
 
     @pytest.fixture
     def validator(self):
         """Validator.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -131,10 +131,10 @@ class TestATPValidatorLenient:
 
     def test_valid_complete_message(self, validator):
         """Test that valid complete message.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -152,10 +152,10 @@ class TestATPValidatorLenient:
 
     def test_no_headers_gives_suggestion(self, validator):
         """Test that no headers gives suggestion.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -169,10 +169,10 @@ class TestATPValidatorLenient:
     def test_incomplete_headers_gives_warning(self, validator):
         # has context (so has_atp_headers=True) but mode+action are UNKNOWN (not complete)
         """Test that incomplete headers gives warning.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -185,10 +185,10 @@ class TestATPValidatorLenient:
 
     def test_empty_content_is_error(self, validator):
         """Test that empty content is error.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -204,10 +204,10 @@ class TestATPValidatorLenient:
 
     def test_short_content_warning(self, validator):
         """Test that short content warning.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -222,10 +222,10 @@ class TestATPValidatorLenient:
 
     def test_long_content_suggestion(self, validator):
         """Test that long content suggestion.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -245,13 +245,12 @@ class TestATPValidatorLenient:
 # ATPValidator – strict mode
 # ---------------------------------------------------------------------------
 class TestATPValidatorStrict:
-    """Provide the TestATPValidatorStrict abstraction used by this module.
-    """
+    """Provide the TestATPValidatorStrict abstraction used by this module."""
 
     @pytest.fixture
     def validator(self):
         """Validator.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -259,10 +258,10 @@ class TestATPValidatorStrict:
 
     def test_no_headers_is_error(self, validator):
         """Test that no headers is error.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -273,10 +272,10 @@ class TestATPValidatorStrict:
 
     def test_incomplete_headers_is_error(self, validator):
         """Test that incomplete headers is error.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -290,13 +289,12 @@ class TestATPValidatorStrict:
 # Mode/action consistency
 # ---------------------------------------------------------------------------
 class TestModeActionConsistency:
-    """Provide the TestModeActionConsistency abstraction used by this module.
-    """
+    """Provide the TestModeActionConsistency abstraction used by this module."""
 
     @pytest.fixture
     def validator(self):
         """Validator.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -304,10 +302,10 @@ class TestModeActionConsistency:
 
     def test_consistent_pair_no_suggestion(self, validator):
         """Test that consistent pair no suggestion.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -322,10 +320,10 @@ class TestModeActionConsistency:
 
     def test_inconsistent_pair_gives_suggestion(self, validator):
         """Test that inconsistent pair gives suggestion.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -340,10 +338,10 @@ class TestModeActionConsistency:
 
     def test_unknown_action_no_suggestion(self, validator):
         """Test that unknown action no suggestion.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -361,13 +359,12 @@ class TestModeActionConsistency:
 # Target zone validation
 # ---------------------------------------------------------------------------
 class TestTargetZoneValidation:
-    """Provide the TestTargetZoneValidation abstraction used by this module.
-    """
+    """Provide the TestTargetZoneValidation abstraction used by this module."""
 
     @pytest.fixture
     def validator(self):
         """Validator.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -375,10 +372,10 @@ class TestTargetZoneValidation:
 
     def test_absolute_path_no_extra_suggestions(self, validator):
         """Test that absolute path no extra suggestions.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -394,10 +391,10 @@ class TestTargetZoneValidation:
 
     def test_relative_path_gives_suggestion(self, validator):
         """Test that relative path gives suggestion.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -413,10 +410,10 @@ class TestTargetZoneValidation:
 
     def test_no_path_separators_gives_suggestion(self, validator):
         """Test that no path separators gives suggestion.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -435,13 +432,12 @@ class TestTargetZoneValidation:
 # suggest_improvements
 # ---------------------------------------------------------------------------
 class TestSuggestImprovements:
-    """Provide the TestSuggestImprovements abstraction used by this module.
-    """
+    """Provide the TestSuggestImprovements abstraction used by this module."""
 
     @pytest.fixture
     def validator(self):
         """Validator.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -449,10 +445,10 @@ class TestSuggestImprovements:
 
     def test_no_headers_suggests_adding(self, validator):
         """Test that no headers suggests adding.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -462,10 +458,10 @@ class TestSuggestImprovements:
 
     def test_missing_target_zone(self, validator):
         """Test that missing target zone.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -477,10 +473,10 @@ class TestSuggestImprovements:
 
     def test_missing_special_notes(self, validator):
         """Test that missing special notes.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -495,10 +491,10 @@ class TestSuggestImprovements:
 
     def test_short_context_suggestion(self, validator):
         """Test that short context suggestion.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -508,10 +504,10 @@ class TestSuggestImprovements:
 
     def test_adequate_context_no_suggestion(self, validator):
         """Test that adequate context no suggestion.
-        
+
         Args:
             validator: Validator value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """

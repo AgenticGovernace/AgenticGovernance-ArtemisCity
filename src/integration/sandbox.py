@@ -35,10 +35,10 @@ class ToolPolicy:
 
     def allows_path(self, path: str) -> bool:
         """Allows path.
-        
+
         Args:
             path (str): Filesystem or vault-relative path involved in the operation.
-        
+
         Returns:
             bool: Boolean outcome for the requested check.
         """
@@ -48,10 +48,10 @@ class ToolPolicy:
 
     def allows_operation(self, operation: Optional[str]) -> bool:
         """Allows operation.
-        
+
         Args:
             operation (Optional[str]): Operation name to validate or record.
-        
+
         Returns:
             bool: Boolean outcome for the requested check.
         """
@@ -96,19 +96,17 @@ class AgentSandbox:
         operation: Optional[str] = None,
     ) -> CheckResult:
         """Check whether the agent may invoke the requested tool.
-        
+
         Args:
             tool_name (str): Name of the tool being requested.
             path (Optional[str]): Optional path argument supplied with the tool call.
             operation (Optional[str]): Optional operation name supplied with the tool call.
-        
+
         Returns:
             CheckResult: Permission decision for the requested sandbox action.
         """
         # A quarantined agent is denied everything until manually cleared.
-        if self.registry is not None and self.registry.is_quarantined(
-            self.agent_name
-        ):
+        if self.registry is not None and self.registry.is_quarantined(self.agent_name):
             return CheckResult(
                 allowed=False,
                 violation_type=None,
@@ -156,9 +154,5 @@ class AgentSandbox:
             reason,
         )
         if self.registry is not None:
-            self.registry.record_violation(
-                self.agent_name, violation_type, details
-            )
-        return CheckResult(
-            allowed=False, violation_type=violation_type, reason=reason
-        )
+            self.registry.record_violation(self.agent_name, violation_type, details)
+        return CheckResult(allowed=False, violation_type=violation_type, reason=reason)

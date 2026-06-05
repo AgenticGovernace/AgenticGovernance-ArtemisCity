@@ -2,6 +2,7 @@ import argparse
 import os
 from datetime import datetime
 from typing import Any, Optional
+
 import src.mcp.config
 from src.mcp.orchestrator import Orchestrator
 from src.utils import logger
@@ -10,7 +11,7 @@ from src.utils.run_logger import init_run_logger
 
 def parse_cli_args() -> argparse.Namespace:
     """Parse command-line arguments for the CLI entry point.
-    
+
     Returns:
         argparse.Namespace: Parsed command-line arguments.
     """
@@ -55,11 +56,11 @@ def parse_cli_args() -> argparse.Namespace:
 def setup_example_task_note(obs_manager: Any, memory_bus: Optional[Any] = None) -> None:
     """Creates an example task note in the Obsidian Agent Inputs folder
     if one doesn't already exist, for demonstration purposes.
-    
+
     Args:
         obs_manager (Any): Obsidian manager instance used for vault access.
         memory_bus (Optional[Any]): Memory bus instance used for note persistence.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -97,14 +98,14 @@ def handle_user_instruction(
     agent_name: str | None = None,
 ) -> None:
     """Create a task from a user instruction and dispatch it based on capability or explicit agent selection.
-    
+
     Args:
         orchestrator (Orchestrator): Orchestrator instance used to route and execute tasks.
         instruction (str): Instruction text supplied by the caller.
         capability (str | None): Capability name used to route or classify work.
         title (str | None): Human-readable title for the task, note, or report.
         agent_name (str | None): Name of the agent involved in the operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -192,7 +193,7 @@ def handle_user_instruction(
 
 def main() -> None:
     """Run the primary workflow exposed by this module.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -226,8 +227,13 @@ def main() -> None:
     run_logger.log_event(
         "orchestrator_ready",
         "main",
-        {"agents": orchestrator.agent_registry.get_agent_names() 
-         if orchestrator.agent_registry else []},
+        {
+            "agents": (
+                orchestrator.agent_registry.get_agent_names()
+                if orchestrator.agent_registry
+                else []
+            )
+        },
         "Orchestrator initialized",
     )
 
@@ -263,15 +269,20 @@ def main() -> None:
             "tags": ["demo", "summarization"],
             "agent": "Summarizer Agent",
             "metadata": {"source": "direct_demo", "demo": True},
-            "log": [    {"timestamp": datetime.now().isoformat(), "event": "Task created for direct instruction demo."}]    
+            "log": [
+                {
+                    "timestamp": datetime.now().isoformat(),
+                    "event": "Task created for direct instruction demo.",
                 }
+            ],
+        }
 
         try:
             orchestrator.route_and_execute_task(direct_task_context)
             logger.info(f"Direct summary task completed. Report written to Obsidian.")
         except ValueError as ve:
             logger.error(f"Value error during direct task assignment: {ve}")
-        except Exception as e:  
+        except Exception as e:
             logger.error(f"Failed to assign direct task: {e}")
     else:
         logger.info("Skipping demo note creation and static summarizer task.")
@@ -279,7 +290,8 @@ def main() -> None:
     # --- User-provided instruction (CLI) ---
     if args.instruction:
         handle_user_instruction(
-            orchestrator, args.instruction, args.capability, args.title, args.agent)
+            orchestrator, args.instruction, args.capability, args.title, args.agent
+        )
 
     # --- Scenario 2: Check for tasks from Obsidian ---
     logger.info("\n--- Scenario 2: Checking for new tasks in Obsidian ---")
@@ -334,28 +346,39 @@ def main() -> None:
             "skip_demos": args.skip_demos,
             "instruction_provided": bool(args.instruction),
             "capability": args.capability,
-            "agent": args.agent,    
+            "agent": args.agent,
             "show_hebbian": args.show_hebbian,
             "agent_stats": args.agent_stats,
             "demo_tasks_created": not args.skip_demos,
             "demo_summary_task": not args.skip_demos,
             "example_task_note": not args.skip_demos,
             "new_tasks_processed": len(new_tasks) if new_tasks else 0,
-            "new_tasks_failed": sum(1 for _, task in new_tasks if task.get("status") == "failed") if new_tasks else 0,
-            "new_tasks_no_capability": sum(1 for _, task in new_tasks if task.get("status") == "no_capability") if new_tasks else 0,
+            "new_tasks_failed": (
+                sum(1 for _, task in new_tasks if task.get("status") == "failed")
+                if new_tasks
+                else 0
+            ),
+            "new_tasks_no_capability": (
+                sum(1 for _, task in new_tasks if task.get("status") == "no_capability")
+                if new_tasks
+                else 0
+            ),
             "user_instruction": bool(args.instruction),
-            "user_instruction_capability": args.capability if args.instruction else None,
+            "user_instruction_capability": (
+                args.capability if args.instruction else None
+            ),
             "user_instruction_agent": args.agent if args.instruction else None,
             "user_instruction_title": args.title if args.instruction else None,
             "user_instruction_status": "dispatched" if args.instruction else None,
             "user_instruction_error": None,
             "hebbian_summary_shown": args.show_hebbian,
-            "agent_stats_shown": args.agent_stats,  
+            "agent_stats_shown": args.agent_stats,
             "demo_content_created": not args.skip_demos,
-
         },
     )
     logger.info(f"Run log saved to: {run_logger.md_path}")
+
+
 # --- End of main function ---
-if __name__ == "__main__":   
+if __name__ == "__main__":
     main()

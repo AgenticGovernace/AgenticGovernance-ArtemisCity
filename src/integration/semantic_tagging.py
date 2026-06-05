@@ -22,10 +22,10 @@ class SemanticTag:
 
     def add_reference(self, reference: str) -> None:
         """Add a reference to this tag.
-        
+
         Args:
             reference (str): Reference value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -54,7 +54,7 @@ class Citation:
 
     def format(self) -> str:
         """Format citation for display.
-        
+
         Returns:
             str: String result produced by the operation.
         """
@@ -97,12 +97,12 @@ class SemanticTagger:
 
     def tag_item(self, item: str, tags: List[str], category: str = "concept") -> None:
         """Tag an item with semantic tags.
-        
+
         Args:
             item: Item to tag (file path, concept, etc.)
             tags: List of tag names
             category: Tag category
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -146,10 +146,10 @@ class SemanticTagger:
 
     def get_items_by_tag(self, tag: str) -> List[str]:
         """Get all items with a specific tag.
-        
+
         Args:
             tag (str): Tag value used by this operation.
-        
+
         Returns:
             List[str]: List containing the resulting items.
         """
@@ -160,10 +160,10 @@ class SemanticTagger:
 
     def get_tags_for_item(self, item: str) -> List[str]:
         """Get all tags for an item.
-        
+
         Args:
             item (str): Single item under inspection.
-        
+
         Returns:
             List[str]: List containing the resulting items.
         """
@@ -177,10 +177,10 @@ class SemanticTagger:
 
     def find_related_items(self, item: str) -> List[str]:
         """Find items related to given item through shared tags.
-        
+
         Args:
             item (str): Single item under inspection.
-        
+
         Returns:
             List[str]: List containing the resulting items.
         """
@@ -200,10 +200,10 @@ class SemanticTagger:
 
     def extract_tags_from_text(self, text: str) -> List[str]:
         """Extract hashtags from text.
-        
+
         Args:
             text (str): Text value to parse, search, or transform.
-        
+
         Returns:
             List[str]: List containing the resulting items.
         """
@@ -213,10 +213,10 @@ class SemanticTagger:
 
     def extract_citations_from_text(self, text: str) -> List[Citation]:
         """Extract citations from text.
-        
+
         Args:
             text (str): Text value to parse, search, or transform.
-        
+
         Returns:
             List[Citation]: List containing the resulting items.
         """
@@ -248,7 +248,7 @@ class SemanticTagger:
 
     def generate_tag_summary(self) -> str:
         """Generate summary of all tags and their usage.
-        
+
         Returns:
             str: String result produced by the operation.
         """
@@ -273,10 +273,10 @@ class SemanticTagger:
 
     def get_citation_context(self, target: str) -> List[str]:
         """Get all contexts where a target was cited.
-        
+
         Args:
             target (str): Target value used by this operation.
-        
+
         Returns:
             List[str]: List containing the resulting items.
         """
@@ -294,7 +294,7 @@ class SemanticTagger:
 
     def get_stats(self) -> Dict:
         """Get tagging system statistics.
-        
+
         Returns:
             Dict: Resulting Dict value produced by the operation.
         """

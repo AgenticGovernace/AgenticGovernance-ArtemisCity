@@ -59,7 +59,7 @@ class TrustMetrics:
     @property
     def has_execution_history(self) -> bool:
         """Return whether execution history.
-        
+
         Returns:
             bool: Boolean outcome for the requested check.
         """
@@ -68,10 +68,10 @@ class TrustMetrics:
 
 def success_rate(m: TrustMetrics) -> float:
     """Success rate.
-    
+
     Args:
         m (TrustMetrics): Trust metrics input used to compute a score.
-    
+
     Returns:
         float: Numeric result produced by the operation.
     """
@@ -82,10 +82,10 @@ def success_rate(m: TrustMetrics) -> float:
 
 def security_score(m: TrustMetrics) -> float:
     """Security score.
-    
+
     Args:
         m (TrustMetrics): Trust metrics input used to compute a score.
-    
+
     Returns:
         float: Numeric result produced by the operation.
     """
@@ -94,10 +94,10 @@ def security_score(m: TrustMetrics) -> float:
 
 def code_quality(m: TrustMetrics) -> float:
     """Code quality.
-    
+
     Args:
         m (TrustMetrics): Trust metrics input used to compute a score.
-    
+
     Returns:
         float: Numeric result produced by the operation.
     """
@@ -113,10 +113,10 @@ def code_quality(m: TrustMetrics) -> float:
 
 def audit_approvals(m: TrustMetrics) -> float:
     """Audit approvals.
-    
+
     Args:
         m (TrustMetrics): Trust metrics input used to compute a score.
-    
+
     Returns:
         float: Numeric result produced by the operation.
     """
@@ -127,10 +127,10 @@ def audit_approvals(m: TrustMetrics) -> float:
 
 def uptime(m: TrustMetrics) -> float:
     """Uptime.
-    
+
     Args:
         m (TrustMetrics): Trust metrics input used to compute a score.
-    
+
     Returns:
         float: Numeric result produced by the operation.
     """
@@ -141,10 +141,10 @@ def uptime(m: TrustMetrics) -> float:
 
 def trust_breakdown(m: TrustMetrics) -> Dict[str, float]:
     """Return each normalized trust sub-metric and its weighted contribution.
-    
+
     Args:
         m (TrustMetrics): Trust-metric inputs used for the calculation.
-    
+
     Returns:
         Dict[str, float]: Nested component, weight, and contribution values for the trust formula.
     """
@@ -172,10 +172,10 @@ def trust_breakdown(m: TrustMetrics) -> Dict[str, float]:
 
 def compute_trust_score(m: TrustMetrics) -> float:
     """Compute the weighted trust score in ``[0, 1]``.
-    
+
     Args:
         m (TrustMetrics): Trust metrics input used to compute a score.
-    
+
     Returns:
         float: Numeric result produced by the operation.
     """

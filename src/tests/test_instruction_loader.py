@@ -16,7 +16,7 @@ class TestInstructionLoader:
 
     def test_instruction_loader_initialization(self):
         """Test that InstructionLoader can be initialized.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -25,7 +25,7 @@ class TestInstructionLoader:
 
     def test_load_agent_instructions(self):
         """Test loading agent instructions from markdown files.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -37,7 +37,7 @@ class TestInstructionLoader:
 
     def test_load_nonexistent_agent(self):
         """Test loading instructions for non-existent agent.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -55,7 +55,7 @@ class TestInstructionSet:
 
     def test_instruction_set_creation(self):
         """Test creating an instruction set.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -70,7 +70,7 @@ class TestInstructionSet:
 
     def test_empty_instruction_set(self):
         """Test creating an empty instruction set.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -83,7 +83,7 @@ class TestInstructionCache:
 
     def test_cache_initialization(self):
         """Test that InstructionCache can be initialized.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -94,7 +94,7 @@ class TestInstructionCache:
 
     def test_cache_set_get(self):
         """Test cache auto-population on get.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -117,7 +117,7 @@ class TestInstructionCache:
 
     def test_cache_miss(self):
         """Test cache behavior with different keys.
-        
+
         Returns:
             None: This function does not return a value.
         """

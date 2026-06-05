@@ -27,13 +27,14 @@ pytest.importorskip("pandas")
 pytest.importorskip("sklearn")
 pytest.importorskip("matplotlib")
 
+import warnings
+from pathlib import Path
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from pathlib import Path
-from sklearn.neural_network import MLPRegressor
 from sklearn.metrics import pairwise_distances
-import matplotlib.pyplot as plt
-import warnings
+from sklearn.neural_network import MLPRegressor
 
 warnings.filterwarnings("ignore")
 
@@ -61,16 +62,16 @@ y_dynamic += np.random.normal(0, 1.0, N)
 def hebbian_delta_w(activation_origin, activation_target, a=0.1):
     """Morphological Hebbian update from the architecture doc.
     ΔW = tanh(a · x · y)
-    
+
     x = activation of origin (1.0 if agent was selected, 0.0 otherwise)
     y = activation of target (inverse of normalized error — higher = better)
     a = learning rate scaling factor
-    
+
     Args:
         activation_origin: Activation origin value used by this operation.
         activation_target: Activation target value used by this operation.
         a: A value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -79,10 +80,10 @@ def hebbian_delta_w(activation_origin, activation_target, a=0.1):
 
 def anti_hebbian_delta_w(eta=0.1):
     """Anti-Hebbian: punishment/pruning for failures.
-    
+
     Args:
         eta: Eta value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -97,11 +98,11 @@ PRE_TRAIN = 600
 
 def generate_scoped_corpus(scope, n=PRE_TRAIN):
     """Generate scoped corpus.
-    
+
     Args:
         scope: Scope value used by this operation.
         n: N value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -128,10 +129,10 @@ def generate_scoped_corpus(scope, n=PRE_TRAIN):
 
 def create_agent(seed):
     """Create agent.
-    
+
     Args:
         seed: Seed value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -146,12 +147,12 @@ def create_agent(seed):
 
 def pre_train(agent, X, y):
     """Pre train.
-    
+
     Args:
         agent: Agent instance or agent identifier associated with the operation.
         X: X value used by this operation.
         y: Y value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -176,7 +177,7 @@ def run_hebbian(
 ):
     """Hebbian routing with proper ΔW = tanh(a · x · y).
     Cost model: O(1) per step (constant — select agent, predict, update weight).
-    
+
     Args:
         agents: Agents value used by this operation.
         weights: Weights value used by this operation.
@@ -187,7 +188,7 @@ def run_hebbian(
         success_threshold: Success threshold value used by this operation.
         use_atp: Use atp value used by this operation.
         a: A value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -285,13 +286,13 @@ def run_hebbian(
 def run_knn_inference(X, y, k=5, label="k-NN Inference"):
     """Traditional memory lookup — k-Nearest Neighbors.
     Cost model: O(N) per step (scan entire memory).
-    
+
     Args:
         X: X value used by this operation.
         y: Y value used by this operation.
         k: K value used by this operation.
         label: Label value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -331,12 +332,12 @@ def run_knn_inference(X, y, k=5, label="k-NN Inference"):
 # ============================================================
 def sentinel_analysis(errors, window=50, threshold=0.4):
     """Detect oscillation rate — flag for human review.
-    
+
     Args:
         errors: Errors value used by this operation.
         window: Window value used by this operation.
         threshold: Threshold value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """

@@ -1,19 +1,20 @@
-from .base_agent import BaseAgent
 import time
+
+from .base_agent import BaseAgent
 
 
 class SummarizerAgent(BaseAgent):
-    """Implement the text-summarization agent used by the orchestrator.
-    """
+    """Implement the text-summarization agent used by the orchestrator."""
+
     def __init__(self, name: str = "Summarizer Agent"):
         super().__init__(name, capabilities=["text_summarization"])
 
     def perform_task(self, task_context: dict) -> dict:
         """Perform task.
-        
+
         Args:
             task_context (dict): Structured task context passed to the agent.
-        
+
         Returns:
             dict: Dictionary containing the resulting data.
         """

@@ -5,6 +5,7 @@ import sys
 sys.modules.pop("src.integration.context_loader", None)
 
 import pytest
+
 from src.integration.context_loader import ContextEntry, ContextLoader
 from src.integration.memory_client import MCPResponse
 
@@ -49,11 +50,11 @@ class _StubMemoryClient:
 # ContextEntry
 # ---------------------------------------------------------------------------
 class TestContextEntry:
-    """Provide the TestContextEntry abstraction used by this module.
-    """
+    """Provide the TestContextEntry abstraction used by this module."""
+
     def test_get_summary_short(self):
         """Test that get summary short.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -62,7 +63,7 @@ class TestContextEntry:
 
     def test_get_summary_truncated(self):
         """Test that get summary truncated.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -73,7 +74,7 @@ class TestContextEntry:
 
     def test_get_summary_exact_length(self):
         """Test that get summary exact length.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -82,7 +83,7 @@ class TestContextEntry:
 
     def test_relevance_score(self):
         """Test that relevance score.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -96,13 +97,12 @@ class TestContextEntry:
 # ContextLoader.load_note
 # ---------------------------------------------------------------------------
 class TestLoadNote:
-    """Provide the TestLoadNote abstraction used by this module.
-    """
+    """Provide the TestLoadNote abstraction used by this module."""
 
     @pytest.fixture
     def client(self):
         """Client.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -121,10 +121,10 @@ class TestLoadNote:
 
     def test_load_note_success(self, client):
         """Test that load note success.
-        
+
         Args:
             client: Client value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -137,7 +137,7 @@ class TestLoadNote:
 
     def test_load_note_failure(self):
         """Test that load note failure.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -150,10 +150,10 @@ class TestLoadNote:
 
     def test_load_note_no_tags(self, client):
         """Test that load note no tags.
-        
+
         Args:
             client: Client value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -164,10 +164,10 @@ class TestLoadNote:
 
     def test_load_note_no_frontmatter(self, client):
         """Test that load note no frontmatter.
-        
+
         Args:
             client: Client value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -181,11 +181,11 @@ class TestLoadNote:
 # ContextLoader.search_context
 # ---------------------------------------------------------------------------
 class TestSearchContext:
-    """Provide the TestSearchContext abstraction used by this module.
-    """
+    """Provide the TestSearchContext abstraction used by this module."""
+
     def test_search_success(self):
         """Test that search success.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -215,7 +215,7 @@ class TestSearchContext:
 
     def test_search_with_limit(self):
         """Test that search with limit.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -235,7 +235,7 @@ class TestSearchContext:
 
     def test_search_failure(self):
         """Test that search failure.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -249,11 +249,11 @@ class TestSearchContext:
 # ContextLoader.load_folder_context
 # ---------------------------------------------------------------------------
 class TestLoadFolderContext:
-    """Provide the TestLoadFolderContext abstraction used by this module.
-    """
+    """Provide the TestLoadFolderContext abstraction used by this module."""
+
     def test_load_folder(self):
         """Test that load folder.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -273,7 +273,7 @@ class TestLoadFolderContext:
 
     def test_load_folder_failure(self):
         """Test that load folder failure.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -287,11 +287,11 @@ class TestLoadFolderContext:
 # ContextLoader.load_tagged_context
 # ---------------------------------------------------------------------------
 class TestLoadTaggedContext:
-    """Provide the TestLoadTaggedContext abstraction used by this module.
-    """
+    """Provide the TestLoadTaggedContext abstraction used by this module."""
+
     def test_delegates_to_search(self):
         """Test that delegates to search.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -312,11 +312,11 @@ class TestLoadTaggedContext:
 # ContextLoader.load_agent_history
 # ---------------------------------------------------------------------------
 class TestLoadAgentHistory:
-    """Provide the TestLoadAgentHistory abstraction used by this module.
-    """
+    """Provide the TestLoadAgentHistory abstraction used by this module."""
+
     def test_load_agent_history(self):
         """Test that load agent history.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -339,7 +339,7 @@ class TestLoadAgentHistory:
 
     def test_load_agent_history_failure(self):
         """Test that load agent history failure.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -353,13 +353,12 @@ class TestLoadAgentHistory:
 # ContextLoader.get_context_summary
 # ---------------------------------------------------------------------------
 class TestGetContextSummary:
-    """Provide the TestGetContextSummary abstraction used by this module.
-    """
+    """Provide the TestGetContextSummary abstraction used by this module."""
 
     @pytest.fixture
     def loader(self):
         """Loader.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -367,10 +366,10 @@ class TestGetContextSummary:
 
     def test_empty(self, loader):
         """Test that empty.
-        
+
         Args:
             loader: Loader value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -378,10 +377,10 @@ class TestGetContextSummary:
 
     def test_normal(self, loader):
         """Test that normal.
-        
+
         Args:
             loader: Loader value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -398,10 +397,10 @@ class TestGetContextSummary:
 
     def test_overflow(self, loader):
         """Test that overflow.
-        
+
         Args:
             loader: Loader value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -417,13 +416,12 @@ class TestGetContextSummary:
 # ContextLoader.filter_by_date_range
 # ---------------------------------------------------------------------------
 class TestFilterByDateRange:
-    """Provide the TestFilterByDateRange abstraction used by this module.
-    """
+    """Provide the TestFilterByDateRange abstraction used by this module."""
 
     @pytest.fixture
     def loader(self):
         """Loader.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -431,10 +429,10 @@ class TestFilterByDateRange:
 
     def test_filter_with_dates(self, loader):
         """Test that filter with dates.
-        
+
         Args:
             loader: Loader value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -458,10 +456,10 @@ class TestFilterByDateRange:
 
     def test_filter_no_date_in_frontmatter(self, loader):
         """Test that filter no date in frontmatter.
-        
+
         Args:
             loader: Loader value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -473,10 +471,10 @@ class TestFilterByDateRange:
 
     def test_filter_with_created_field(self, loader):
         """Test that filter with created field.
-        
+
         Args:
             loader: Loader value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -490,10 +488,10 @@ class TestFilterByDateRange:
 
     def test_filter_no_bounds(self, loader):
         """Test that filter no bounds.
-        
+
         Args:
             loader: Loader value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -510,11 +508,11 @@ class TestFilterByDateRange:
 # ContextLoader.get_related_context
 # ---------------------------------------------------------------------------
 class TestGetRelatedContext:
-    """Provide the TestGetRelatedContext abstraction used by this module.
-    """
+    """Provide the TestGetRelatedContext abstraction used by this module."""
+
     def test_get_related(self):
         """Test that get related.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -545,7 +543,7 @@ class TestGetRelatedContext:
 
     def test_get_related_note_not_found(self):
         """Test that get related note not found.
-        
+
         Returns:
             None: This function does not return a value.
         """

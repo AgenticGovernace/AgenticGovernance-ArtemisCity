@@ -11,9 +11,9 @@ global → project root → current directory → agent-specific
 #  Vestibulum commodo. Ut rhoncus gravida arcu.
 
 import os
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, field
 
 
 @dataclass
@@ -52,10 +52,10 @@ class InstructionSet:
 
     def add_scope(self, scope: InstructionScope) -> None:
         """Add an instruction scope and re-sort by priority.
-        
+
         Args:
             scope (InstructionScope): Scope value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """

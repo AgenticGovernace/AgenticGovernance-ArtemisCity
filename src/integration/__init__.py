@@ -10,7 +10,8 @@ Pack Rat and store documents in the City Archives.
 from .context_loader import ContextEntry, ContextLoader
 from .memory_client import MCPOperation, MCPResponse, MemoryClient
 from .postal_service import MailPacket, PostOffice, get_post_office
-from .trust_interface import TrustInterface, TrustLevel, TrustScore, get_trust_interface
+from .trust_interface import (TrustInterface, TrustLevel, TrustScore,
+                              get_trust_interface)
 
 __all__ = [
     # Core memory components

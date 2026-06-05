@@ -1,15 +1,16 @@
 import os
 import sys
+from typing import Any, Dict, List
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any
 
 # Add the project root to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from src.mcp.orchestrator import Orchestrator
 from src.mcp.config import AGENT_OUTPUT_DIR
+from src.mcp.orchestrator import Orchestrator
 from src.utils.helpers import logger
 
 
@@ -67,10 +68,13 @@ async def startup_event():
     if orchestrator:
         logger.info("FastAPI application starting up. Orchestrator ready.")
     else:
-        logger.error("FastAPI application starting up, but Orchestrator failed to initialize.")
+        logger.error(
+            "FastAPI application starting up, but Orchestrator failed to initialize."
+        )
 
 
 # --- API Endpoints ---
+
 
 @app.get("/api/agents", response_model=List[AgentResponse])
 async def get_agents():
@@ -95,8 +99,8 @@ async def get_tasks():
         formatted_tasks = []
         for path, data in tasks_with_paths:
             # Ensure task_id is always present
-            if 'task_id' not in data:
-                data['task_id'] = f"task_{hash(path) % 100000}"
+            if "task_id" not in data:
+                data["task_id"] = f"task_{hash(path) % 100000}"
             formatted_tasks.append({**data, "relative_path": path})
         return formatted_tasks
     except Exception as e:
@@ -112,8 +116,11 @@ async def create_task(task_data: TaskData):
     try:
         # Use the Orchestrator's method to create the note
         relative_path = orchestrator.create_new_task_in_obsidian(task_data.model_dump())
-        return {"message": "Task created successfully", "path": relative_path,
-                "task_id": task_data.task_id}
+        return {
+            "message": "Task created successfully",
+            "path": relative_path,
+            "task_id": task_data.task_id,
+        }
     except Exception as e:
         logger.error(f"Error creating task: {e}")
         raise HTTPException(status_code=500, detail=f"Error creating task: {e}")
@@ -129,21 +136,23 @@ async def get_reports():
         summaries = []
         for filename in report_files:
             # Attempt to parse filename to extract agent and task_id
-            parts = filename.replace('.md', '').split('_Report_')
+            parts = filename.replace(".md", "").split("_Report_")
             if len(parts) == 2:
                 agent_name = parts[0]
-                task_id_and_len = parts[1].rsplit('_', 1)
+                task_id_and_len = parts[1].rsplit("_", 1)
                 task_id = task_id_and_len[0] if len(task_id_and_len) > 1 else "unknown"
             else:
                 agent_name = "unknown_agent"
                 task_id = "unknown_task"
 
-            summaries.append(ReportSummary(
-                filename=filename,
-                agent=agent_name,
-                task_id=task_id,
-                timestamp="N/A"  # Could parse from file content if needed
-            ))
+            summaries.append(
+                ReportSummary(
+                    filename=filename,
+                    agent=agent_name,
+                    task_id=task_id,
+                    timestamp="N/A",  # Could parse from file content if needed
+                )
+            )
         return summaries
     except Exception as e:
         logger.error(f"Error listing reports: {e}")
@@ -180,44 +189,56 @@ async def execute_pending_task(task_path: Dict[str, str]):
 
     relative_note_path = task_path.get("relative_path")
     if not relative_note_path:
-        raise HTTPException(status_code=400, detail="Missing 'relative_path' in request body.")
+        raise HTTPException(
+            status_code=400, detail="Missing 'relative_path' in request body."
+        )
 
     try:
         content = orchestrator.obs_manager.read_note(relative_note_path)
         if not content:
-            raise HTTPException(status_code=404,
-                                detail=f"Task note not found at {relative_note_path}")
+            raise HTTPException(
+                status_code=404, detail=f"Task note not found at {relative_note_path}"
+            )
 
         task_data = orchestrator.obs_parser.parse_task_note(content)
-        if not task_data or task_data.get('status', 'pending').lower() != 'pending':
-            raise HTTPException(status_code=400,
-                                detail="Task is not pending or could not be parsed.")
+        if not task_data or task_data.get("status", "pending").lower() != "pending":
+            raise HTTPException(
+                status_code=400, detail="Task is not pending or could not be parsed."
+            )
 
-        agent_name = task_data.get('agent')
+        agent_name = task_data.get("agent")
         if not agent_name or agent_name not in orchestrator.agents:
-            orchestrator.update_task_status_in_obsidian(relative_note_path, 'agent_not_found',
-                                                        task_data.get('task_id'))
-            raise HTTPException(status_code=400,
-                                detail=f"Agent '{agent_name}' not found or not registered.")
+            orchestrator.update_task_status_in_obsidian(
+                relative_note_path, "agent_not_found", task_data.get("task_id")
+            )
+            raise HTTPException(
+                status_code=400,
+                detail=f"Agent '{agent_name}' not found or not registered.",
+            )
 
         # Update status to in progress
-        orchestrator.update_task_status_in_obsidian(relative_note_path, 'in progress',
-                                                    task_data.get('task_id'))
+        orchestrator.update_task_status_in_obsidian(
+            relative_note_path, "in progress", task_data.get("task_id")
+        )
 
         # Execute the task
-        results = orchestrator.assign_and_execute_task(agent_name, task_data, relative_note_path)
+        results = orchestrator.assign_and_execute_task(
+            agent_name, task_data, relative_note_path
+        )
 
         return {"message": "Task executed successfully", "results": results}
     except ValueError as ve:
-        orchestrator.update_task_status_in_obsidian(relative_note_path, 'failed',
-                                                    task_data.get('task_id'))  # type: ignore
+        orchestrator.update_task_status_in_obsidian(
+            relative_note_path, "failed", task_data.get("task_id")
+        )  # type: ignore
         raise HTTPException(status_code=400, detail=str(ve))
     except HTTPException:
         raise  # Re-raise FastAPI HTTPExceptions
     except Exception as e:
         # If task_data and relative_note_path are available, update status to failed
-        if 'task_data' in locals() and 'relative_note_path' in locals():
-            orchestrator.update_task_status_in_obsidian(relative_note_path, 'failed',
-                                                        task_data.get('task_id'))  # type: ignore
+        if "task_data" in locals() and "relative_note_path" in locals():
+            orchestrator.update_task_status_in_obsidian(
+                relative_note_path, "failed", task_data.get("task_id")
+            )  # type: ignore
         logger.error(f"Error executing task from {relative_note_path}: {e}")
         raise HTTPException(status_code=500, detail=f"Error executing task: {e}")

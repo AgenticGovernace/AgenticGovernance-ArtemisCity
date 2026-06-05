@@ -7,13 +7,14 @@ import tempfile
 from unittest.mock import MagicMock
 
 import pytest
+
 from src.mcp.hebbian_weights import HebbianWeightManager
 
 
 @pytest.fixture
 def temp_db():
     """Create a temporary database for testing.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -30,10 +31,10 @@ def temp_db():
 @pytest.fixture
 def hebbian_manager(temp_db):
     """Create a HebbianWeightManager instance with temp database.
-    
+
     Args:
         temp_db: Temp db value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -45,10 +46,10 @@ class TestHebbianWeightManager:
 
     def test_initialization(self, hebbian_manager):
         """Test that the manager initializes correctly.
-        
+
         Args:
             hebbian_manager: Hebbian manager value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -58,10 +59,10 @@ class TestHebbianWeightManager:
 
     def test_strengthen_connection_new(self, hebbian_manager):
         """Test strengthening a new connection.
-        
+
         Args:
             hebbian_manager: Hebbian manager value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -70,10 +71,10 @@ class TestHebbianWeightManager:
 
     def test_strengthen_connection_existing(self, hebbian_manager):
         """Test strengthening an existing connection.
-        
+
         Args:
             hebbian_manager: Hebbian manager value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -83,10 +84,10 @@ class TestHebbianWeightManager:
 
     def test_weaken_connection_new(self, hebbian_manager):
         """Test weakening a non-existent connection (should create it at 0).
-        
+
         Args:
             hebbian_manager: Hebbian manager value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -95,10 +96,10 @@ class TestHebbianWeightManager:
 
     def test_weaken_connection_existing(self, hebbian_manager):
         """Test weakening an existing connection.
-        
+
         Args:
             hebbian_manager: Hebbian manager value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -109,10 +110,10 @@ class TestHebbianWeightManager:
 
     def test_weaken_connection_minimum_zero(self, hebbian_manager):
         """Test that weights don't go below zero.
-        
+
         Args:
             hebbian_manager: Hebbian manager value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -123,10 +124,10 @@ class TestHebbianWeightManager:
 
     def test_get_weight(self, hebbian_manager):
         """Test getting connection weight.
-        
+
         Args:
             hebbian_manager: Hebbian manager value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -136,10 +137,10 @@ class TestHebbianWeightManager:
 
     def test_get_connection_stats(self, hebbian_manager):
         """Test getting detailed connection statistics.
-        
+
         Args:
             hebbian_manager: Hebbian manager value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -154,10 +155,10 @@ class TestHebbianWeightManager:
 
     def test_get_strongest_connections_outgoing(self, hebbian_manager):
         """Test getting strongest outgoing connections.
-        
+
         Args:
             hebbian_manager: Hebbian manager value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -173,10 +174,10 @@ class TestHebbianWeightManager:
 
     def test_get_strongest_connections_incoming(self, hebbian_manager):
         """Test getting strongest incoming connections.
-        
+
         Args:
             hebbian_manager: Hebbian manager value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -194,10 +195,10 @@ class TestHebbianWeightManager:
 
     def test_get_agent_average_weight(self, hebbian_manager):
         """Test calculating agent average weight.
-        
+
         Args:
             hebbian_manager: Hebbian manager value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -210,10 +211,10 @@ class TestHebbianWeightManager:
 
     def test_get_agent_success_rate(self, hebbian_manager):
         """Test calculating agent success rate.
-        
+
         Args:
             hebbian_manager: Hebbian manager value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -226,10 +227,10 @@ class TestHebbianWeightManager:
 
     def test_get_network_summary(self, hebbian_manager):
         """Test getting network summary statistics.
-        
+
         Args:
             hebbian_manager: Hebbian manager value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -247,10 +248,10 @@ class TestHebbianWeightManager:
 
     def test_prune_weak_connections(self, hebbian_manager):
         """Test pruning connections below threshold.
-        
+
         Args:
             hebbian_manager: Hebbian manager value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -268,10 +269,10 @@ class TestHebbianWeightManager:
 
     def test_reset_weights(self, hebbian_manager):
         """Test resetting all weights.
-        
+
         Args:
             hebbian_manager: Hebbian manager value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -285,10 +286,10 @@ class TestHebbianWeightManager:
 
     def test_multiple_activations_tracking(self, hebbian_manager):
         """Test that activation counts are tracked correctly.
-        
+
         Args:
             hebbian_manager: Hebbian manager value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -315,11 +316,11 @@ class TestHebbianIntegration:
     @pytest.fixture(autouse=True)
     def temp_obsidian_vault(self, tmp_path, monkeypatch):
         """Isolate orchestrator tests from real vault by using a temp directory.
-        
+
         Args:
             tmp_path: Tmp path value used by this operation.
             monkeypatch: Monkeypatch value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -356,7 +357,7 @@ class TestHebbianIntegration:
 
     def test_orchestrator_creates_hebbian_manager(self):
         """Test that orchestrator initializes with Hebbian manager.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -368,7 +369,7 @@ class TestHebbianIntegration:
 
     def test_orchestrator_updates_weights_on_success(self):
         """Test that successful tasks strengthen connections.
-        
+
         Returns:
             None: This function does not return a value.
         """

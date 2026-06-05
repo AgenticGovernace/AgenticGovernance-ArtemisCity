@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 from src.integration.governance import GovernanceMonitor
 from src.integration.memory_bus import MemoryBus
@@ -9,10 +10,10 @@ from src.obsidian_integration.manager import ObsidianManager
 
 def test_write_note_with_embedding_syncs_semantic_and_file(tmp_path):
     """Test that write note with embedding syncs semantic and file.
-    
+
     Args:
         tmp_path: Tmp path value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -36,10 +37,10 @@ def test_write_note_with_embedding_syncs_semantic_and_file(tmp_path):
 
 def test_read_falls_back_to_vector_search(tmp_path):
     """Test that read falls back to vector search.
-    
+
     Args:
         tmp_path: Tmp path value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -60,13 +61,14 @@ def test_read_falls_back_to_vector_search(tmp_path):
 
 def test_vector_write_rolls_back_on_file_failure(tmp_path):
     """Test that vector write rolls back on file failure.
-    
+
     Args:
         tmp_path: Tmp path value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
+
     class FailingManager:
         def __init__(self, vault_root):
             self.vault_path = vault_root
@@ -91,13 +93,14 @@ def test_vector_write_rolls_back_on_file_failure(tmp_path):
 
 def test_governance_alert_on_repeated_failures(tmp_path):
     """Test that governance alert on repeated failures.
-    
+
     Args:
         tmp_path: Tmp path value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
+
     class FailingManager:
         def __init__(self, vault_root):
             self.vault_path = vault_root
