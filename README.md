@@ -1046,7 +1046,7 @@ uvicorn app.api.main:app --port 8000  # FastAPI
 | Test Plan | `docs/TEST_PLAN.md`  |
 | Living City Metaphor | `docs/LIVING_CITY.md`  |
 | Environments | `docs/ENVIRONMENTS.md`  |
-| Security | <p>`SECURITY.md` </p><p></p><p> </p> |
+| Security | `SECURITY.md`  |
 
 
 
