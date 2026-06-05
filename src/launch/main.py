@@ -9,7 +9,8 @@ _project_root = str(Path(__file__).resolve().parents[2])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from src.mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
+from src.mcp.config import (AGENT_INPUT_DIR, AGENT_OUTPUT_DIR,
+                            OBSIDIAN_VAULT_PATH)
 from src.mcp.orchestrator import Orchestrator
 from src.utils.helpers import logger
 from src.utils.run_logger import init_run_logger
@@ -17,7 +18,7 @@ from src.utils.run_logger import init_run_logger
 
 def parse_cli_args() -> argparse.Namespace:
     """Parse command-line arguments for the CLI entry point.
-    
+
     Returns:
         argparse.Namespace: Parsed command-line arguments.
     """
@@ -62,11 +63,11 @@ def parse_cli_args() -> argparse.Namespace:
 def setup_example_task_note(obs_manager, memory_bus=None):
     """Creates an example task note in the Obsidian Agent Inputs folder
     if one doesn't already exist, for demonstration purposes.
-    
+
     Args:
         obs_manager: Obsidian manager instance used for vault access.
         memory_bus: Memory bus instance used for note persistence.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -104,14 +105,14 @@ def handle_user_instruction(
     agent_name: str | None = None,
 ):
     """Create a task from a user instruction and dispatch it based on capability or explicit agent selection.
-    
+
     Args:
         orchestrator (Orchestrator): Orchestrator instance used to route and execute tasks.
         instruction (str): Instruction text supplied by the caller.
         capability (str | None): Capability name used to route or classify work.
         title (str | None): Human-readable title for the task, note, or report.
         agent_name (str | None): Name of the agent involved in the operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -199,7 +200,7 @@ def handle_user_instruction(
 
 def main():
     """Run the primary workflow exposed by this module.
-    
+
     Returns:
         None: This function does not return a value.
     """

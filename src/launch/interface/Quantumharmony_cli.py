@@ -25,16 +25,16 @@ def normalize_agent_router_config(
         Normalized configuration with lowercased string keywords.
     """
     config = config or {}
-    agents = config.get('agents', {})
+    agents = config.get("agents", {})
     if not isinstance(agents, dict):
         agents = {}
     for _, agent in agents.items():
         if not isinstance(agent, dict):
             continue
-        keywords = agent.get('keywords', [])
+        keywords = agent.get("keywords", [])
         # Keep only string keywords and normalize to lowercase
-        agent['keywords'] = [k.lower() for k in keywords if isinstance(k, str)]
-    config['agents'] = agents
+        agent["keywords"] = [k.lower() for k in keywords if isinstance(k, str)]
+    config["agents"] = agents
     return config
 
 
@@ -52,11 +52,15 @@ def validate_agent_router_config(config: Any) -> AgentRouterConfig:
         if validation fails.
     """
     if not isinstance(config, dict):
-        print("[Warning] agent_router.yaml did not parse to a dictionary. Using empty config.")
-        return {'agents': {}}
-    if 'agents' not in config or not isinstance(config['agents'], dict):
-        print("[Warning] agent_router.yaml is missing an 'agents' dictionary. Using empty config.")
-        return {'agents': {}}
+        print(
+            "[Warning] agent_router.yaml did not parse to a dictionary. Using empty config."
+        )
+        return {"agents": {}}
+    if "agents" not in config or not isinstance(config["agents"], dict):
+        print(
+            "[Warning] agent_router.yaml is missing an 'agents' dictionary. Using empty config."
+        )
+        return {"agents": {}}
     return config
 
 
@@ -76,16 +80,16 @@ def load_agent_router_config(config_path: str) -> AgentRouterConfig:
     """
     if not os.path.exists(config_path):
         print(f"[Error] Agent router config not found at {config_path}")
-        return {'agents': {}}
+        return {"agents": {}}
     try:
-        with open(config_path, 'r', encoding='utf-8') as file_handle:
+        with open(config_path, "r", encoding="utf-8") as file_handle:
             raw_config = yaml.safe_load(file_handle) or {}
     except yaml.YAMLError as yaml_error:
         print(f"[Error] Failed to parse agent router config: {yaml_error}")
-        return {'agents': {}}
+        return {"agents": {}}
     except OSError as os_error:
         print(f"[Error] Failed to read agent router config: {os_error}")
-        return {'agents': {}}
+        return {"agents": {}}
     validated_config = validate_agent_router_config(raw_config)
     return normalize_agent_router_config(validated_config)
 
@@ -103,31 +107,33 @@ def matches_command(command_lower: str, keywords: List[str]) -> bool:
     Returns:
         True if any keyword matches as a complete word in the command.
     """
-    return any(re.search(rf'\b{re.escape(keyword)}\b', command_lower) for keyword in keywords)
+    return any(
+        re.search(rf"\b{re.escape(keyword)}\b", command_lower) for keyword in keywords
+    )
 
 
 def handle_command(command: str, agent_router: AgentRouterConfig) -> None:
     """Route a command to the appropriate agent based on predefined keywords.
-    
+
     Matches the command against all configured agents' keywords and
     routes to the first matching agent. Prints routing information
     and expected actions.
-    
+
     Args:
         command: The command string to route.
         agent_router: Dictionary containing agent routing configuration
             with an 'agents' key.
-    
+
     Returns:
         None: This function does not return a value.
     """
     print(f"[CLI] Received command: '{command}'")
     command_lower = command.lower()
-    for agent_name, agent_config in agent_router.get('agents', {}).items():
-        keywords = agent_config.get('keywords', [])
+    for agent_name, agent_config in agent_router.get("agents", {}).items():
+        keywords = agent_config.get("keywords", [])
         if matches_command(command_lower, keywords):
-            role = agent_config.get('role', 'unknown role')
-            action = agent_config.get('action_description', 'processing...')
+            role = agent_config.get("role", "unknown role")
+            action = agent_config.get("action_description", "processing...")
             print(f"[Router] Routing to {agent_name} ({role}):")
             print(f"  - Input: '{command}'")
             print(f"  - Expected action: {action}")
@@ -140,16 +146,16 @@ def handle_command(command: str, agent_router: AgentRouterConfig) -> None:
 
 def main() -> None:
     """Initialize and run the Agentic Daemon Command-Line Interface.
-    
+
     Sets up argument parsing, loads agent router configuration, and
     either processes a single command or enters interactive mode.
     In interactive mode, accepts commands until 'exit' or 'quit'
     is entered.
-    
+
     Command-line Arguments:
         command: Optional single command to execute.
         --config: Optional path to custom agent router YAML file.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -171,7 +177,7 @@ def main() -> None:
 
     # Load agent router configuration
     script_directory = os.path.dirname(__file__)
-    default_config_path = os.path.join(script_directory, 'agent_router.yaml')
+    default_config_path = os.path.join(script_directory, "agent_router.yaml")
     config_path = args.config or default_config_path
     print(f"[CLI] Using agent router config: {config_path}")
     router_config = load_agent_router_config(config_path)

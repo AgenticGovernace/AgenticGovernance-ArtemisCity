@@ -52,7 +52,7 @@ services:
     ports:
       - "4000:4000"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=Development
       - API_PORT=4000
       - ARTEMIS_KERNEL_URL=http://kernel:8000
       - ARTEMIS_API_KEY_DEFAULT=${ARTEMIS_API_KEY_DEFAULT:?ARTEMIS_API_KEY_DEFAULT must be set}

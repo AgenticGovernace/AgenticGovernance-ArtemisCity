@@ -94,3 +94,4 @@ MCP/
 CLAUDE.html
 .agents/
 /.run
+/memory_store
