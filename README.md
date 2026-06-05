@@ -289,7 +289,7 @@ This repository is licensed under the Apache License 2.0. See `LICENSE` for deta
 | Field | Value |
 | ----- | ----- |
 | **Project** | Artemis City |
-| **Repository** | AgenticGovernace/AgenticGovernance-ArtemisCity |
+| **Repository** | AgenticGovernance/AgenticGovernance-ArtemisCity |
 | **Version** | 0.1.0 |
 | **Status** | Alpha |
 | **Last Updated** | 2025 |
