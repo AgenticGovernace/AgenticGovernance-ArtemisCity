@@ -1,4 +1,4 @@
-<p><a target="_blank" href="https://app.eraser.io/workspace/W4jsLeMgb5Rr5TUBtGL0" id="edit-in-eraser-github-link"><img alt="Edit in Eraser" src="https://firebasestorage.googleapis.com/v0/b/second-petal-295822.appspot.com/o/images%2Fgithub%2FOpen%20in%20Eraser.svg?alt=media&amp;token=968381c8-a7e7-472a-8ed6-4a6626da5501"></a></p>
+<p><a target="_blank" rel="noopener noreferrer" href="https://app.eraser.io/workspace/W4jsLeMgb5Rr5TUBtGL0" id="edit-in-eraser-github-link"><img alt="Edit in Eraser" src="https://firebasestorage.googleapis.com/v0/b/second-petal-295822.appspot.com/o/images%2Fgithub%2FOpen%20in%20Eraser.svg?alt=media&amp;token=968381c8-a7e7-472a-8ed6-4a6626da5501"></a></p>
 
 # Artemis City
 Artemis City is an agent-governance and memory-orchestration project built around three core ideas:
@@ -6,6 +6,7 @@ Artemis City is an agent-governance and memory-orchestration project built aroun
 - structured agent communication through the Artemis Transmission Protocol (ATP)
 - trust- and governance-aware task routing
 - an Obsidian-backed memory layer with semantic recall
+
 The repository is intentionally broader than a single service. It contains the authoritative Python orchestration core, API and dashboard surfaces, a standalone Obsidian MCP server, and a set of concept demos used to explore the platform’s behavior.
 
 ## Repository reality
@@ -378,15 +379,15 @@ The central coordinator managing agent task execution lifecycle:
 
 ```python
 class Orchestrator:
-def __init__(self):
-    self.obs_manager = ObsidianManager(OBSIDIAN_VAULT_PATH)
-    self.obs_parser = ObsidianParser()
-    self.obs_generator = ObsidianGenerator()
-    self.hebbian = HebbianWeightManager()
-    self.vector_store = LocalVectorStore()
-    self.governance_monitor = GovernanceMonitor()
-    self.memory_bus = MemoryBus(...)
-    self.agent_registry = AgentRegistry()
+    def __init__(self):
+        self.obs_manager = ObsidianManager(OBSIDIAN_VAULT_PATH)
+        self.obs_parser = ObsidianParser()
+        self.obs_generator = ObsidianGenerator()
+        self.hebbian = HebbianWeightManager()
+        self.vector_store = LocalVectorStore()
+        self.governance_monitor = GovernanceMonitor()
+        self.memory_bus = MemoryBus(...)
+        self.agent_registry = AgentRegistry()
 ```
 **Responsibilities**:
 
@@ -471,11 +472,11 @@ Adaptive connection weights between agents and task types:
 
 ```python
 class HebbianWeightManager:
-def strengthen_connection(self, origin: str, target: str) -> float:
-    """ΔW = +1 for successful completion"""
-    
-def weaken_connection(self, origin: str, target: str) -> float:
-    """ΔW = -1 for failure (minimum 0)"""
+    def strengthen_connection(self, origin: str, target: str) -> float:
+        """ΔW = +1 for successful completion"""
+        
+    def weaken_connection(self, origin: str, target: str) -> float:
+        """ΔW = -1 for failure (minimum 0)"""
 ```
 **Storage**: SQLite with atomic transactions
 **Decay**: 5% every 30 days
