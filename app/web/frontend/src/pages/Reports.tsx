@@ -1,68 +1,40 @@
-/**
- * Reports Page Component
- *
- * Displays and allows viewing of agent-generated reports.
- * Reports are stored in the Obsidian vault and rendered as Markdown.
- *
- * Features:
- * - Report table listing with agent and task metadata
- * - Full-screen modal for viewing report content
- * - Markdown rendering for rich report formatting
- *
- * @module Reports
- */
-
 import {
-  Box,
-  Heading,
-  Text,
-  Spinner,
   Alert,
   AlertIcon,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
+  Box,
   Button,
-  useDisclosure,
+  Heading,
   Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
   ModalBody,
   ModalCloseButton,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
+  Spinner,
+  Table,
+  Tbody,
+  Td,
+  Text,
+  Th,
+  Thead,
+  Tr,
+  useDisclosure,
   VStack,
 } from '@chakra-ui/react';
-import { useEffect, useState } from 'react';
-import { fetchReports, fetchReportContent } from '../api.ts';
-import ReactMarkdown from 'react-markdown';
+import React, { useEffect, useState } from 'react';
+import { fetchReportContent, fetchReports } from '../api';
+import ReactMarkdown from 'react-markdown'; // For rendering markdown content
 
-/**
- * Interface representing a report summary from the API.
- */
+// We'll need to install react-markdown: npm install react-markdown
+
 interface ReportSummary {
-  /** Report filename */
   filename: string;
-  /** Agent that generated the report */
   agent: string;
-  /** Associated task identifier */
   task_id: string;
-  /** Report creation timestamp */
   timestamp: string;
 }
 
-/**
- * Reports viewer page component.
- *
- * Fetches and displays a table of available reports with the ability
- * to view individual report content in a full-screen modal.
- * Report content is rendered as Markdown.
- *
- * @returns The rendered reports page
- */
 const Reports = () => {
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,7 +91,9 @@ const Reports = () => {
 
   return (
     <Box>
-      <Heading as="h2" size="xl" mb={4}>Reports</Heading>
+      <Heading as="h2" size="xl" mb={4}>
+        Reports
+      </Heading>
 
       {reports.length === 0 ? (
         <Text>No reports found.</Text>

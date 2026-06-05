@@ -7,23 +7,33 @@ on:
         description: Source environment branch
         required: true
         type: choice
-        options: [dev, staging, prod]
+        options: [development, staging, prod]
       to:
         description: Target environment branch
         required: true
         type: choice
-        options: [dev, staging, prod]
+        options: [development, staging, prod]
 
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
+
+concurrency:
+  group: promote-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 
 jobs:
   open-promotion-pr:
-    runs-on: ubuntu-latest
+    runs-on: github-actions
+    strategy:
+      fail-fast: false
+      matrix:
+        from: [development, staging, prod]
+        to: [development, staging, prod]
     steps:
       - name: Validate direction
-        run: |
+        run: |  
           from="${{ github.event.inputs.from }}"
           to="${{ github.event.inputs.to }}"
           case "${from}->${to}" in
@@ -39,6 +49,5 @@ jobs:
           FROM: ${{ github.event.inputs.from }}
           TO: ${{ github.event.inputs.to }}
         run: |
-          title="Promote ${FROM} -> ${TO}"
-          body="Automated promotion PR opened by the Promote workflow."
+  
           gh pr create --base "$TO" --head "$FROM" --title "$title" --body "$body" --draft
