@@ -14,20 +14,16 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from src.agents.atp.atp_parser import ATPParser
-
 
 def _configure_import_path() -> None:
     """Ensure imports resolve to this repository, not an unrelated installed checkout.
 
     We add:
-      - repo root (parent of /examples)
+      - repo root (parent of /Concept_Demos)
       - repo_root/app (if present) for layouts where packages live under app/
     """
     this_file = Path(__file__).resolve()
-    repo_root = (
-        this_file.parent.parent
-    )  # .../<repo>/examples/demo_artemis.py -> .../<repo>
+    repo_root = this_file.parent.parent
 
     candidates = [repo_root, repo_root / "app"]
     for p in candidates:
@@ -66,8 +62,9 @@ def _warn_if_shadowed(package_name: str) -> None:
 _configure_import_path()
 
 # Optional: if you still get confusing import behavior, keep this warning.
-_warn_if_shadowed("agents")
+_warn_if_shadowed("src")
 
+from src.agents.atp.atp_parser import ATPParser
 from src.core.instructions import InstructionLoader
 from src.agents import ArtemisPersona, ReflectionEngine, SemanticTagger
 

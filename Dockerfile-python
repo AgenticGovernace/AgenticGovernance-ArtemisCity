@@ -22,10 +22,12 @@ RUN apt-get update \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python deps from the lock file first so this layer caches when
-# only source changes.
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# Install runtime Python deps first so this layer caches when only source
+# changes. requirements.txt is dev/test/lint tooling; the runtime set
+# (fastapi, uvicorn, redis, sqlalchemy, ...) is generated from
+# pyproject.toml [project.dependencies] into requirements-runtime.txt.
+COPY requirements-runtime.txt ./
+RUN pip install --no-cache-dir -r requirements-runtime.txt
 
 # Copy the Python source tree. The FastAPI dashboard imports
 # ``app.api.main`` and the bridge / orchestrator code under ``src/``.

@@ -377,6 +377,22 @@ async def startup_event():
 # --- API Endpoints ---
 
 
+@app.get("/health")
+async def health() -> Dict[str, Any]:
+    """Container-level liveness probe.
+
+    Unauthenticated by design so docker-compose / k8s healthchecks can
+    reach it without provisioning an API key. Reports whether the
+    orchestrator side-imported cleanly; SQLite-only mode is still
+    considered live.
+    """
+    return {
+        "status": "ok",
+        "service": "artemis-kernel",
+        "orchestrator": "ready" if orchestrator is not None else "sqlite-only",
+    }
+
+
 @app.get("/api/agents", response_model=List[AgentResponse])
 async def get_agents(_key: None = Depends(_require_api_key)):
     """Return the registered agents exposed by the dashboard API.

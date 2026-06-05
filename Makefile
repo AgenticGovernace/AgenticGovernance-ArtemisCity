@@ -11,6 +11,11 @@
 # Default target
 .DEFAULT_GOAL := help
 
+# Load root .env values for local Python entry points. The setup script writes
+# the Python core's MCP_API_KEY/MCP_BASE_URL there, but make does not export
+# .env files automatically.
+LOAD_ENV = set -a; [ ! -f .env ] || . ./.env; set +a;
+
 # ============================================
 # HELP
 # ============================================
@@ -81,6 +86,7 @@ check: ## Run all checks (format, lint, type)
 # SECURITY
 # ============================================
 
+
 security: ## Run security checks
 	@echo "Running security checks..."
 	@echo "\n--- Bandit (security scanner) ---"
@@ -145,20 +151,20 @@ clean-env: ## Remove virtual environment
 
 run: ## Run the CLI interactively
 	@echo "Starting Artemis City CLI..."
-	python src/launch/main.py
+	@$(LOAD_ENV) python src/launch/main.py
 
 cli: ## Run the legacy Artemis CLI
 	@echo "Starting Artemis CLI..."
-	python src/interface/artemis_cli.py
+	@$(LOAD_ENV) python -m src.interface.artemis_cli
 
 demo: ## Run all demos
 	@echo "Running demos..."
 	@echo "\n--- Artemis Features Demo ---"
-	python Concept_Demos/demo_artemis.py
+	@$(LOAD_ENV) python Concept_Demos/demo_artemis.py
 	@echo "\n--- Memory Integration Demo ---"
-	python Concept_Demos/demo_memory_integration.py
+	@$(LOAD_ENV) python Concept_Demos/demo_memory_integration.py
 	@echo "\n--- City Postal Demo ---"
-	python Concept_Demos/demo_city_postal.py
+	@$(LOAD_ENV) python Concept_Demos/demo_city_postal.py
 	@echo "\nDemos complete!"
 
 server: ## Start MCP server (Memory Layer)
