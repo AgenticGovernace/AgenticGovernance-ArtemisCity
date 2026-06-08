@@ -1,8 +1,18 @@
 # CLAUDE.md
 
+## Document Structure
+
+This file contains two sections. The section titled "Implementation Notes for Artemis City" is the ACTIVE guidance. The preceding section ("Project Overview" through "Support and Documentation") is retained for historical context only and MUST NOT be followed when it conflicts with the Artemis City section.
+
+Within this document, the "Implementation Notes for Artemis City" section (below the divider) supersedes all content above it when they conflict.
+
+Section 1 (above the active-instructions divider) is LEGACY CONTEXT ONLY. Section 2 (below the divider) contains ALL active instructions. When editing code, follow ONLY Section 2.
+
+If you cannot access an authoritative document referenced below, follow the instructions in this file as-is.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+## Project Overview (Legacy Context Only — Not Authoritative)
 
 This is a Multi-Agent Coordination Platform (MCP) that integrates Python-based agents with an Obsidian vault. Agents can read tasks from Markdown notes, execute them, and write results back to the vault, creating a human-readable, persistent memory system.
 
@@ -56,9 +66,11 @@ Keywords: keyword1, keyword2
 
 ```bash
 # Install dependencies
+# DEPRECATED — use `make install` in the active section below.
 pip install -r requirements.txt
 
 # Configure Obsidian vault path in .env
+# DEPRECATED — use `./setup_secrets.sh` in the active section below.
 echo "OBSIDIAN_VAULT_PATH=/path/to/your/vault" > .env
 ```
 
@@ -66,6 +78,7 @@ echo "OBSIDIAN_VAULT_PATH=/path/to/your/vault" > .env
 
 ```bash
 # Run the main orchestrator (polls for tasks and executes)
+# DEPRECATED — use `make run` in the active section below.
 python main.py
 ```
 
@@ -107,7 +120,7 @@ Default folders (configured in `src/mcp/config.py`):
 - `AGENT_INPUT_DIR = "Agent Inputs"`
 - `AGENT_OUTPUT_DIR = "Agent Outputs"`
 
-## Project Structure
+## Project Structure (Legacy Snapshot — Not Authoritative)
 
 ```
 mcp_obsidian_system/
@@ -594,6 +607,10 @@ Track errors in reports:
 - Log files in `mcp_obsidian.log` provide runtime debugging information
 
 
+---
+
+# ⚠️ ACTIVE INSTRUCTIONS BEGIN HERE — everything above is legacy context only and must not be followed when it conflicts.
+
 # Implementation Notes for Artemis City
 
 > **`CLAUDE.md` and `AGENTS.md` are byte-for-byte mirrors** so that every
@@ -617,7 +634,9 @@ If you are reading this to **understand what Artemis City is**, start with
 ## Authoritative documents
 
 `CLAUDE.md` defers to these. When they disagree with CLAUDE.md, **they
-win**.
+win**. Within this document, this Artemis City section supersedes all
+content above it. If an authoritative document is unavailable, follow this
+file as-is.
 
 | Document | Owns |
 |---|---|
