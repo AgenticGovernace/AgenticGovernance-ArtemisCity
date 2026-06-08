@@ -381,15 +381,32 @@ case "$MODE" in
 esac
 echo ""
 
+# DRIFT_COUNT is initialized here (before phase 2) so that
+# ensure_env_file failures in --check mode contribute to the total --
+# previously the `|| true` after each call discarded the return code and
+# missing files were never counted as drift, so a clean checkout with no
+# generated .env files exited 0 from --check.
+DRIFT_COUNT=0
+
 echo -e "${BLUE}2. Ensure each .env file exists${NC}"
-ensure_env_file "$ROOT_EXAMPLE"    "$ROOT_ENV"    "Python core (.env)" || true
-ensure_env_file "$TS_API_EXAMPLE"  "$TS_API_ENV"  "TS Express API (app/api/.env)" || true
-ensure_env_file "$SRC_EXAMPLE"     "$SRC_ENV"     "Memory-layer Python (src/.env)" || true
-ensure_env_file "$MEMORY_EXAMPLE"  "$MEMORY_ENV"  "Memory-layer MCP server" || true
+for entry in \
+    "$ROOT_EXAMPLE|$ROOT_ENV|Python core (.env)" \
+    "$TS_API_EXAMPLE|$TS_API_ENV|TS Express API (app/api/.env)" \
+    "$SRC_EXAMPLE|$SRC_ENV|Memory-layer Python (src/.env)" \
+    "$MEMORY_EXAMPLE|$MEMORY_ENV|Memory-layer MCP server"; do
+    IFS='|' read -r EX TG LB <<<"$entry"
+    if ! ensure_env_file "$EX" "$TG" "$LB"; then
+        # ensure_env_file returns non-zero when the file is missing AND
+        # (we're in --check mode OR the user declined creation OR no
+        # template exists). In --check mode, treat that as drift.
+        if [[ "$MODE" == "check" ]]; then
+            DRIFT_COUNT=$((DRIFT_COUNT + 1))
+        fi
+    fi
+done
 echo ""
 
 echo -e "${BLUE}3. Sync canonical keys${NC}"
-DRIFT_COUNT=0
 for entry in "${CONSUMERS[@]}"; do
     IFS='|' read -r KEY FIRST REST <<<"$entry"
     files=("$FIRST")
