@@ -1,4 +1,4 @@
-// web/frontend/src/api.ts
+// app/web/frontend/src/api.ts
 
 const API_BASE_URL = '/api'; // This will be proxied by Vite dev server
 

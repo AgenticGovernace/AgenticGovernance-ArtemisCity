@@ -7,7 +7,7 @@ Resolution order for every value (highest precedence first):
     4. The hard-coded fallback in this file.
 
 Variable names here are the public contract used by ``orchestrator.py``,
-``web/api/main.py``, ``Concept_Demos/main.py``, and the test suite — keep them
+``app/api/main.py``, ``Concept_Demos/main.py``, and the test suite — keep them
 in sync with ``.env.example``.
 """
 

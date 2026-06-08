@@ -215,13 +215,17 @@ class TestTrustInterface:
     """Provide the TestTrustInterface abstraction used by this module."""
 
     @pytest.fixture
-    def iface(self):
+    def iface(self, tmp_path):
         """Iface.
 
-        Returns:
-            None: This function does not return a value.
+        Returns a TrustInterface backed by a fresh, per-test SQLite DB.
+        Without this, the default `data/trust_scores.db` would persist
+        across runs (and across tests within a session), making
+        assertions about default agent scores, decay, and new-agent
+        defaults sensitive to prior test order and prior local app
+        usage. The temp path is auto-cleaned by pytest.
         """
-        return TrustInterface()
+        return TrustInterface(db_path=tmp_path / "trust_scores.db")
 
     def test_default_agents_initialized(self, iface):
         """Test that default agents initialized.
@@ -232,13 +236,10 @@ class TestTrustInterface:
         Returns:
             None: This function does not return a value.
         """
-        assert "artemis" in iface.trust_scores
-        assert "pack_rat" in iface.trust_scores
+        assert "agent:artemis" in iface.trust_scores
+        assert "agent:pack_rat" in iface.trust_scores
 
     def test_get_trust_score_existing(self, iface):
-        # Default agents are stored by plain name, but get_trust_score
-        # uses "type:id" keys for NEW lookups.  The "artemis" key was
-        # seeded directly in _initialize_default_agents.
         """Test that get trust score existing.
 
         Args:
@@ -247,8 +248,8 @@ class TestTrustInterface:
         Returns:
             None: This function does not return a value.
         """
-        assert "artemis" in iface.trust_scores
-        ts = iface.trust_scores["artemis"]
+        assert "agent:artemis" in iface.trust_scores
+        ts = iface.trust_scores["agent:artemis"]
         assert ts.score >= 0.9
 
     def test_get_trust_score_new_agent(self, iface):

@@ -1,7 +1,4 @@
-"""Compatibility wrapper for ``memory.integration.trust_interface``.
-
-Canonical implementation lives in ``src.integration.trust_interface``.
-"""
+"""Compatibility wrapper for ``memory.integration.trust_interface``."""
 
 from src.integration.trust_interface import (TRUST_THRESHOLDS, TrustInterface,
                                              TrustLevel, TrustScore,
