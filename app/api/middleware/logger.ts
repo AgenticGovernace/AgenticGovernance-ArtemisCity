@@ -70,6 +70,16 @@ const getLevelColor = (level: LogLevel): string => {
 };
 
 /**
+ * Sanitize values before logging to prevent log injection/forgery
+ */
+const sanitizeForLog = (value: unknown): string => {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  return String(value).replace(/[\r\n]+/g, ' ').replace(/[\x00-\x1F\x7F]/g, '');
+};
+
+/**
  * Format log entry for console
  */
 const formatLogEntry = (entry: LogEntry): string => {
@@ -79,7 +89,7 @@ const formatLogEntry = (entry: LogEntry): string => {
   let line = `${colors.dim}[${entry.timestamp}]${colors.reset} `;
   line += `${levelColor}${entry.level.padEnd(5)}${colors.reset} `;
   line += `${colors.bright}${entry.method.padEnd(6)}${colors.reset} `;
-  line += `${entry.path} `;
+  line += `${sanitizeForLog(entry.path)} `;
 
   if (entry.statusCode) {
     line += `${statusColor}${entry.statusCode}${colors.reset} `;
@@ -91,15 +101,15 @@ const formatLogEntry = (entry: LogEntry): string => {
   }
 
   if (entry.userId) {
-    line += `${colors.magenta}[${entry.userId}]${colors.reset} `;
+    line += `${colors.magenta}[${sanitizeForLog(entry.userId)}]${colors.reset} `;
   }
 
   if (entry.message) {
-    line += `${colors.dim}${entry.message}${colors.reset}`;
+    line += `${colors.dim}${sanitizeForLog(entry.message)}${colors.reset}`;
   }
 
   if (entry.error) {
-    line += `${colors.red}${entry.error}${colors.reset}`;
+    line += `${colors.red}${sanitizeForLog(entry.error)}${colors.reset}`;
   }
 
   return line;
