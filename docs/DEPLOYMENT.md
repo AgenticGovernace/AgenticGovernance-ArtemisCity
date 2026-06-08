@@ -58,7 +58,7 @@
 > consumed by the orchestrator inside the `kernel` container. They are
 > reserved ports — when those modules graduate to standalone HTTP
 > services, add matching `memory-bus` and `registry` entries to
-> `docker-compose.yml` that build from `Dockerfile.python` with their
+> `docker-compose.yaml` that build from `Dockerfile.python` with their
 > own CMDs.
 
 ## Docker Setup
@@ -67,7 +67,7 @@
 
 ```
 artemis-city/
-├── docker-compose.yml
+├── docker-compose.yaml
 ├── Dockerfile
 ├── .env.example
 ├── docs/

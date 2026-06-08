@@ -12,7 +12,7 @@
 - **Fix:** Added comment clarifying this is for local dev/testing only
 - **Impact:** Prevents accidental production use
 
-### 3. **docker-compose.yml** — Missing pull policies
+### 3. **docker-compose.yaml** — Missing pull policies
 - **Issue:** No explicit `pull_policy` on build services; could cause inconsistent image sourcing
 - **Fix:** Added `pull_policy: build` to both `kernel` and `express-api` services
 - **Impact:** Ensures local builds are always used when rebuilding
@@ -29,7 +29,7 @@
 
 ✅ **.dockerignore** — Includes proper path references; `src/Artemis Agentic Memory Layer/` directory exists  
 ✅ **Dockerfile-python** — Well-structured multi-stage, non-root user, healthcheck present  
-✅ **docker-compose.yml** — Proper networking, depends_on, environment variables, secrets handling  
+✅ **docker-compose.yaml** — Proper networking, depends_on, environment variables, secrets handling  
 
 ## No Issues Found In
 
