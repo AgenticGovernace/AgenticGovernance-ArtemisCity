@@ -227,10 +227,16 @@ router.post('/provider', async (req: Request, res: Response) => {
       return;
     }
 
+    // Strip any client-supplied apiKey so it cannot override the
+    // env-resolved key after the spread. Same for baseUrl, which is
+    // already taken from the top-level body field.
+    const { apiKey: _strippedApiKey, baseUrl: _strippedBaseUrl, ...safeOptions } = options ?? {};
+    void _strippedApiKey;
+    void _strippedBaseUrl;
     const result = await controller.configureProvider(providerName, {
+      ...safeOptions,
       apiKey: apiKeyFromEnv,
-      baseUrl,
-      ...options
+      baseUrl
     });
     res.json({
       success: true,

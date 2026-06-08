@@ -25,7 +25,7 @@ WORKDIR /src
 
 # Set environment variables for production
 ENV NODE_ENV=production \
-    ARTEMIS_REPO_ROOT=/app \
+    ARTEMIS_REPO_ROOT=/src \
     ARTEMIS_PYTHON=python3
 
 # Express spawns ``python3 -m src.api_bridge`` for every registry /
@@ -40,6 +40,7 @@ RUN apk add --no-cache python3
 # tooling like TypeScript and @types/*.
 COPY --from=builder /src/dist/ ./dist
 COPY --from=builder /src/package.json /src/package-lock.json ./
+RUN npm ci --omit=dev
 
 # Copy the Python bridge tree last so changes to it don't invalidate the
 # npm-install cache layer.
