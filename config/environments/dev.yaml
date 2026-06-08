@@ -1,4 +1,4 @@
-name: development
+name: dev
 description: Local and shared developer integration environment.
 
 mcp:
@@ -57,6 +57,6 @@ governance:
   trust_default_level: 2
 
 deploy:
-  branch: Development
-  github_environment: Development
+  branch: dev
+  github_environment: dev
   approvals_required: 0

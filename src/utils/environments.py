@@ -13,8 +13,8 @@ from typing import Any, Dict
 
 import yaml
 
-VALID_ENVIRONMENTS = ("Development", "staging", "prod")
-DEFAULT_ENVIRONMENT = "prod"
+VALID_ENVIRONMENTS = ("dev", "staging", "prod")
+DEFAULT_ENVIRONMENT = "dev"
 
 
 def _repo_root() -> Path:
