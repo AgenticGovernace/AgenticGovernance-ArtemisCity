@@ -20,8 +20,8 @@ import time
 # memory_decay / hebbian_sync are imported lazily so this script still runs the
 # ATP benchmark even if they are unavailable; both now ship in src/integration/.
 try:
-    from src.integration.memory_decay import (MemoryDecayService,  # type: ignore
-                                              MemoryNode)
+    from src.integration.memory_decay import MemoryDecayService  # type: ignore
+    from src.integration.memory_decay import MemoryNode
 except ModuleNotFoundError:
     MemoryDecayService = MemoryNode = None  # type: ignore[assignment]
 

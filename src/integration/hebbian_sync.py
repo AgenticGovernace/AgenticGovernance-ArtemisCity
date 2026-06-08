@@ -132,7 +132,10 @@ class HebbianSyncService:
         self._buffer.append(update)
         if self.auto_flush:
             elapsed_ms = (time.perf_counter() - self._last_flush) * 1000
-            if len(self._buffer) >= self.batch_size or elapsed_ms >= self.flush_interval_ms:
+            if (
+                len(self._buffer) >= self.batch_size
+                or elapsed_ms >= self.flush_interval_ms
+            ):
                 self.flush_batch()
                 return True
         return False

@@ -77,8 +77,7 @@ def _demo_sandbox(registry: AgentRegistry, agent_name: str) -> None:
     ]:
         res = sandbox.check_action(tool, path=path)
         print(
-            f"  {tool} {path or ''} -> allowed={res.allowed} "
-            f"({res.violation_type})"
+            f"  {tool} {path or ''} -> allowed={res.allowed} " f"({res.violation_type})"
         )
 
     state = registry.get_governance_state(agent_name)
@@ -88,13 +87,13 @@ def _demo_sandbox(registry: AgentRegistry, agent_name: str) -> None:
     )
 
     blocked = sandbox.check_action("read_file", path="Agent Outputs/ok.md")
-    print(f"  post-quarantine read_file -> allowed={blocked.allowed} ({blocked.reason})")
+    print(
+        f"  post-quarantine read_file -> allowed={blocked.allowed} ({blocked.reason})"
+    )
 
     cleared = registry.clear_violations(agent_name, rationale="reviewed by operator")
     state = registry.get_governance_state(agent_name)
-    print(
-        f"  cleared {cleared} violation(s); status now={state['status']}"
-    )
+    print(f"  cleared {cleared} violation(s); status now={state['status']}")
 
 
 def _demo_approvals() -> None:
@@ -104,8 +103,16 @@ def _demo_approvals() -> None:
     governor = SelfUpdateGovernor()
 
     cases = [
-        ("trusted tiny tweak", UpdateProposal("agent_a", code_change_ratio=0.005), 0.95),
-        ("medium change", UpdateProposal("agent_b", code_change_ratio=0.05, new_dependencies=True), 0.80),
+        (
+            "trusted tiny tweak",
+            UpdateProposal("agent_a", code_change_ratio=0.005),
+            0.95,
+        ),
+        (
+            "medium change",
+            UpdateProposal("agent_b", code_change_ratio=0.05, new_dependencies=True),
+            0.80,
+        ),
         ("breaking change", UpdateProposal("agent_c", breaking_changes=True), 0.95),
     ]
     for label, proposal, trust in cases:
@@ -127,7 +134,9 @@ def _demo_checkpoint_rollback(registry: AgentRegistry, workdir: Path) -> None:
         snapshot, checkpoint_type="manual", metadata={"note": "governance demo"}
     )
     cp_id = record["checkpoint_id"]
-    print(f"  created checkpoint {cp_id[:8]}… (integrity verified={store.verify_checkpoint(cp_id)})")
+    print(
+        f"  created checkpoint {cp_id[:8]}… (integrity verified={store.verify_checkpoint(cp_id)})"
+    )
 
     rollback = RollbackManager(store).rollback_to(cp_id, initiated_by="demo_operator")
     restored_agents = rollback["restored_state"].get("agents", [])

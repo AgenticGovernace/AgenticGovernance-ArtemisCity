@@ -31,7 +31,6 @@ from src.integration.memory_bus import MemoryBus  # noqa: E402
 from src.mcp.vector_store import LocalVectorStore  # noqa: E402
 from src.obsidian_integration import ObsidianManager  # noqa: E402
 
-
 SAMPLE_TEXT = (
     "Artemis City is a multi-agent operating system that pairs a Python "
     "orchestration core with an Obsidian-backed memory layer. Agents read tasks "
@@ -81,7 +80,9 @@ def main() -> None:
         report_path = "Agent Outputs/summary_report.md"
         report_md = f"# Summary Report\n\n{result['summary']}\n"
         write_info = memory.write_note_with_embedding(
-            report_path, report_md, metadata={"agent": agent_name, "task_id": task["task_id"]}
+            report_path,
+            report_md,
+            metadata={"agent": agent_name, "task_id": task["task_id"]},
         )
         print(
             "\nMemory write-through OK "
@@ -91,7 +92,9 @@ def main() -> None:
         recalled = memory.read("Artemis City memory layer", max_results=3)
         print(f"Memory recall returned {len(recalled)} hit(s):")
         for hit in recalled:
-            print(f"  - source={hit['source']:<8} score={hit.get('score', 0):.2f} path={hit['path']}")
+            print(
+                f"  - source={hit['source']:<8} score={hit.get('score', 0):.2f} path={hit['path']}"
+            )
 
         # Show the agent's standing in the registry.
         scored = registry.get_all_agents_with_scores()[0]

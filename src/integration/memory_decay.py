@@ -180,7 +180,9 @@ class MemoryDecayService:
         """Return all currently registered nodes."""
         return list(self.nodes.values())
 
-    def record_access(self, node_id: str, now: Optional[datetime] = None) -> Optional[MemoryNode]:
+    def record_access(
+        self, node_id: str, now: Optional[datetime] = None
+    ) -> Optional[MemoryNode]:
         """Mark a node as accessed (resets its decay clock).
 
         Args:
@@ -196,7 +198,9 @@ class MemoryDecayService:
         node.last_access = now or _now()
         return node
 
-    def restore_node(self, node_id: str, now: Optional[datetime] = None) -> Optional[MemoryNode]:
+    def restore_node(
+        self, node_id: str, now: Optional[datetime] = None
+    ) -> Optional[MemoryNode]:
         """Un-archive a node and apply the restoration weight boost.
 
         Args:
@@ -213,7 +217,9 @@ class MemoryDecayService:
         node.archived = False
         node.weight = node.weight * (1.0 + self.restore_boost)
         node.last_access = now or _now()
-        self._emit(self._event("memory_restore", node, previous, node.weight, "restored"))
+        self._emit(
+            self._event("memory_restore", node, previous, node.weight, "restored")
+        )
         if self.sink is not None:
             self._safe_sink(node, previous, node.weight)
         return node

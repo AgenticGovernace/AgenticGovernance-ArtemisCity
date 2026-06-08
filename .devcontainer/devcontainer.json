@@ -4,49 +4,54 @@
   "service": "app",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "features": {
-    // Core languages used by this project
-    "ghcr.io/devcontainers/features/python:1": {},
-    "ghcr.io/devcontainers/features/node:1": {},
-
-    // Version control and collaboration
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
+    },
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/git-lfs:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {},
-
-    // Container and orchestration tools
     "ghcr.io/devcontainers/features/docker-in-docker:2": {},
-
-    // Common shell utilities
     "ghcr.io/devcontainers/features/common-utils:2": {},
-
-    // Security tooling
     "ghcr.io/jsburckhardt/devcontainer-features/gitleaks:1": {},
-
-    // CI CLI (CircleCI)
     "ghcr.io/codeman99/features/circleci-cli:1": {}
   },
-
-  // Make ports available locally
-  "forwardPorts": [3000, 5432],
-
-  // Install project dependencies after container creation
-  "postCreateCommand": "pip install -r requirements.txt && cd src/mcp-server && npm install",
-
-  // Configure tool-specific properties.
+  "forwardPorts": [3000, 4000, 8000, 5432],
+  "forwardPortsActivity": {
+    "3000": "ignore",
+    "4000": "ignore",
+    "8000": "ignore",
+    "5432": "ignore"
+  },
+  "postCreateCommand": "bash -c 'set -e && echo \"Installing dependencies...\" && pip install --quiet -r requirements.txt && if [ -d src/mcp-server ]; then cd src/mcp-server && npm install --silent; fi && echo \"Setup complete!\"'",
   "customizations": {
     "vscode": {
       "extensions": [
         "ms-python.python",
         "ms-python.black-formatter",
+        "ms-python.pylance",
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
         "ms-azuretools.vscode-docker",
         "EditorConfig.EditorConfig",
-        "ms-vscode-remote.remote-containers"
-      ]
+        "ms-vscode-remote.remote-containers",
+        "ms-vscode.makefile-tools"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": true,
+        "[python]": {
+          "editor.defaultFormatter": "ms-python.black-formatter",
+          "editor.formatOnSave": true
+        },
+        "[javascript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode",
+          "editor.formatOnSave": true
+        }
+      }
     }
   }
-
-  // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-  // "remoteUser": "root"
 }

@@ -1,9 +1,9 @@
-name: dev
+name: development
 description: Local and shared developer integration environment.
 
 mcp:
-  base_url: http://localhost:3000
-  log_level: DEBUG
+  base_url: http://127.0.0.1:3000
+  log_level: TRACE
 
 obsidian:
   base_url: http://localhost:27124
@@ -12,13 +12,51 @@ exo:
   base_url: http://localhost:52415
 
 vector_store:
-  path: data/vector_store.dev.db
+  path: data/vector_store.db
+
+huggingface:
+  api_key: ${HUGGINGFACE_API_KEY}
+
+database:
+  url: postgresql://postgres:postgres@localhost:5432/postgres
+  pool_size: 10
+  max_overflow: 10
+  pool_timeout: 10
+  pool_recycle: 1800
+  echo: true
+  pool_pre_ping: true
+  pool_use_lifo: true
+  pool_use_threadlocal: true
+  pool_reset_on_return: rollback
+
+agent:
+  model: gpt-3.5-turbo
+  temperature: 0.7
+  max_tokens: 1024
+  top_p: 1
+  frequency_penalty: 0
+  presence_penalty: 0
+
+server:
+  port: 8000
+  host: 127.0.0.1
+  debug: true
+  reload: true
+  reload_dirs:
+    - app
+    - config
+    - tests
+    - migrations
+    - scripts
+    - data
+    - static
+    - templates
 
 governance:
-  strict_atp: false
+  strict_atp: true
   trust_default_level: 2
 
 deploy:
-  branch: dev
-  github_environment: dev
+  branch: Development
+  github_environment: Development
   approvals_required: 0
