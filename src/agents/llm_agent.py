@@ -123,33 +123,28 @@ class LLMAgent(BaseAgent):
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
-        endpoints = [
-            f"{self.base_url}/v1/chat/completions",
-            f"{self.base_url}/chat/completions",
-        ]
-        last_error: Optional[Exception] = None
+        api_base = self.base_url
+        if not api_base.endswith("/v1"):
+            api_base = f"{api_base}/v1"
+        endpoint = f"{api_base}/chat/completions"
 
-        for endpoint in endpoints:
-            try:
-                response = requests.post(
-                    endpoint,
-                    json=payload,
-                    headers=headers,
-                    timeout=self.timeout_seconds,
-                )
-                response.raise_for_status()
-                body = response.json()
-                content = self._extract_message_content(body)
-                return {
-                    "content": content,
-                    "usage": body.get("usage", {}),
-                    "id": body.get("id"),
-                }
-            except Exception as exc:  # noqa: BLE001
-                last_error = exc
-                continue
-
-        raise RuntimeError(f"No Exo endpoint succeeded: {last_error}")
+        try:
+            response = requests.post(
+                endpoint,
+                json=payload,
+                headers=headers,
+                timeout=self.timeout_seconds,
+            )
+            response.raise_for_status()
+            body = response.json()
+            content = self._extract_message_content(body)
+            return {
+                "content": content,
+                "usage": body.get("usage", {}),
+                "id": body.get("id"),
+            }
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError(f"Exo request failed at {endpoint}: {exc}") from exc
 
     def _extract_message_content(self, body: Dict[str, Any]) -> str:
         choices = body.get("choices")
