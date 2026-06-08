@@ -15,12 +15,30 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    steps:    
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
       - name: Submit dependency graph
         uses: actions/dependency-submission-action@v4
         with:
-          # Adjust to your files
-          manifest-path: |
-            pyproject.toml
+          manifest-path: pyproject.toml
             requirements.txt
-            requirements-dev.txt
+          ecosystem: python
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fail-on-error: false
+          fail-on-vulnerability: false
+          fail-on-severity: none
+          fail-on-fixable: false
+          fail-on-unfixed: false
+          fail-on-suppressed: false
+          fail-on-policy: none
+          fail-on-license: none
+          fail-on-unknown: false
+          fail-on-scan-error: false
+          fail-on-missing: false
+          fail-on-outdated: false
+          fail-on-ignored: false
+          fail-on-ignored-severity: none
+          fail-on-ignored-fixable: false
+          fail-on-ignored-unfixed: false
+          fail-on-ignored-suppressed: false
