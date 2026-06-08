@@ -1,6 +1,4 @@
-# CLAUDE.md
-
-## Document Structure
+# Document Structure
 
 This file contains two sections. The section titled "Implementation Notes for Artemis City" is the ACTIVE guidance. The preceding section ("Project Overview" through "Support and Documentation") is retained for historical context only and MUST NOT be followed when it conflicts with the Artemis City section.
 
