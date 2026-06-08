@@ -2,22 +2,22 @@ name: Deploy
 
 on:
   push:
-    branches: [dev, staging, prod]
+    branches: [development, main, staging, prod]
   workflow_dispatch:
     inputs:
       environment:
         description: Target environment
         required: true
-        default: dev
+        default: development
         type: choice
-        options: [dev, staging, prod]
+        options: [development, main, staging, prod]
 
 permissions:
   contents: read
 
 concurrency:
   group: deploy-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   resolve:
@@ -56,15 +56,4 @@ jobs:
           from src.utils.environments import load_environment
           cfg = load_environment(os.environ["ARTEMIS_ENV"])
           print(json.dumps(cfg, indent=2))
-          PY
-      - name: Build artifacts
-        run: |
-          echo "Build step (provider-agnostic placeholder)."
-          echo "Wire your container build or package step here."
-      - name: Deploy
-        env:
-          ARTEMIS_ENV: ${{ needs.resolve.outputs.environment }}
-        run: |
-          echo "Deploying to $ARTEMIS_ENV"
-          echo "Replace this step with your target provider's deploy action."
-          echo "Secrets are scoped per GitHub Environment ($ARTEMIS_ENV)."
+          PY\

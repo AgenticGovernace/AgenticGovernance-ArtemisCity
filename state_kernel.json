@@ -19,7 +19,15 @@
     {
       "type": "command",
       "content": "memory"
+    },
+    {
+      "type": "command",
+      "content": "help "
+    },
+    {
+      "type": "command",
+      "content": "python app/Kernel/artemis_cli.py"
     }
   ],
-  "boot_count": 8
+  "boot_count": 9
 }
