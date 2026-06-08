@@ -1,27 +1,20 @@
 """Tests for the trust-score engine (src/governance/trust.py)."""
 
 import pytest
-from src.governance.trust import (
-    TrustMetrics,
-    WEIGHT_AUDIT_APPROVALS,
-    WEIGHT_CODE_QUALITY,
-    WEIGHT_SECURITY,
-    WEIGHT_SUCCESS_RATE,
-    WEIGHT_UPTIME,
-    compute_trust_score,
-    security_score,
-    success_rate,
-    trust_breakdown,
-    uptime,
-)
+
+from src.governance.trust import (WEIGHT_AUDIT_APPROVALS, WEIGHT_CODE_QUALITY,
+                                  WEIGHT_SECURITY, WEIGHT_SUCCESS_RATE,
+                                  WEIGHT_UPTIME, TrustMetrics,
+                                  compute_trust_score, security_score,
+                                  success_rate, trust_breakdown, uptime)
 
 
 class TestWeights:
-    """Provide the TestWeights abstraction used by this module.
-    """
+    """Provide the TestWeights abstraction used by this module."""
+
     def test_weights_sum_to_one(self):
         """Test that weights sum to one.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -36,11 +29,11 @@ class TestWeights:
 
 
 class TestSubMetrics:
-    """Provide the TestSubMetrics abstraction used by this module.
-    """
+    """Provide the TestSubMetrics abstraction used by this module."""
+
     def test_success_rate_no_history_is_one(self):
         """Test that success rate no history is one.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -48,7 +41,7 @@ class TestSubMetrics:
 
     def test_success_rate_ratio(self):
         """Test that success rate ratio.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -57,7 +50,7 @@ class TestSubMetrics:
 
     def test_security_score_clean(self):
         """Test that security score clean.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -65,15 +58,17 @@ class TestSubMetrics:
 
     def test_security_score_decreases_with_violations(self):
         """Test that security score decreases with violations.
-        
+
         Returns:
             None: This function does not return a value.
         """
-        assert security_score(TrustMetrics(recent_violation_count=3)) == pytest.approx(0.7)
+        assert security_score(TrustMetrics(recent_violation_count=3)) == pytest.approx(
+            0.7
+        )
 
     def test_security_score_floors_at_zero(self):
         """Test that security score floors at zero.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -81,7 +76,7 @@ class TestSubMetrics:
 
     def test_uptime_no_hours_is_one(self):
         """Test that uptime no hours is one.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -89,7 +84,7 @@ class TestSubMetrics:
 
     def test_uptime_ratio(self):
         """Test that uptime ratio.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -98,12 +93,12 @@ class TestSubMetrics:
 
 
 class TestComputeScore:
-    """Provide the TestComputeScore abstraction used by this module.
-    """
+    """Provide the TestComputeScore abstraction used by this module."""
+
     def test_pristine_agent_scores_one(self):
         # No failures, no violations, perfect quality -> 1.0
         """Test that pristine agent scores one.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -111,7 +106,7 @@ class TestComputeScore:
 
     def test_score_in_unit_interval(self):
         """Test that score in unit interval.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -132,7 +127,7 @@ class TestComputeScore:
 
     def test_violations_lower_score(self):
         """Test that violations lower score.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -142,7 +137,7 @@ class TestComputeScore:
 
     def test_manual_weighted_sum(self):
         """Test that manual weighted sum.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -169,11 +164,11 @@ class TestComputeScore:
 
 
 class TestBreakdown:
-    """Provide the TestBreakdown abstraction used by this module.
-    """
+    """Provide the TestBreakdown abstraction used by this module."""
+
     def test_breakdown_structure(self):
         """Test that breakdown structure.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -189,21 +184,25 @@ class TestBreakdown:
 
     def test_contributions_sum_to_score(self):
         """Test that contributions sum to score.
-        
+
         Returns:
             None: This function does not return a value.
         """
-        m = TrustMetrics(successful_executions=7, total_executions=10, recent_violation_count=2)
+        m = TrustMetrics(
+            successful_executions=7, total_executions=10, recent_violation_count=2
+        )
         bd = trust_breakdown(m)
-        assert sum(bd["contributions"].values()) == pytest.approx(compute_trust_score(m))
+        assert sum(bd["contributions"].values()) == pytest.approx(
+            compute_trust_score(m)
+        )
 
 
 class TestHistoryFlag:
-    """Provide the TestHistoryFlag abstraction used by this module.
-    """
+    """Provide the TestHistoryFlag abstraction used by this module."""
+
     def test_has_execution_history(self):
         """Test that has execution history.
-        
+
         Returns:
             None: This function does not return a value.
         """

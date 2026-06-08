@@ -5,8 +5,10 @@ import sys
 sys.modules.pop("src.integration.agent_registry", None)
 
 import pytest
+
 from src.agents.base_agent import BaseAgent
-from src.integration.agent_registry import AgentRegistry, AgentRegistryStore, AgentScore
+from src.integration.agent_registry import (AgentRegistry, AgentRegistryStore,
+                                            AgentScore)
 
 
 # ---------------------------------------------------------------------------
@@ -21,11 +23,11 @@ class _StubAgent(BaseAgent):
 # AgentScore
 # ---------------------------------------------------------------------------
 class TestAgentScore:
-    """Provide the TestAgentScore abstraction used by this module.
-    """
+    """Provide the TestAgentScore abstraction used by this module."""
+
     def test_composite_score(self):
         """Test that composite score.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -34,7 +36,7 @@ class TestAgentScore:
 
     def test_composite_score_weighted(self):
         """Test that composite score weighted.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -44,7 +46,7 @@ class TestAgentScore:
 
     def test_composite_score_zeros(self):
         """Test that composite score zeros.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -56,16 +58,15 @@ class TestAgentScore:
 # AgentRegistryStore (file-based SQLite via tmp_path)
 # ---------------------------------------------------------------------------
 class TestAgentRegistryStore:
-    """Persist and retrieve records for the TestAgentRegistryStore workflow.
-    """
+    """Persist and retrieve records for the TestAgentRegistryStore workflow."""
 
     @pytest.fixture
     def store(self, tmp_path):
         """Store.
-        
+
         Args:
             tmp_path: Tmp path value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -73,10 +74,10 @@ class TestAgentRegistryStore:
 
     def test_load_scores_empty(self, store):
         """Test that load scores empty.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -84,10 +85,10 @@ class TestAgentRegistryStore:
 
     def test_upsert_and_load(self, store):
         """Test that upsert and load.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -100,10 +101,10 @@ class TestAgentRegistryStore:
 
     def test_upsert_existing_preserves_scores(self, store):
         """Test that upsert existing preserves scores.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -116,10 +117,10 @@ class TestAgentRegistryStore:
 
     def test_update_score(self, store):
         """Test that update score.
-        
+
         Args:
             store: Storage implementation used by the workflow.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -136,16 +137,15 @@ class TestAgentRegistryStore:
 # AgentRegistry
 # ---------------------------------------------------------------------------
 class TestAgentRegistry:
-    """Provide the TestAgentRegistry abstraction used by this module.
-    """
+    """Provide the TestAgentRegistry abstraction used by this module."""
 
     @pytest.fixture
     def registry(self, tmp_path):
         """Registry.
-        
+
         Args:
             tmp_path: Tmp path value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -153,10 +153,10 @@ class TestAgentRegistry:
 
     def test_register_and_get(self, registry):
         """Test that register and get.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -166,10 +166,10 @@ class TestAgentRegistry:
 
     def test_get_nonexistent(self, registry):
         """Test that get nonexistent.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -177,10 +177,10 @@ class TestAgentRegistry:
 
     def test_duplicate_registration(self, registry):
         """Test that duplicate registration.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -191,10 +191,10 @@ class TestAgentRegistry:
 
     def test_route_task(self, registry):
         """Test that route task.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -207,10 +207,10 @@ class TestAgentRegistry:
 
     def test_route_task_picks_highest_score(self, registry):
         """Test that route task picks highest score.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -226,10 +226,10 @@ class TestAgentRegistry:
 
     def test_route_task_no_capability_raises(self, registry):
         """Test that route task no capability raises.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -238,10 +238,10 @@ class TestAgentRegistry:
 
     def test_route_task_no_capable_agent_raises(self, registry):
         """Test that route task no capable agent raises.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -252,10 +252,10 @@ class TestAgentRegistry:
 
     def test_update_score_dimension(self, registry):
         """Test that update score dimension.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -268,10 +268,10 @@ class TestAgentRegistry:
 
     def test_update_score_clamps_to_one(self, registry):
         """Test that update score clamps to one.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -282,10 +282,10 @@ class TestAgentRegistry:
 
     def test_update_score_clamps_to_zero(self, registry):
         """Test that update score clamps to zero.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -296,10 +296,10 @@ class TestAgentRegistry:
 
     def test_update_score_unknown_agent(self, registry):
         """Test that update score unknown agent.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -307,10 +307,10 @@ class TestAgentRegistry:
 
     def test_get_all_agents(self, registry):
         """Test that get all agents.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -322,10 +322,10 @@ class TestAgentRegistry:
 
     def test_get_agent_names(self, registry):
         """Test that get agent names.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -335,10 +335,10 @@ class TestAgentRegistry:
 
     def test_get_all_agents_with_scores(self, registry):
         """Test that get all agents with scores.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """

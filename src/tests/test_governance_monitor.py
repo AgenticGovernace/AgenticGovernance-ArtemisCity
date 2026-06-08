@@ -1,26 +1,27 @@
 """Tests for the governance monitor (src/integration/governance.py)."""
 
-import sys
 import json
+import sys
 
 sys.modules.pop("src.integration.governance", None)
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from src.integration.governance import GovernanceMonitor
 
 
 class TestGovernanceMonitor:
-    """Provide the TestGovernanceMonitor abstraction used by this module.
-    """
+    """Provide the TestGovernanceMonitor abstraction used by this module."""
 
     @pytest.fixture
     def monitor(self, tmp_path):
         """Monitor.
-        
+
         Args:
             tmp_path: Tmp path value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -29,10 +30,10 @@ class TestGovernanceMonitor:
 
     def test_initial_state(self, monitor):
         """Test that initial state.
-        
+
         Args:
             monitor: Monitor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -41,10 +42,10 @@ class TestGovernanceMonitor:
 
     def test_record_failure_increments_streak(self, monitor):
         """Test that record failure increments streak.
-        
+
         Args:
             monitor: Monitor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -53,10 +54,10 @@ class TestGovernanceMonitor:
 
     def test_record_failure_returns_false_below_threshold(self, monitor):
         """Test that record failure returns false below threshold.
-        
+
         Args:
             monitor: Monitor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -65,10 +66,10 @@ class TestGovernanceMonitor:
 
     def test_record_failure_returns_true_at_threshold(self, monitor):
         """Test that record failure returns true at threshold.
-        
+
         Args:
             monitor: Monitor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -79,10 +80,10 @@ class TestGovernanceMonitor:
 
     def test_alert_event_appended(self, monitor):
         """Test that alert event appended.
-        
+
         Args:
             monitor: Monitor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -95,10 +96,10 @@ class TestGovernanceMonitor:
 
     def test_record_success_resets_streak(self, monitor):
         """Test that record success resets streak.
-        
+
         Args:
             monitor: Monitor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -110,10 +111,10 @@ class TestGovernanceMonitor:
     def test_record_success_when_zero(self, monitor):
         # Should not raise
         """Test that record success when zero.
-        
+
         Args:
             monitor: Monitor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -122,10 +123,10 @@ class TestGovernanceMonitor:
 
     def test_events_have_timestamps(self, monitor):
         """Test that events have timestamps.
-        
+
         Args:
             monitor: Monitor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -135,10 +136,10 @@ class TestGovernanceMonitor:
 
     def test_events_have_type(self, monitor):
         """Test that events have type.
-        
+
         Args:
             monitor: Monitor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -148,10 +149,10 @@ class TestGovernanceMonitor:
 
     def test_get_recent_events_limit(self, monitor):
         """Test that get recent events limit.
-        
+
         Args:
             monitor: Monitor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -162,11 +163,11 @@ class TestGovernanceMonitor:
 
     def test_persist_writes_jsonl(self, monitor, tmp_path):
         """Test that persist writes jsonl.
-        
+
         Args:
             monitor: Monitor value used by this operation.
             tmp_path: Tmp path value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -181,14 +182,15 @@ class TestGovernanceMonitor:
 
     def test_persist_oserror_swallowed(self, monitor, monkeypatch):
         """Test that persist oserror swallowed.
-        
+
         Args:
             monitor: Monitor value used by this operation.
             monkeypatch: Monkeypatch value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
+
         def _raise(*args, **kwargs):
             raise OSError("disk failure")
 
@@ -199,10 +201,10 @@ class TestGovernanceMonitor:
 
     def test_original_event_not_mutated(self, monitor):
         """Test that original event not mutated.
-        
+
         Args:
             monitor: Monitor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -213,10 +215,10 @@ class TestGovernanceMonitor:
 
     def test_threshold_one(self, tmp_path):
         """Test that threshold one.
-        
+
         Args:
             tmp_path: Tmp path value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -225,10 +227,10 @@ class TestGovernanceMonitor:
 
     def test_continued_failures_past_threshold(self, monitor):
         """Test that continued failures past threshold.
-        
+
         Args:
             monitor: Monitor value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """

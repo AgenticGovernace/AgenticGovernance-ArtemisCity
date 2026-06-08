@@ -31,8 +31,8 @@ CODE_CHANGE_MONITORED_MIN = 0.01  # > 1% -> at least monitored
 
 
 class ApprovalTier(str, Enum):
-    """Enumerate the approval tiers used for self-update governance.
-    """
+    """Enumerate the approval tiers used for self-update governance."""
+
     AUTO = "auto"
     MONITORED = "monitored"
     HUMAN = "human"
@@ -53,13 +53,14 @@ class UpdateProposal:
 @dataclasses.dataclass
 class ApprovalDecision:
     """Represent the approval outcome returned by the self-update governor.
-    
+
     Attributes:
         tier (ApprovalTier): Stored value on the ApprovalDecision instance.
         auto_approved (bool): Stored value on the ApprovalDecision instance.
         requires_human (bool): Stored value on the ApprovalDecision instance.
         reasons (List[str]): Stored value on the ApprovalDecision instance.
     """
+
     tier: ApprovalTier
     auto_approved: bool
     requires_human: bool
@@ -67,7 +68,7 @@ class ApprovalDecision:
 
     def to_dict(self) -> dict:
         """To dict.
-        
+
         Returns:
             dict: Dictionary containing the resulting data.
         """
@@ -99,12 +100,12 @@ class SelfUpdateGovernor:
     ) -> ApprovalDecision:
         """Classify a proposal. ``has_history=False`` forces human review
         ("unknown agent") regardless of the computed trust score.
-        
+
         Args:
             proposal (UpdateProposal): Self-update proposal being classified.
             trust_score (float): Trust score used for approval or routing decisions.
             has_history (bool): Has history value used by this operation.
-        
+
         Returns:
             ApprovalDecision: Resulting ApprovalDecision value produced by the operation.
         """
@@ -118,9 +119,7 @@ class SelfUpdateGovernor:
         if proposal.breaking_changes:
             reasons.append("breaking API change")
         if proposal.code_change_ratio > CODE_CHANGE_HUMAN_MIN:
-            reasons.append(
-                f"code change {proposal.code_change_ratio:.0%} exceeds 10%"
-            )
+            reasons.append(f"code change {proposal.code_change_ratio:.0%} exceeds 10%")
         if not has_history:
             reasons.append("unknown agent (no execution history)")
         if trust_score < TRUST_MONITORED_MIN:
@@ -132,9 +131,7 @@ class SelfUpdateGovernor:
         if proposal.new_dependencies:
             reasons.append("new dependencies require review")
         if proposal.code_change_ratio > CODE_CHANGE_MONITORED_MIN:
-            reasons.append(
-                f"code change {proposal.code_change_ratio:.0%} exceeds 1%"
-            )
+            reasons.append(f"code change {proposal.code_change_ratio:.0%} exceeds 1%")
         if trust_score < TRUST_AUTO_MIN:
             reasons.append(f"trust score {trust_score:.2f} below 0.90")
         if reasons:

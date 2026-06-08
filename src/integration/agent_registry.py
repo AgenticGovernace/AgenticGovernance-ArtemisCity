@@ -1,13 +1,13 @@
 # src/integration/agent_registry.py
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
 import json
 import os
 import sqlite3
 import time
 import uuid
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Dict, List, Optional
 
 from src.agents import BaseAgent
 from src.utils.helpers import logger
@@ -33,12 +33,13 @@ def _now_iso() -> str:
 @dataclass
 class AgentScore:
     """Store the weighted scoring inputs used to rank an agent during routing.
-    
+
     Attributes:
         alignment (float): Stored value on the AgentScore instance.
         accuracy (float): Stored value on the AgentScore instance.
         efficiency (float): Stored value on the AgentScore instance.
     """
+
     alignment: float  # 0.0-1.0 policy adherence
     accuracy: float  # 0.0-1.0 output quality
     efficiency: float  # 0.0-1.0 speed/cost metric
@@ -46,7 +47,7 @@ class AgentScore:
     @property
     def composite_score(self) -> float:
         """Weighted composite score
-        
+
         Returns:
             float: Numeric result produced by the operation.
         """
@@ -121,7 +122,7 @@ class AgentRegistryStore:
 
     def load_scores(self) -> Dict[str, AgentScore]:
         """Load persisted scores for all agents.
-        
+
         Returns:
             Dict[str, AgentScore]: Dictionary containing the resulting data.
         """
@@ -143,7 +144,7 @@ class AgentRegistryStore:
 
     def load_governance_states(self) -> Dict[str, dict]:
         """Load governance metadata (tier, status, violations) for all agents.
-        
+
         Returns:
             Dict[str, dict]: Dictionary containing the resulting data.
         """
@@ -153,7 +154,14 @@ class AgentRegistryStore:
                 "quarantined_at, trust_score FROM agents"
             )
             states = {}
-            for name, tier, status, count, quarantined_at, trust_score in cursor.fetchall():
+            for (
+                name,
+                tier,
+                status,
+                count,
+                quarantined_at,
+                trust_score,
+            ) in cursor.fetchall():
                 states[name] = {
                     "trust_tier": tier,
                     "status": status,
@@ -209,7 +217,7 @@ class AgentRegistryStore:
 
     def list_agent_records(self) -> List[dict]:
         """Return full persisted records for all agents, ordered by name.
-        
+
         Returns:
             List[dict]: Persisted agent records sorted by agent name.
         """
@@ -221,10 +229,10 @@ class AgentRegistryStore:
 
     def get_agent_record(self, name: str) -> Optional[dict]:
         """Return the full persisted record for one agent, or None.
-        
+
         Args:
             name (str): Agent name to retrieve from the registry store.
-        
+
         Returns:
             Optional[dict]: Persisted agent record when found; otherwise None.
         """
@@ -237,11 +245,11 @@ class AgentRegistryStore:
 
     def upsert_agent(self, agent: BaseAgent, default_score: AgentScore) -> AgentScore:
         """Insert agent metadata if new; return persisted or default score.
-        
+
         Args:
             agent (BaseAgent): Agent instance or agent identifier associated with the operation.
             default_score (AgentScore): Fallback score to persist when no score exists yet.
-        
+
         Returns:
             AgentScore: Resulting AgentScore value produced by the operation.
         """
@@ -299,11 +307,11 @@ class AgentRegistryStore:
 
     def update_score(self, agent_id: str, score: AgentScore):
         """Persist updated score for an agent.
-        
+
         Args:
             agent_id (str): Identifier of the agent being processed.
             score (AgentScore): Score value being computed or persisted.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -335,12 +343,12 @@ class AgentRegistryStore:
         details: dict,
     ) -> dict:
         """Log a violation, increment the strike count, and quarantine when the threshold is crossed.
-        
+
         Args:
             agent_name (str): Name of the agent receiving the violation.
             violation_type (str): Governance violation type to persist.
             details (dict): Structured detail payload recorded with the violation.
-        
+
         Returns:
             dict: Persisted violation record including the action that was taken.
         """
@@ -422,12 +430,12 @@ class AgentRegistryStore:
         self, agent_name: str, include_cleared: bool = False, limit: int = 100
     ) -> List[dict]:
         """Return violations for an agent, newest first.
-        
+
         Args:
             agent_name (str): Agent name whose violations should be listed.
             include_cleared (bool): Whether cleared violations should remain in the result set.
             limit (int): Maximum number of violation rows to return.
-        
+
         Returns:
             List[dict]: Serialized violation records ordered from newest to oldest.
         """
@@ -464,12 +472,12 @@ class AgentRegistryStore:
         override_tier: Optional[str] = None,
     ) -> int:
         """Mark active violations as cleared and release quarantine.
-        
+
         Args:
             agent_name (str): Agent name whose violations should be cleared.
             rationale (str): Human rationale recorded for the override action.
             override_tier (Optional[str]): Optional trust-tier override applied with the clear operation.
-        
+
         Returns:
             int: Number of violations that were cleared.
         """
@@ -518,11 +526,11 @@ class AgentRegistryStore:
 
     def set_trust_tier(self, agent_name: str, tier: str):
         """Set the agent's trust tier.
-        
+
         Args:
             agent_name (str): Name of the agent involved in the operation.
             tier (str): Approval or trust tier value.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -539,10 +547,10 @@ class AgentRegistryStore:
 
     def get_governance_state(self, agent_name: str) -> Optional[dict]:
         """Return all governance metadata for an agent, or None if missing.
-        
+
         Args:
             agent_name (str): Agent name to inspect in the registry store.
-        
+
         Returns:
             Optional[dict]: Governance metadata when present; otherwise None.
         """
@@ -565,11 +573,11 @@ class AgentRegistryStore:
 
     def set_trust_score(self, agent_name: str, score: float):
         """Persist a computed trust score (0.0-1.0).
-        
+
         Args:
             agent_name (str): Name of the agent involved in the operation.
             score (float): Score value being computed or persisted.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -583,8 +591,8 @@ class AgentRegistryStore:
 
 
 class AgentRegistry:
-    """Coordinate agent registration, routing, and governance state backed by SQLite.
-    """
+    """Coordinate agent registration, routing, and governance state backed by SQLite."""
+
     def __init__(self, db_path: str = "data/agent_registry.db"):
         self.store = AgentRegistryStore(db_path=db_path)
         self.agents: Dict[str, BaseAgent] = {}
@@ -595,10 +603,10 @@ class AgentRegistry:
 
     def register_agent(self, agent: BaseAgent):
         """Registers a new agent.
-        
+
         Args:
             agent (BaseAgent): Agent instance or agent identifier associated with the operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -640,12 +648,12 @@ class AgentRegistry:
         self, agent_name: str, violation_type: str, details: dict
     ) -> dict:
         """Record a sandbox violation; auto-quarantines on the 3rd strike.
-        
+
         Args:
             agent_name (str): Name of the agent involved in the operation.
             violation_type (str): Violation type to record or validate.
             details (dict): Structured detail payload recorded with the event.
-        
+
         Returns:
             dict: Dictionary containing the resulting data.
         """
@@ -657,12 +665,12 @@ class AgentRegistry:
         self, agent_name: str, include_cleared: bool = False, limit: int = 100
     ) -> List[dict]:
         """Return logged violations for an agent, newest first.
-        
+
         Args:
             agent_name (str): Agent name whose violations should be returned.
             include_cleared (bool): Whether cleared violations should remain in the result set.
             limit (int): Maximum number of violation rows to return.
-        
+
         Returns:
             List[dict]: Serialized violation records from the registry store.
         """
@@ -672,13 +680,13 @@ class AgentRegistry:
         self, agent_name: str, rationale: str, override_tier: Optional[str] = None
     ) -> int:
         """Clear violations and release quarantine; optionally upgrade trust tier.
-        
+
         Args:
             agent_name (str): Name of the agent involved in the operation.
             rationale (str): Rationale value used by this operation.
             override_tier (Optional[str]): Optional trust tier override applied during the
                 operation.
-        
+
         Returns:
             int: Integer result produced by the operation.
         """
@@ -688,11 +696,11 @@ class AgentRegistry:
 
     def set_trust_tier(self, agent_name: str, tier: str):
         """Set the agent's trust tier (auto|monitored|human).
-        
+
         Args:
             agent_name (str): Name of the agent involved in the operation.
             tier (str): Approval or trust tier value.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -701,11 +709,11 @@ class AgentRegistry:
 
     def set_trust_score(self, agent_name: str, score: float):
         """Persist a computed trust score (0.0-1.0).
-        
+
         Args:
             agent_name (str): Name of the agent involved in the operation.
             score (float): Score value being computed or persisted.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -714,10 +722,10 @@ class AgentRegistry:
 
     def get_governance_state(self, agent_name: str) -> Optional[dict]:
         """Return cached governance metadata for an agent, or None if unknown.
-        
+
         Args:
             agent_name (str): Agent name to inspect in the in-memory governance cache.
-        
+
         Returns:
             Optional[dict]: Cached governance metadata when available; otherwise None.
         """
@@ -725,10 +733,10 @@ class AgentRegistry:
 
     def is_quarantined(self, agent_name: str) -> bool:
         """Convenience predicate for quarantine status.
-        
+
         Args:
             agent_name (str): Name of the agent involved in the operation.
-        
+
         Returns:
             bool: Boolean outcome for the requested check.
         """
@@ -737,12 +745,12 @@ class AgentRegistry:
 
     def route_task(self, task: dict) -> str:
         """Route task to highest-scoring capable agent.
-        
+
         Quarantined and suspended agents are excluded from routing.
-        
+
         Args:
             task (dict): Task payload being routed or updated.
-        
+
         Returns:
             str: String result produced by the operation.
         """
@@ -773,12 +781,12 @@ class AgentRegistry:
 
     def update_score(self, agent_id: str, dimension: str, delta: float):
         """Update agent score dimension with decay
-        
+
         Args:
             agent_id (str): Identifier of the agent being processed.
             dimension (str): Score dimension to update.
             delta (float): Delta to apply to the selected score dimension.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -804,7 +812,7 @@ class AgentRegistry:
 
     def get_all_agents(self) -> List[BaseAgent]:
         """Return all agents.
-        
+
         Returns:
             List[BaseAgent]: List containing the resulting items.
         """
@@ -812,7 +820,7 @@ class AgentRegistry:
 
     def get_agent_names(self) -> List[str]:
         """Return agent names.
-        
+
         Returns:
             List[str]: List containing the resulting items.
         """
@@ -820,7 +828,7 @@ class AgentRegistry:
 
     def get_all_agents_with_scores(self) -> List[Dict]:
         """Return all agents with their capabilities and performance scores.
-        
+
         Returns:
             List[Dict]: Agent score records sorted by composite score in descending order.
         """

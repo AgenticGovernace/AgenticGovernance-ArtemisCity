@@ -4,12 +4,13 @@ This test demonstrates how to add a new test case and how the ATP parser works.
 """
 
 import pytest
-from src.agents.atp import ATPParser, ATPMode, ATPPriority
+
+from src.agents.atp import ATPMode, ATPParser, ATPPriority
 
 
 def test_atp_parser_demonstration():
     """Demonstrates that the ATPParser correctly identifies message fields.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -31,7 +32,7 @@ def test_atp_parser_demonstration():
 
 def test_simple_logic_check():
     """A trivial test to show how to use pytest assertions.
-    
+
     Returns:
         None: This function does not return a value.
     """

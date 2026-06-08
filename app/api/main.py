@@ -1,11 +1,11 @@
-import sys
-import os
 import json
 import logging
-import sqlite3
+import os
 import re
+import sqlite3
+import sys
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +13,9 @@ from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 
 # Add the project root to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../app/web", "..")))
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../app/web", ".."))
+)
 
 
 def _sanitize_for_log(value: Any) -> str:
@@ -28,8 +30,9 @@ def _sanitize_for_log(value: Any) -> str:
 import_error: Exception | None = None
 
 try:
+    from src.mcp.config import (AGENT_INPUT_DIR, AGENT_OUTPUT_DIR,
+                                OBSIDIAN_VAULT_PATH)
     from src.mcp.orchestrator import Orchestrator
-    from src.mcp.config import AGENT_OUTPUT_DIR, AGENT_INPUT_DIR, OBSIDIAN_VAULT_PATH
     from src.utils.helpers import logger
 except Exception as e:
     import_error = e
@@ -48,7 +51,7 @@ except Exception as e:
 # --- Pydantic Models ---
 class TaskData(BaseModel):
     """Represent the payload used to create or execute a task through the FastAPI service.
-    
+
     Attributes:
         task_id (str | None): Stored value on the TaskData instance.
         agent (str): Stored value on the TaskData instance.
@@ -60,6 +63,7 @@ class TaskData(BaseModel):
         target (str | None): Stored value on the TaskData instance.
         subtasks (List[Dict[str, Any]] | None): Stored value on the TaskData instance.
     """
+
     task_id: str | None = Field(default_factory=lambda: f"task_{os.urandom(4).hex()}")
     agent: str
     status: str = "pending"
@@ -73,24 +77,26 @@ class TaskData(BaseModel):
 
 class AgentResponse(BaseModel):
     """Represent the API response for a registered agent listing entry.
-    
+
     Attributes:
         name (str): Stored value on the AgentResponse instance.
         capabilities (List[str]): Stored value on the AgentResponse instance.
     """
+
     name: str
     capabilities: List[str]
 
 
 class ReportSummary(BaseModel):
     """Represent summarized metadata for a generated report.
-    
+
     Attributes:
         filename (str): Stored value on the ReportSummary instance.
         agent (str): Stored value on the ReportSummary instance.
         task_id (str): Stored value on the ReportSummary instance.
         timestamp (str): Stored value on the ReportSummary instance.
     """
+
     filename: str
     agent: str
     task_id: str
@@ -99,7 +105,7 @@ class ReportSummary(BaseModel):
 
 class AgentScore(BaseModel):
     """Represent persisted scoring details for an agent record.
-    
+
     Attributes:
         name (str): Stored value on the AgentScore instance.
         capabilities (List[str]): Stored value on the AgentScore instance.
@@ -108,6 +114,7 @@ class AgentScore(BaseModel):
         efficiency (float): Stored value on the AgentScore instance.
         composite_score (float): Stored value on the AgentScore instance.
     """
+
     name: str
     capabilities: List[str]
     alignment: float
@@ -118,7 +125,7 @@ class AgentScore(BaseModel):
 
 class HebbianConnection(BaseModel):
     """Represent a Hebbian edge returned by the database inspection endpoints.
-    
+
     Attributes:
         origin_node (str): Stored value on the HebbianConnection instance.
         target_node (str): Stored value on the HebbianConnection instance.
@@ -128,6 +135,7 @@ class HebbianConnection(BaseModel):
         failure_count (int): Stored value on the HebbianConnection instance.
         success_rate (float): Stored value on the HebbianConnection instance.
     """
+
     origin_node: str
     target_node: str
     weight: float
@@ -139,7 +147,7 @@ class HebbianConnection(BaseModel):
 
 class HebbianStats(BaseModel):
     """Represent aggregate Hebbian network statistics returned by the API.
-    
+
     Attributes:
         total_connections (int): Stored value on the HebbianStats instance.
         avg_weight (float): Stored value on the HebbianStats instance.
@@ -148,6 +156,7 @@ class HebbianStats(BaseModel):
         total_successes (int): Stored value on the HebbianStats instance.
         success_rate (float): Stored value on the HebbianStats instance.
     """
+
     total_connections: int
     avg_weight: float
     max_weight: float
@@ -158,24 +167,26 @@ class HebbianStats(BaseModel):
 
 class VectorStoreStats(BaseModel):
     """Represent aggregate statistics for the local vector store.
-    
+
     Attributes:
         total_docs (int): Stored value on the VectorStoreStats instance.
         avg_content_length (float): Stored value on the VectorStoreStats instance.
     """
+
     total_docs: int
     avg_content_length: float
 
 
 class RunSummary(BaseModel):
     """Represent summary metadata for a recorded orchestration run.
-    
+
     Attributes:
         run_id (str): Stored value on the RunSummary instance.
         start_time (str): Stored value on the RunSummary instance.
         end_time (str): Stored value on the RunSummary instance.
         total_events (int): Stored value on the RunSummary instance.
     """
+
     run_id: str
     start_time: str
     end_time: str
@@ -184,13 +195,14 @@ class RunSummary(BaseModel):
 
 class ExecuteInstructionRequest(BaseModel):
     """Represent the request body used to execute a CLI-style instruction.
-    
+
     Attributes:
         instruction (str): Stored value on the ExecuteInstructionRequest instance.
         capability (str | None): Stored value on the ExecuteInstructionRequest instance.
         agent (str | None): Stored value on the ExecuteInstructionRequest instance.
         title (str | None): Stored value on the ExecuteInstructionRequest instance.
     """
+
     instruction: str
     capability: str | None = None
     agent: str | None = None
@@ -199,7 +211,7 @@ class ExecuteInstructionRequest(BaseModel):
 
 class ExecuteInstructionResponse(BaseModel):
     """Represent the response returned after executing a CLI-style instruction.
-    
+
     Attributes:
         task_id (str): Stored value on the ExecuteInstructionResponse instance.
         status (str): Stored value on the ExecuteInstructionResponse instance.
@@ -207,6 +219,7 @@ class ExecuteInstructionResponse(BaseModel):
         note_path (str | None): Stored value on the ExecuteInstructionResponse instance.
         error (str | None): Stored value on the ExecuteInstructionResponse instance.
     """
+
     task_id: str
     status: str
     summary: str
@@ -263,11 +276,7 @@ def _list_markdown_files(folder: Path) -> List[str]:
     if not folder.is_dir():
         return []
     return sorted(
-        [
-            f.name
-            for f in folder.iterdir()
-            if f.is_file() and f.suffix == ".md"
-        ]
+        [f.name for f in folder.iterdir() if f.is_file() and f.suffix == ".md"]
     )
 
 
@@ -358,7 +367,7 @@ except Exception as e:
 
 async def startup_event():
     """Log FastAPI startup status for the dashboard service.
-    
+
     Returns:
         None: This coroutine reports startup status through the configured logger.
     """
@@ -396,30 +405,26 @@ async def health() -> Dict[str, Any]:
 @app.get("/api/agents", response_model=List[AgentResponse])
 async def get_agents(_key: None = Depends(_require_api_key)):
     """Return the registered agents exposed by the dashboard API.
-    
+
     Args:
         _key (None): Auth dependency result injected by FastAPI.
-    
+
     Returns:
         List[AgentResponse]: Registered agents loaded from the registry database.
     """
     conn = _connect_db(AGENT_REGISTRY_DB)
     try:
-        rows = conn.execute(
-            """
+        rows = conn.execute("""
             SELECT name, capabilities
             FROM agents
             ORDER BY name ASC
-            """
-        ).fetchall()
+            """).fetchall()
         agents: List[AgentResponse] = []
         for row in rows:
             capabilities = _parse_json(row["capabilities"], [])
             if not isinstance(capabilities, list):
                 capabilities = []
-            agents.append(
-                AgentResponse(name=row["name"], capabilities=capabilities)
-            )
+            agents.append(AgentResponse(name=row["name"], capabilities=capabilities))
         return agents
     except Exception as e:
         logger.error("Error fetching agents: %s", _sanitize_for_log(e))
@@ -431,10 +436,10 @@ async def get_agents(_key: None = Depends(_require_api_key)):
 @app.get("/api/tasks")
 async def get_tasks(_key: None = Depends(_require_api_key)):
     """Return pending task notes from Obsidian or the SQLite fallback mode.
-    
+
     Args:
         _key (None): Auth dependency result injected by FastAPI.
-    
+
     Returns:
         list[dict[str, Any]]: Serialized task records available for execution.
     """
@@ -466,11 +471,11 @@ async def get_tasks(_key: None = Depends(_require_api_key)):
 @app.post("/api/tasks", status_code=201)
 async def create_task(task_data: TaskData, _key: None = Depends(_require_api_key)):
     """Create a new task note and return its routing metadata.
-    
+
     Args:
         task_data (TaskData): Structured task payload to persist in Obsidian.
         _key (None): Auth dependency result injected by FastAPI.
-    
+
     Returns:
         dict[str, Any]: Metadata describing the created task note and resolved capability.
     """
@@ -494,10 +499,10 @@ async def create_task(task_data: TaskData, _key: None = Depends(_require_api_key
 @app.get("/api/reports", response_model=List[ReportSummary])
 async def get_reports(_key: None = Depends(_require_api_key)):
     """Return summary metadata for stored agent reports.
-    
+
     Args:
         _key (None): Auth dependency result injected by FastAPI.
-    
+
     Returns:
         List[ReportSummary]: Report descriptors available in the output directory.
     """
@@ -554,11 +559,11 @@ async def get_reports(_key: None = Depends(_require_api_key)):
 @app.get("/api/reports/{filename:path}")
 async def get_report_content(filename: str, _key: None = Depends(_require_api_key)):
     """Return the markdown content for a stored report.
-    
+
     Args:
         filename (str): Report filename to load from the output directory.
         _key (None): Auth dependency result injected by FastAPI.
-    
+
     Returns:
         dict[str, str]: Report filename and rendered markdown content.
     """
@@ -593,11 +598,11 @@ async def execute_pending_task(
     task_path: Dict[str, str], _key: None = Depends(_require_api_key)
 ):
     """Execute a specific pending task note identified by its relative path.
-    
+
     Args:
         task_path (Dict[str, str]): Request payload containing the task note path.
         _key (None): Auth dependency result injected by FastAPI.
-    
+
     Returns:
         dict[str, Any]: Execution status message and the orchestrator result payload.
     """
@@ -675,10 +680,10 @@ async def execute_pending_task(
 @app.post("/api/execute-all-pending")
 async def execute_all_pending_tasks(_key: None = Depends(_require_api_key)):
     """Execute every pending task discovered in the input directory.
-    
+
     Args:
         _key (None): Auth dependency result injected by FastAPI.
-    
+
     Returns:
         dict[str, Any]: Batch execution summary returned by the orchestrator.
     """
@@ -699,10 +704,10 @@ async def execute_all_pending_tasks(_key: None = Depends(_require_api_key)):
 @app.get("/api/db/agents", response_model=List[AgentScore])
 async def get_agent_scores(_key: None = Depends(_require_api_key)):
     """Return score and capability data for all registered agents.
-    
+
     Args:
         _key (None): Auth dependency result injected by FastAPI.
-    
+
     Returns:
         List[AgentScore]: Registry score records formatted for the dashboard.
     """
@@ -749,10 +754,10 @@ async def get_agent_scores(_key: None = Depends(_require_api_key)):
 @app.get("/api/db/hebbian/stats", response_model=HebbianStats)
 async def get_hebbian_stats(_key: None = Depends(_require_api_key)):
     """Return aggregate Hebbian-network statistics.
-    
+
     Args:
         _key (None): Auth dependency result injected by FastAPI.
-    
+
     Returns:
         HebbianStats: Aggregate counts and success-rate metrics for the network.
     """
@@ -797,11 +802,11 @@ async def get_hebbian_connections(
     limit: int = 50, _key: None = Depends(_require_api_key)
 ):
     """Return the strongest Hebbian connections ordered by weight.
-    
+
     Args:
         limit (int): Maximum number of connection rows to return.
         _key (None): Auth dependency result injected by FastAPI.
-    
+
     Returns:
         List[HebbianConnection]: Ranked Hebbian connection records for inspection.
     """
@@ -852,11 +857,11 @@ async def get_agent_hebbian_stats(
     agent_name: str, _key: None = Depends(_require_api_key)
 ):
     """Return Hebbian statistics for a single agent node.
-    
+
     Args:
         agent_name (str): Agent node to inspect in the Hebbian graph.
         _key (None): Auth dependency result injected by FastAPI.
-    
+
     Returns:
         dict[str, Any]: Aggregate weights and strongest connections for the agent.
     """
@@ -914,10 +919,10 @@ async def get_agent_hebbian_stats(
 @app.get("/api/db/vectors/stats", response_model=VectorStoreStats)
 async def get_vector_stats(_key: None = Depends(_require_api_key)):
     """Return aggregate statistics for the vector store database.
-    
+
     Args:
         _key (None): Auth dependency result injected by FastAPI.
-    
+
     Returns:
         VectorStoreStats: Document-count and average-content metrics for the store.
     """
@@ -947,12 +952,12 @@ async def list_vectors(
     limit: int = 100, offset: int = 0, _key: None = Depends(_require_api_key)
 ):
     """Return paginated vector-store records for dashboard inspection.
-    
+
     Args:
         limit (int): Maximum number of vector rows to return.
         offset (int): Zero-based offset for paginated browsing.
         _key (None): Auth dependency result injected by FastAPI.
-    
+
     Returns:
         list[dict[str, Any]]: Paginated vector records with metadata and content previews.
     """
@@ -994,11 +999,11 @@ async def list_vectors(
 @app.get("/api/db/runs", response_model=List[RunSummary])
 async def get_runs(limit: int = 20, _key: None = Depends(_require_api_key)):
     """Return recent orchestration runs with summary metadata.
-    
+
     Args:
         limit (int): Maximum number of runs to return.
         _key (None): Auth dependency result injected by FastAPI.
-    
+
     Returns:
         List[RunSummary]: Recent run summaries ordered by recency.
     """
@@ -1042,12 +1047,12 @@ async def get_run_events_endpoint(
     run_id: str, event_type: str | None = None, _key: None = Depends(_require_api_key)
 ):
     """Return the recorded events for a specific orchestration run.
-    
+
     Args:
         run_id (str): Identifier of the run to inspect.
         event_type (str | None): Optional event-type filter.
         _key (None): Auth dependency result injected by FastAPI.
-    
+
     Returns:
         list[dict[str, Any]]: Serialized run events ordered by creation time.
     """
@@ -1099,11 +1104,11 @@ async def execute_instruction(
     request: ExecuteInstructionRequest, _key: None = Depends(_require_api_key)
 ):
     """Execute a CLI-style instruction through the orchestrator.
-    
+
     Args:
         request (ExecuteInstructionRequest): Instruction payload submitted by the client.
         _key (None): Auth dependency result injected by FastAPI.
-    
+
     Returns:
         ExecuteInstructionResponse: Structured execution status, summary, and note metadata.
     """
@@ -1114,8 +1119,8 @@ async def execute_instruction(
         raise HTTPException(status_code=400, detail="Instruction cannot be empty.")
 
     try:
-        from datetime import datetime
         import time
+        from datetime import datetime
 
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         task_id = f"user_instruction_{timestamp}"

@@ -5,18 +5,20 @@ import sys
 sys.modules.pop("src.agents.artemis.reflection", None)
 
 import pytest
-from src.agents.artemis.reflection import ConceptGraph, ConceptNode, ReflectionEngine
+
+from src.agents.artemis.reflection import (ConceptGraph, ConceptNode,
+                                           ReflectionEngine)
 
 
 # ---------------------------------------------------------------------------
 # ConceptNode
 # ---------------------------------------------------------------------------
 class TestConceptNode:
-    """Provide the TestConceptNode abstraction used by this module.
-    """
+    """Provide the TestConceptNode abstraction used by this module."""
+
     def test_defaults(self):
         """Test that defaults.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -29,7 +31,7 @@ class TestConceptNode:
 
     def test_add_context(self):
         """Test that add context.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -40,7 +42,7 @@ class TestConceptNode:
 
     def test_multiple_contexts(self):
         """Test that multiple contexts.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -52,7 +54,7 @@ class TestConceptNode:
 
     def test_relate_to(self):
         """Test that relate to.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -64,7 +66,7 @@ class TestConceptNode:
 
     def test_relate_to_dedup(self):
         """Test that relate to dedup.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -78,13 +80,12 @@ class TestConceptNode:
 # ConceptGraph
 # ---------------------------------------------------------------------------
 class TestConceptGraph:
-    """Provide the TestConceptGraph abstraction used by this module.
-    """
+    """Provide the TestConceptGraph abstraction used by this module."""
 
     @pytest.fixture
     def graph(self):
         """Graph.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -92,10 +93,10 @@ class TestConceptGraph:
 
     def test_add_concept_new(self, graph):
         """Test that add concept new.
-        
+
         Args:
             graph: Graph value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -105,10 +106,10 @@ class TestConceptGraph:
 
     def test_add_concept_existing(self, graph):
         """Test that add concept existing.
-        
+
         Args:
             graph: Graph value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -118,10 +119,10 @@ class TestConceptGraph:
 
     def test_relate_concepts(self, graph):
         """Test that relate concepts.
-        
+
         Args:
             graph: Graph value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -134,10 +135,10 @@ class TestConceptGraph:
 
     def test_relate_nonexistent_concepts(self, graph):
         """Test that relate nonexistent concepts.
-        
+
         Args:
             graph: Graph value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -147,10 +148,10 @@ class TestConceptGraph:
 
     def test_get_top_concepts(self, graph):
         """Test that get top concepts.
-        
+
         Args:
             graph: Graph value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -164,10 +165,10 @@ class TestConceptGraph:
 
     def test_get_top_concepts_by_frequency(self, graph):
         """Test that get top concepts by frequency.
-        
+
         Args:
             graph: Graph value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -180,10 +181,10 @@ class TestConceptGraph:
 
     def test_find_concept_clusters_connected(self, graph):
         """Test that find concept clusters connected.
-        
+
         Args:
             graph: Graph value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -198,10 +199,10 @@ class TestConceptGraph:
 
     def test_find_concept_clusters_disjoint(self, graph):
         """Test that find concept clusters disjoint.
-        
+
         Args:
             graph: Graph value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -216,10 +217,10 @@ class TestConceptGraph:
 
     def test_find_concept_clusters_singletons_excluded(self, graph):
         """Test that find concept clusters singletons excluded.
-        
+
         Args:
             graph: Graph value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -232,13 +233,12 @@ class TestConceptGraph:
 # ReflectionEngine
 # ---------------------------------------------------------------------------
 class TestReflectionEngine:
-    """Provide the TestReflectionEngine abstraction used by this module.
-    """
+    """Provide the TestReflectionEngine abstraction used by this module."""
 
     @pytest.fixture
     def engine(self):
         """Engine.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -246,10 +246,10 @@ class TestReflectionEngine:
 
     def test_initial_state(self, engine):
         """Test that initial state.
-        
+
         Args:
             engine: Engine value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -258,10 +258,10 @@ class TestReflectionEngine:
 
     def test_add_conversation_extracts_concepts(self, engine):
         """Test that add conversation extracts concepts.
-        
+
         Args:
             engine: Engine value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -271,10 +271,10 @@ class TestReflectionEngine:
 
     def test_add_conversation_tracks_history(self, engine):
         """Test that add conversation tracks history.
-        
+
         Args:
             engine: Engine value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -284,10 +284,10 @@ class TestReflectionEngine:
 
     def test_concept_extraction_filters_stopwords(self, engine):
         """Test that concept extraction filters stopwords.
-        
+
         Args:
             engine: Engine value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -296,10 +296,10 @@ class TestReflectionEngine:
 
     def test_concept_extraction_filters_short_words(self, engine):
         """Test that concept extraction filters short words.
-        
+
         Args:
             engine: Engine value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -308,10 +308,10 @@ class TestReflectionEngine:
 
     def test_concept_extraction_deduplicates(self, engine):
         """Test that concept extraction deduplicates.
-        
+
         Args:
             engine: Engine value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -320,10 +320,10 @@ class TestReflectionEngine:
 
     def test_relationship_identification(self, engine):
         """Test that relationship identification.
-        
+
         Args:
             engine: Engine value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -335,10 +335,10 @@ class TestReflectionEngine:
 
     def test_synthesize_empty(self, engine):
         """Test that synthesize empty.
-        
+
         Args:
             engine: Engine value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -347,10 +347,10 @@ class TestReflectionEngine:
 
     def test_synthesize_with_conversations(self, engine):
         """Test that synthesize with conversations.
-        
+
         Args:
             engine: Engine value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -362,10 +362,10 @@ class TestReflectionEngine:
 
     def test_synthesize_with_focus(self, engine):
         """Test that synthesize with focus.
-        
+
         Args:
             engine: Engine value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -375,10 +375,10 @@ class TestReflectionEngine:
 
     def test_synthesize_with_no_focus_match(self, engine):
         """Test that synthesize with no focus match.
-        
+
         Args:
             engine: Engine value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -388,10 +388,10 @@ class TestReflectionEngine:
 
     def test_build_narrative_empty(self, engine):
         """Test that build narrative empty.
-        
+
         Args:
             engine: Engine value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -400,10 +400,10 @@ class TestReflectionEngine:
 
     def test_build_narrative_with_concepts(self, engine):
         """Test that build narrative with concepts.
-        
+
         Args:
             engine: Engine value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -414,10 +414,10 @@ class TestReflectionEngine:
 
     def test_build_narrative_with_clusters(self, engine):
         """Test that build narrative with clusters.
-        
+
         Args:
             engine: Engine value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """

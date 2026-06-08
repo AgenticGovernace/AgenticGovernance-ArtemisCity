@@ -21,12 +21,12 @@ from typing import Dict, List, Optional
 
 def clamp(value: float, minimum: float = 0.0, maximum: float = 1.0) -> float:
     """Clamp a numeric value into the inclusive [minimum, maximum] range.
-    
+
     Args:
         value (float): Value to sanitize, persist, or transform.
         minimum (float): Minimum value used by this operation.
         maximum (float): Maximum value used by this operation.
-    
+
     Returns:
         float: Numeric result produced by the operation.
     """
@@ -48,12 +48,12 @@ class ZoneState:
         self, stability: float = 0.0, load: float = 0.0, risk: float = 0.0
     ) -> None:
         """Adjust metrics while keeping them within sane bounds.
-        
+
         Args:
             stability (float): Stability value used by this operation.
             load (float): Load value used by this operation.
             risk (float): Risk value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -63,7 +63,7 @@ class ZoneState:
 
     def as_dict(self) -> Dict[str, float]:
         """As dict.
-        
+
         Returns:
             Dict[str, float]: Dictionary containing the resulting data.
         """
@@ -89,12 +89,12 @@ class Resident:
         self, morale: float = 0.0, energy: float = 0.0, trust: float = 0.0
     ) -> None:
         """Apply delta.
-        
+
         Args:
             morale (float): Morale value used by this operation.
             energy (float): Energy value used by this operation.
             trust (float): Trust value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -104,7 +104,7 @@ class Resident:
 
     def as_dict(self) -> Dict[str, float]:
         """As dict.
-        
+
         Returns:
             Dict[str, float]: Dictionary containing the resulting data.
         """
@@ -129,10 +129,10 @@ class CityEvent:
 
     def apply_to_zone(self, zone_state: ZoneState) -> None:
         """Modify zone metrics based on severity and polarity.
-        
+
         Args:
             zone_state (ZoneState): Zone state value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -178,13 +178,13 @@ class CitySimulation:
         json_out: Optional[str] = None,
     ) -> Dict[str, object]:
         """Advance the simulation for `ticks` steps.
-        
+
         Args:
             ticks (int): Ticks value used by this operation.
             verbose (bool): Verbose value used by this operation.
             summary_every (int): Summary every value used by this operation.
             json_out (Optional[str]): Json out value used by this operation.
-        
+
         Returns:
             Dict[str, object]: Dictionary containing the resulting data.
         """

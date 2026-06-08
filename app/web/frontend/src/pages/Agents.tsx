@@ -1,34 +1,22 @@
-/**
- * Agents Page Component
- *
- * Displays a list of all registered agents in the Artemis City system.
- * Fetches agent data from the MCP API and renders them in a list view.
- *
- * @module Agents
- */
+import {
+  Alert,
+  AlertIcon,
+  Box,
+  Heading,
+  List,
+  ListIcon,
+  ListItem,
+  Spinner,
+  Text,
+} from '@chakra-ui/react';
+import React, { useEffect, useState } from 'react';
+import { fetchAgents } from '../api';
+import { FaStar } from 'react-icons/fa'; // Example icon
 
-import { Box, Heading, Text, Spinner, Alert, AlertIcon, List, ListItem, ListIcon } from '@chakra-ui/react';
-import { useEffect, useState } from 'react';
-import { fetchAgents } from '../api.ts';
-import { FaStar } from 'react-icons/fa';
-
-/**
- * Interface representing an agent entity.
- */
 interface Agent {
-  /** The unique name identifier of the agent */
   name: string;
 }
 
-/**
- * Agents list page component.
- *
- * Fetches and displays all registered agents from the MCP server.
- * Shows loading spinner while fetching, error alerts on failure,
- * and an empty state message when no agents are found.
- *
- * @returns The rendered agents page
- */
 const Agents = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,7 +58,9 @@ const Agents = () => {
 
   return (
     <Box>
-      <Heading as="h2" size="xl" mb={4}>Agents</Heading>
+      <Heading as="h2" size="xl" mb={4}>
+        Agents
+      </Heading>
       {agents.length === 0 ? (
         <Text>No agents found.</Text>
       ) : (
@@ -78,7 +68,9 @@ const Agents = () => {
           {agents.map((agent) => (
             <ListItem key={agent.name}>
               <ListIcon as={FaStar} color="green.500" />
-              <Text as="span" fontWeight="bold">{agent.name}</Text>
+              <Text as="span" fontWeight="bold">
+                {agent.name}
+              </Text>
             </ListItem>
           ))}
         </List>

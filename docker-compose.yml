@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Core Artemis Services
   #
@@ -15,6 +13,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile-python
+    pull_policy: build
     ports:
       - "8000:8000"
     environment:
@@ -49,10 +48,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    pull_policy: build
     ports:
       - "4000:4000"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=Development
       - API_PORT=4000
       - ARTEMIS_KERNEL_URL=http://kernel:8000
       - ARTEMIS_API_KEY_DEFAULT=${ARTEMIS_API_KEY_DEFAULT:?ARTEMIS_API_KEY_DEFAULT must be set}
@@ -124,11 +124,7 @@ services:
       - prometheus
     restart: unless-stopped
 
-volumes:
-  redis-data:
-  vector-data:
-  prometheus-data:
-  grafana-data:
+volumes: { redis-data:  , vector-data:  , prometheus-data:  , grafana-data: }
 
 networks:
   artemis:

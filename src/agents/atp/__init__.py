@@ -18,8 +18,8 @@ from typing import Optional
 
 
 class ATPMode(str, Enum):
-    """Provide the ATPMode abstraction used by this module.
-    """
+    """Provide the ATPMode abstraction used by this module."""
+
     BUILD = "BUILD"
     REVIEW = "REVIEW"
     ORGANIZE = "ORGANIZE"
@@ -30,8 +30,8 @@ class ATPMode(str, Enum):
 
 
 class ATPPriority(str, Enum):
-    """Provide the ATPPriority abstraction used by this module.
-    """
+    """Provide the ATPPriority abstraction used by this module."""
+
     CRITICAL = "CRITICAL"
     HIGH = "HIGH"
     NORMAL = "NORMAL"
@@ -39,8 +39,8 @@ class ATPPriority(str, Enum):
 
 
 class ATPActionType(str, Enum):
-    """Provide the ATPActionType abstraction used by this module.
-    """
+    """Provide the ATPActionType abstraction used by this module."""
+
     SUMMARIZE = "SUMMARIZE"
     SCAFFOLD = "SCAFFOLD"
     EXECUTE = "EXECUTE"
@@ -50,7 +50,7 @@ class ATPActionType(str, Enum):
 @dataclass
 class ATPMessage:
     """Provide the ATPMessage abstraction used by this module.
-    
+
     Attributes:
         mode (ATPMode): Stored value on the ATPMessage instance.
         context (str): Stored value on the ATPMessage instance.
@@ -60,6 +60,7 @@ class ATPMessage:
         special_notes (str): Stored value on the ATPMessage instance.
         content (str): Stored value on the ATPMessage instance.
     """
+
     mode: ATPMode
     context: str
     priority: ATPPriority
@@ -72,11 +73,12 @@ class ATPMessage:
 @dataclass
 class ATPValidationResult:
     """Represent the result data produced by the ATPValidationResult workflow.
-    
+
     Attributes:
         is_valid (bool): Stored value on the ATPValidationResult instance.
         error (Optional[str]): Stored value on the ATPValidationResult instance.
     """
+
     is_valid: bool
     error: Optional[str] = None
 
@@ -86,10 +88,10 @@ class ATPParser:
 
     def parse(self, text: str) -> Optional[ATPMessage]:
         """Parse.
-        
+
         Args:
             text (str): Text value to parse, search, or transform.
-        
+
         Returns:
             Optional[ATPMessage]: Matching value when available; otherwise None.
         """
@@ -142,10 +144,10 @@ class ATPValidator:
 
     def validate(self, message: ATPMessage) -> ATPValidationResult:
         """Validate operation.
-        
+
         Args:
             message (ATPMessage): ATP or status message handled by the function.
-        
+
         Returns:
             ATPValidationResult: Resulting ATPValidationResult value produced by the operation.
         """

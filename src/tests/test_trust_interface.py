@@ -4,25 +4,23 @@ import sys
 
 sys.modules.pop("src.integration.trust_interface", None)
 
-import pytest
 from datetime import datetime, timedelta
-from src.integration.trust_interface import (
-    TrustInterface,
-    TrustLevel,
-    TrustScore,
-    get_trust_interface,
-)
+
+import pytest
+
+from src.integration.trust_interface import (TrustInterface, TrustLevel,
+                                             TrustScore, get_trust_interface)
 
 
 # ---------------------------------------------------------------------------
 # TrustLevel enum
 # ---------------------------------------------------------------------------
 class TestTrustLevel:
-    """Provide the TestTrustLevel abstraction used by this module.
-    """
+    """Provide the TestTrustLevel abstraction used by this module."""
+
     def test_values(self):
         """Test that values.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -37,13 +35,12 @@ class TestTrustLevel:
 # TrustScore dataclass
 # ---------------------------------------------------------------------------
 class TestTrustScore:
-    """Provide the TestTrustScore abstraction used by this module.
-    """
+    """Provide the TestTrustScore abstraction used by this module."""
 
     @pytest.fixture
     def score(self):
         """Score.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -57,10 +54,10 @@ class TestTrustScore:
 
     def test_defaults(self, score):
         """Test that defaults.
-        
+
         Args:
             score: Score value being computed or persisted.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -71,10 +68,10 @@ class TestTrustScore:
     def test_apply_decay_no_time_elapsed(self, score):
         # Same day → 0 days elapsed → no decay
         """Test that apply decay no time elapsed.
-        
+
         Args:
             score: Score value being computed or persisted.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -83,7 +80,7 @@ class TestTrustScore:
 
     def test_apply_decay_after_days(self):
         """Test that apply decay after days.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -101,7 +98,7 @@ class TestTrustScore:
 
     def test_decay_respects_min_floor(self):
         """Test that decay respects min floor.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -119,10 +116,10 @@ class TestTrustScore:
 
     def test_reinforce(self, score):
         """Test that reinforce.
-        
+
         Args:
             score: Score value being computed or persisted.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -133,7 +130,7 @@ class TestTrustScore:
 
     def test_reinforce_caps_at_one(self):
         """Test that reinforce caps at one.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -149,10 +146,10 @@ class TestTrustScore:
 
     def test_penalize(self, score):
         """Test that penalize.
-        
+
         Args:
             score: Score value being computed or persisted.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -163,7 +160,7 @@ class TestTrustScore:
 
     def test_penalize_floors_at_zero(self):
         """Test that penalize floors at zero.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -179,7 +176,7 @@ class TestTrustScore:
 
     def test_update_level_transitions(self):
         """Test that update level transitions.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -215,13 +212,12 @@ class TestTrustScore:
 # TrustInterface
 # ---------------------------------------------------------------------------
 class TestTrustInterface:
-    """Provide the TestTrustInterface abstraction used by this module.
-    """
+    """Provide the TestTrustInterface abstraction used by this module."""
 
     @pytest.fixture
     def iface(self):
         """Iface.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -229,10 +225,10 @@ class TestTrustInterface:
 
     def test_default_agents_initialized(self, iface):
         """Test that default agents initialized.
-        
+
         Args:
             iface: Iface value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -244,10 +240,10 @@ class TestTrustInterface:
         # uses "type:id" keys for NEW lookups.  The "artemis" key was
         # seeded directly in _initialize_default_agents.
         """Test that get trust score existing.
-        
+
         Args:
             iface: Iface value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -257,10 +253,10 @@ class TestTrustInterface:
 
     def test_get_trust_score_new_agent(self, iface):
         """Test that get trust score new agent.
-        
+
         Args:
             iface: Iface value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -270,10 +266,10 @@ class TestTrustInterface:
 
     def test_get_trust_score_new_memory(self, iface):
         """Test that get trust score new memory.
-        
+
         Args:
             iface: Iface value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -283,10 +279,10 @@ class TestTrustInterface:
     def test_can_perform_operation_allowed(self, iface):
         # Use a new agent created via get_trust_score (keyed correctly)
         """Test that can perform operation allowed.
-        
+
         Args:
             iface: Iface value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -298,10 +294,10 @@ class TestTrustInterface:
     def test_can_perform_operation_denied(self, iface):
         # Force low trust
         """Test that can perform operation denied.
-        
+
         Args:
             iface: Iface value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -319,10 +315,10 @@ class TestTrustInterface:
 
     def test_untrusted_no_operations(self, iface):
         """Test that untrusted no operations.
-        
+
         Args:
             iface: Iface value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -338,10 +334,10 @@ class TestTrustInterface:
 
     def test_record_success(self, iface):
         """Test that record success.
-        
+
         Args:
             iface: Iface value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -353,10 +349,10 @@ class TestTrustInterface:
 
     def test_record_failure(self, iface):
         """Test that record failure.
-        
+
         Args:
             iface: Iface value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -368,10 +364,10 @@ class TestTrustInterface:
 
     def test_get_trust_report(self, iface):
         """Test that get trust report.
-        
+
         Args:
             iface: Iface value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -383,10 +379,10 @@ class TestTrustInterface:
 
     def test_filter_by_trust(self, iface):
         """Test that filter by trust.
-        
+
         Args:
             iface: Iface value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -409,10 +405,10 @@ class TestTrustInterface:
 
     def test_filter_by_trust_no_entity_id(self, iface):
         """Test that filter by trust no entity id.
-        
+
         Args:
             iface: Iface value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -425,11 +421,11 @@ class TestTrustInterface:
 # Singleton
 # ---------------------------------------------------------------------------
 class TestGetTrustInterface:
-    """Provide the TestGetTrustInterface abstraction used by this module.
-    """
+    """Provide the TestGetTrustInterface abstraction used by this module."""
+
     def test_singleton(self):
         """Test that singleton.
-        
+
         Returns:
             None: This function does not return a value.
         """

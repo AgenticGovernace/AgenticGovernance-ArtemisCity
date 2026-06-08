@@ -6,10 +6,10 @@ from src.mcp.vector_store import LocalVectorStore
 def simple_embedding(text: str):
     # Deterministic small embedding for tests
     """Simple embedding.
-    
+
     Args:
         text (str): Text value to parse, search, or transform.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -19,10 +19,10 @@ def simple_embedding(text: str):
 @pytest.fixture
 def vector_store(tmp_path):
     """Vector store.
-    
+
     Args:
         tmp_path: Tmp path value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -32,10 +32,10 @@ def vector_store(tmp_path):
 
 def test_upsert_and_count(vector_store):
     """Test that upsert and count.
-    
+
     Args:
         vector_store: Vector store value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -46,10 +46,10 @@ def test_upsert_and_count(vector_store):
 
 def test_query_orders_by_similarity(vector_store):
     """Test that query orders by similarity.
-    
+
     Args:
         vector_store: Vector store value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -65,10 +65,10 @@ def test_query_orders_by_similarity(vector_store):
 
 def test_delete(vector_store):
     """Test that delete.
-    
+
     Args:
         vector_store: Vector store value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -79,10 +79,10 @@ def test_delete(vector_store):
 
 def test_query_can_include_content(vector_store):
     """Test that query can include content.
-    
+
     Args:
         vector_store: Vector store value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """

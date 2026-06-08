@@ -6,7 +6,7 @@
 
 click>=8.1.0
 datasets>=2.18.0
-# django>=5.2.15  # omitted; see header
+django>=5.2.15  # omitted; see header
 docker>=7.1.0
 entrypoints>=0.4.0
 fastapi>=0.109.1
@@ -28,4 +28,4 @@ requests>=2.33.0
 rich>=13.7.0
 sqlalchemy>=1.4.0
 uvicorn[standard]>=0.15.0
-# vite>=1.5.2  # omitted; see header
+vite>=1.5.2  # omitted; see header

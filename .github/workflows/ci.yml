@@ -33,7 +33,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        # pyproject requires-python is ">=3.11,<3.15".
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -45,7 +46,7 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
-          pip install pyyaml
+          pip install pyyaml pytest
       - name: Validate environment configs
         run: |
           python - <<'PY'
@@ -57,5 +58,4 @@ jobs:
           print("env configs OK")
           PY
       - name: Run tests
-        run: |
-          python -m pytest src/tests
+        run: python -m pytest src/tests

@@ -1,6 +1,7 @@
 """Tests for the base agent (src/agents/base_agent.py)."""
 
 import pytest
+
 from src.agents.base_agent import BaseAgent
 
 
@@ -12,11 +13,11 @@ class _ConcreteAgent(BaseAgent):
 
 
 class TestBaseAgentConstruction:
-    """Provide the TestBaseAgentConstruction abstraction used by this module.
-    """
+    """Provide the TestBaseAgentConstruction abstraction used by this module."""
+
     def test_basic(self):
         """Test that basic.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -26,7 +27,7 @@ class TestBaseAgentConstruction:
 
     def test_default_capabilities(self):
         """Test that default capabilities.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -35,7 +36,7 @@ class TestBaseAgentConstruction:
 
     def test_empty_name_raises(self):
         """Test that empty name raises.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -44,7 +45,7 @@ class TestBaseAgentConstruction:
 
     def test_whitespace_name_raises(self):
         """Test that whitespace name raises.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -53,7 +54,7 @@ class TestBaseAgentConstruction:
 
     def test_none_name_raises(self):
         """Test that none name raises.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -62,13 +63,12 @@ class TestBaseAgentConstruction:
 
 
 class TestBaseAgentBehaviour:
-    """Provide the TestBaseAgentBehaviour abstraction used by this module.
-    """
+    """Provide the TestBaseAgentBehaviour abstraction used by this module."""
 
     @pytest.fixture
     def agent(self):
         """Agent.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -76,10 +76,10 @@ class TestBaseAgentBehaviour:
 
     def test_perform_task(self, agent):
         """Test that perform task.
-        
+
         Args:
             agent: Agent instance or agent identifier associated with the operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -88,10 +88,10 @@ class TestBaseAgentBehaviour:
 
     def test_validate_task_context_dict(self, agent):
         """Test that validate task context dict.
-        
+
         Args:
             agent: Agent instance or agent identifier associated with the operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -99,10 +99,10 @@ class TestBaseAgentBehaviour:
 
     def test_validate_task_context_non_dict(self, agent):
         """Test that validate task context non dict.
-        
+
         Args:
             agent: Agent instance or agent identifier associated with the operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -112,10 +112,10 @@ class TestBaseAgentBehaviour:
     def test_report_status(self, agent):
         # Should not raise
         """Test that report status.
-        
+
         Args:
             agent: Agent instance or agent identifier associated with the operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -123,10 +123,10 @@ class TestBaseAgentBehaviour:
 
     def test_logger_property(self, agent):
         """Test that logger property.
-        
+
         Args:
             agent: Agent instance or agent identifier associated with the operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -134,10 +134,10 @@ class TestBaseAgentBehaviour:
 
     def test_repr(self, agent):
         """Test that repr.
-        
+
         Args:
             agent: Agent instance or agent identifier associated with the operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -148,11 +148,11 @@ class TestBaseAgentBehaviour:
 
 
 class TestBaseAgentAbstract:
-    """Provide the TestBaseAgentAbstract abstraction used by this module.
-    """
+    """Provide the TestBaseAgentAbstract abstraction used by this module."""
+
     def test_cannot_instantiate_directly(self):
         """Test that cannot instantiate directly.
-        
+
         Returns:
             None: This function does not return a value.
         """

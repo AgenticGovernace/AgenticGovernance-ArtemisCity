@@ -1,5 +1,5 @@
-import time
 import random
+import time
 
 
 def simulate_mail_delivery(sender, recipient, message):

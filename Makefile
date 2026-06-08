@@ -106,11 +106,19 @@ secrets: ## Check for accidentally committed secrets
 
 test: ## Run tests (when available)
 	@echo "Running tests..."
-	pytest src/tests/ -v || echo "WARNING: No tests directory found"
+	@if [ ! -d src/tests ]; then \
+		echo "WARNING: No tests directory found"; \
+	else \
+		pytest src/tests/ -v; \
+	fi
 
 test-cov: ## Run tests with coverage
 	@echo "Running tests with coverage..."
-	pytest src/tests/ --cov=src --cov=app --cov-report=html --cov-report=term || echo "WARNING: No tests directory found"
+	@if [ ! -d src/tests ]; then \
+		echo "WARNING: No tests directory found"; \
+	else \
+		pytest src/tests/ --cov=src --cov=app --cov-report=html --cov-report=term; \
+	fi
 
 # ============================================
 # PRE-COMMIT

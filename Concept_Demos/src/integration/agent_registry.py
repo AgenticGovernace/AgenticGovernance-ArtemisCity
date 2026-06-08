@@ -1,11 +1,11 @@
 # src/integration/agent_registry.py
 
-from dataclasses import dataclass
-from typing import Dict, List
 import json
 import os
 import sqlite3
 import time
+from dataclasses import dataclass
+from typing import Dict, List
 
 try:
     from agents.base_agent import BaseAgent
@@ -18,12 +18,13 @@ except ImportError:
 @dataclass
 class AgentScore:
     """Provide the AgentScore abstraction used by this module.
-    
+
     Attributes:
         alignment (float): Stored value on the AgentScore instance.
         accuracy (float): Stored value on the AgentScore instance.
         efficiency (float): Stored value on the AgentScore instance.
     """
+
     alignment: float  # 0.0-1.0 policy adherence
     accuracy: float  # 0.0-1.0 output quality
     efficiency: float  # 0.0-1.0 speed/cost metric
@@ -31,7 +32,7 @@ class AgentScore:
     @property
     def composite_score(self) -> float:
         """Weighted composite score
-        
+
         Returns:
             float: Numeric result produced by the operation.
         """
@@ -75,7 +76,7 @@ class AgentRegistryStore:
 
     def load_scores(self) -> Dict[str, AgentScore]:
         """Load persisted scores for all agents.
-        
+
         Returns:
             Dict[str, AgentScore]: Dictionary containing the resulting data.
         """
@@ -97,11 +98,11 @@ class AgentRegistryStore:
 
     def upsert_agent(self, agent: BaseAgent, default_score: AgentScore) -> AgentScore:
         """Insert agent metadata if new; return persisted or default score.
-        
+
         Args:
             agent (BaseAgent): Agent instance or agent identifier associated with the operation.
             default_score (AgentScore): Fallback score to persist when no score exists yet.
-        
+
         Returns:
             AgentScore: Resulting AgentScore value produced by the operation.
         """
@@ -159,11 +160,11 @@ class AgentRegistryStore:
 
     def update_score(self, agent_id: str, score: AgentScore):
         """Persist updated score for an agent.
-        
+
         Args:
             agent_id (str): Identifier of the agent being processed.
             score (AgentScore): Score value being computed or persisted.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -186,8 +187,8 @@ class AgentRegistryStore:
 
 
 class AgentRegistry:
-    """Provide the AgentRegistry abstraction used by this module.
-    """
+    """Provide the AgentRegistry abstraction used by this module."""
+
     def __init__(self, db_path: str = "data/agent_registry.db"):
         self.store = AgentRegistryStore(db_path=db_path)
         self.agents: Dict[str, BaseAgent] = {}
@@ -195,10 +196,10 @@ class AgentRegistry:
 
     def register_agent(self, agent: BaseAgent):
         """Registers a new agent.
-        
+
         Args:
             agent (BaseAgent): Agent instance or agent identifier associated with the operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -214,10 +215,10 @@ class AgentRegistry:
 
     def get_agent(self, agent_name: str) -> BaseAgent:
         """Return agent.
-        
+
         Args:
             agent_name (str): Name of the agent involved in the operation.
-        
+
         Returns:
             BaseAgent: Resulting BaseAgent value produced by the operation.
         """
@@ -225,10 +226,10 @@ class AgentRegistry:
 
     def route_task(self, task: dict) -> str:
         """Route task to highest-scoring capable agent
-        
+
         Args:
             task (dict): Task payload being routed or updated.
-        
+
         Returns:
             str: String result produced by the operation.
         """
@@ -258,12 +259,12 @@ class AgentRegistry:
 
     def update_score(self, agent_id: str, dimension: str, delta: float):
         """Update agent score dimension with decay
-        
+
         Args:
             agent_id (str): Identifier of the agent being processed.
             dimension (str): Score dimension to update.
             delta (float): Delta to apply to the selected score dimension.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -289,7 +290,7 @@ class AgentRegistry:
 
     def get_all_agents(self) -> List[BaseAgent]:
         """Return all agents.
-        
+
         Returns:
             List[BaseAgent]: List containing the resulting items.
         """
@@ -297,7 +298,7 @@ class AgentRegistry:
 
     def get_agent_names(self) -> List[str]:
         """Return agent names.
-        
+
         Returns:
             List[str]: List containing the resulting items.
         """
@@ -305,7 +306,7 @@ class AgentRegistry:
 
     def get_all_agents_with_scores(self) -> List[Dict]:
         """Return all agents with their capabilities and performance scores.
-        
+
         Returns:
             List[Dict]: Agent score records sorted by composite score in descending order.
         """

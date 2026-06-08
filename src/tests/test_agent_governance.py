@@ -8,12 +8,10 @@ exclusion of blocked agents from routing.
 import sqlite3
 
 import pytest
+
 from src.agents.base_agent import BaseAgent
-from src.integration.agent_registry import (
-    AgentRegistry,
-    AgentScore,
-    QUARANTINE_THRESHOLD,
-)
+from src.integration.agent_registry import (QUARANTINE_THRESHOLD,
+                                            AgentRegistry, AgentScore)
 
 
 class _StubAgent(BaseAgent):
@@ -24,10 +22,10 @@ class _StubAgent(BaseAgent):
 @pytest.fixture
 def registry(tmp_path):
     """Registry.
-    
+
     Args:
         tmp_path: Tmp path value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -37,10 +35,10 @@ def registry(tmp_path):
 @pytest.fixture
 def alpha(registry):
     """Alpha.
-    
+
     Args:
         registry: Agent registry used to persist and read governance state.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -53,15 +51,15 @@ def alpha(registry):
 # Defaults on registration
 # ---------------------------------------------------------------------------
 class TestGovernanceDefaults:
-    """Provide the TestGovernanceDefaults abstraction used by this module.
-    """
+    """Provide the TestGovernanceDefaults abstraction used by this module."""
+
     def test_new_agent_defaults(self, registry, alpha):
         """Test that new agent defaults.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
             alpha: Alpha value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -73,10 +71,10 @@ class TestGovernanceDefaults:
 
     def test_unknown_agent_state_is_none(self, registry):
         """Test that unknown agent state is none.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -84,11 +82,11 @@ class TestGovernanceDefaults:
 
     def test_not_blocked_by_default(self, registry, alpha):
         """Test that not blocked by default.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
             alpha: Alpha value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -100,15 +98,15 @@ class TestGovernanceDefaults:
 # Violation logging + auto-quarantine
 # ---------------------------------------------------------------------------
 class TestViolations:
-    """Provide the TestViolations abstraction used by this module.
-    """
+    """Provide the TestViolations abstraction used by this module."""
+
     def test_first_violation_logged_not_quarantined(self, registry, alpha):
         """Test that first violation logged not quarantined.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
             alpha: Alpha value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -121,11 +119,11 @@ class TestViolations:
 
     def test_third_violation_quarantines(self, registry, alpha):
         """Test that third violation quarantines.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
             alpha: Alpha value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -141,11 +139,11 @@ class TestViolations:
 
     def test_unknown_violation_type_raises(self, registry, alpha):
         """Test that unknown violation type raises.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
             alpha: Alpha value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -154,10 +152,10 @@ class TestViolations:
 
     def test_violation_on_unknown_agent_raises(self, registry):
         """Test that violation on unknown agent raises.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -166,11 +164,11 @@ class TestViolations:
 
     def test_get_violations_newest_first(self, registry, alpha):
         """Test that get violations newest first.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
             alpha: Alpha value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -183,11 +181,11 @@ class TestViolations:
 
     def test_get_violations_excludes_cleared_by_default(self, registry, alpha):
         """Test that get violations excludes cleared by default.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
             alpha: Alpha value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -201,15 +199,15 @@ class TestViolations:
 # Clearing / override
 # ---------------------------------------------------------------------------
 class TestClearViolations:
-    """Provide the TestClearViolations abstraction used by this module.
-    """
+    """Provide the TestClearViolations abstraction used by this module."""
+
     def test_clear_releases_quarantine(self, registry, alpha):
         """Test that clear releases quarantine.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
             alpha: Alpha value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -226,27 +224,25 @@ class TestClearViolations:
 
     def test_clear_with_tier_override(self, registry, alpha):
         """Test that clear with tier override.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
             alpha: Alpha value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
         registry.record_violation("Alpha", "rate_limit", {})
-        registry.clear_violations(
-            "Alpha", rationale="trusted", override_tier="auto"
-        )
+        registry.clear_violations("Alpha", rationale="trusted", override_tier="auto")
         assert registry.get_governance_state("Alpha")["trust_tier"] == "auto"
 
     def test_clear_with_invalid_tier_raises(self, registry, alpha):
         """Test that clear with invalid tier raises.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
             alpha: Alpha value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -255,12 +251,12 @@ class TestClearViolations:
 
     def test_clear_does_not_reactivate_suspended_agent(self, registry, alpha, tmp_path):
         """clear_violations must not turn a 'suspended' status into 'active'.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
             alpha: Alpha value used by this operation.
             tmp_path: Tmp path value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -268,9 +264,7 @@ class TestClearViolations:
         import sqlite3 as _sqlite
 
         with _sqlite.connect(str(tmp_path / "registry.db")) as conn:
-            conn.execute(
-                "UPDATE agents SET status = 'suspended' WHERE name = 'Alpha'"
-            )
+            conn.execute("UPDATE agents SET status = 'suspended' WHERE name = 'Alpha'")
             conn.commit()
         registry.record_violation("Alpha", "rate_limit", {})
         registry.clear_violations("Alpha", rationale="reviewed")
@@ -284,15 +278,15 @@ class TestClearViolations:
 # Trust tier + score
 # ---------------------------------------------------------------------------
 class TestTrust:
-    """Provide the TestTrust abstraction used by this module.
-    """
+    """Provide the TestTrust abstraction used by this module."""
+
     def test_set_trust_tier(self, registry, alpha):
         """Test that set trust tier.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
             alpha: Alpha value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -301,11 +295,11 @@ class TestTrust:
 
     def test_set_trust_tier_invalid(self, registry, alpha):
         """Test that set trust tier invalid.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
             alpha: Alpha value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -314,11 +308,11 @@ class TestTrust:
 
     def test_set_trust_score_clamped(self, registry, alpha):
         """Test that set trust score clamped.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
             alpha: Alpha value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -332,14 +326,14 @@ class TestTrust:
 # Routing excludes blocked agents
 # ---------------------------------------------------------------------------
 class TestRoutingExcludesBlocked:
-    """Provide the TestRoutingExcludesBlocked abstraction used by this module.
-    """
+    """Provide the TestRoutingExcludesBlocked abstraction used by this module."""
+
     def test_quarantined_agent_excluded(self, registry):
         """Test that quarantined agent excluded.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -355,10 +349,10 @@ class TestRoutingExcludesBlocked:
 
     def test_all_blocked_raises(self, registry):
         """Test that all blocked raises.
-        
+
         Args:
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -374,14 +368,14 @@ class TestRoutingExcludesBlocked:
 # Persistence + migration
 # ---------------------------------------------------------------------------
 class TestPersistenceAndMigration:
-    """Provide the TestPersistenceAndMigration abstraction used by this module.
-    """
+    """Provide the TestPersistenceAndMigration abstraction used by this module."""
+
     def test_governance_state_survives_reload(self, tmp_path):
         """Test that governance state survives reload.
-        
+
         Args:
             tmp_path: Tmp path value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -399,10 +393,10 @@ class TestPersistenceAndMigration:
 
     def test_migration_adds_columns_to_legacy_table(self, tmp_path):
         """A pre-governance agents table is migrated in place on open.
-        
+
         Args:
             tmp_path: Tmp path value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """

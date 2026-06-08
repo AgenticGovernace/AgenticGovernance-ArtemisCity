@@ -24,8 +24,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": [
-    "src"
-  ],
-  "exclude": ["**/* 2.*"]
+  "include": ["src"]
 }

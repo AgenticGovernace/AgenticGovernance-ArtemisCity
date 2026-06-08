@@ -1,16 +1,3 @@
-# ============================================
-# ARTEMIS CITY - DEVELOPMENT DEPENDENCIES
-# ============================================
-# Additional tools for development, testing, and code quality
-# Install with: pip install -r requirements-dev.txt
-
-# First install core dependencies
--r requirements.txt
-
-# ============================================
-# TESTING
-# ============================================
-
 # Testing framework
 pytest>=7.4.0
 pytest-cov>=4.1.0  # Coverage reporting
@@ -85,33 +72,3 @@ httpx>=0.25.0  # Modern async HTTP
 
 # Environment management
 python-dotenv>=1.0.0  # .env file support (optional, we use os.environ)
-
-# ============================================
-# USAGE
-# ============================================
-#
-# Install all dev dependencies:
-#   pip install -r requirements-dev.txt
-#
-# Run tests:
-#   pytest
-#   pytest --cov=. --cov-report=html
-#
-# Format code:
-#   black .
-#   isort .
-#
-# Lint code:
-#   flake8 .
-#   pylint agents/ core/ memory/ interface/
-#
-# Type check:
-#   mypy .
-#
-# Security check:
-#   bandit -r .
-#   safety check
-#
-# Build documentation:
-#   mkdocs serve  # Local preview
-#   mkdocs build  # Build static site

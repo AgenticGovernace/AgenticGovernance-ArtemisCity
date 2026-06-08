@@ -1,5 +1,5 @@
-import sys
 import pathlib
+import sys
 
 # Add project root to path so integration/ is importable
 _script_file = globals().get("__file__")
@@ -10,13 +10,13 @@ _base_dir = (
 )
 sys.path.insert(0, str(_base_dir))
 
-from src.integration import ContextLoader, TrustInterface, get_trust_interface
-from src.integration import MemoryClient
+from src.integration import (ContextLoader, MemoryClient, TrustInterface,
+                             get_trust_interface)
 
 
 def demo_memory_client():
     """Demonstrate memory client operations.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -42,7 +42,7 @@ def demo_memory_client():
 
 def demo_trust_interface():
     """Demonstrate trust interface operations.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -116,10 +116,10 @@ def demo_trust_interface():
 
 def demo_context_loader(client: MemoryClient):
     """Demonstrate context loading from Obsidian.
-    
+
     Args:
         client (MemoryClient): Client value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -175,10 +175,10 @@ def demo_context_loader(client: MemoryClient):
 
 def demo_integrated_workflow(client: MemoryClient):
     """Demonstrate integrated agent-memory workflow.
-    
+
     Args:
         client (MemoryClient): Client value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -244,7 +244,7 @@ def demo_integrated_workflow(client: MemoryClient):
 
 def demo_trust_decay():
     """Demonstrate trust decay over time.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -288,7 +288,7 @@ def demo_trust_decay():
 
 def main():
     """Run all memory integration demos.
-    
+
     Returns:
         None: This function does not return a value.
     """

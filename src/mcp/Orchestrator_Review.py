@@ -13,8 +13,8 @@ def _get_run_logger():
 
 
 class Orchestrator:
-    """Provide the Orchestrator abstraction used by this module.
-    """
+    """Provide the Orchestrator abstraction used by this module."""
+
     def __init__(self) -> None:
         # Obsidian integration components
         self.obs_manager = ObsidianManager(OBSIDIAN_VAULT_PATH)

@@ -10,7 +10,8 @@ from datetime import datetime
 import pytest
 
 from src.integration.memory_client import MemoryClient
-from src.integration.trust_interface import TrustInterface, TrustLevel, TrustScore
+from src.integration.trust_interface import (TrustInterface, TrustLevel,
+                                             TrustScore)
 
 
 class TestMemoryClient:
@@ -18,7 +19,7 @@ class TestMemoryClient:
 
     def test_memory_client_initialization(self):
         """Test that MemoryClient can be initialized.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -30,7 +31,7 @@ class TestMemoryClient:
 
     def test_memory_client_default_url(self):
         """Test MemoryClient with default URL.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -47,7 +48,7 @@ class TestTrustInterface:
 
     def test_trust_score_creation(self):
         """Test creating a trust score.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -64,7 +65,7 @@ class TestTrustInterface:
 
     def test_trust_levels(self):
         """Test trust level enum values.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -76,7 +77,7 @@ class TestTrustInterface:
 
     def test_trust_interface_initialization(self):
         """Test that TrustInterface can be initialized.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -89,7 +90,7 @@ class TestContextLoader:
 
     def test_context_loader_initialization(self):
         """Test that ContextLoader can be initialized.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -102,7 +103,7 @@ class TestContextLoader:
 
     def test_load_empty_context(self):
         """Test loading empty folder context.
-        
+
         Returns:
             None: This function does not return a value.
         """

@@ -26,9 +26,9 @@ from typing import Any, Dict, List, Type
 
 import pytest
 
+from src.agents.artemis_agent import ArtemisAgent
 # Import base class and all concrete implementations
 from src.agents.base_agent import BaseAgent
-from src.agents.artemis_agent import ArtemisAgent
 from src.agents.research_agent import ResearchAgent
 from src.agents.summarizer_agent import SummarizerAgent
 
@@ -64,10 +64,10 @@ def get_all_agent_instances() -> List[BaseAgent]:
 @pytest.fixture(params=get_all_agent_classes())
 def agent_class(request) -> Type[BaseAgent]:
     """Parametrized fixture providing each agent class.
-    
+
     Args:
         request: Request payload being handled by the endpoint or agent.
-    
+
     Returns:
         Type[BaseAgent]: Resulting Type[BaseAgent] value produced by the operation.
     """
@@ -77,10 +77,10 @@ def agent_class(request) -> Type[BaseAgent]:
 @pytest.fixture(params=get_all_agent_instances(), ids=lambda a: a.name)
 def agent_instance(request) -> BaseAgent:
     """Parametrized fixture providing each agent instance.
-    
+
     Args:
         request: Request payload being handled by the endpoint or agent.
-    
+
     Returns:
         BaseAgent: Resulting BaseAgent value produced by the operation.
     """
@@ -90,7 +90,7 @@ def agent_instance(request) -> BaseAgent:
 @pytest.fixture
 def minimal_task_context() -> Dict[str, Any]:
     """Minimal valid task context for testing.
-    
+
     Returns:
         Dict[str, Any]: Dictionary containing the resulting data.
     """
@@ -105,7 +105,7 @@ def minimal_task_context() -> Dict[str, Any]:
 @pytest.fixture
 def empty_task_context() -> Dict[str, Any]:
     """Empty task context for edge case testing.
-    
+
     Returns:
         Dict[str, Any]: Dictionary containing the resulting data.
     """
@@ -122,10 +122,10 @@ class TestInterfaceCompliance:
 
     def test_agent_inherits_from_base_agent(self, agent_class: Type[BaseAgent]) -> None:
         """All agent classes must inherit from BaseAgent.
-        
+
         Args:
             agent_class (Type[BaseAgent]): Agent class value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -135,10 +135,10 @@ class TestInterfaceCompliance:
 
     def test_agent_has_perform_task_method(self, agent_instance: BaseAgent) -> None:
         """All agents must implement perform_task method.
-        
+
         Args:
             agent_instance (BaseAgent): Agent instance value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -151,10 +151,10 @@ class TestInterfaceCompliance:
 
     def test_agent_has_report_status_method(self, agent_instance: BaseAgent) -> None:
         """All agents must have report_status method (inherited or overridden).
-        
+
         Args:
             agent_instance (BaseAgent): Agent instance value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -167,10 +167,10 @@ class TestInterfaceCompliance:
 
     def test_agent_has_name_attribute(self, agent_instance: BaseAgent) -> None:
         """All agents must have a non-empty name attribute.
-        
+
         Args:
             agent_instance (BaseAgent): Agent instance value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -182,10 +182,10 @@ class TestInterfaceCompliance:
 
     def test_agent_has_capabilities_attribute(self, agent_instance: BaseAgent) -> None:
         """All agents must have a capabilities list attribute.
-        
+
         Args:
             agent_instance (BaseAgent): Agent instance value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -198,10 +198,10 @@ class TestInterfaceCompliance:
 
     def test_agent_has_logger_attribute(self, agent_instance: BaseAgent) -> None:
         """All agents must have a logger attribute.
-        
+
         Args:
             agent_instance (BaseAgent): Agent instance value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -220,10 +220,10 @@ class TestContractCompliance:
 
     def test_perform_task_signature(self, agent_class: Type[BaseAgent]) -> None:
         """perform_task must accept task_context dict and return dict.
-        
+
         Args:
             agent_class (Type[BaseAgent]): Agent class value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -239,12 +239,12 @@ class TestContractCompliance:
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
     ) -> None:
         """perform_task must accept a dictionary argument.
-        
+
         Args:
             agent_instance (BaseAgent): Agent instance value used by this operation.
             minimal_task_context (Dict[str, Any]): Minimal task context value used by this
                 operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -259,12 +259,12 @@ class TestContractCompliance:
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
     ) -> None:
         """perform_task must return a dictionary.
-        
+
         Args:
             agent_instance (BaseAgent): Agent instance value used by this operation.
             minimal_task_context (Dict[str, Any]): Minimal task context value used by this
                 operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -287,12 +287,12 @@ class TestBehaviorCompliance:
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
     ) -> None:
         """All task results must include a 'status' field.
-        
+
         Args:
             agent_instance (BaseAgent): Agent instance value used by this operation.
             minimal_task_context (Dict[str, Any]): Minimal task context value used by this
                 operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -305,12 +305,12 @@ class TestBehaviorCompliance:
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
     ) -> None:
         """Status field must be 'success' or 'failed'.
-        
+
         Args:
             agent_instance (BaseAgent): Agent instance value used by this operation.
             minimal_task_context (Dict[str, Any]): Minimal task context value used by this
                 operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -324,12 +324,12 @@ class TestBehaviorCompliance:
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
     ) -> None:
         """All task results must include a 'summary' field.
-        
+
         Args:
             agent_instance (BaseAgent): Agent instance value used by this operation.
             minimal_task_context (Dict[str, Any]): Minimal task context value used by this
                 operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -342,12 +342,12 @@ class TestBehaviorCompliance:
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
     ) -> None:
         """Summary field must be a string.
-        
+
         Args:
             agent_instance (BaseAgent): Agent instance value used by this operation.
             minimal_task_context (Dict[str, Any]): Minimal task context value used by this
                 operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -358,10 +358,10 @@ class TestBehaviorCompliance:
 
     def test_capabilities_are_strings(self, agent_instance: BaseAgent) -> None:
         """All capability entries must be strings.
-        
+
         Args:
             agent_instance (BaseAgent): Agent instance value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -383,12 +383,12 @@ class TestErrorHandling:
         self, agent_instance: BaseAgent, empty_task_context: Dict[str, Any]
     ) -> None:
         """Agents should handle empty task context without crashing.
-        
+
         Args:
             agent_instance (BaseAgent): Agent instance value used by this operation.
             empty_task_context (Dict[str, Any]): Empty task context value used by this
                 operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -405,10 +405,10 @@ class TestErrorHandling:
 
     def test_report_status_accepts_string(self, agent_instance: BaseAgent) -> None:
         """report_status should accept string messages without error.
-        
+
         Args:
             agent_instance (BaseAgent): Agent instance value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -419,10 +419,10 @@ class TestErrorHandling:
 
     def test_agent_repr_does_not_crash(self, agent_instance: BaseAgent) -> None:
         """Agent __repr__ should not raise exceptions.
-        
+
         Args:
             agent_instance (BaseAgent): Agent instance value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -443,10 +443,10 @@ class TestLiskovSubstitution:
 
     def test_agent_as_base_type(self, agent_instance: BaseAgent) -> None:
         """Agent should work when typed as BaseAgent.
-        
+
         Args:
             agent_instance (BaseAgent): Agent instance value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -462,11 +462,11 @@ class TestLiskovSubstitution:
         self, minimal_task_context: Dict[str, Any]
     ) -> None:
         """All agents should work polymorphically with same task context.
-        
+
         Args:
             minimal_task_context (Dict[str, Any]): Minimal task context value used by this
                 operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -491,7 +491,7 @@ class TestAgentDiscovery:
 
     def test_all_agents_have_unique_names(self) -> None:
         """All agent instances must have unique names.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -501,7 +501,7 @@ class TestAgentDiscovery:
 
     def test_all_agents_have_at_least_one_capability(self) -> None:
         """All agents should declare at least one capability.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -512,7 +512,7 @@ class TestAgentDiscovery:
 
     def test_minimum_agent_count(self) -> None:
         """System should have at least 3 agents registered.
-        
+
         Returns:
             None: This function does not return a value.
         """

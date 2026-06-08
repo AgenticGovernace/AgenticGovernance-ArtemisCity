@@ -1,25 +1,27 @@
 """Tests for the memory client (src/integration/memory_client.py)."""
 
-import sys
 import io
 import json
+import sys
 from urllib.error import HTTPError, URLError
 
 sys.modules.pop("src.integration.memory_client", None)
 
 import pytest
-from src.integration.memory_client import MCPOperation, MCPResponse, MemoryClient
+
+from src.integration.memory_client import (MCPOperation, MCPResponse,
+                                           MemoryClient)
 
 
 # ---------------------------------------------------------------------------
 # MCPOperation enum
 # ---------------------------------------------------------------------------
 class TestMCPOperation:
-    """Provide the TestMCPOperation abstraction used by this module.
-    """
+    """Provide the TestMCPOperation abstraction used by this module."""
+
     def test_values(self):
         """Test that values.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -38,11 +40,11 @@ class TestMCPOperation:
 # MCPResponse
 # ---------------------------------------------------------------------------
 class TestMCPResponse:
-    """Represent the response payload for the TestMCPResponse API contract.
-    """
+    """Represent the response payload for the TestMCPResponse API contract."""
+
     def test_construction(self):
         """Test that construction.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -54,7 +56,7 @@ class TestMCPResponse:
 
     def test_from_json(self):
         """Test that from json.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -66,7 +68,7 @@ class TestMCPResponse:
 
     def test_from_json_error(self):
         """Test that from json error.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -78,7 +80,7 @@ class TestMCPResponse:
 
     def test_from_json_defaults(self):
         """Test that from json defaults.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -91,14 +93,14 @@ class TestMCPResponse:
 # MemoryClient construction
 # ---------------------------------------------------------------------------
 class TestMemoryClientConstruction:
-    """Provide the TestMemoryClientConstruction abstraction used by this module.
-    """
+    """Provide the TestMemoryClientConstruction abstraction used by this module."""
+
     def test_missing_api_key_raises(self, monkeypatch):
         """Test that missing api key raises.
-        
+
         Args:
             monkeypatch: Monkeypatch value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -108,7 +110,7 @@ class TestMemoryClientConstruction:
 
     def test_explicit_params(self):
         """Test that explicit params.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -118,7 +120,7 @@ class TestMemoryClientConstruction:
 
     def test_trailing_slash_stripped(self):
         """Test that trailing slash stripped.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -127,7 +129,7 @@ class TestMemoryClientConstruction:
 
     def test_timeout_default(self):
         """Test that timeout default.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -156,13 +158,12 @@ class _FakeHTTPResponse:
 
 
 class TestMakeRequest:
-    """Represent the request payload consumed by the TestMakeRequest API contract.
-    """
+    """Represent the request payload consumed by the TestMakeRequest API contract."""
 
     @pytest.fixture
     def client(self):
         """Client.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -170,14 +171,15 @@ class TestMakeRequest:
 
     def test_success(self, client, monkeypatch):
         """Test that success.
-        
+
         Args:
             client: Client value used by this operation.
             monkeypatch: Monkeypatch value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
+
         def fake_urlopen(req, timeout=None):
             return _FakeHTTPResponse({"success": True, "data": {"notes": []}})
 
@@ -187,14 +189,15 @@ class TestMakeRequest:
 
     def test_http_error_with_json_body(self, client, monkeypatch):
         """Test that http error with json body.
-        
+
         Args:
             client: Client value used by this operation.
             monkeypatch: Monkeypatch value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
+
         def fake_urlopen(req, timeout=None):
             body = json.dumps({"success": False, "error": "bad request"}).encode()
             raise HTTPError(
@@ -213,14 +216,15 @@ class TestMakeRequest:
 
     def test_http_error_without_json_body(self, client, monkeypatch):
         """Test that http error without json body.
-        
+
         Args:
             client: Client value used by this operation.
             monkeypatch: Monkeypatch value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
+
         def fake_urlopen(req, timeout=None):
             raise HTTPError(
                 url="http://x",
@@ -237,14 +241,15 @@ class TestMakeRequest:
 
     def test_url_error(self, client, monkeypatch):
         """Test that url error.
-        
+
         Args:
             client: Client value used by this operation.
             monkeypatch: Monkeypatch value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
+
         def fake_urlopen(req, timeout=None):
             raise URLError("Connection refused")
 
@@ -256,14 +261,15 @@ class TestMakeRequest:
 
     def test_generic_exception(self, client, monkeypatch):
         """Test that generic exception.
-        
+
         Args:
             client: Client value used by this operation.
             monkeypatch: Monkeypatch value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
+
         def fake_urlopen(req, timeout=None):
             raise RuntimeError("unexpected")
 
@@ -277,16 +283,15 @@ class TestMakeRequest:
 # API method delegation
 # ---------------------------------------------------------------------------
 class TestAPIMethods:
-    """Provide the TestAPIMethods abstraction used by this module.
-    """
+    """Provide the TestAPIMethods abstraction used by this module."""
 
     @pytest.fixture
     def client(self, monkeypatch):
         """Client.
-        
+
         Args:
             monkeypatch: Monkeypatch value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -304,10 +309,10 @@ class TestAPIMethods:
 
     def test_get_context(self, client):
         """Test that get context.
-        
+
         Args:
             client: Client value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -317,10 +322,10 @@ class TestAPIMethods:
 
     def test_append_context(self, client):
         """Test that append context.
-        
+
         Args:
             client: Client value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -329,10 +334,10 @@ class TestAPIMethods:
 
     def test_update_note(self, client):
         """Test that update note.
-        
+
         Args:
             client: Client value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -341,10 +346,10 @@ class TestAPIMethods:
 
     def test_search_notes(self, client):
         """Test that search notes.
-        
+
         Args:
             client: Client value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -354,10 +359,10 @@ class TestAPIMethods:
 
     def test_list_notes_with_folder(self, client):
         """Test that list notes with folder.
-        
+
         Args:
             client: Client value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -367,10 +372,10 @@ class TestAPIMethods:
 
     def test_list_notes_no_folder(self, client):
         """Test that list notes no folder.
-        
+
         Args:
             client: Client value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -379,10 +384,10 @@ class TestAPIMethods:
 
     def test_delete_note(self, client):
         """Test that delete note.
-        
+
         Args:
             client: Client value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -391,10 +396,10 @@ class TestAPIMethods:
 
     def test_manage_frontmatter(self, client):
         """Test that manage frontmatter.
-        
+
         Args:
             client: Client value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -404,10 +409,10 @@ class TestAPIMethods:
 
     def test_manage_tags(self, client):
         """Test that manage tags.
-        
+
         Args:
             client: Client value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -417,10 +422,10 @@ class TestAPIMethods:
 
     def test_search_replace(self, client):
         """Test that search replace.
-        
+
         Args:
             client: Client value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -433,14 +438,14 @@ class TestAPIMethods:
 # health_check
 # ---------------------------------------------------------------------------
 class TestHealthCheck:
-    """Provide the TestHealthCheck abstraction used by this module.
-    """
+    """Provide the TestHealthCheck abstraction used by this module."""
+
     def test_healthy(self, monkeypatch):
         """Test that healthy.
-        
+
         Args:
             monkeypatch: Monkeypatch value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -454,10 +459,10 @@ class TestHealthCheck:
 
     def test_unhealthy(self, monkeypatch):
         """Test that unhealthy.
-        
+
         Args:
             monkeypatch: Monkeypatch value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -474,14 +479,14 @@ class TestHealthCheck:
 # Convenience methods
 # ---------------------------------------------------------------------------
 class TestConvenienceMethods:
-    """Provide the TestConvenienceMethods abstraction used by this module.
-    """
+    """Provide the TestConvenienceMethods abstraction used by this module."""
+
     def test_get_agent_context(self, monkeypatch):
         """Test that get agent context.
-        
+
         Args:
             monkeypatch: Monkeypatch value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -500,10 +505,10 @@ class TestConvenienceMethods:
 
     def test_get_agent_context_failure(self, monkeypatch):
         """Test that get agent context failure.
-        
+
         Args:
             monkeypatch: Monkeypatch value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -518,10 +523,10 @@ class TestConvenienceMethods:
 
     def test_store_agent_context(self, monkeypatch):
         """Test that store agent context.
-        
+
         Args:
             monkeypatch: Monkeypatch value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """

@@ -7,16 +7,20 @@ on:
         description: Source environment branch
         required: true
         type: choice
-        options: [dev, staging, prod]
+        options: [dev, staging]
       to:
         description: Target environment branch
         required: true
         type: choice
-        options: [dev, staging, prod]
+        options: [staging, prod]
 
 permissions:
   contents: read
   pull-requests: write
+
+concurrency:
+  group: promote-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   open-promotion-pr:
@@ -27,18 +31,18 @@ jobs:
           from="${{ github.event.inputs.from }}"
           to="${{ github.event.inputs.to }}"
           case "${from}->${to}" in
-            "dev->staging"|"staging->prod"|"dev->prod") ;;
-            *) echo "Invalid promotion ${from} -> ${to}" >&2; exit 1 ;;
+            "dev->staging"|"staging->prod") ;;
+            *) echo "Invalid promotion ${from} -> ${to} (allowed: dev->staging, staging->prod)" >&2; exit 1 ;;
           esac
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: PR
-        env: 
+      - name: Open draft promotion PR
+        env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FROM: ${{ github.event.inputs.from }}
           TO: ${{ github.event.inputs.to }}
         run: |
           title="Promote ${FROM} -> ${TO}"
-          body="Automated promotion PR opened by the Promote workflow."
+          body="Automated promotion PR from \`${FROM}\` to \`${TO}\`. Review and merge to deploy ${TO}."
           gh pr create --base "$TO" --head "$FROM" --title "$title" --body "$body" --draft

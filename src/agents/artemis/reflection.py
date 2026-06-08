@@ -29,10 +29,10 @@ class ConceptNode:
 
     def add_context(self, context: str) -> None:
         """Add a context where this concept appeared.
-        
+
         Args:
             context (str): Context value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -41,10 +41,10 @@ class ConceptNode:
 
     def relate_to(self, other_concept: str) -> None:
         """Mark another concept as related.
-        
+
         Args:
             other_concept (str): Other concept value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -65,11 +65,11 @@ class ConceptGraph:
 
     def add_concept(self, concept: str, context: str) -> None:
         """Add or update a concept in the graph.
-        
+
         Args:
             concept: Concept text
             context: Context where concept appeared
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -81,11 +81,11 @@ class ConceptGraph:
 
     def relate_concepts(self, concept1: str, concept2: str) -> None:
         """Create relationship between two concepts.
-        
+
         Args:
             concept1: First concept
             concept2: Second concept
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -163,10 +163,10 @@ class ReflectionEngine:
 
     def add_conversation(self, text: str) -> None:
         """Add a conversation to the reflection corpus.
-        
+
         Args:
             text: Conversation text to analyze
-        
+
         Returns:
             None: This function does not return a value.
         """

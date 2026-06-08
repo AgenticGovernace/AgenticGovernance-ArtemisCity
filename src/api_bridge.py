@@ -30,11 +30,8 @@ import sys
 from typing import Any, Callable, Dict
 
 from src.governance.approvals import SelfUpdateGovernor, UpdateProposal
-from src.governance.trust import (
-    TrustMetrics,
-    compute_trust_score,
-    trust_breakdown,
-)
+from src.governance.trust import (TrustMetrics, compute_trust_score,
+                                  trust_breakdown)
 from src.integration.agent_registry import AgentRegistryStore
 
 
@@ -199,7 +196,9 @@ def _evaluate_update(payload: Dict[str, Any]) -> Dict[str, Any]:
     if "trust_score" in payload and payload["trust_score"] is not None:
         trust_score = float(payload["trust_score"])
         if not 0.0 <= trust_score <= 1.0:
-            raise BridgeError("trust_score must be between 0 and 1", code="INVALID_REQUEST")
+            raise BridgeError(
+                "trust_score must be between 0 and 1", code="INVALID_REQUEST"
+            )
     elif metrics_given:
         metrics = _build_metrics(payload, store, name)
         trust_score = compute_trust_score(metrics)
@@ -240,14 +239,14 @@ COMMANDS: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
 
 def dispatch(command: str, payload: Dict[str, Any] | None = None) -> Dict[str, Any]:
     """Run a bridge command and return its JSON-able result dict.
-    
+
     Raises :class:`BridgeError` for unknown commands or handler failures.
-    
+
     Args:
         command (str): Command text to process.
         payload (Dict[str, Any] | None): Request payload passed through the bridge or API
             layer.
-    
+
     Returns:
         Dict[str, Any]: Dictionary containing the resulting data.
     """
@@ -259,10 +258,10 @@ def dispatch(command: str, payload: Dict[str, Any] | None = None) -> Dict[str, A
 
 def main(argv=None) -> int:
     """CLI entry point: read one JSON request from stdin, write one to stdout.
-    
+
     Args:
         argv: Argv value used by this operation.
-    
+
     Returns:
         int: Integer result produced by the operation.
     """
@@ -280,7 +279,9 @@ def main(argv=None) -> int:
         return 1
     except json.JSONDecodeError as exc:
         sys.stdout.write(
-            json.dumps({"ok": False, "error": f"invalid JSON: {exc}", "code": "INVALID_JSON"})
+            json.dumps(
+                {"ok": False, "error": f"invalid JSON: {exc}", "code": "INVALID_JSON"}
+            )
         )
         return 1
     except Exception as exc:  # pragma: no cover - defensive catch-all

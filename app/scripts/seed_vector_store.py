@@ -40,7 +40,7 @@ Memory Bus Sync Protocol (sample):
 
 def load_docs() -> list[tuple[str, str, dict]]:
     """Load docs.
-    
+
     Returns:
         list[tuple[str, str, dict]]: List containing the resulting items.
     """
@@ -62,7 +62,7 @@ def load_docs() -> list[tuple[str, str, dict]]:
 
 def main():
     """Run the main workflow for this module.
-    
+
     Returns:
         None: This function does not return a value.
     """

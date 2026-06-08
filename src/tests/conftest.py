@@ -312,10 +312,10 @@ def mock_env_vars(monkeypatch):
 @pytest.fixture
 def clean_env(monkeypatch):
     """Remove potentially interfering environment variables.
-    
+
     Args:
         monkeypatch: pytest's monkeypatch fixture
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -331,10 +331,10 @@ def clean_env(monkeypatch):
 
 def pytest_configure(config):
     """Configure custom pytest markers.
-    
+
     Args:
         config: pytest configuration object
-    
+
     Returns:
         None: This function does not return a value.
     """

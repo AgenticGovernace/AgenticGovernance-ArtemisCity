@@ -1,14 +1,12 @@
 """Tests for the agent sandbox enforcement layer."""
 
 import pytest
+
 from src.agents.base_agent import BaseAgent
-from src.integration.agent_registry import AgentRegistry, QUARANTINE_THRESHOLD
-from src.integration.sandbox import (
-    AgentSandbox,
-    ToolPolicy,
-    VIOLATION_UNAUTHORIZED_PATH,
-    VIOLATION_UNAUTHORIZED_TOOL,
-)
+from src.integration.agent_registry import QUARANTINE_THRESHOLD, AgentRegistry
+from src.integration.sandbox import (VIOLATION_UNAUTHORIZED_PATH,
+                                     VIOLATION_UNAUTHORIZED_TOOL, AgentSandbox,
+                                     ToolPolicy)
 
 
 class _StubAgent(BaseAgent):
@@ -19,10 +17,10 @@ class _StubAgent(BaseAgent):
 @pytest.fixture
 def registry(tmp_path):
     """Registry.
-    
+
     Args:
         tmp_path: Tmp path value used by this operation.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -34,10 +32,10 @@ def registry(tmp_path):
 @pytest.fixture
 def sandbox(registry):
     """Sandbox.
-    
+
     Args:
         registry: Agent registry used to persist and read governance state.
-    
+
     Returns:
         None: This function does not return a value.
     """
@@ -56,14 +54,14 @@ def sandbox(registry):
 # Allow paths
 # ---------------------------------------------------------------------------
 class TestAllowed:
-    """Provide the TestAllowed abstraction used by this module.
-    """
+    """Provide the TestAllowed abstraction used by this module."""
+
     def test_whitelisted_tool_allowed(self, sandbox):
         """Test that whitelisted tool allowed.
-        
+
         Args:
             sandbox: Sandbox value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -73,10 +71,10 @@ class TestAllowed:
 
     def test_allowed_path_and_op(self, sandbox):
         """Test that allowed path and op.
-        
+
         Args:
             sandbox: Sandbox value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -87,10 +85,10 @@ class TestAllowed:
 
     def test_unconstrained_tool_allows_any_path(self, sandbox):
         """Test that unconstrained tool allows any path.
-        
+
         Args:
             sandbox: Sandbox value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -102,15 +100,15 @@ class TestAllowed:
 # Denials record violations
 # ---------------------------------------------------------------------------
 class TestDenied:
-    """Provide the TestDenied abstraction used by this module.
-    """
+    """Provide the TestDenied abstraction used by this module."""
+
     def test_unknown_tool_denied_and_recorded(self, sandbox, registry):
         """Test that unknown tool denied and recorded.
-        
+
         Args:
             sandbox: Sandbox value used by this operation.
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -121,33 +119,29 @@ class TestDenied:
 
     def test_path_outside_whitelist_denied(self, sandbox, registry):
         """Test that path outside whitelist denied.
-        
+
         Args:
             sandbox: Sandbox value used by this operation.
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
-        result = sandbox.check_action(
-            "file_read", path="/etc/passwd", operation="read"
-        )
+        result = sandbox.check_action("file_read", path="/etc/passwd", operation="read")
         assert result.allowed is False
         assert result.violation_type == VIOLATION_UNAUTHORIZED_PATH
         assert registry.get_governance_state("Alpha")["violation_count"] == 1
 
     def test_disallowed_operation_denied(self, sandbox):
         """Test that disallowed operation denied.
-        
+
         Args:
             sandbox: Sandbox value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
-        result = sandbox.check_action(
-            "file_read", path="/tmp/x", operation="write"
-        )
+        result = sandbox.check_action("file_read", path="/tmp/x", operation="write")
         assert result.allowed is False
         assert result.violation_type == VIOLATION_UNAUTHORIZED_PATH
 
@@ -156,15 +150,15 @@ class TestDenied:
 # Integration with quarantine
 # ---------------------------------------------------------------------------
 class TestQuarantineIntegration:
-    """Provide the TestQuarantineIntegration abstraction used by this module.
-    """
+    """Provide the TestQuarantineIntegration abstraction used by this module."""
+
     def test_three_denials_quarantine(self, sandbox, registry):
         """Test that three denials quarantine.
-        
+
         Args:
             sandbox: Sandbox value used by this operation.
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -174,11 +168,11 @@ class TestQuarantineIntegration:
 
     def test_quarantined_agent_denied_everything(self, sandbox, registry):
         """Test that quarantined agent denied everything.
-        
+
         Args:
             sandbox: Sandbox value used by this operation.
             registry: Agent registry used to persist and read governance state.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -194,11 +188,11 @@ class TestQuarantineIntegration:
 # Sandbox without a registry (isolated unit use)
 # ---------------------------------------------------------------------------
 class TestNoRegistry:
-    """Provide the TestNoRegistry abstraction used by this module.
-    """
+    """Provide the TestNoRegistry abstraction used by this module."""
+
     def test_enforces_without_recording(self):
         """Test that enforces without recording.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -215,11 +209,11 @@ class TestNoRegistry:
 # ToolPolicy helpers
 # ---------------------------------------------------------------------------
 class TestToolPolicy:
-    """Provide the TestToolPolicy abstraction used by this module.
-    """
+    """Provide the TestToolPolicy abstraction used by this module."""
+
     def test_glob_match(self):
         """Test that glob match.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -229,7 +223,7 @@ class TestToolPolicy:
 
     def test_empty_paths_allows_all(self):
         """Test that empty paths allows all.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -237,7 +231,7 @@ class TestToolPolicy:
 
     def test_operation_constraint(self):
         """Test that operation constraint.
-        
+
         Returns:
             None: This function does not return a value.
         """

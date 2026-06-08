@@ -1,3 +1,7 @@
+# Development environment image only — for local dev/testing, not production.
+# Uses Warp's dev-base; for production, use the main Dockerfile (Node.js 24-alpine)
+# or Dockerfile-python (Python 3.11-slim).
+
 FROM warpdotdev/dev-base:1
  
 RUN apt-get update && apt-get install -y --no-install-recommends \

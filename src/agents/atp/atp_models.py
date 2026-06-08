@@ -80,7 +80,7 @@ class ATPMessage:
     @property
     def has_atp_headers(self) -> bool:
         """Check if message has any ATP headers parsed.
-        
+
         Returns:
             bool: Boolean outcome for the requested check.
         """
@@ -94,7 +94,7 @@ class ATPMessage:
     @property
     def is_complete(self) -> bool:
         """Check if message has minimum required ATP fields.
-        
+
         Returns:
             bool: Boolean outcome for the requested check.
         """
@@ -106,7 +106,7 @@ class ATPMessage:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert ATP message to dictionary format.
-        
+
         Returns:
             Dict[str, Any]: Dictionary containing the resulting data.
         """

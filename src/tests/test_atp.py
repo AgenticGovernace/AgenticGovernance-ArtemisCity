@@ -7,14 +7,9 @@ Tests the ATP message parser, validator, and models.
 import pytest
 
 try:
-    from src.agents.atp import (  # type: ignore
-        ATPActionType,
-        ATPMessage,
-        ATPMode,
-        ATPParser,
-        ATPPriority,
-        ATPValidator,
-    )
+    from src.agents.atp import ATPMessage  # type: ignore
+    from src.agents.atp import (ATPActionType, ATPMode, ATPParser, ATPPriority,
+                                ATPValidator)
 except Exception:  # pragma: no cover - module not available yet
     pytest.skip("ATP module not available in this repo", allow_module_level=True)
 
@@ -24,7 +19,7 @@ class TestATPMessage:
 
     def test_create_basic_message(self):
         """Test creating a basic ATP message.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -42,7 +37,7 @@ class TestATPMessage:
 
     def test_create_critical_message(self):
         """Test creating a critical priority message.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -63,7 +58,7 @@ class TestATPParser:
 
     def test_parse_simple_message(self):
         """Test parsing a simple ATP formatted message.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -83,7 +78,7 @@ class TestATPParser:
 
     def test_parse_empty_message(self):
         """Test parsing an empty message.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -96,7 +91,7 @@ class TestATPParser:
 
     def test_parse_malformed_message(self):
         """Test parsing a malformed message.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -112,7 +107,7 @@ class TestATPValidator:
 
     def test_validate_valid_message(self):
         """Test validation of a valid ATP message.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -130,7 +125,7 @@ class TestATPValidator:
 
     def test_validate_empty_context(self):
         """Test validation of message with empty context.
-        
+
         Returns:
             None: This function does not return a value.
         """

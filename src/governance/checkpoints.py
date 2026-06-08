@@ -60,17 +60,17 @@ class CheckpointStore:
         config_snapshot: Optional[dict] = None,
     ) -> dict:
         """Persist a checkpoint and return its record.
-        
+
         ``registry_snapshot`` and the optional ``config_snapshot`` are hashed
         for integrity. The retention window is computed from ``retention_days``.
-        
+
         Args:
             registry_snapshot (dict): Registry snapshot value used by this operation.
             checkpoint_type (str): Checkpoint type value used by this operation.
             metadata (Optional[dict]): Optional metadata stored with the resulting record.
             retention_days (int): Retention days value used by this operation.
             config_snapshot (Optional[dict]): Config snapshot value used by this operation.
-        
+
         Returns:
             dict: Dictionary containing the resulting data.
         """
@@ -124,10 +124,10 @@ class CheckpointStore:
 
     def get_checkpoint(self, checkpoint_id: str) -> Optional[dict]:
         """Load a checkpoint record, or None if it does not exist.
-        
+
         Args:
             checkpoint_id (str): Checkpoint id value used by this operation.
-        
+
         Returns:
             Optional[dict]: Matching value when available; otherwise None.
         """
@@ -139,7 +139,7 @@ class CheckpointStore:
 
     def list_checkpoints(self) -> List[dict]:
         """Return all checkpoint records, newest first.
-        
+
         Returns:
             List[dict]: Stored checkpoint records ordered from newest to oldest.
         """
@@ -154,14 +154,14 @@ class CheckpointStore:
 
     def verify_checkpoint(self, checkpoint_id: str) -> bool:
         """Recompute integrity hashes and compare against stored values.
-        
+
         Verifies both ``system_hash`` (over the combined registry + config
         snapshot) and ``config_hash`` (over the config snapshot alone), so
         tampering with either captured field is detected.
-        
+
         Args:
             checkpoint_id (str): Checkpoint id value used by this operation.
-        
+
         Returns:
             bool: Boolean outcome for the requested check.
         """
@@ -179,10 +179,10 @@ class CheckpointStore:
 
     def prune_expired(self, now: Optional[datetime] = None) -> int:
         """Delete checkpoints whose retention window has passed.
-        
+
         Args:
             now (Optional[datetime]): Optional timestamp used instead of the current time.
-        
+
         Returns:
             int: Number of expired checkpoints that were removed.
         """
@@ -217,13 +217,13 @@ class RollbackManager:
         details: str = "",
     ) -> dict:
         """Validate checkpoint integrity and return the state to restore.
-        
+
         Args:
             checkpoint_id (str): Checkpoint identifier to restore from.
             initiated_by (str): Actor requesting the rollback.
             reason (str): Reason recorded for the rollback request.
             details (str): Supplemental detail text recorded with the rollback.
-        
+
         Returns:
             dict: Rollback metadata and the verified state snapshot to restore.
         """

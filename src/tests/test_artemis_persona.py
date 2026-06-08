@@ -6,12 +6,8 @@ Tests the ArtemisPersona, ReflectionEngine, and SemanticTagger components.
 
 import pytest
 
-from src.agents.artemis import (
-    ArtemisPersona,
-    ReflectionEngine,
-    ResponseMode,
-    SemanticTagger,
-)
+from src.agents.artemis import (ArtemisPersona, ReflectionEngine, ResponseMode,
+                                SemanticTagger)
 
 
 class TestArtemisPersona:
@@ -19,7 +15,7 @@ class TestArtemisPersona:
 
     def test_persona_initialization(self):
         """Test that ArtemisPersona can be initialized.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -28,7 +24,7 @@ class TestArtemisPersona:
 
     def test_response_modes(self):
         """Test response mode enum values.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -40,7 +36,7 @@ class TestArtemisPersona:
 
     def test_persona_with_mode(self):
         """Test creating persona with specific mode.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -55,7 +51,7 @@ class TestReflectionEngine:
 
     def test_reflection_engine_initialization(self):
         """Test that ReflectionEngine can be initialized.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -64,7 +60,7 @@ class TestReflectionEngine:
 
     def test_concept_graph_creation(self):
         """Test creating a concept graph.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -75,7 +71,7 @@ class TestReflectionEngine:
 
     def test_add_concept_node(self):
         """Test adding concept nodes to graph.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -94,7 +90,7 @@ class TestSemanticTagger:
 
     def test_semantic_tagger_initialization(self):
         """Test that SemanticTagger can be initialized.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -103,7 +99,7 @@ class TestSemanticTagger:
 
     def test_semantic_tag_creation(self):
         """Test creating semantic tags.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -118,7 +114,7 @@ class TestSemanticTagger:
 
     def test_tag_text(self):
         """Test tagging text content.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -137,7 +133,7 @@ class TestCitationSystem:
 
     def test_citation_creation(self):
         """Test creating citations.
-        
+
         Returns:
             None: This function does not return a value.
         """

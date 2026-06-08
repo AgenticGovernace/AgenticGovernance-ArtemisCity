@@ -51,12 +51,12 @@ class AgentRouter:
 
     def load_config(self):
         """Load routing rules from the YAML configuration file.
-        
+
         Reads and parses the YAML file specified by config_path,
         extracting agent routing rules. If the file doesn't exist
         or fails to parse, falls back to empty routes with a
         warning message.
-        
+
         Returns:
             None: This function does not return a value.
         """

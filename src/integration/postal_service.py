@@ -7,12 +7,13 @@ as mail delivery between agents.
 
 from __future__ import annotations
 
-import random
-import time
 import datetime
-import typing
 import os
+import random
 import sys
+import time
+import typing
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 
@@ -51,7 +52,9 @@ class MailPacket:
         self.priority: str = priority
         self.timestamp: datetime.datetime = datetime.datetime.now()
         self.delivery_status = "created"
-        self.tracking_id: str = f"{sender[:3].upper()}-{int(time.time() * 1000) % 100000}"
+        self.tracking_id: str = (
+            f"{sender[:3].upper()}-{int(time.time() * 1000) % 100000}"
+        )
 
     def __str__(self) -> str:
         """Return a string representation of the mail packet."""
@@ -66,11 +69,13 @@ class MailPacket:
 
 
 class PostOffice:
-    """Provide the PostOffice abstraction used by this module.
-    """
+    """Provide the PostOffice abstraction used by this module."""
+
     def __init__(self) -> None:
         self.memory_client = src.integration.memory_client.MemoryClient()
-        self.trust_office: src.integration.trust_interface.TrustInterface = src.integration.trust_interface.get_trust_interface()
+        self.trust_office: src.integration.trust_interface.TrustInterface = (
+            src.integration.trust_interface.get_trust_interface()
+        )
         self.context_loader = context_loader.ContextLoader(self.memory_client)
         self.delivery_log: typing.List[typing.Dict] = []
 
@@ -129,7 +134,9 @@ class PostOffice:
 
         # Create mail note
         mail_content: str = self._format_mail_note(packet)
-        response: src.integration.memory_client.MCPResponse = self.memory_client.append_context(vault_path, mail_content)
+        response: src.integration.memory_client.MCPResponse = (
+            self.memory_client.append_context(vault_path, mail_content)
+        )
 
         if response.success:
             packet.delivery_status = "delivered"
@@ -190,8 +197,10 @@ class PostOffice:
 
         # Store in archives
         path: str = f"Archives/{archive_section}/{sender}_{title}.md"
-        response: src.integration.memory_client.MCPResponse = self.memory_client.store_agent_context(
-            sender, content, folder=f"Archives/{archive_section}"
+        response: src.integration.memory_client.MCPResponse = (
+            self.memory_client.store_agent_context(
+                sender, content, folder=f"Archives/{archive_section}"
+            )
         )
 
         if response.success:
@@ -236,7 +245,9 @@ class PostOffice:
         if section:
             search_query: str = f"#Archives #{section} {query}"
 
-        results: typing.List[context_loader.ContextEntry] = self.context_loader.search_context(search_query, limit=10)
+        results: typing.List[context_loader.ContextEntry] = (
+            self.context_loader.search_context(search_query, limit=10)
+        )
 
         if results:
             print(f"    Found {len(results)} document(s)")

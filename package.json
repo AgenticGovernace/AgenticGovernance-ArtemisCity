@@ -1,21 +1,61 @@
 {
   "name": "artemis-city-api",
   "version": "0.1.0",
-  "description": "Express TypeScript HTTP boundary for the Artemis City Python core.",
   "private": true,
+  "description": "Express TypeScript HTTP boundary for the Artemis City Python core.",
+  "keywords": [
+    "ATP"
+  ],
+  "homepage": "https://github.com/AgenticGovernace/AgenticGovernance-ArtemisCity#readme",
+  "bugs": {
+    "url": "https://github.com/AgenticGovernace/AgenticGovernance-ArtemisCity/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AgenticGovernace/AgenticGovernance-ArtemisCity.git"
+  },
+  "license": "Apache-2.0",
+  "author": "Prinston Palmer",
+  "type": "commonjs",
   "main": "dist/index.js",
+  "directories": {
+    "doc": "docs",
+    "example": "examples"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only app/api/index.ts",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepare": "hatch build",
+    "preinstall": "hatch install",
+    "prepublishOnly": "docker build -t artemis-city-api .",
+    "postpublish": "",
+    "serve": "docker run -p 3000:3000 artemis-city-api",
+    "poststop": "docker stop artemis-city-api",
+    "pre-restart": " docker stop artemis-city-api && docker run -p 3000:3000 artemis-city-api",
+    "test": "make test",
+    "restart": "docker restart artemis-city-api",
+    "prepublish": "docker build -t artemis-city-api .",
+    "version": "docker version",
+    "prestart": "docker start artemis-city-api",
+    "pretest": "docker test",
+    "preversion": "docker version",
+    "stop": "docker stop artemis-city-api",
+    "install": "`docker build -t artemis-city-api . && docker run -p 3000:3000 artemis-city-api`",
+    "publish": "docker push artemis-city-api",
+    "postrestart": "docker restart artemis-city-api",
+    "prepack": "docker build -t artemis-city-api .",
+    "poststart": "docker start artemis-city-api"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "helmet": "^7.1.0"
+    "helmet": "^7.1.0",
+    "uvicorn": "^0.0.1-security",
+    "vite": "^8.0.16"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
@@ -25,8 +65,6 @@
     "typescript": "^5.4.5"
   },
   "engines": {
-    "node": ">=20"
-  },
-  "license": "Apache-2.0",
-  "author": "Prinston Palmer"
+    "node": ">=24"
+  }
 }

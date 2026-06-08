@@ -1,40 +1,28 @@
-"""Tests for the Artemis exception hierarchy (src/exceptions.py)."""
-
-import sys
-
-sys.modules.pop("exceptions", None)
-from exceptions import (
-    AgentCapabilityError,
-    AgentError,
-    AgentNotFoundError,
-    AgentRegistrationError,
-    ArtemisError,
-    ConfigurationError,
-    GovernanceError,
-    GovernanceThresholdError,
-    GovernanceViolationError,
-    MemoryBusError,
-    MemorySystemError,
-    ObsidianConnectionError,
-    TaskError,
-    TaskExecutionError,
-    TaskRoutingError,
-    TaskValidationError,
-    VectorStoreError,
-)
+"""Tests for the Artemis exception hierarchy."""
 
 import pytest
+
+from src.integration.exceptions import (AgentCapabilityError, AgentError,
+                                        AgentNotFoundError,
+                                        AgentRegistrationError, ArtemisError,
+                                        ConfigurationError, GovernanceError,
+                                        GovernanceThresholdError,
+                                        GovernanceViolationError,
+                                        MemoryBusError, MemorySystemError,
+                                        ObsidianConnectionError, TaskError,
+                                        TaskExecutionError, TaskRoutingError,
+                                        TaskValidationError, VectorStoreError)
 
 
 # ---------------------------------------------------------------------------
 # Base class
 # ---------------------------------------------------------------------------
 class TestArtemisError:
-    """Provide the TestArtemisError abstraction used by this module.
-    """
+    """Provide the TestArtemisError abstraction used by this module."""
+
     def test_basic_construction(self):
         """Test that basic construction.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -46,7 +34,7 @@ class TestArtemisError:
 
     def test_with_error_code(self):
         """Test that with error code.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -55,7 +43,7 @@ class TestArtemisError:
 
     def test_with_details(self):
         """Test that with details.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -64,7 +52,7 @@ class TestArtemisError:
 
     def test_to_dict_minimal(self):
         """Test that to dict minimal.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -77,7 +65,7 @@ class TestArtemisError:
 
     def test_to_dict_full(self):
         """Test that to dict full.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -88,7 +76,7 @@ class TestArtemisError:
 
     def test_is_exception(self):
         """Test that is exception.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -99,11 +87,11 @@ class TestArtemisError:
 # Task exceptions
 # ---------------------------------------------------------------------------
 class TestTaskExceptions:
-    """Provide the TestTaskExceptions abstraction used by this module.
-    """
+    """Provide the TestTaskExceptions abstraction used by this module."""
+
     def test_task_error_inherits(self):
         """Test that task error inherits.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -111,7 +99,7 @@ class TestTaskExceptions:
 
     def test_task_routing_error(self):
         """Test that task routing error.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -124,7 +112,7 @@ class TestTaskExceptions:
 
     def test_task_routing_error_minimal(self):
         """Test that task routing error minimal.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -135,7 +123,7 @@ class TestTaskExceptions:
 
     def test_task_execution_error(self):
         """Test that task execution error.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -151,7 +139,7 @@ class TestTaskExceptions:
 
     def test_task_execution_error_minimal(self):
         """Test that task execution error minimal.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -162,7 +150,7 @@ class TestTaskExceptions:
 
     def test_task_validation_error(self):
         """Test that task validation error.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -179,7 +167,7 @@ class TestTaskExceptions:
 
     def test_task_validation_error_defaults(self):
         """Test that task validation error defaults.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -192,11 +180,11 @@ class TestTaskExceptions:
 # Agent exceptions
 # ---------------------------------------------------------------------------
 class TestAgentExceptions:
-    """Provide the TestAgentExceptions abstraction used by this module.
-    """
+    """Provide the TestAgentExceptions abstraction used by this module."""
+
     def test_agent_error_inherits(self):
         """Test that agent error inherits.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -204,7 +192,7 @@ class TestAgentExceptions:
 
     def test_agent_not_found(self):
         """Test that agent not found.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -217,7 +205,7 @@ class TestAgentExceptions:
 
     def test_agent_not_found_minimal(self):
         """Test that agent not found minimal.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -227,7 +215,7 @@ class TestAgentExceptions:
 
     def test_agent_registration_error(self):
         """Test that agent registration error.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -238,7 +226,7 @@ class TestAgentExceptions:
 
     def test_agent_capability_error(self):
         """Test that agent capability error.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -250,7 +238,7 @@ class TestAgentExceptions:
 
     def test_agent_capability_error_minimal(self):
         """Test that agent capability error minimal.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -262,11 +250,11 @@ class TestAgentExceptions:
 # Memory exceptions
 # ---------------------------------------------------------------------------
 class TestMemoryExceptions:
-    """Provide the TestMemoryExceptions abstraction used by this module.
-    """
+    """Provide the TestMemoryExceptions abstraction used by this module."""
+
     def test_memory_system_error_inherits(self):
         """Test that memory system error inherits.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -274,7 +262,7 @@ class TestMemoryExceptions:
 
     def test_memory_bus_error(self):
         """Test that memory bus error.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -285,7 +273,7 @@ class TestMemoryExceptions:
 
     def test_memory_bus_error_minimal(self):
         """Test that memory bus error minimal.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -295,7 +283,7 @@ class TestMemoryExceptions:
 
     def test_vector_store_error(self):
         """Test that vector store error.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -310,7 +298,7 @@ class TestMemoryExceptions:
 
     def test_vector_store_error_minimal(self):
         """Test that vector store error minimal.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -320,7 +308,7 @@ class TestMemoryExceptions:
 
     def test_obsidian_connection_error(self):
         """Test that obsidian connection error.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -336,11 +324,11 @@ class TestMemoryExceptions:
 # Governance exceptions
 # ---------------------------------------------------------------------------
 class TestGovernanceExceptions:
-    """Provide the TestGovernanceExceptions abstraction used by this module.
-    """
+    """Provide the TestGovernanceExceptions abstraction used by this module."""
+
     def test_governance_error_inherits(self):
         """Test that governance error inherits.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -348,7 +336,7 @@ class TestGovernanceExceptions:
 
     def test_governance_violation_error(self):
         """Test that governance violation error.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -361,7 +349,7 @@ class TestGovernanceExceptions:
 
     def test_governance_violation_error_minimal(self):
         """Test that governance violation error minimal.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -371,7 +359,7 @@ class TestGovernanceExceptions:
 
     def test_governance_threshold_error(self):
         """Test that governance threshold error.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -391,11 +379,11 @@ class TestGovernanceExceptions:
 # Configuration exception
 # ---------------------------------------------------------------------------
 class TestConfigurationError:
-    """Provide the TestConfigurationError abstraction used by this module.
-    """
+    """Provide the TestConfigurationError abstraction used by this module."""
+
     def test_config_error(self):
         """Test that config error.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -408,7 +396,7 @@ class TestConfigurationError:
 
     def test_config_error_minimal(self):
         """Test that config error minimal.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -422,6 +410,7 @@ class TestConfigurationError:
 # ---------------------------------------------------------------------------
 class TestExceptionHierarchy:
     """Verify inheritance and catchability across the Artemis exception hierarchy."""
+
     @pytest.mark.parametrize(
         "child,parent",
         [
@@ -445,11 +434,11 @@ class TestExceptionHierarchy:
     )
     def test_inheritance(self, child, parent):
         """Test that inheritance.
-        
+
         Args:
             child: Child value used by this operation.
             parent: Parent value used by this operation.
-        
+
         Returns:
             None: This function does not return a value.
         """
@@ -457,7 +446,7 @@ class TestExceptionHierarchy:
 
     def test_catch_all_with_base(self):
         """All domain exceptions should be catchable via ArtemisError.
-        
+
         Returns:
             None: This function does not return a value.
         """

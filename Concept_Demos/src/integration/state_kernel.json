@@ -1,0 +1,17 @@
+{
+  "history": [
+    {
+      "type": "command",
+      "content": "hey "
+    },
+    {
+      "type": "command",
+      "content": "please update summary"
+    },
+    {
+      "type": "command",
+      "content": "what you do "
+    }
+  ],
+  "boot_count": 3
+}
