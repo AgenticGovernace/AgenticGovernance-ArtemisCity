@@ -13,13 +13,12 @@ import argparse
 import sys
 
 
-def entry():
+def entry() -> None:
     # Peek at args to decide which sub-CLI to dispatch to.
     # --orchestrator and --atp are consumed here; everything else
     # is forwarded to the chosen sub-module's own argparse.
     parser = argparse.ArgumentParser(
         description="Artemis City — Agentic Governance Platform",
-        add_help=False,
     )
     # Wrapper-level toggles for which sub-module to invoke
     parser.add_argument(
@@ -65,7 +64,7 @@ def entry():
     elif args.atp:
         from src.main import main
     else:
-        from src.Kernel.artemis_cli import main
+        from src.interface.artemis_cli import main
 
     main()
 
