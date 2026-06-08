@@ -19,6 +19,7 @@ def entry() -> None:
     # is forwarded to the chosen sub-module's own argparse.
     parser = argparse.ArgumentParser(
         description="Artemis City — Agentic Governance Platform",
+        add_help=False,
     )
     # Wrapper-level toggles for which sub-module to invoke
     parser.add_argument(
@@ -47,7 +48,7 @@ def entry() -> None:
     # - Otherwise, forward a help flag to the selected sub-module so its
     #   own argparse can display detailed help.
     forwarded_args = list(remaining)
-    if args.help and not args.orchestrator and not remaining:
+    if args.help and not args.orchestrator and not args.atp and not remaining:
         parser.print_help()
         sys.exit(0)
     elif args.help:

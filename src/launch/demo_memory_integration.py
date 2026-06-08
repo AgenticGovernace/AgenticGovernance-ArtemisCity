@@ -26,7 +26,7 @@ def demo_memory_client():
 
     try:
         client = MemoryClient()
-        print(f"\n✓ Memory client initialized")
+        print("\n✓ Memory client initialized")
         print(f"  Base URL: {client.base_url}")
         print(f"  API Key: {'*' * 20} (hidden)")
 
@@ -220,7 +220,7 @@ def demo_integrated_workflow(client: MemoryClient):
     if response.success:
         print(f"  ✓ Stored: {response.message}")
         trust.record_success(agent_name)
-        print(f"  ✓ Trust reinforced")
+        print("  ✓ Trust reinforced")
 
         # Verify storage
         print("\n  Verifying storage...")
@@ -231,7 +231,7 @@ def demo_integrated_workflow(client: MemoryClient):
     else:
         print(f"  ✗ Failed: {response.error}")
         trust.record_failure(agent_name)
-        print(f"  ✗ Trust penalized")
+        print("  ✗ Trust penalized")
 
     # Show updated trust
     updated_score = trust.get_trust_score(agent_name)
@@ -270,7 +270,7 @@ def demo_trust_decay():
     score.last_updated = score.last_updated - timedelta(days=30)
 
     decayed_score = score.apply_decay()
-    print(f"\n  After 30 days without reinforcement:")
+    print("\n  After 30 days without reinforcement:")
     print(f"  Decayed score: {decayed_score:.3f}")
 
     # Show how reinforcement prevents decay

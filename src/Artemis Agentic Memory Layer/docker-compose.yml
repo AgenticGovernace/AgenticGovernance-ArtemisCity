@@ -1,20 +1,21 @@
-version: '3.8'
-
 services:
   mcp-server:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "${PORT:-3000}:3000"
+      - "${PORT:-8000}:3000"
     environment:
       PORT: 3000
+      NODE_ENV: development
       MCP_API_KEY: ${MCP_API_KEY}
-      OBSIDIAN_BASE_URL: ${OBSIDIAN_BASE_URL:-https://host.docker.internal:27124}
+      OBSIDIAN_BASE_URL: ${OBSIDIAN_BASE_URL:-https://127.0.0.1:27123}
       OBSIDIAN_API_KEY: ${OBSIDIAN_API_KEY}
       MCP_LOG_LEVEL: ${MCP_LOG_LEVEL:-info}
+      DEBUG: ${DEBUG:-*}
     networks:
       - mcp_network
 
 networks:
   mcp_network:
+    driver: bridge

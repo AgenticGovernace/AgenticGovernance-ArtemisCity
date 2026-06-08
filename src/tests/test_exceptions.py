@@ -1,17 +1,17 @@
-"""Tests for the Artemis exception hierarchy (src/exceptions.py)."""
+"""Tests for the Artemis exception hierarchy."""
 
-import sys
-
-sys.modules.pop("exceptions", None)
 import pytest
-from exceptions import (AgentCapabilityError, AgentError, AgentNotFoundError,
-                        AgentRegistrationError, ArtemisError,
-                        ConfigurationError, GovernanceError,
-                        GovernanceThresholdError, GovernanceViolationError,
-                        MemoryBusError, MemorySystemError,
-                        ObsidianConnectionError, TaskError, TaskExecutionError,
-                        TaskRoutingError, TaskValidationError,
-                        VectorStoreError)
+
+from src.integration.exceptions import (AgentCapabilityError, AgentError,
+                                        AgentNotFoundError,
+                                        AgentRegistrationError, ArtemisError,
+                                        ConfigurationError, GovernanceError,
+                                        GovernanceThresholdError,
+                                        GovernanceViolationError,
+                                        MemoryBusError, MemorySystemError,
+                                        ObsidianConnectionError, TaskError,
+                                        TaskExecutionError, TaskRoutingError,
+                                        TaskValidationError, VectorStoreError)
 
 
 # ---------------------------------------------------------------------------

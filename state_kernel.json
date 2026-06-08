@@ -27,7 +27,23 @@
     {
       "type": "command",
       "content": "python app/Kernel/artemis_cli.py"
+    },
+    {
+      "type": "command",
+      "content": "system status"
+    },
+    {
+      "type": "command",
+      "content": "system status"
+    },
+    {
+      "type": "command",
+      "content": "system status"
+    },
+    {
+      "type": "command",
+      "content": "help"
     }
   ],
-  "boot_count": 9
+  "boot_count": 13
 }

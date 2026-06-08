@@ -1,12 +1,11 @@
-FROM mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm
+FROM mcr.microsoft.com/devcontainers/javascript-node:1-24-bookworm
 
-# Install Python 3.11 and additional build tools
+# Install Python 3.12 and build tools
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get install -y --no-install-recommends \
-        python3.11 \
-        python3.11-venv \
-        python3.11-dev \
-        python3-pip \
+        python3.12 \
+        python3.12-venv \
+        python3.12-dev \
         build-essential \
         libpq-dev \
         curl \
@@ -14,15 +13,15 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Set Python 3.11 as the default python3
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 \
-    && update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1
+# Set Python 3.12 as default
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 \
+    && update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1
 
-# Use --break-system-packages to allow pip upgrades in Debian containers
-RUN python3 -m pip install --upgrade --break-system-packages pip setuptools wheel
+# Install uv for fast Python dependency management
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install common development tools
-RUN python3 -m pip install --quiet --break-system-packages \
+# Install common development tools with uv
+RUN /root/.cargo/bin/uv pip install --system --quiet \
     black \
     pylint \
     mypy \

@@ -12,13 +12,5 @@ htmlcov
 .tox
 .coverage
 *.egg-info
-__pycache__
 *.py[cod]
 .DS_Store
-.env
-app/api/.env
-src/.env
-src/Artemis Agentic Memory Layer/.env
-src/Artemis Agentic Memory Layer/node_modules
-src/Artemis Agentic Memory Layer/dist
-src/Artemis Agentic Memory Layer/build

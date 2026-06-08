@@ -9,11 +9,11 @@ _project_root = str(Path(__file__).resolve().parents[2])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from src.mcp.config import (AGENT_INPUT_DIR, AGENT_OUTPUT_DIR,
-                            OBSIDIAN_VAULT_PATH)
-from src.mcp.orchestrator import Orchestrator
-from src.utils.helpers import logger
-from src.utils.run_logger import init_run_logger
+from src.mcp.config import AGENT_OUTPUT_DIR  # noqa: E402
+from src.mcp.config import AGENT_INPUT_DIR, OBSIDIAN_VAULT_PATH
+from src.mcp.orchestrator import Orchestrator  # noqa: E402
+from src.utils.helpers import logger  # noqa: E402
+from src.utils.run_logger import init_run_logger  # noqa: E402
 
 
 def parse_cli_args() -> argparse.Namespace:

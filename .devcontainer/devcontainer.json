@@ -5,10 +5,10 @@
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "features": {
     "ghcr.io/devcontainers/features/python:1": {
-      "version": "3.11"
+      "version": "3.12"
     },
     "ghcr.io/devcontainers/features/node:1": {
-      "version": "22"
+      "version": "24"
     },
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/git-lfs:1": {},
@@ -25,7 +25,7 @@
     "8000": "ignore",
     "5432": "ignore"
   },
-  "postCreateCommand": "bash -c 'set -e && echo \"Installing dependencies...\" && pip install --quiet -r requirements.txt && if [ -d src/mcp-server ]; then cd src/mcp-server && npm install --silent; fi && echo \"Setup complete!\"'",
+  "postCreateCommand": "bash -c 'set -e && /root/.cargo/bin/uv pip install -r requirements.txt && npm install --silent'",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -40,14 +40,22 @@
         "ms-vscode.makefile-tools"
       ],
       "settings": {
-        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.defaultInterpreterPath": "/usr/bin/python3.12",
         "python.linting.enabled": true,
         "python.linting.pylintEnabled": true,
+        "python.linting.mypyEnabled": true,
         "[python]": {
           "editor.defaultFormatter": "ms-python.black-formatter",
-          "editor.formatOnSave": true
+          "editor.formatOnSave": true,
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+          }
         },
         "[javascript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode",
+          "editor.formatOnSave": true
+        },
+        "[typescript]": {
           "editor.defaultFormatter": "esbenp.prettier-vscode",
           "editor.formatOnSave": true
         }

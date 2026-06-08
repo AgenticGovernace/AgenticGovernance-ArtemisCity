@@ -29,7 +29,9 @@ class TestDockerCompose:
 
     def test_version_and_basic_structure(self, docker_compose_config):
         """Test that the docker-compose version and basic structure are correct."""
-        assert docker_compose_config.get("version") == "3.8"
+        # Modern Compose files do not require a top-level version. If the
+        # legacy field is present, keep it pinned to the expected schema.
+        assert docker_compose_config.get("version") in (None, "3.8")
         assert "services" in docker_compose_config
         assert "volumes" in docker_compose_config
         assert "networks" in docker_compose_config
