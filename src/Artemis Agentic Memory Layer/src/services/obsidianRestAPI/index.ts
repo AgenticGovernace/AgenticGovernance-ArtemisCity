@@ -1,17 +1,22 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
 import https from 'https';
+import fs from 'fs';
 import { OBSIDIAN_BASE_URL, OBSIDIAN_API_KEY } from '../../config';
 import { logger } from '../../utils/logger';
 
-// Obsidian Local REST API ships with a self-signed cert on https://127.0.0.1:27124,
-// so TLS verification is disabled. Only safe because the target is a localhost dev plugin.
+// Keep TLS certificate validation enabled. For local self-signed certs,
+// trust a specific CA/cert via OBSIDIAN_CA_CERT instead of disabling validation.
+const obsidianCACert = process.env.OBSIDIAN_CA_CERT
+  ? fs.readFileSync(process.env.OBSIDIAN_CA_CERT)
+  : undefined;
+
 const obsidianAPI: AxiosInstance = axios.create({
   baseURL: OBSIDIAN_BASE_URL,
   headers: {
     'Authorization': `Bearer ${OBSIDIAN_API_KEY}`,
     'Content-Type': 'application/json',
   },
-  httpsAgent: new https.Agent({ rejectUnauthorized: false, keepAlive: true }),
+  httpsAgent: new https.Agent({ keepAlive: true, ca: obsidianCACert }),
 });
 
 // Add a request interceptor
