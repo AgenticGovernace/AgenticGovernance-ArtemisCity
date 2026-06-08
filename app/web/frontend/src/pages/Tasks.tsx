@@ -4,6 +4,7 @@ import {
   Badge,
   Box,
   Button,
+  Flex,
   FormControl,
   FormLabel,
   Heading,
@@ -29,7 +30,7 @@ import {
   useToast,
   VStack,
 } from '@chakra-ui/react';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createNewTask, executePendingTask, fetchAgents, fetchTasks } from '../api';
 
 interface Task {
