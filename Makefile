@@ -179,9 +179,14 @@ server: ## Start MCP server (Memory Layer)
 	@echo "Starting MCP server..."
 	cd "src/Artemis Agentic Memory Layer" && npm run dev
 
-frontend: ## Start the web frontend dev server
+frontend: ## Start the web frontend dev server (needs `make api` running separately on :8000)
 	@echo "Starting frontend dev server..."
+	@echo "NOTE: also run 'make api' in another terminal so /api/* requests resolve."
 	cd app/web/frontend && npm run dev
+
+api: ## Start the FastAPI dashboard backend on :8000 (paired with `make frontend`)
+	@echo "Starting FastAPI dashboard backend on http://localhost:8000 ..."
+	@$(LOAD_ENV) python -m uvicorn app.api.main:app --reload --host 0.0.0.0 --port 8000
 
 # ============================================
 # BUILD & PACKAGE

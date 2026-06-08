@@ -1,4 +1,4 @@
-# CLAUDE.md
+# Agent Instructions 
 
 ## Document Structure
 
@@ -793,14 +793,34 @@ each picked up by its own consumer:
 
 | File | Read by |
 |---|---|
-| `.env` | Python core, FastAPI dashboard |
+| `.env` | Python core, FastAPI dashboard (`make api` loads this) |
 | `app/api/.env` | TS Express API (loaded via `dotenv/config` at the top of `app/api/index.ts`) |
 | `src/.env` | Memory-layer Python |
 | `src/Artemis Agentic Memory Layer/.env` | Standalone MCP server (if present) |
 
-Keys generated: `MCP_API_KEY` (shared across all files), `FASTAPI_API_KEY`
-(dashboard only), `ARTEMIS_API_KEY_DEFAULT` (TS Express auth, written as a
-`key:role:perms` tuple). Re-running prompts before overwriting each file.
+Canonical keys (each appears in only the files marked ✓):
+
+| Key | `.env` | `app/api/.env` | `src/.env` | `…Memory Layer/.env` |
+|---|:-:|:-:|:-:|:-:|
+| `MCP_API_KEY` | ✓ | ✓ | ✓ | ✓ |
+| `FASTAPI_API_KEY` | ✓ | | | |
+| `ARTEMIS_API_KEY_DEFAULT` | ✓ | ✓ | | |
+
+The script is drift-resistant: on re-run it **discovers** the value
+already in root `.env` and propagates it into every other file that
+declares the same key. Existing values are preserved; only missing keys
+are freshly generated. Three modes:
+
+- `./setup_secrets.sh` (default) — sync mode: heal drift, generate
+  what's missing, leave the rest alone.
+- `./setup_secrets.sh --check` — read-only; reports any out-of-sync
+  keys with exit code 1 if drift is found. Safe to run in CI.
+- `./setup_secrets.sh --regenerate` — force-rotate ALL canonical
+  keys; use when you've leaked a secret.
+
+The Vite frontend (`app/web/frontend`) reads `FASTAPI_API_KEY` and
+`MCP_API_KEY` from the root `.env` via `envDir` in `vite.config.ts` — no
+duplicate `app/web/frontend/.env` required.
 
 ---
 

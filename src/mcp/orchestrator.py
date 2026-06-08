@@ -46,6 +46,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from src.agents import SummarizerAgent
 from src.agents.artemis_agent import ArtemisAgent
+from src.agents.llm_agent import LLMAgent
 from src.agents.research_agent import ResearchAgent
 from src.obsidian_integration import (ObsidianGenerator, ObsidianManager,
                                       ObsidianParser)
@@ -177,6 +178,7 @@ class Orchestrator:
         self.agent_registry.register_agent(ArtemisAgent())
         self.agent_registry.register_agent(ResearchAgent())
         self.agent_registry.register_agent(SummarizerAgent())
+        self.agent_registry.register_agent(LLMAgent())
         logger.info(
             "All agent classes loaded and instances registered with the Agent Registry."
         )

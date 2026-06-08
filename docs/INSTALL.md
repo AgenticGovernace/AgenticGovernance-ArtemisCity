@@ -23,16 +23,31 @@ cd Artemis-City
 **Automated (Recommended):**
 
 ```bash
-./setup_secrets.sh
+./setup_secrets.sh              # sync: heal drift, generate what's missing
+./setup_secrets.sh --check      # read-only; exits 1 if any consumer is out of sync
+./setup_secrets.sh --regenerate # rotate ALL canonical keys (use after a leak)
 ```
 
-**Manual:**
+The script writes four `.env` files (root, `app/api/`, `src/`, and the
+memory layer) with **one shared `MCP_API_KEY`** plus `FASTAPI_API_KEY`
+(root, dashboard) and `ARTEMIS_API_KEY_DEFAULT` (root + `app/api/`, TS
+admin). Re-running discovers existing values from the root `.env` and
+propagates them, so subsequent runs are idempotent and CI can use
+`--check` to fail on drift.
+
+**Manual (only if you can't run the script):**
 
 ```bash
 cp .env.example .env
-openssl rand -hex 32  # Generate API key
-# Edit .env and add the generated key as MCP_API_KEY
-chmod 600 .env
+cp app/api/.env.example app/api/.env
+cp src/.env.example src/.env
+cp "src/Artemis Agentic Memory Layer/.env.example" "src/Artemis Agentic Memory Layer/.env"
+openssl rand -hex 32  # generate one shared MCP_API_KEY — paste into every file
+openssl rand -hex 32  # generate FASTAPI_API_KEY — paste into root .env only
+openssl rand -hex 32  # generate ARTEMIS_API_KEY_DEFAULT key portion — paste as
+                      # ARTEMIS_API_KEY_DEFAULT=<key>:admin:read,write,delete,admin
+                      # into root .env AND app/api/.env
+chmod 600 .env app/api/.env src/.env "src/Artemis Agentic Memory Layer/.env"
 ```
 
 ### 3. Install Python Dependencies
@@ -197,11 +212,12 @@ OBSIDIAN_API_KEY=your_obsidian_key_here
 
 **Memory Layer `.env`:**
 
-```bash
-cd "Artemis Agentic Memory Layer "
-cp .env.example .env
-# Edit with same MCP_API_KEY as root .env
-```
+`./setup_secrets.sh` already provisions
+`src/Artemis Agentic Memory Layer/.env` with the same `MCP_API_KEY` as
+the root `.env`. If you ran the script, no further action is needed. If
+you set it up manually, after editing the file, run
+`./setup_secrets.sh --check` from the repo root to verify the key
+matches.
 
 ### Generate Secure Keys
 

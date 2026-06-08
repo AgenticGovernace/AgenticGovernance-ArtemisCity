@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 
 from .artemis import ArtemisPersona, ReflectionEngine, SemanticTagger
 from .base_agent import BaseAgent
+from .llm_agent import LLMAgent
 
 
 class ArtemisAgent(BaseAgent):
@@ -20,6 +21,7 @@ class ArtemisAgent(BaseAgent):
         self.persona = persona or ArtemisPersona()
         self.reflection_engine = reflection_engine or ReflectionEngine()
         self.semantic_tagger = semantic_tagger or SemanticTagger()
+        self.llm_agent = LLMAgent()
 
     def perform_task(self, task_context: Dict) -> Dict:
         """Perform task.
@@ -64,10 +66,29 @@ class ArtemisAgent(BaseAgent):
             "request_feedback": request_feedback,
         }
 
-        base_summary = (
-            f"Artemis reviewed '{title}'. "
-            f"Initial themes: {', '.join(concept_names) if concept_names else 'still forming'}."
-        )
+        base_summary = None
+        if task_context.get("disable_llm_delegate") is not True:
+            llm_result = self.llm_agent.perform_task(
+                {
+                    "task_id": task_context.get("task_id"),
+                    "system_prompt": (
+                        "You are an orchestration assistant. Provide a practical response "
+                        "that helps coordinate next actions."
+                    ),
+                    "prompt": content or query,
+                    "temperature": task_context.get("temperature", 0.2),
+                    "max_tokens": task_context.get("max_tokens", 500),
+                    "model": task_context.get("model"),
+                }
+            )
+            if llm_result.get("status") == "success":
+                base_summary = str(llm_result.get("summary", "")).strip()
+
+        if not base_summary:
+            base_summary = (
+                f"Artemis reviewed '{title}'. "
+                f"Initial themes: {', '.join(concept_names) if concept_names else 'still forming'}."
+            )
         formatted_summary = self.persona.format_response(base_summary, persona_context)
 
         self.report_status("Artemis synthesis complete.")

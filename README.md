@@ -147,23 +147,32 @@ pip install -r requirements-dev.txt
 If you prefer not to install the package in editable mode, the repo also includes `requirements.txt` and `requirements-dev.txt` for direct pip installs.
 
 ### 2. Configure environment files
-Copy the examples you need:
+The canonical provisioner is `./setup_secrets.sh`. It populates four
+`.env` files with **one shared `MCP_API_KEY` across all of them**, plus
+`FASTAPI_API_KEY` (root only, for the dashboard) and
+`ARTEMIS_API_KEY_DEFAULT` (root + `app/api/.env`, for the TS Express
+admin role):
 
 ```bash
-cp .env.example .env
-cp app/api/.env.example app/api/.env
-cp "src/Artemis Agentic Memory Layer/.env.example" "src/Artemis Agentic Memory Layer/.env"
+./setup_secrets.sh              # sync: heal drift, generate what's missing
+./setup_secrets.sh --check      # read-only; exits 1 if any consumer is out of sync
+./setup_secrets.sh --regenerate # rotate ALL canonical keys (use after a leak)
 ```
-Important variables include:
 
-- `ARTEMIS_ENV` 
-- `MCP_BASE_URL` 
-- `MCP_API_KEY` 
-- `OBSIDIAN_BASE_URL` 
-- `OBSIDIAN_API_KEY` 
-- `OBSIDIAN_VAULT_PATH` 
-- `FASTAPI_API_KEY` 
-Never commit populated `.env` files.
+Re-running is idempotent — existing values are preserved and propagated
+to every file that declares them, so you can run `--check` from CI to
+catch drift. Files written: `.env`, `app/api/.env`, `src/.env`, and
+`src/Artemis Agentic Memory Layer/.env` (the last one is skipped if its
+directory doesn't exist).
+
+Other variables you'll want to set in `.env` after running the script:
+
+- `OBSIDIAN_API_KEY` — from Obsidian → Settings → Local REST API
+- `OBSIDIAN_VAULT_PATH` — only if your vault isn't at `<repo>/obsidian_vault`
+- `OPENAI_API_KEY` / `ARTEMIS_EMBEDDING_API_KEY` — only if you use hosted embeddings
+- `ARTEMIS_ENV` — `dev`/`staging`/`prod` selector
+
+Never commit populated `.env` files (the root `.gitignore` already covers them).
 
 ### 3. Run the Python test suite
 ```bash

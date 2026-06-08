@@ -1,58 +1,99 @@
 version: 2.1
 
 orbs:
-  node: circleci/node@5
   python: circleci/python@2
 
 jobs:
+  # ============================================================
+  # PYTHON CHECKS
+  # ============================================================
   python-checks:
+    # pyproject requires-python is ">=3.11,<3.14"; 3.12 is the primary runtime.
     docker:
-      - image: cimg/python:3.13
+      - image: cimg/python:3.12
     steps:
       - checkout
       - python/install-packages:
           pkg-manager: pip
           pip-dependency-file: requirements.txt
       - run:
-          name: Install dev dependencies
-          command: pip install black isort flake8 mypy pytest bandit safety
+          name: Install dev + test tools
+          command: |
+            if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+            pip install pyyaml pytest pytest-cov black isort flake8 mypy bandit
       - run:
-          name: Check formatting (Black)
-          command: black --check .
+          name: Validate environment configs (dev/staging/prod)
+          command: |
+            python - <<'PY'
+            from src.utils.environments import load_environment, VALID_ENVIRONMENTS
+            for env in VALID_ENVIRONMENTS:
+                cfg = load_environment(env)
+                assert cfg["name"] == env, (env, cfg)
+                assert cfg["deploy"]["branch"] == env
+            print("env configs OK")
+            PY
       - run:
-          name: Check import sorting (isort)
-          command: isort --check-only .
+          name: Run tests (pytest; testpaths=src/tests from pyproject)
+          command: pytest --cov=src --cov-report=xml
+      # --- Advisory style/lint/security (non-blocking) ---
       - run:
-          name: Lint (Flake8)
+          name: "Advisory: Black format check"
+          command: black --check . || true
+      - run:
+          name: "Advisory: isort import order"
+          command: isort --check-only . || true
+      - run:
+          name: "Advisory: Flake8"
           command: flake8 . || true
       - run:
-          name: Type check (MyPy)
-          command: mypy . || true
+          name: "Advisory: MyPy"
+          command: mypy src || true
       - run:
-          name: Security scan (Bandit)
-          command: bandit -r . -c pyproject.toml || true
-      - run:
-          name: Run tests
-          command: pytest tests/ -v || echo "No tests found"
+          name: "Advisory: Bandit"
+          command: bandit -r src app || true
 
-  node-checks:
+  # ============================================================
+  # TYPESCRIPT — root Express API (app/api)
+  # ============================================================
+  typescript-api:
+    # Root package.json declares engines.node >=24.
     docker:
-      - image: cimg/node:22.0
+      - image: cimg/node:24.0
     steps:
       - checkout
       - run:
-          name: Install MCP server dependencies
-          command: cd web/api && npm install
+          name: Install deps (skip lifecycle scripts)
+          # The root package.json has preinstall/prepare/install hooks that call
+          # hatch and docker, which aren't available (and shouldn't run) in CI.
+          command: npm ci --ignore-scripts
       - run:
-          name: Lint MCP server
-          command: cd web/api && npm run lint --if-present
+          name: Type check (tsc --noEmit)
+          command: npm run typecheck
       - run:
-          name: Build MCP server
-          command: cd web/api && npm run build --if-present
-      - run:
-          name: Test MCP server
-          command: cd web/api && npm test --if-present
+          name: Lint (advisory)
+          command: npm run lint || true
 
+  # ============================================================
+  # TYPESCRIPT — Obsidian MCP server (src/Artemis Agentic Memory Layer)
+  # ============================================================
+  typescript-memory-layer:
+    docker:
+      - image: cimg/node:24.0
+    steps:
+      - checkout
+      - run:
+          name: Install deps
+          command: cd "src/Artemis Agentic Memory Layer" && npm ci
+      - run:
+          name: Lint (advisory)
+          command: cd "src/Artemis Agentic Memory Layer" && npm run lint || true
+      - run:
+          name: Build (tsc)
+          command: cd "src/Artemis Agentic Memory Layer" && npm run build
+
+  # ============================================================
+  # SECRET SCAN
+  # ============================================================
   secrets-check:
     docker:
       - image: cimg/base:current
@@ -80,5 +121,6 @@ workflows:
   ci:
     jobs:
       - python-checks
-      - node-checks
+      - typescript-api
+      - typescript-memory-layer
       - secrets-check

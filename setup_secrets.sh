@@ -2,8 +2,11 @@
 # ============================================
 #  ARTEMIS CITY - SECRET SETUP SCRIPT
 # ============================================
-# Generates fresh keys and populates the four env files used across the
-# repo, each in the location its consumer expects:
+# Populates the four .env files used across the repo with a single,
+# consistent set of canonical keys. Designed to be re-runnable: drift
+# is healed instead of multiplied.
+#
+# Target files (each in the location its consumer expects):
 #
 #   .env                                       Python core (orchestrator,
 #                                              memory bus, registry, FastAPI
@@ -14,15 +17,31 @@
 #   src/Artemis Agentic Memory Layer/.env      Memory-layer MCP server
 #                                              (if the directory exists)
 #
-# Generated keys:
-#   MCP_API_KEY              shared MCP / FastAPI auth (matches across files)
-#   FASTAPI_API_KEY          FastAPI dashboard (app/api/main.py)
-#   ARTEMIS_API_KEY_DEFAULT  TS Express admin key (key:role:perms tuple)
-#   REDIS_PASSWORD           Redis password for docker-compose.yml
-#   QDRANT_API_KEY           Vector store API key for docker-compose.yml
-#   GRAFANA_PASSWORD         Grafana admin password for docker-compose.yml
+# Canonical keys (shared across the relevant files, see CONSUMERS table):
 #
-# Usage: ./setup_secrets.sh
+#   MCP_API_KEY              shared MCP / FastAPI auth — every consumer
+#   FASTAPI_API_KEY          FastAPI dashboard (app/api/main.py) — root only
+#   ARTEMIS_API_KEY_DEFAULT  TS Express admin key (key:role:perms tuple)
+#                            — root + app/api/.env
+#
+# Deployment-only keys (root .env only):
+#
+#   REDIS_PASSWORD           Redis password for docker-compose.yaml
+#   QDRANT_API_KEY           Vector store API key
+#   GRAFANA_PASSWORD         Grafana admin password
+#
+# Modes:
+#
+#   ./setup_secrets.sh             default: discover existing canonical keys
+#                                  from root .env, generate missing ones,
+#                                  sync to every file that declares them.
+#   ./setup_secrets.sh --check     read-only: report drift without writing.
+#   ./setup_secrets.sh --regenerate  force-rotate ALL canonical keys.
+#
+# Discover precedence: if a canonical key already exists in `.env` (root),
+# its value is preserved and propagated to every other file that declares
+# the same key. New files get the canonical value the first time, never a
+# fresh roll. Re-runs are idempotent.
 
 set -euo pipefail
 
@@ -36,6 +55,51 @@ REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_ROOT"
 
 # ---------------------------------------------------------------------------
+# CLI flags
+# ---------------------------------------------------------------------------
+
+MODE=sync   # sync | check | regenerate
+
+for arg in "$@"; do
+    case "$arg" in
+        --check)      MODE=check ;;
+        --regenerate) MODE=regenerate ;;
+        -h|--help)
+            sed -n '2,40p' "$0" | sed 's/^# //;s/^#//'
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}!!${NC} unknown flag: $arg" >&2
+            echo "    valid: --check, --regenerate, --help" >&2
+            exit 2
+            ;;
+    esac
+done
+
+# ---------------------------------------------------------------------------
+# Static config — which file consumes which canonical key
+# ---------------------------------------------------------------------------
+
+ROOT_ENV=".env"
+TS_API_ENV="app/api/.env"
+SRC_ENV="src/.env"
+MEMORY_ENV="src/Artemis Agentic Memory Layer/.env"
+
+ROOT_EXAMPLE=".env.example"
+TS_API_EXAMPLE="app/api/.env.example"
+SRC_EXAMPLE="src/.env.example"
+MEMORY_EXAMPLE="src/Artemis Agentic Memory Layer/.env.example"
+
+# CONSUMERS table: which files should hold which canonical keys.
+# Keep this in sync with each .env.example's declared vars.
+# Format: "<canonical_key>|<file1>|<file2>|..."
+CONSUMERS=(
+    "MCP_API_KEY|${ROOT_ENV}|${TS_API_ENV}|${SRC_ENV}|${MEMORY_ENV}"
+    "FASTAPI_API_KEY|${ROOT_ENV}"
+    "ARTEMIS_API_KEY_DEFAULT|${ROOT_ENV}|${TS_API_ENV}"
+)
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -47,7 +111,7 @@ generate_key() {
     fi
 }
 
-# sed -i is portable when called via this wrapper.
+# Portable in-place sed.
 inplace_sed() {
     local script="$1" file="$2"
     if [[ "${OSTYPE:-}" == "darwin"* ]]; then
@@ -57,49 +121,80 @@ inplace_sed() {
     fi
 }
 
-# Substitute a placeholder with a value in a file. Skips silently when the
-# placeholder is absent (file may legitimately not declare that key).
-set_value() {
-    local placeholder="$1" value="$2" file="$3"
-    if grep -q "$placeholder" "$file" 2>/dev/null; then
-        local escaped
-        escaped=$(printf '%s' "$value" | sed -e 's/[\/&]/\\&/g')
-        inplace_sed "s/$placeholder/$escaped/g" "$file"
+# Read the value of KEY from FILE, stripping any wrapping quotes. Returns
+# empty string when KEY is absent, commented out, or the file is missing.
+read_env_value() {
+    local key="$1" file="$2"
+    if [[ ! -f "$file" ]]; then
+        printf ''
+        return
     fi
+    awk -v k="$key" -F= '
+        $0 ~ "^" k "=" {
+            sub("^" k "=", "")
+            gsub(/^["'"'"']/, "")
+            gsub(/["'"'"']$/, "")
+            print
+            exit
+        }
+    ' "$file"
 }
 
-# Set KEY=value in an env file, appending it when absent. This is used for
-# deployment variables that are consumed by docker-compose.yml but are not
-# present in every historical .env.example.
+# Does FILE declare KEY at all (including commented-out)? Used to decide
+# whether the file is a consumer of this canonical key.
+file_declares() {
+    local key="$1" file="$2"
+    [[ -f "$file" ]] || return 1
+    grep -qE "^#?\s*${key}=" "$file"
+}
+
+# Set KEY=VALUE in FILE. Replaces an existing line (commented or not),
+# otherwise appends to the file.
 set_env_var() {
     local key="$1" value="$2" file="$3"
     local escaped
     escaped=$(printf '%s' "$value" | sed -e 's/[\/&]/\\&/g')
 
-    if grep -Eq "^#?${key}=" "$file" 2>/dev/null; then
-        inplace_sed "s/^#\?${key}=.*/${key}=${escaped}/" "$file"
+    if grep -Eq "^#?\s*${key}=" "$file" 2>/dev/null; then
+        inplace_sed "s/^#\?\s*${key}=.*/${key}=${escaped}/" "$file"
     else
         printf '%s=%s\n' "$key" "$value" >> "$file"
     fi
 }
 
-# Prompt before overwriting an existing file. Returns 0 to proceed.
-should_write() {
-    local target="$1"
-    if [[ ! -f "$target" ]]; then
-        return 0
-    fi
-    echo -e "${YELLOW}!${NC}  $target already exists"
-    read -p "   Overwrite? (y/N): " -r reply
-    [[ "$reply" =~ ^[Yy]$ ]]
+# Treat values that match the *_here placeholder pattern (from .env.example)
+# as if they were empty, so the script never preserves a stale placeholder
+# as if it were a real key.
+is_placeholder() {
+    local v="$1"
+    [[ -z "$v" ]] && return 0
+    [[ "$v" =~ ^your_.*_here ]] && return 0
+    return 1
 }
 
-# Add the deployment variables documented in docs/DEPLOYMENT.md to the root
-# .env. Docker Compose reads this file directly for required secrets, while the
-# Python services can also consume the ARTEMIS_* settings during production
-# runs.
-add_root_deployment_env() {
+# Prompt before copying an example over an absent target.
+should_create() {
     local target="$1"
+    if [[ -f "$target" ]]; then
+        return 0  # already there, nothing to ask
+    fi
+    echo -e "${YELLOW}!${NC}  $target does not exist"
+    read -p "   Create from its .env.example? (Y/n): " -r reply
+    [[ ! "$reply" =~ ^[Nn]$ ]]
+}
+
+# ---------------------------------------------------------------------------
+# Deployment-only block (root .env only) — preserved from prior versions.
+# ---------------------------------------------------------------------------
+
+add_root_deployment_env_if_absent() {
+    local target="$1"
+
+    # Idempotency: only append the deployment block when the first entry
+    # in it is missing.
+    if grep -qE "^ARTEMIS_API_KEY_DEFAULT=" "$target"; then
+        return 0
+    fi
 
     cat >> "$target" <<'EOF'
 
@@ -107,148 +202,268 @@ add_root_deployment_env() {
 # 🚀 DEPLOYMENT / DOCKER COMPOSE CONFIGURATION
 # ============================================
 # Generated by setup_secrets.sh from docs/DEPLOYMENT.md defaults.
-# docker-compose.yml reads this root .env file for required service secrets.
+# docker-compose.yaml reads this root .env file for required service secrets.
 EOF
 
-    # Public service auth consumed by docker-compose.yml / express-api.
     set_env_var "ARTEMIS_API_KEY_DEFAULT" "${TS_KEY}:admin:read,write,delete,admin" "$target"
-
-    # Deployment environment
     set_env_var "ARTEMIS_LOG_LEVEL" "INFO" "$target"
-
-    # Service URLs
     set_env_var "ARTEMIS_KERNEL_URL" "http://kernel:8000" "$target"
     set_env_var "ARTEMIS_REGISTRY_URL" "http://registry:8002" "$target"
     set_env_var "ARTEMIS_MEMORY_BUS_URL" "http://memory-bus:8001" "$target"
-
-    # Storage
     set_env_var "ARTEMIS_OBSIDIAN_VAULT_PATH" "/data/vault" "$target"
     set_env_var "ARTEMIS_VECTOR_STORE_URL" "http://vector-store:6333" "$target"
     set_env_var "ARTEMIS_VECTOR_STORE_API_KEY" "$QDRANT_KEY" "$target"
-
-    # Message broker
     set_env_var "ARTEMIS_REDIS_URL" "redis://redis:6379" "$target"
     set_env_var "REDIS_PASSWORD" "$REDIS_KEY" "$target"
-
-    # Memory Bus
     set_env_var "ARTEMIS_MEMORY_WRITE_TIMEOUT_MS" "200" "$target"
     set_env_var "ARTEMIS_MEMORY_SYNC_TIMEOUT_MS" "300" "$target"
     set_env_var "ARTEMIS_MEMORY_CACHE_SIZE_MB" "100" "$target"
     set_env_var "ARTEMIS_MEMORY_QUEUE_MAX_BYTES" "10485760" "$target"
-
-    # Embedding
     set_env_var "ARTEMIS_EMBEDDING_MODEL" "text-embedding-3-large" "$target"
     set_env_var "ARTEMIS_EMBEDDING_BATCH_SIZE" "100" "$target"
     set_env_var "ARTEMIS_EMBEDDING_API_KEY" "" "$target"
-
-    # Governance
     set_env_var "ARTEMIS_APPROVAL_TIER1_ENABLED" "true" "$target"
     set_env_var "ARTEMIS_APPROVAL_TIER2_TIMEOUT_HOURS" "24" "$target"
     set_env_var "ARTEMIS_APPROVAL_TIER3_TIMEOUT_HOURS" "72" "$target"
     set_env_var "ARTEMIS_AUTO_ROLLBACK_ON_ERRORS" "true" "$target"
     set_env_var "ARTEMIS_AUTO_ROLLBACK_ERROR_THRESHOLD" "0.05" "$target"
-
-    # Sandbox
     set_env_var "ARTEMIS_SANDBOX_VIOLATION_QUARANTINE_COUNT" "3" "$target"
     set_env_var "ARTEMIS_SANDBOX_VIOLATION_DECAY_DAYS" "30" "$target"
-
-    # Security
     set_env_var "QDRANT_API_KEY" "$QDRANT_KEY" "$target"
     set_env_var "GRAFANA_PASSWORD" "$GRAFANA_KEY" "$target"
-
-    # Monitoring
     set_env_var "ARTEMIS_PROMETHEUS_ENABLED" "true" "$target"
     set_env_var "ARTEMIS_METRICS_PORT" "9090" "$target"
     set_env_var "ARTEMIS_LOG_FORMAT" "json" "$target"
 }
 
-# Copy an example file to its target, apply all known key substitutions, and
-# lock permissions. Pure no-op if the example is missing.
-provision_env() {
+# ---------------------------------------------------------------------------
+# Phase 1 — Discover canonical values
+# ---------------------------------------------------------------------------
+
+# For each canonical key, prefer the existing value in root .env. Fall
+# back to any other file that has it. Generate fresh only when nothing
+# survives. In --regenerate mode, ignore existing values entirely.
+
+discover_or_generate() {
+    local key="$1"; shift
+    local files=("$@")
+
+    if [[ "$MODE" == "regenerate" ]]; then
+        generate_key
+        return
+    fi
+
+    local v=""
+    for f in "${files[@]}"; do
+        v="$(read_env_value "$key" "$f")"
+        if ! is_placeholder "$v"; then
+            printf '%s' "$v"
+            return
+        fi
+    done
+    generate_key
+}
+
+# Resolve canonical values for the three shared keys plus the deployment
+# extras (which always rotate on first run but are preserved on re-runs).
+MCP_KEY="$(discover_or_generate "MCP_API_KEY" "$ROOT_ENV" "$TS_API_ENV" "$SRC_ENV" "$MEMORY_ENV")"
+FASTAPI_KEY="$(discover_or_generate "FASTAPI_API_KEY" "$ROOT_ENV")"
+
+# ARTEMIS_API_KEY_DEFAULT is stored as "<key>:admin:read,write,delete,admin"
+# in the .env files. Extract just the key portion for canonical purposes;
+# the suffix is rebuilt below.
+_existing_ts_full=""
+if [[ "$MODE" != "regenerate" ]]; then
+    for f in "$ROOT_ENV" "$TS_API_ENV"; do
+        v="$(read_env_value "ARTEMIS_API_KEY_DEFAULT" "$f")"
+        if ! is_placeholder "$v"; then
+            _existing_ts_full="$v"
+            break
+        fi
+    done
+fi
+if [[ -n "$_existing_ts_full" ]]; then
+    TS_KEY="${_existing_ts_full%%:*}"
+else
+    TS_KEY="$(generate_key)"
+fi
+
+# Deployment extras: preserve when present, only generate on first run.
+REDIS_KEY="$(discover_or_generate "REDIS_PASSWORD" "$ROOT_ENV")"
+QDRANT_KEY="$(discover_or_generate "QDRANT_API_KEY" "$ROOT_ENV")"
+GRAFANA_KEY="$(discover_or_generate "GRAFANA_PASSWORD" "$ROOT_ENV")"
+
+# The ARTEMIS_API_KEY_DEFAULT value carries the role/perm suffix.
+TS_VALUE="${TS_KEY}:admin:read,write,delete,admin"
+
+# ---------------------------------------------------------------------------
+# Phase 2 — Ensure each .env exists (offer to create from .env.example)
+# ---------------------------------------------------------------------------
+
+ensure_env_file() {
     local example="$1" target="$2" label="$3"
 
-    echo -e "${BLUE}>${NC} $label"
-    echo "  example: $example"
-    echo "  target:  $target"
-
+    if [[ -f "$target" ]]; then
+        return 0
+    fi
     if [[ ! -f "$example" ]]; then
-        echo -e "  ${YELLOW}skip${NC} — example not found"
-        echo ""
-        return 0
+        echo -e "  ${YELLOW}skip${NC} $label — neither file nor example exists"
+        return 1
     fi
-
-    if ! should_write "$target"; then
-        echo -e "  ${YELLOW}skip${NC} — kept existing"
-        echo ""
-        return 0
+    if [[ "$MODE" == "check" ]]; then
+        echo -e "  ${YELLOW}drift${NC} $target missing (would be created from $example)"
+        return 1
     fi
-
+    if ! should_create "$target"; then
+        echo -e "  ${YELLOW}skip${NC} $label — user declined to create"
+        return 1
+    fi
     mkdir -p "$(dirname "$target")"
     cp "$example" "$target"
-
-    # Apply substitutions. Each is a no-op when the placeholder is absent.
-    set_value "your_secure_api_key_here" "$MCP_KEY" "$target"
-    set_value "your_fastapi_api_key_here" "$FASTAPI_KEY" "$target"
-    set_value "your_default_api_key_here" "$TS_KEY" "$target"
-
-    if [[ "$target" == ".env" ]]; then
-        add_root_deployment_env "$target"
-    fi
-
     chmod 600 "$target"
+    echo -e "  ${GREEN}created${NC} $target from $example"
+    return 0
+}
 
-    if git check-ignore "$target" >/dev/null 2>&1; then
-        echo -e "  ${GREEN}ok${NC} written (chmod 600, git-ignored)"
-    else
-        echo -e "  ${RED}!!${NC} written but NOT git-ignored — fix .gitignore before committing"
+# ---------------------------------------------------------------------------
+# Phase 3 — Sync canonical keys into every consumer
+# ---------------------------------------------------------------------------
+
+# Returns 0 when the key is already at its canonical value in the file,
+# 1 otherwise. Used by --check mode to report drift.
+in_sync() {
+    local key="$1" expected="$2" file="$3"
+    local actual
+    actual="$(read_env_value "$key" "$file")"
+    [[ "$actual" == "$expected" ]]
+}
+
+sync_key() {
+    local key="$1" expected="$2" file="$3"
+
+    if [[ ! -f "$file" ]]; then
+        return 0
     fi
-    echo ""
+    if ! file_declares "$key" "$file"; then
+        # File doesn't declare this key — don't add it on its own. The
+        # template (.env.example) decides which keys belong where; if it
+        # changed and this file is stale, the user can `cp .env.example`
+        # by hand or re-run from a clean slate.
+        return 0
+    fi
+
+    if in_sync "$key" "$expected" "$file"; then
+        return 0
+    fi
+
+    if [[ "$MODE" == "check" ]]; then
+        echo -e "  ${YELLOW}drift${NC} $file — $key out of sync"
+        return 1
+    fi
+
+    set_env_var "$key" "$expected" "$file"
+    echo -e "  ${GREEN}synced${NC} $file — $key"
 }
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
-echo "Artemis City — Secure Environment Setup"
-echo "========================================"
+echo "Artemis City — Secure Environment Setup ($MODE)"
+echo "================================================"
 echo ""
 
-MCP_KEY="$(generate_key)"
-FASTAPI_KEY="$(generate_key)"
-TS_KEY="$(generate_key)"
-REDIS_KEY="$(generate_key)"
-QDRANT_KEY="$(generate_key)"
-GRAFANA_KEY="$(generate_key)"
+echo -e "${BLUE}1. Discover canonical key values${NC}"
+case "$MODE" in
+    sync)        echo "  preserving existing keys from $ROOT_ENV; generating only what's missing." ;;
+    regenerate)  echo "  rotating ALL canonical keys (existing values discarded)." ;;
+    check)       echo "  read-only check; reporting drift without writing." ;;
+esac
+echo ""
 
-provision_env ".env.example"     ".env"     "Python core (.env)"
-provision_env "app/api/.env.example" "app/api/.env" "TypeScript Express API (app/api/.env)"
-provision_env "src/.env.example" "src/.env" "Memory-layer Python (src/.env)"
-provision_env \
-    "src/Artemis Agentic Memory Layer/.env.example" \
-    "src/Artemis Agentic Memory Layer/.env" \
-    "Memory-layer MCP server"
+# DRIFT_COUNT is initialized here (before phase 2) so that
+# ensure_env_file failures in --check mode contribute to the total --
+# previously the `|| true` after each call discarded the return code and
+# missing files were never counted as drift, so a clean checkout with no
+# generated .env files exited 0 from --check.
+DRIFT_COUNT=0
+
+echo -e "${BLUE}2. Ensure each .env file exists${NC}"
+for entry in \
+    "$ROOT_EXAMPLE|$ROOT_ENV|Python core (.env)" \
+    "$TS_API_EXAMPLE|$TS_API_ENV|TS Express API (app/api/.env)" \
+    "$SRC_EXAMPLE|$SRC_ENV|Memory-layer Python (src/.env)" \
+    "$MEMORY_EXAMPLE|$MEMORY_ENV|Memory-layer MCP server"; do
+    IFS='|' read -r EX TG LB <<<"$entry"
+    if ! ensure_env_file "$EX" "$TG" "$LB"; then
+        # ensure_env_file returns non-zero when the file is missing AND
+        # (we're in --check mode OR the user declined creation OR no
+        # template exists). In --check mode, treat that as drift.
+        if [[ "$MODE" == "check" ]]; then
+            DRIFT_COUNT=$((DRIFT_COUNT + 1))
+        fi
+    fi
+done
+echo ""
+
+echo -e "${BLUE}3. Sync canonical keys${NC}"
+for entry in "${CONSUMERS[@]}"; do
+    IFS='|' read -r KEY FIRST REST <<<"$entry"
+    files=("$FIRST")
+    while [[ -n "$REST" ]]; do
+        IFS='|' read -r NEXT REST <<<"$REST"
+        files+=("$NEXT")
+    done
+
+    case "$KEY" in
+        MCP_API_KEY)              EXPECTED="$MCP_KEY" ;;
+        FASTAPI_API_KEY)          EXPECTED="$FASTAPI_KEY" ;;
+        ARTEMIS_API_KEY_DEFAULT)  EXPECTED="$TS_VALUE" ;;
+    esac
+
+    for f in "${files[@]}"; do
+        if ! sync_key "$KEY" "$EXPECTED" "$f"; then
+            DRIFT_COUNT=$((DRIFT_COUNT + 1))
+        fi
+    done
+done
+echo ""
+
+echo -e "${BLUE}4. Deployment block on root .env (idempotent)${NC}"
+if [[ "$MODE" != "check" && -f "$ROOT_ENV" ]]; then
+    add_root_deployment_env_if_absent "$ROOT_ENV"
+    echo "  ok"
+else
+    echo "  skipped (mode=$MODE)"
+fi
+echo ""
 
 # ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 
-echo -e "${GREEN}Setup complete.${NC}"
-echo ""
-echo "Generated keys were written only to files marked ok above."
-echo "Skipped existing files were left unchanged; read the corresponding .env files locally if you need their current values."
-echo ""
-echo "Next steps:"
-echo "  1. Add your Obsidian REST API key to .env:"
-echo -e "     ${YELLOW}OBSIDIAN_API_KEY=<your key from Obsidian > Settings > Local REST API>${NC}"
-echo "  2. Add OPENAI_API_KEY or ARTEMIS_EMBEDDING_API_KEY if you use hosted embeddings."
-echo "  3. Set OBSIDIAN_VAULT_PATH for local runs if your vault isn't at <repo>/obsidian_vault."
-echo "     The deployment default ARTEMIS_OBSIDIAN_VAULT_PATH is /data/vault for containers."
-echo "  4. docker-compose.yml can now read REDIS_PASSWORD, QDRANT_API_KEY,"
-echo "     GRAFANA_PASSWORD, and ARTEMIS_API_KEY_DEFAULT from the root .env."
-echo "  5. If you skipped any existing .env, confirm MCP_API_KEY matches across"
-echo "     consumers before starting cross-service workflows."
-echo ""
-echo "Security notes:"
-echo "  - All written .env files are chmod 600."
-echo "  - .gitignore covers .env at any depth — verified per file above."
-echo "  - Re-running this script prompts before overwriting each file."
+echo "================================================"
+case "$MODE" in
+    check)
+        if [[ "$DRIFT_COUNT" -gt 0 ]]; then
+            echo -e "${RED}drift detected:${NC} $DRIFT_COUNT issue(s) above"
+            echo "   re-run without --check to sync"
+            exit 1
+        else
+            echo -e "${GREEN}all canonical keys in sync.${NC}"
+        fi
+        ;;
+    sync|regenerate)
+        echo -e "${GREEN}Setup complete.${NC}"
+        echo ""
+        echo "Next steps:"
+        echo "  1. Add your Obsidian REST API key to .env:"
+        echo -e "     ${YELLOW}OBSIDIAN_API_KEY=<your key from Obsidian > Settings > Local REST API>${NC}"
+        echo "  2. Add OPENAI_API_KEY or ARTEMIS_EMBEDDING_API_KEY if you use hosted embeddings."
+        echo "  3. Set OBSIDIAN_VAULT_PATH for local runs if your vault isn't at <repo>/obsidian_vault."
+        echo "  4. docker-compose.yaml can now read REDIS_PASSWORD, QDRANT_API_KEY,"
+        echo "     GRAFANA_PASSWORD, and ARTEMIS_API_KEY_DEFAULT from the root .env."
+        echo "  5. To verify alignment any time: ./setup_secrets.sh --check"
+        echo "  6. To rotate ALL secrets: ./setup_secrets.sh --regenerate"
+        ;;
+esac

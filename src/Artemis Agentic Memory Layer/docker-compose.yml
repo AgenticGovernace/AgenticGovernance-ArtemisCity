@@ -7,14 +7,32 @@ services:
       - "${PORT:-8000}:3000"
     environment:
       PORT: 3000
-      NODE_ENV: development
-      MCP_API_KEY: ${MCP_API_KEY}
-      OBSIDIAN_BASE_URL: ${OBSIDIAN_BASE_URL:-https://127.0.0.1:27123}
-      OBSIDIAN_API_KEY: ${OBSIDIAN_API_KEY}
+      # Default to production; override via .env for local dev work.
+      NODE_ENV: ${NODE_ENV:-production}
+      # Fail fast if these secrets are not provided (matches the pattern
+      # used elsewhere in this repo for REDIS_PASSWORD / GRAFANA_PASSWORD).
+      MCP_API_KEY: ${MCP_API_KEY:?MCP_API_KEY must be set}
+      OBSIDIAN_API_KEY: ${OBSIDIAN_API_KEY:?OBSIDIAN_API_KEY must be set}
+      # host.docker.internal resolves to the Docker host on Mac/Windows.
+      # Linux users should override via .env with their host IP, or run
+      # the service with `network_mode: host`.
+      OBSIDIAN_BASE_URL: ${OBSIDIAN_BASE_URL:-https://host.docker.internal:27123}
       MCP_LOG_LEVEL: ${MCP_LOG_LEVEL:-info}
-      DEBUG: ${DEBUG:-*}
+      # Empty by default in production; set DEBUG=* in your .env for verbose dev logs.
+      DEBUG: ${DEBUG:-}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
     networks:
       - mcp_network
+    # Uncomment on Linux hosts if you need to reach an Obsidian instance
+    # running on the host machine and host.docker.internal is unavailable.
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
 
 networks:
   mcp_network:

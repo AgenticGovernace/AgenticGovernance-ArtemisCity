@@ -22,7 +22,7 @@ import {
   useDisclosure,
   VStack,
 } from '@chakra-ui/react';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { fetchReportContent, fetchReports } from '../api';
 import ReactMarkdown from 'react-markdown'; // For rendering markdown content
 
