@@ -99,3 +99,10 @@ data/run_logs.db-journal
 state_kernel.json
 obsidian_vault/Agent Inputs/ethics_research_20260605104845.md
 obsidian_vault/Agent Outputs/Research_Agent_Report_user_instruction_20260605104845_5.md
+/obsidian_vault/.obsidian
+req.md
+/src/artemis_city.egg-info/dependency_links.txt
+/src/artemis_city.egg-info/PKG-INFO
+/src/artemis_city.egg-info/requires.txt
+/src/artemis_city.egg-info/SOURCES.txt
+/src/artemis_city.egg-info/top_level.txt

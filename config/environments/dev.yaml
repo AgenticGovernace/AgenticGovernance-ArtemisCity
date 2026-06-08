@@ -6,7 +6,7 @@ mcp:
   log_level: TRACE
 
 obsidian:
-  base_url: http://localhost:27124
+  base_url: http://localhost:27123
 
 exo:
   base_url: http://localhost:52415
@@ -38,7 +38,7 @@ agent:
   presence_penalty: 0
 
 server:
-  port: 8000
+  port: 27123
   host: 127.0.0.1
   debug: true
   reload: true
