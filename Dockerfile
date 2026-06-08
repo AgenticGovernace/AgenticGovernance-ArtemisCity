@@ -5,9 +5,11 @@ FROM node:24-alpine AS builder
 WORKDIR /src
 
 # Copy package.json and package-lock.json first to leverage Docker cache
-# This ensures that npm install is only re-run if dependencies change
+# This ensures that npm install is only re-run if dependencies change.
+# Use `npm ci` (not `npm install`) so the build honors the lockfile
+# exactly -- required for reproducible CI/production builds.
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 # Install application dependencies (including devDependencies — TypeScript
 # and @types/* live there and the next ``npm run build`` step requires
 # them). The production stage below installs a separate prod-only copy.
@@ -49,7 +51,7 @@ COPY --from=builder /src/src/ ./src
 # Expose the port the Express API listens on. Matches the API_PORT default
 # in app/api/index.ts (4000) and avoids the 3000 collision with Grafana
 # in docker-compose.yml. Override at runtime with `-e API_PORT=...`.
-EXPOSE 3000
+EXPOSE 4000
 
 # Run as a non-root user for security best practices
 # The node:alpine image typically creates a 'node' user with appropriate permissions
@@ -58,6 +60,7 @@ USER node
 # Run the compiled application
 CMD ["npm", "start"]
 
-# Healthcheck to ensure the container is running correctly
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD node -e "require('http').get('http://localhost:4000/health', (res) => res.statusCode === 200 ? process.exit(0) : process.exit(1))"
+# Healthcheck honors `API_PORT` overrides so the probe matches whatever
+# port app/api/index.ts is actually listening on (default 4000).
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD node -e "const p=process.env.API_PORT||4000; require('http').get('http://localhost:'+p+'/health', (res) => res.statusCode === 200 ? process.exit(0) : process.exit(1))"
 
