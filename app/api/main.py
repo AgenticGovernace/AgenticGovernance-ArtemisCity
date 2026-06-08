@@ -227,11 +227,28 @@ class ExecuteInstructionResponse(BaseModel):
     error: str | None = None
 
 
-DB_DIR = Path(__file__).resolve().parent / "db"
-AGENT_REGISTRY_DB = DB_DIR / "agent_registry.db"
-HEBBIAN_DB = DB_DIR / "hebbian_weights.db"
-VECTOR_DB = DB_DIR / "vector_store.db"
-RUN_LOG_DB = DB_DIR / "run_logs.db"
+# SQLite paths -- align with the rest of the project, which writes to
+# ``data/`` at the repo root (see src/api_bridge.py, src/main.py,
+# src/launch/main.py and the PKG-INFO doc). The dashboard previously
+# pointed at ``app/api/db/``, a directory that never gets populated, so
+# every Database/Agents/Hebbian/Vector/Runs endpoint 500'd with
+# "Database unavailable." Honor ``ARTEMIS_DATA_DIR`` as an umbrella
+# override (useful for Docker), and the existing per-DB env names that
+# api_bridge already documents.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+DB_DIR = Path(os.environ.get("ARTEMIS_DATA_DIR") or (_REPO_ROOT / "data"))
+AGENT_REGISTRY_DB = Path(
+    os.environ.get("ARTEMIS_REGISTRY_DB") or (DB_DIR / "agent_registry.db")
+)
+HEBBIAN_DB = Path(
+    os.environ.get("ARTEMIS_HEBBIAN_DB") or (DB_DIR / "hebbian_weights.db")
+)
+VECTOR_DB = Path(
+    os.environ.get("ARTEMIS_VECTOR_DB") or (DB_DIR / "vector_store.db")
+)
+RUN_LOG_DB = Path(
+    os.environ.get("ARTEMIS_RUN_LOG_DB") or (DB_DIR / "run_logs.db")
+)
 
 
 def _connect_db(db_path: Path) -> sqlite3.Connection:
