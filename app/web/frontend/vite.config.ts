@@ -27,6 +27,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '/api'), // Rewrite ensures /api is kept
       },
+      // /health is unauthenticated on the FastAPI side and used by the
+      // sidebar's live session card. Forward it without rewriting.
+      '/health': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
     },
   },
 });
