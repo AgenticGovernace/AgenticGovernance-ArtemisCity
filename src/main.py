@@ -118,6 +118,7 @@ def handle_user_instruction(
         "artemis_agent": "Artemis Agent",
         "research_agent": "Research Agent",
         "summarizer_agent": "Summarizer Agent",
+        "llm_agent": "LLM Agent",
     }
     if agent_name in agent_name_map:
         agent_name = agent_name_map[agent_name]
@@ -242,6 +243,7 @@ def main() -> None:
         "artemis_agent": "Artemis Agent",
         "research_agent": "Research Agent",
         "summarizer_agent": "Summarizer Agent",
+        "llm_agent": "LLM Agent",
     }
 
     # Handle Hebbian statistics display

@@ -43,7 +43,11 @@
     {
       "type": "command",
       "content": "help"
+    },
+    {
+      "type": "command",
+      "content": "python -m src"
     }
   ],
-  "boot_count": 13
+  "boot_count": 15
 }

@@ -4,11 +4,40 @@
  * Endpoints for interacting with LLM providers (Claude, OpenAI, etc.)
  */
 
-import { Router, Request, Response } from 'express';
-import { LLMController } from '../controllers/llmController';
+import {Request, Response, Router} from 'express';
+import {LLMController} from '../controllers';
+import {authMiddleware} from '../middleware/auth';
 
 const router = Router();
 const controller = new LLMController();
+router.use(authMiddleware);
+
+function resolveProviderApiKey(provider: string): string | undefined {
+  const normalized = provider.trim().toLowerCase();
+  const providerUpper = normalized.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+
+  const candidatesByProvider: Record<string, string[]> = {
+    anthropic: ['ANTHROPIC_API_KEY', 'ARTEMIS_ANTHROPIC_API_KEY', 'CLAUDE_API_KEY'],
+    openai: ['OPENAI_API_KEY', 'ARTEMIS_OPENAI_API_KEY'],
+    local: [],
+  };
+
+  const providerCandidates = candidatesByProvider[normalized] ?? [];
+  const genericCandidates = [
+    `${providerUpper}_API_KEY`,
+    `ARTEMIS_${providerUpper}_API_KEY`,
+    'ARTEMIS_LLM_API_KEY',
+  ];
+
+  for (const keyName of [...providerCandidates, ...genericCandidates]) {
+    const value = process.env[keyName];
+    if (value && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return undefined;
+}
 
 /**
  * POST /api/v1/llm/chat
@@ -172,11 +201,11 @@ router.get('/providers', (req: Request, res: Response) => {
 
 /**
  * POST /api/v1/llm/provider
- * Configure a provider
+ * Configure a provider using API keys loaded from environment variables
  */
 router.post('/provider', async (req: Request, res: Response) => {
   try {
-    const { provider, apiKey, baseUrl, options } = req.body;
+    const { provider, baseUrl, options } = req.body;
 
     if (!provider) {
       res.status(400).json({
@@ -186,11 +215,27 @@ router.post('/provider', async (req: Request, res: Response) => {
       return;
     }
 
-    const result = await controller.configureProvider(provider, { apiKey, baseUrl, ...options });
+    const providerName = String(provider).trim().toLowerCase();
+    const apiKeyFromEnv = resolveProviderApiKey(providerName);
+    const isLocalProvider = providerName === 'local';
+
+    if (!isLocalProvider && !apiKeyFromEnv) {
+      res.status(400).json({
+        success: false,
+        error: `No API key configured in environment for provider '${providerName}'`
+      });
+      return;
+    }
+
+    const result = await controller.configureProvider(providerName, {
+      apiKey: apiKeyFromEnv,
+      baseUrl,
+      ...options
+    });
     res.json({
       success: true,
       data: result,
-      message: `Provider ${provider} configured successfully`
+      message: `Provider ${providerName} configured successfully`
     });
   } catch (error: any) {
     res.status(400).json({

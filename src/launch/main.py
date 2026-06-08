@@ -9,7 +9,6 @@ _project_root = str(Path(__file__).resolve().parents[2])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from src.mcp.config import AGENT_OUTPUT_DIR  # noqa: E402
 from src.mcp.config import AGENT_INPUT_DIR, OBSIDIAN_VAULT_PATH
 from src.mcp.orchestrator import Orchestrator  # noqa: E402
 from src.utils.helpers import logger  # noqa: E402
@@ -125,6 +124,7 @@ def handle_user_instruction(
         "artemis_agent": "Artemis Agent",
         "research_agent": "Research Agent",
         "summarizer_agent": "Summarizer Agent",
+        "llm_agent": "LLM Agent",
     }
     if agent_name in agent_name_map:
         agent_name = agent_name_map[agent_name]
@@ -243,6 +243,7 @@ def main():
         "artemis_agent": "Artemis Agent",
         "research_agent": "Research Agent",
         "summarizer_agent": "Summarizer Agent",
+        "llm_agent": "LLM Agent",
     }
 
     # Handle Hebbian statistics display

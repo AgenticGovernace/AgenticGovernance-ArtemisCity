@@ -29,6 +29,7 @@ import pytest
 from src.agents.artemis_agent import ArtemisAgent
 # Import base class and all concrete implementations
 from src.agents.base_agent import BaseAgent
+from src.agents.llm_agent import LLMAgent
 from src.agents.research_agent import ResearchAgent
 from src.agents.summarizer_agent import SummarizerAgent
 
@@ -46,6 +47,7 @@ def get_all_agent_classes() -> List[Type[BaseAgent]]:
     """
     return [
         ArtemisAgent,
+        LLMAgent,
         ResearchAgent,
         SummarizerAgent,
     ]

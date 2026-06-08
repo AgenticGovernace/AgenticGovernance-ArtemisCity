@@ -7,12 +7,10 @@ WORKDIR /src
 # Copy package.json and package-lock.json first to leverage Docker cache
 # This ensures that npm install is only re-run if dependencies change
 COPY package*.json ./
-
+RUN npm install
 # Install application dependencies (including devDependencies — TypeScript
 # and @types/* live there and the next ``npm run build`` step requires
 # them). The production stage below installs a separate prod-only copy.
-RUN npm ci
-
 # Copy the rest of the application code
 COPY . .
 
@@ -23,7 +21,7 @@ RUN npm run build
 FROM node:24-alpine
 
 # Set the working directory in the container
-WORKDIR /app
+WORKDIR /src
 
 # Set environment variables for production
 ENV NODE_ENV=production \
@@ -42,7 +40,6 @@ RUN apk add --no-cache python3
 # tooling like TypeScript and @types/*.
 COPY --from=builder /src/dist/ ./dist
 COPY --from=builder /src/package.json /src/package-lock.json ./
-RUN npm ci --omit=dev
 
 # Copy the Python bridge tree last so changes to it don't invalidate the
 # npm-install cache layer.
@@ -51,7 +48,7 @@ COPY --from=builder /src/src/ ./src
 # Expose the port the Express API listens on. Matches the API_PORT default
 # in app/api/index.ts (4000) and avoids the 3000 collision with Grafana
 # in docker-compose.yml. Override at runtime with `-e API_PORT=...`.
-EXPOSE 4000
+EXPOSE 3000
 
 # Run as a non-root user for security best practices
 # The node:alpine image typically creates a 'node' user with appropriate permissions

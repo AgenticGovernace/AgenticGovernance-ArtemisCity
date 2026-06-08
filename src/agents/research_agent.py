@@ -2,6 +2,7 @@ import random
 import time
 
 from .base_agent import BaseAgent
+from .llm_agent import LLMAgent
 
 
 class ResearchAgent(BaseAgent):
@@ -9,6 +10,7 @@ class ResearchAgent(BaseAgent):
 
     def __init__(self, name: str = "Research Agent"):
         super().__init__(name, capabilities=["web_search", "document_analysis"])
+        self.llm_agent = LLMAgent()
 
     def perform_task(self, task_context: dict) -> dict:
         """Perform task.
@@ -22,6 +24,40 @@ class ResearchAgent(BaseAgent):
         topic = task_context.get("topic", task_context.get("title", "unknown topic"))
         keywords = task_context.get("keywords", "").split(",")
         depth = task_context.get("depth", "overview")
+
+        if task_context.get("disable_llm_delegate") is not True:
+            prompt = (
+                f"Research topic: {topic}\n"
+                f"Depth: {depth}\n"
+                f"Keywords: {', '.join(k.strip() for k in keywords if k.strip()) or 'none'}\n\n"
+                "Provide:\n"
+                "1) concise summary\n"
+                "2) key findings\n"
+                "3) recommended next steps"
+            )
+            llm_result = self.llm_agent.perform_task(
+                {
+                    "task_id": task_context.get("task_id"),
+                    "system_prompt": "You are a concise research assistant.",
+                    "prompt": prompt,
+                    "temperature": task_context.get("temperature", 0.2),
+                    "max_tokens": task_context.get("max_tokens", 700),
+                    "model": task_context.get("model"),
+                }
+            )
+            if llm_result.get("status") == "success":
+                summary = llm_result.get("summary", "")
+                return {
+                    "status": "success",
+                    "summary": summary,
+                    "findings": [summary],
+                    "sources_consulted": [
+                        f"LLM provider: {llm_result.get('provider', 'unknown')}"
+                    ],
+                    "recommendations": [
+                        "Validate cited claims with primary sources.",
+                    ],
+                }
 
         self.report_status(f"Starting research on '{topic}' with depth '{depth}'...")
         self.report_status(f"Keywords: {', '.join(keywords)}")
