@@ -1,24 +1,23 @@
 """
-Unit tests for validating the docker-compose.yml configuration.
+Unit tests for validating the docker-compose.yaml configuration.
 
 Tests the structure, services, and security constraints defined in the file.
 """
 
-from pathlib import Path
-
 import pytest
 import yaml
+from pathlib import Path
 
 
 @pytest.fixture
 def docker_compose_path():
-    """Fixture to get the path to docker-compose.yml."""
-    return Path(__file__).parent.parent.parent / "docker-compose.yml"
+    """Fixture to get the path to docker-compose.yaml."""
+    return Path(__file__).parent.parent.parent / "docker-compose.yaml"
 
 
 @pytest.fixture
 def docker_compose_config(docker_compose_path):
-    """Fixture to load and parse the docker-compose.yml file."""
+    """Fixture to load and parse the docker-compose.yaml file."""
     assert docker_compose_path.exists(), f"File not found: {docker_compose_path}"
     with open(docker_compose_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)

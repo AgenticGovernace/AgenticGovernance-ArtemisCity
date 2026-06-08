@@ -11,14 +11,21 @@
 const API_BASE_URL = '/api';
 
 /**
- * Resolved API key for `X-API-Key`. Reads `VITE_FASTAPI_API_KEY` first
- * (set by `setup_secrets.sh` for the FastAPI dashboard), falling back to
- * `VITE_MCP_API_KEY` for environments that share the MCP key. Either may
- * be empty in local dev with no `.env` — the FastAPI auth dependency is
- * permissive in that case (see `_require_api_key` in app/api/main.py).
+ * Resolved API key for `X-API-Key`. Reads `FASTAPI_API_KEY` first (the
+ * canonical name `setup_secrets.sh` writes into the root `.env` that
+ * vite.config.ts exposes via `envDir`/`envPrefix`), falling back to
+ * `MCP_API_KEY` for shared-key setups. The `VITE_*` aliases let projects
+ * keep dashboard-only overrides in `app/web/frontend/.env` without
+ * touching the root .env. Empty in local dev with no `.env` configured
+ * is fine — the FastAPI auth dependency is permissive in that case
+ * (see `_require_api_key` in app/api/main.py).
  */
 const API_KEY =
-  import.meta.env.VITE_FASTAPI_API_KEY || import.meta.env.VITE_MCP_API_KEY || '';
+  import.meta.env.FASTAPI_API_KEY ||
+  import.meta.env.MCP_API_KEY ||
+  import.meta.env.VITE_FASTAPI_API_KEY ||
+  import.meta.env.VITE_MCP_API_KEY ||
+  '';
 
 /**
  * Internal fetch wrapper that:
