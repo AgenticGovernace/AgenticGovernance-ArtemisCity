@@ -1,6 +1,6 @@
 {
   "name": "Artemis City Dev",
-  "dockerComposeFile": "docker-compose.yaml",
+  "dockerComposeFile": ".devcontainer/docker-compose.yaml",
   "service": "app",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "features": {
@@ -25,7 +25,7 @@
     "8000": "ignore",
     "5432": "ignore"
   },
-  "postCreateCommand": "bash -c 'set -e && /root/.cargo/bin/uv pip install -r requirements.txt && npm install --silent'",
+  "postCreateCommand": "bash -c 'set -e && uv pip install -r requirements.txt && npm install'",
   "customizations": {
     "vscode": {
       "extensions": [
