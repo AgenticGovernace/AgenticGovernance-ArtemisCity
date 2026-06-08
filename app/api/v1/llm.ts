@@ -40,6 +40,32 @@ function resolveProviderApiKey(provider: string): string | undefined {
 }
 
 /**
+ * Strip `apiKey` from a provider config before serialization.
+ *
+ * `POST /provider` resolves the upstream LLM key from the server
+ * environment (OPENAI_API_KEY, ANTHROPIC_API_KEY, ...), then stores it
+ * inside the LLMController's in-memory provider map so the chat path
+ * can reuse it. Returning that full config to the caller -- whether via
+ * the POST response or a later `GET /providers` -- would leak the
+ * server-side env secret to anyone holding the dashboard's
+ * X-API-Key. Replace the key with a sentinel and signal whether one is
+ * configured upstream.
+ */
+type SerializableProvider = Record<string, unknown> & {
+  apiKey?: undefined;
+  apiKeyConfigured?: boolean;
+};
+function redactProvider<T extends { apiKey?: string }>(
+  provider: T
+): SerializableProvider {
+  const { apiKey, ...rest } = provider;
+  return {
+    ...rest,
+    apiKeyConfigured: typeof apiKey === 'string' && apiKey.length > 0,
+  };
+}
+
+/**
  * POST /api/v1/llm/chat
  * Send a chat completion request
  */
@@ -186,7 +212,7 @@ router.get('/models', async (req: Request, res: Response) => {
  */
 router.get('/providers', (req: Request, res: Response) => {
   try {
-    const providers = controller.getProviders();
+    const providers = controller.getProviders().map(redactProvider);
     res.json({
       success: true,
       data: providers
@@ -247,7 +273,7 @@ router.post('/provider', async (req: Request, res: Response) => {
     });
     res.json({
       success: true,
-      data: result,
+      data: redactProvider(result),
       message: `Provider ${providerName} configured successfully`
     });
   } catch (error: any) {
