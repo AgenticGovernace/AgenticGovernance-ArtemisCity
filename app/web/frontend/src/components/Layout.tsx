@@ -1,21 +1,39 @@
+/**
+ * Layout Component for MCP Dashboard
+ *
+ * Provides the main layout structure with a responsive sidebar navigation.
+ * On desktop, displays a fixed sidebar; on mobile, uses a drawer overlay.
+ *
+ * @module Layout
+ */
+
 import {
   Box,
+  Flex,
+  Link,
   Drawer,
   DrawerBody,
-  DrawerCloseButton,
-  DrawerContent,
   DrawerOverlay,
-  Flex,
-  Heading,
-  IconButton,
-  Link,
-  useBreakpointValue,
+  DrawerContent,
+  DrawerCloseButton,
   useDisclosure,
+  IconButton,
   VStack,
+  Text,
+  Heading,
+  useBreakpointValue,
 } from '@chakra-ui/react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { GiHamburgerMenu } from 'react-icons/gi';
 
+/**
+ * Navigation item component for sidebar links.
+ *
+ * @param props - Component props
+ * @param props.to - Route path for the link
+ * @param props.children - Link text content
+ * @returns Styled navigation link with active state highlighting
+ */
 const NavItem = ({ to, children }: { to: string; children: React.ReactNode }) => (
   <Link
     as={NavLink}
@@ -31,6 +49,17 @@ const NavItem = ({ to, children }: { to: string; children: React.ReactNode }) =>
   </Link>
 );
 
+/**
+ * Main layout component with responsive sidebar navigation.
+ *
+ * Features:
+ * - Fixed sidebar on desktop (md breakpoint and up)
+ * - Drawer-based navigation on mobile
+ * - Hamburger menu toggle for mobile
+ * - Outlet for nested route content
+ *
+ * @returns The layout component with sidebar and content area
+ */
 const Layout = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const isDesktop = useBreakpointValue({ base: false, md: true });
@@ -44,6 +73,11 @@ const Layout = () => {
       <NavItem to="/tasks">Tasks</NavItem>
       <NavItem to="/reports">Reports</NavItem>
       <NavItem to="/agents">Agents</NavItem>
+      <Text fontSize="xs" color="gray.400" mt={2} px={3} fontWeight="bold">
+        SYSTEM
+      </Text>
+      <NavItem to="/database">Database Viewer</NavItem>
+      <NavItem to="/executor">CLI Executor</NavItem>
     </VStack>
   );
 
