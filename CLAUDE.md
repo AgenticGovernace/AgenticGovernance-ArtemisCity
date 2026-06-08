@@ -1,4 +1,4 @@
-**# CLAUDE.md
+# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -854,4 +854,3 @@ point.
 | ATP parser / validator | `src/agents/atp/` |
 | Environment loader | `src/utils/environments.py` |
 | Test conftest | `src/tests/conftest.py` |
-**
