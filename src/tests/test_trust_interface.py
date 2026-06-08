@@ -215,13 +215,17 @@ class TestTrustInterface:
     """Provide the TestTrustInterface abstraction used by this module."""
 
     @pytest.fixture
-    def iface(self):
+    def iface(self, tmp_path):
         """Iface.
 
-        Returns:
-            None: This function does not return a value.
+        Returns a TrustInterface backed by a fresh, per-test SQLite DB.
+        Without this, the default `data/trust_scores.db` would persist
+        across runs (and across tests within a session), making
+        assertions about default agent scores, decay, and new-agent
+        defaults sensitive to prior test order and prior local app
+        usage. The temp path is auto-cleaned by pytest.
         """
-        return TrustInterface()
+        return TrustInterface(db_path=tmp_path / "trust_scores.db")
 
     def test_default_agents_initialized(self, iface):
         """Test that default agents initialized.
