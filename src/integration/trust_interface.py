@@ -10,7 +10,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple
 
-
 # ---------------------------------------------------------------------------
 # Levels & thresholds
 # ---------------------------------------------------------------------------
@@ -278,10 +277,21 @@ class TrustInterface:
     # app/api/controllers/trustController.ts.
     OPERATION_PERMISSIONS: Dict[TrustLevel, List[str]] = {
         TrustLevel.FULL: [
-            "read", "write", "delete", "search", "tag", "update", "frontmatter",
+            "read",
+            "write",
+            "delete",
+            "search",
+            "tag",
+            "update",
+            "frontmatter",
         ],
         TrustLevel.HIGH: [
-            "read", "write", "search", "tag", "update", "frontmatter",
+            "read",
+            "write",
+            "search",
+            "tag",
+            "update",
+            "frontmatter",
         ],
         TrustLevel.MEDIUM: ["read", "write", "search", "tag"],
         TrustLevel.LOW: ["read", "search"],
@@ -337,9 +347,7 @@ class TrustInterface:
 
     # ---- public API -------------------------------------------------------
 
-    def get_trust_score(
-        self, entity_id: str, entity_type: str = "agent"
-    ) -> TrustScore:
+    def get_trust_score(self, entity_id: str, entity_type: str = "agent") -> TrustScore:
         """Get the trust score for an entity, creating one if absent.
 
         Always applies decay before returning so callers see a value that
@@ -369,7 +377,10 @@ class TrustInterface:
         prev_last_updated = trust_score.last_updated
         trust_score.apply_decay()
         # Only hit SQLite when something actually changed.
-        if trust_score.score != prev_score or trust_score.last_updated != prev_last_updated:
+        if (
+            trust_score.score != prev_score
+            or trust_score.last_updated != prev_last_updated
+        ):
             self._persist(trust_score)
         return trust_score
 

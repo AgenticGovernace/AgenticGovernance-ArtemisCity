@@ -5,4 +5,3 @@ This shim exists so repo-root commands such as ``python -c 'from
 memory.integration import MemoryClient'`` work even when ``src/`` is not on
 ``sys.path`` as a top-level package root.
 """
-

@@ -1,4 +1,13 @@
 {
-  "history": [],
-  "boot_count": 1
+  "history": [
+    {
+      "type": "command",
+      "content": "help "
+    },
+    {
+      "type": "command",
+      "content": "artemis "
+    }
+  ],
+  "boot_count": 5
 }
