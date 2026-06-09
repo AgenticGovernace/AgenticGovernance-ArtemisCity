@@ -9,6 +9,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.integration.anaconda_agent_proxy import (
+    ANACONDA_API_KEY_ENV,
+    DEFAULT_ANACONDA_API_KEY,
     AnacondaAgentProxy,
     ARTEMIS_PROVIDER_TAG,
     discover_anaconda_agents,
@@ -264,6 +266,66 @@ class TestAnacondaAgentProxy:
         assert "refused" in out["error"]
         assert out["agent"] == "artemis-oracle"
 
+    def test_default_api_key_is_permissive(self, monkeypatch):
+        monkeypatch.delenv(ANACONDA_API_KEY_ENV, raising=False)
+        p = AnacondaAgentProxy(name="artemis-oracle", port=50053)
+        assert p.api_key == DEFAULT_ANACONDA_API_KEY == "*"
+
+    def test_api_key_picked_up_from_env(self, monkeypatch):
+        monkeypatch.setenv(ANACONDA_API_KEY_ENV, "sk-from-env")
+        p = AnacondaAgentProxy(name="artemis-oracle", port=50053)
+        assert p.api_key == "sk-from-env"
+
+    def test_explicit_api_key_overrides_env(self, monkeypatch):
+        monkeypatch.setenv(ANACONDA_API_KEY_ENV, "sk-from-env")
+        p = AnacondaAgentProxy(
+            name="artemis-oracle", port=50053, api_key="sk-explicit",
+        )
+        assert p.api_key == "sk-explicit"
+
+    def test_empty_env_falls_back_to_default(self, monkeypatch):
+        # An unset-but-blank env var must NOT result in an empty bearer --
+        # some Anaconda builds 401 on `Authorization: Bearer ` (trailing
+        # space).  Empty string falls through to the permissive default.
+        monkeypatch.setenv(ANACONDA_API_KEY_ENV, "")
+        p = AnacondaAgentProxy(name="artemis-oracle", port=50053)
+        assert p.api_key == DEFAULT_ANACONDA_API_KEY
+
+    def test_perform_task_sends_bearer_authorization(self, monkeypatch):
+        monkeypatch.setenv(ANACONDA_API_KEY_ENV, "sk-test")
+        p = AnacondaAgentProxy(name="artemis-oracle", port=50053)
+        sse_lines = _sse(_chunk(content="ok"), _chunk(finish="stop"))
+        mock_resp = MagicMock()
+        mock_resp.__enter__ = lambda self_: self_
+        mock_resp.__exit__ = lambda *a, **k: None
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.iter_lines.return_value = iter(sse_lines)
+        with patch(
+            "src.integration.anaconda_agent_proxy.requests.post",
+            return_value=mock_resp,
+        ) as mock_post:
+            p.perform_task({"prompt": "ping"})
+        sent_headers = mock_post.call_args.kwargs["headers"]
+        assert sent_headers["Authorization"] == "Bearer sk-test"
+        assert sent_headers["Accept"] == "text/event-stream"
+        assert sent_headers["Content-Type"] == "application/json"
+
+    def test_perform_task_default_bearer_when_env_unset(self, monkeypatch):
+        monkeypatch.delenv(ANACONDA_API_KEY_ENV, raising=False)
+        p = AnacondaAgentProxy(name="artemis-oracle", port=50053)
+        sse_lines = _sse(_chunk(content="ok"), _chunk(finish="stop"))
+        mock_resp = MagicMock()
+        mock_resp.__enter__ = lambda self_: self_
+        mock_resp.__exit__ = lambda *a, **k: None
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.iter_lines.return_value = iter(sse_lines)
+        with patch(
+            "src.integration.anaconda_agent_proxy.requests.post",
+            return_value=mock_resp,
+        ) as mock_post:
+            p.perform_task({"prompt": "ping"})
+        assert mock_post.call_args.kwargs["headers"]["Authorization"] == "Bearer *"
+
     def test_summary_truncates_long_content(self):
         p = AnacondaAgentProxy(name="artemis-oracle", port=50053)
         long_content = "x" * 500
@@ -329,6 +391,30 @@ class TestDiscoverAnacondaAgents:
             side_effect=_requests.ConnectionError("nope"),
         ):
             assert discover_anaconda_agents() == []
+
+    def test_discovery_sends_bearer_authorization(self, monkeypatch):
+        monkeypatch.setenv(ANACONDA_API_KEY_ENV, "sk-disc")
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.json.return_value = {"object": "list", "data": []}
+        with patch(
+            "src.integration.anaconda_agent_proxy.requests.get",
+            return_value=mock_resp,
+        ) as mock_get:
+            discover_anaconda_agents()
+        assert mock_get.call_args.kwargs["headers"]["Authorization"] == "Bearer sk-disc"
+
+    def test_discovery_default_bearer_when_env_unset(self, monkeypatch):
+        monkeypatch.delenv(ANACONDA_API_KEY_ENV, raising=False)
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.json.return_value = {"object": "list", "data": []}
+        with patch(
+            "src.integration.anaconda_agent_proxy.requests.get",
+            return_value=mock_resp,
+        ) as mock_get:
+            discover_anaconda_agents()
+        assert mock_get.call_args.kwargs["headers"]["Authorization"] == "Bearer *"
 
     def test_handles_malformed_body(self):
         mock_resp = MagicMock()
@@ -409,3 +495,28 @@ class TestRegisterAnacondaStack:
         ):
             assert register_anaconda_stack(reg) == []
         assert reg.agents == []
+
+    def test_api_key_plumbed_from_env_to_proxy(self, monkeypatch):
+        monkeypatch.setenv("ANACONDA_AGENT_PORTS", "artemis-oracle:50053")
+        monkeypatch.setenv(ANACONDA_API_KEY_ENV, "sk-stack")
+        reg = _StubRegistry()
+        register_anaconda_stack(reg, skip_discovery=True)
+        assert reg.agents[0].api_key == "sk-stack"
+
+    def test_explicit_api_key_overrides_env_in_stack(self, monkeypatch):
+        monkeypatch.setenv("ANACONDA_AGENT_PORTS", "artemis-oracle:50053")
+        monkeypatch.setenv(ANACONDA_API_KEY_ENV, "sk-env")
+        reg = _StubRegistry()
+        register_anaconda_stack(reg, skip_discovery=True, api_key="sk-explicit")
+        assert reg.agents[0].api_key == "sk-explicit"
+
+    def test_api_key_passed_to_discovery(self, monkeypatch):
+        monkeypatch.setenv("ANACONDA_AGENT_PORTS", "artemis-oracle:50053")
+        monkeypatch.setenv(ANACONDA_API_KEY_ENV, "sk-stack")
+        reg = _StubRegistry()
+        with patch(
+            "src.integration.anaconda_stack.discover_anaconda_agents",
+            return_value=[{"id": "artemis-oracle", "meta": {}}],
+        ) as mock_disc:
+            register_anaconda_stack(reg)
+        assert mock_disc.call_args.kwargs["api_key"] == "sk-stack"

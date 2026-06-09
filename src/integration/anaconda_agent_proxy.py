@@ -59,6 +59,13 @@ ANACONDA_DESKTOP_URL = os.getenv("ANACONDA_DESKTOP_URL", "http://127.0.0.1:54321
 # proxy doesn't pick up unrelated agents in the same Anaconda install.
 ARTEMIS_PROVIDER_TAG = "artemiscity"
 
+# Anaconda Agent Studio (Beta) ships with a permissive default API key of
+# ``*`` -- the per-agent HTTP servers reject requests that arrive without
+# any Authorization header but accept any non-empty bearer token.  Override
+# via ``ANACONDA_API_KEY`` when a real key is configured in Agent Studio.
+DEFAULT_ANACONDA_API_KEY = "*"
+ANACONDA_API_KEY_ENV = "ANACONDA_API_KEY"
+
 
 def parse_port_map(env_value: Optional[str]) -> Dict[str, int]:
     """Parse ``"name:port,name:port"`` into a ``{name: port}`` dict.
@@ -87,15 +94,23 @@ def discover_anaconda_agents(
     desktop_url: str = ANACONDA_DESKTOP_URL,
     provider_tag: str = ARTEMIS_PROVIDER_TAG,
     timeout: float = 5.0,
+    api_key: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Hit ``/api/agents/v1/models`` and return ``artemiscity`` agent metas.
 
     Returns an empty list (with a warning) when Anaconda Desktop is not
     running.  Discovery failures should never block orchestrator startup.
+
+    Anaconda's discovery endpoint follows the same Authorization rule as
+    per-agent endpoints, so we always send a bearer token: caller > env >
+    permissive default (``*``).
     """
     endpoint = f"{desktop_url.rstrip('/')}/api/agents/v1/models"
+    resolved = api_key if api_key is not None else os.getenv(ANACONDA_API_KEY_ENV)
+    bearer = resolved if resolved else DEFAULT_ANACONDA_API_KEY
+    headers = {"Authorization": f"Bearer {bearer}"}
     try:
-        resp = requests.get(endpoint, timeout=timeout)
+        resp = requests.get(endpoint, timeout=timeout, headers=headers)
         resp.raise_for_status()
     except requests.RequestException as exc:
         logger.warning("Anaconda Desktop discovery failed at %s: %s", endpoint, exc)
@@ -203,6 +218,7 @@ class AnacondaAgentProxy(BaseAgent):
         host: str = "127.0.0.1",
         timeout: int = 180,
         model: Optional[str] = None,
+        api_key: Optional[str] = None,
     ):
         caps = list(capabilities) if capabilities else ["llm_chat"]
         super().__init__(name=name, capabilities=caps)
@@ -211,6 +227,12 @@ class AnacondaAgentProxy(BaseAgent):
         self.base_url = f"http://{host}:{self.port}"
         self.timeout = timeout
         self.model = model or name
+        # Anaconda's per-agent HTTP servers require an Authorization header.
+        # Caller > env > permissive default ("*"), in that order.  We never
+        # send an empty bearer -- an empty header is worse than the default
+        # because some Anaconda builds 401 on it.
+        resolved = api_key if api_key is not None else os.getenv(ANACONDA_API_KEY_ENV)
+        self.api_key = resolved if resolved else DEFAULT_ANACONDA_API_KEY
 
     @property
     def chat_endpoint(self) -> str:
@@ -282,6 +304,7 @@ class AnacondaAgentProxy(BaseAgent):
         headers = {
             "Content-Type": "application/json",
             "Accept": "text/event-stream",
+            "Authorization": f"Bearer {self.api_key}",
         }
 
         try:

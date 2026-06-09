@@ -27,6 +27,8 @@ import os
 from typing import Dict, List, Optional
 
 from src.integration.anaconda_agent_proxy import (
+    ANACONDA_API_KEY_ENV,
+    DEFAULT_ANACONDA_API_KEY,
     AnacondaAgentProxy,
     discover_anaconda_agents,
     parse_port_map,
@@ -54,6 +56,7 @@ def register_anaconda_stack(
     capability_overrides: Optional[Dict[str, List[str]]] = None,
     port_map_env: str = "ANACONDA_AGENT_PORTS",
     skip_discovery: bool = False,
+    api_key: Optional[str] = None,
 ) -> List[str]:
     """Discover running Anaconda agents and register them with ``registry``.
 
@@ -70,6 +73,9 @@ def register_anaconda_stack(
         skip_discovery: When ``True``, register every port-mapped agent
             without first verifying it's reported by Anaconda Desktop.
             Useful for offline / CI runs.
+        api_key: Bearer token used for both discovery and per-agent
+            requests.  Caller > ``ANACONDA_API_KEY`` env > permissive
+            default ``*`` (matches Anaconda Agent Studio Beta).
 
     Returns:
         List of agent names that were successfully registered.  Agents
@@ -85,10 +91,13 @@ def register_anaconda_stack(
         )
         return []
 
+    resolved_key = api_key if api_key is not None else os.getenv(ANACONDA_API_KEY_ENV)
+    bearer = resolved_key if resolved_key else DEFAULT_ANACONDA_API_KEY
+
     if skip_discovery:
         running = set(port_map.keys())
     else:
-        discovered = discover_anaconda_agents()
+        discovered = discover_anaconda_agents(api_key=bearer)
         running = {m["id"] for m in discovered if isinstance(m.get("id"), str)}
         if not running:
             logger.warning(
@@ -110,6 +119,7 @@ def register_anaconda_stack(
             name=name,
             port=port,
             capabilities=caps.get(name, ["llm_chat"]),
+            api_key=bearer,
         )
         try:
             registry.register_agent(proxy)
