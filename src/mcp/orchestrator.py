@@ -48,6 +48,7 @@ from src.agents import SummarizerAgent
 from src.agents.artemis_agent import ArtemisAgent
 from src.agents.llm_agent import LLMAgent
 from src.agents.research_agent import ResearchAgent
+from src.integration.anaconda_stack import register_anaconda_stack
 from src.obsidian_integration import (ObsidianGenerator, ObsidianManager,
                                       ObsidianParser)
 from src.utils.helpers import logger
@@ -174,11 +175,37 @@ class Orchestrator:
             - ArtemisAgent: System management and coordination
             - ResearchAgent: Research and information gathering
             - SummarizerAgent: Content summarization
+            - LLMAgent: LLM inference over the configured EXO endpoint
+
+        Anaconda Agent Studio integration:
+            After in-process agents are registered, the orchestrator
+            attempts to register any running Anaconda Agent Studio
+            agents from the stack at ~/Source/artemis-agent-stack/.
+            Integration is opt-in via ``ANACONDA_AGENT_PORTS`` in
+            ``src/.env``; when that var is empty (the default), this is
+            a no-op and the in-process agents alone serve traffic.
         """
         self.agent_registry.register_agent(ArtemisAgent())
         self.agent_registry.register_agent(ResearchAgent())
         self.agent_registry.register_agent(SummarizerAgent())
         self.agent_registry.register_agent(LLMAgent())
+
+        # Bridge in any running Anaconda Agent Studio agents. Failures
+        # here must NEVER block orchestrator startup -- the helper
+        # already swallows discovery errors, but defend in depth.
+        try:
+            registered_anaconda = register_anaconda_stack(self.agent_registry)
+            if registered_anaconda:
+                logger.info(
+                    "Anaconda Agent Studio agents registered: %s",
+                    ", ".join(registered_anaconda),
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Anaconda Agent Studio integration failed (continuing without it): %s",
+                exc,
+            )
+
         logger.info(
             "All agent classes loaded and instances registered with the Agent Registry."
         )
