@@ -243,12 +243,8 @@ AGENT_REGISTRY_DB = Path(
 HEBBIAN_DB = Path(
     os.environ.get("ARTEMIS_HEBBIAN_DB") or (DB_DIR / "hebbian_weights.db")
 )
-VECTOR_DB = Path(
-    os.environ.get("ARTEMIS_VECTOR_DB") or (DB_DIR / "vector_store.db")
-)
-RUN_LOG_DB = Path(
-    os.environ.get("ARTEMIS_RUN_LOG_DB") or (DB_DIR / "run_logs.db")
-)
+VECTOR_DB = Path(os.environ.get("ARTEMIS_VECTOR_DB") or (DB_DIR / "vector_store.db"))
+RUN_LOG_DB = Path(os.environ.get("ARTEMIS_RUN_LOG_DB") or (DB_DIR / "run_logs.db"))
 
 
 def _connect_db(db_path: Path) -> sqlite3.Connection:
