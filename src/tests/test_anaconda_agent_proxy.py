@@ -22,7 +22,6 @@ from src.integration.anaconda_stack import (
     register_anaconda_stack,
 )
 
-
 # ---------------------------------------------------------------------------
 # parse_port_map
 # ---------------------------------------------------------------------------
@@ -70,7 +69,14 @@ def _sse(*chunks: Dict[str, Any]) -> List[bytes]:
     return out
 
 
-def _chunk(content=None, reasoning=None, finish=None, usage=None, model="artemis-oracle", id_="cmpl-test"):
+def _chunk(
+    content=None,
+    reasoning=None,
+    finish=None,
+    usage=None,
+    model="artemis-oracle",
+    id_="cmpl-test",
+):
     delta: Dict[str, Any] = {}
     if content is not None:
         delta["content"] = content
@@ -123,7 +129,8 @@ class TestParseSSEChatCompletion:
             b"",
             b"unrelated text",
             b"data: [DONE]",
-            b"data: " + json.dumps(_chunk(content="after done — should not be added")).encode(),
+            b"data: "
+            + json.dumps(_chunk(content="after done — should not be added")).encode(),
         ]
         out = parse_sse_chat_completion(stream)
         assert out["content"] == "ok"
@@ -175,16 +182,22 @@ class TestAnacondaAgentProxy:
 
     def test_build_messages_with_system_and_history(self):
         p = AnacondaAgentProxy(name="artemis-oracle", port=50053)
-        msgs = p._build_messages({
-            "system_prompt": "You are Oracle.",
-            "history": [
-                {"role": "user", "content": "earlier turn"},
-                {"role": "assistant", "content": "earlier reply"},
-                {"role": "user", "content": "skip me — incomplete", "content2": "noise"},
-                {"not": "a role"},  # malformed entry, dropped
-            ],
-            "prompt": "now this",
-        })
+        msgs = p._build_messages(
+            {
+                "system_prompt": "You are Oracle.",
+                "history": [
+                    {"role": "user", "content": "earlier turn"},
+                    {"role": "assistant", "content": "earlier reply"},
+                    {
+                        "role": "user",
+                        "content": "skip me — incomplete",
+                        "content2": "noise",
+                    },
+                    {"not": "a role"},  # malformed entry, dropped
+                ],
+                "prompt": "now this",
+            }
+        )
         assert msgs[0] == {"role": "system", "content": "You are Oracle."}
         # All four history entries had content; only the malformed last one (no
         # role key) should drop.
@@ -214,7 +227,10 @@ class TestAnacondaAgentProxy:
             _chunk(reasoning="The user wants a ping. "),
             _chunk(reasoning="I'll keep it short."),
             _chunk(content="pong"),
-            _chunk(finish="stop", usage={"prompt_tokens": 2, "completion_tokens": 1, "total_tokens": 3}),
+            _chunk(
+                finish="stop",
+                usage={"prompt_tokens": 2, "completion_tokens": 1, "total_tokens": 3},
+            ),
         )
         mock_resp = MagicMock()
         mock_resp.__enter__ = lambda self_: self_
@@ -225,12 +241,14 @@ class TestAnacondaAgentProxy:
             "src.integration.anaconda_agent_proxy.requests.post",
             return_value=mock_resp,
         ) as mock_post:
-            out = p.perform_task({
-                "prompt": "ping",
-                "system_prompt": "Be brief.",
-                "temperature": 0.2,
-                "max_tokens": 8,
-            })
+            out = p.perform_task(
+                {
+                    "prompt": "ping",
+                    "system_prompt": "Be brief.",
+                    "temperature": 0.2,
+                    "max_tokens": 8,
+                }
+            )
 
         # Inspect outgoing request
         assert mock_post.call_count == 1
@@ -255,6 +273,7 @@ class TestAnacondaAgentProxy:
 
     def test_perform_task_swallows_request_errors(self):
         import requests as _requests
+
         p = AnacondaAgentProxy(name="artemis-oracle", port=50053)
         with patch(
             "src.integration.anaconda_agent_proxy.requests.post",
@@ -279,7 +298,9 @@ class TestAnacondaAgentProxy:
     def test_explicit_api_key_overrides_env(self, monkeypatch):
         monkeypatch.setenv(ANACONDA_API_KEY_ENV, "sk-from-env")
         p = AnacondaAgentProxy(
-            name="artemis-oracle", port=50053, api_key="sk-explicit",
+            name="artemis-oracle",
+            port=50053,
+            api_key="sk-explicit",
         )
         assert p.api_key == "sk-explicit"
 
@@ -358,17 +379,29 @@ class TestDiscoverAnacondaAgents:
         return {
             "object": "list",
             "data": [
-                {"id": "Anaconda Assistant",
-                 "object": "model",
-                 "meta": {"agent_id": "anaconda-assistant", "provider": "anaconda"}},
-                {"id": "artemis-oracle",
-                 "object": "model",
-                 "meta": {"agent_id": "artemis-oracle", "provider": ARTEMIS_PROVIDER_TAG,
-                          "description": "Coordinator."}},
-                {"id": "artemis-loki",
-                 "object": "model",
-                 "meta": {"agent_id": "artemis-loki", "provider": ARTEMIS_PROVIDER_TAG,
-                          "description": "Writer."}},
+                {
+                    "id": "Anaconda Assistant",
+                    "object": "model",
+                    "meta": {"agent_id": "anaconda-assistant", "provider": "anaconda"},
+                },
+                {
+                    "id": "artemis-oracle",
+                    "object": "model",
+                    "meta": {
+                        "agent_id": "artemis-oracle",
+                        "provider": ARTEMIS_PROVIDER_TAG,
+                        "description": "Coordinator.",
+                    },
+                },
+                {
+                    "id": "artemis-loki",
+                    "object": "model",
+                    "meta": {
+                        "agent_id": "artemis-loki",
+                        "provider": ARTEMIS_PROVIDER_TAG,
+                        "description": "Writer.",
+                    },
+                },
             ],
         }
 
@@ -386,6 +419,7 @@ class TestDiscoverAnacondaAgents:
 
     def test_returns_empty_on_connection_error(self):
         import requests as _requests
+
         with patch(
             "src.integration.anaconda_agent_proxy.requests.get",
             side_effect=_requests.ConnectionError("nope"),
@@ -448,7 +482,9 @@ class TestRegisterAnacondaStack:
         assert reg.agents == []
 
     def test_skip_discovery_registers_all_port_mapped(self, monkeypatch):
-        monkeypatch.setenv("ANACONDA_AGENT_PORTS", "artemis-oracle:50053,artemis-loki:50054")
+        monkeypatch.setenv(
+            "ANACONDA_AGENT_PORTS", "artemis-oracle:50053,artemis-loki:50054"
+        )
         reg = _StubRegistry()
         registered = register_anaconda_stack(reg, skip_discovery=True)
         assert set(registered) == {"artemis-oracle", "artemis-loki"}

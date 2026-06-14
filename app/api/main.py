@@ -30,8 +30,7 @@ def _sanitize_for_log(value: Any) -> str:
 import_error: Exception | None = None
 
 try:
-    from src.mcp.config import (AGENT_INPUT_DIR, AGENT_OUTPUT_DIR,
-                                OBSIDIAN_VAULT_PATH)
+    from src.mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
     from src.mcp.orchestrator import Orchestrator
     from src.utils.helpers import logger
 except Exception as e:

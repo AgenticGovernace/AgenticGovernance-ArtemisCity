@@ -49,12 +49,12 @@ from src.agents.artemis_agent import ArtemisAgent
 from src.agents.llm_agent import LLMAgent
 from src.agents.research_agent import ResearchAgent
 from src.integration.anaconda_stack import register_anaconda_stack
-from src.obsidian_integration import (ObsidianGenerator, ObsidianManager,
-                                      ObsidianParser)
+from src.obsidian_integration import ObsidianGenerator, ObsidianManager, ObsidianParser
 from src.utils.helpers import logger
 
 from ..integration.agent_registry import AgentRegistry
 from ..integration.governance import GovernanceMonitor
+from ..integration.hebbian_router import HebbianRouter
 from ..integration.memory_bus import MemoryBus
 from ..mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
 from ..mcp.hebbian_weights import HebbianWeightManager
@@ -159,6 +159,20 @@ class Orchestrator:
         # Initialize Agent Registry
         self.agent_registry = AgentRegistry()
         self._register_agents()
+
+        # Hebbian-weighted routing: bias agent selection by learned agent->task
+        # success. Disable with ARTEMIS_HEBBIAN_ROUTING=0; tune the blend with
+        # ARTEMIS_HEBBIAN_ROUTING_ALPHA (0=composite only, 1=Hebbian weight only).
+        self.hebbian_routing_enabled = os.getenv(
+            "ARTEMIS_HEBBIAN_ROUTING", "1"
+        ).strip().lower() not in ("0", "false", "no", "off")
+        try:
+            _routing_alpha = float(os.getenv("ARTEMIS_HEBBIAN_ROUTING_ALPHA", "0.3"))
+        except ValueError:
+            _routing_alpha = 0.3
+        self.hebbian_router = HebbianRouter(
+            self.agent_registry, self.hebbian, alpha=_routing_alpha
+        )
 
         self._ensure_obsidian_agent_dirs()
         self._validate_kernel_state()
@@ -322,7 +336,10 @@ class Orchestrator:
                 task_context = dict(task_context)
                 task_context["required_capability"] = resolved_capability
 
-            agent_name = self.agent_registry.route_task(task_context)
+            if self.hebbian_routing_enabled:
+                agent_name = self.hebbian_router.route_name(task_context)
+            else:
+                agent_name = self.agent_registry.route_task(task_context)
             logger.info("Task routed to '%s'.", _sanitize_for_log(agent_name))
             return self.assign_and_execute_task(
                 agent_name, task_context, original_task_note_path

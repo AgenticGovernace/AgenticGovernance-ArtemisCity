@@ -42,11 +42,11 @@ logger = logging.getLogger(__name__)
 # Packrat archives, Compressor distills, Loki writes.  Callers can override
 # any subset via the capability_overrides argument.
 DEFAULT_CAPABILITIES: Dict[str, List[str]] = {
-    "artemis-oracle":     ["orchestration", "atp_routing", "reflective_synthesis"],
-    "artemis-compsuite":  ["audit", "atp_validation", "provenance_review"],
-    "artemis-packrat":    ["archive", "tag", "search"],
+    "artemis-oracle": ["orchestration", "atp_routing", "reflective_synthesis"],
+    "artemis-compsuite": ["audit", "atp_validation", "provenance_review"],
+    "artemis-packrat": ["archive", "tag", "search"],
     "artemis-compressor": ["summarization", "compression"],
-    "artemis-loki":       ["code_write", "git", "refactor"],
+    "artemis-loki": ["code_write", "git", "refactor"],
 }
 
 
@@ -112,7 +112,8 @@ def register_anaconda_stack(
             logger.warning(
                 "Agent %r in %s is not currently reported by Anaconda Desktop. "
                 "Skipping registration.",
-                name, port_map_env,
+                name,
+                port_map_env,
             )
             continue
         proxy = AnacondaAgentProxy(
@@ -126,7 +127,9 @@ def register_anaconda_stack(
             registered.append(name)
             logger.info(
                 "Registered Anaconda agent proxy: %s on port %d (capabilities=%s)",
-                name, port, proxy.capabilities,
+                name,
+                port,
+                proxy.capabilities,
             )
         except Exception as exc:  # noqa: BLE001
             logger.exception("Failed to register %r: %s", name, exc)

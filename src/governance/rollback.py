@@ -189,14 +189,16 @@ class RollbackManager:
                 try:
                     with cp_path.open("r", encoding="utf-8") as f:
                         data = json.load(f)
-                    checkpoints.append({
-                        "id": data.get("id"),
-                        "label": data.get("label"),
-                        "timestamp": data.get("timestamp"),
-                        "created_at": data.get("created_at"),
-                        "metadata": data.get("metadata", {}),
-                        "state_keys": list(data.get("state", {}).keys()),
-                    })
+                    checkpoints.append(
+                        {
+                            "id": data.get("id"),
+                            "label": data.get("label"),
+                            "timestamp": data.get("timestamp"),
+                            "created_at": data.get("created_at"),
+                            "metadata": data.get("metadata", {}),
+                            "state_keys": list(data.get("state", {}).keys()),
+                        }
+                    )
                 except (json.JSONDecodeError, OSError):
                     continue
         return checkpoints

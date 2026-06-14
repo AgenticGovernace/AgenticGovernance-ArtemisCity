@@ -15,6 +15,8 @@
 # the Python core's MCP_API_KEY/MCP_BASE_URL there, but make does not export
 # .env files automatically.
 LOAD_ENV = set -a; [ ! -f .env ] || . ./.env; set +a;
+PYTHON ?= python3
+PIP ?= $(PYTHON) -m pip
 
 # ============================================
 # HELP
@@ -34,17 +36,17 @@ help: ## Show this help message
 
 install: ## Install all dependencies
 	echo "Installing Python dependencies..."
-	pip install -r ./requirements.txt
+	$(PIP) install -r ./requirements.txt
 	echo "Installation complete!"
 
 install-dev: ## Install development dependencies
 	echo "Installing development dependencies..."
-	pip install -r requirements-dev.txt
+	$(PIP) install -r requirements-dev.txt
 	@echo "Development dependencies installed!"
 
 setup-hooks: ## Install pre-commit hooks
 	@echo "Installing pre-commit hooks..."
-	pip install pre-commit
+	$(PIP) install pre-commit
 	pre-commit install
 	@echo "Pre-commit hooks installed!"
 
@@ -109,7 +111,7 @@ test: ## Run tests (when available)
 	@if [ ! -d src/tests ]; then \
 		echo "WARNING: No tests directory found"; \
 	else \
-		pytest src/tests/ -v; \
+		$(PYTHON) -m pytest src/tests/ -v; \
 	fi
 
 test-cov: ## Run tests with coverage
@@ -117,7 +119,7 @@ test-cov: ## Run tests with coverage
 	@if [ ! -d src/tests ]; then \
 		echo "WARNING: No tests directory found"; \
 	else \
-		pytest src/tests/ --cov=src --cov=app --cov-report=html --cov-report=term; \
+		$(PYTHON) -m pytest src/tests/ --cov=src --cov=app --cov-report=html --cov-report=term; \
 	fi
 
 # ============================================
@@ -159,20 +161,20 @@ clean-env: ## Remove virtual environment
 
 run: ## Run the CLI interactively
 	@echo "Starting Artemis City CLI..."
-	@$(LOAD_ENV) python src/launch/main.py
+	@$(LOAD_ENV) $(PYTHON) src/launch/main.py
 
 cli: ## Run the legacy Artemis CLI
 	@echo "Starting Artemis CLI..."
-	@$(LOAD_ENV) python -m src.interface.artemis_cli
+	@$(LOAD_ENV) $(PYTHON) -m src.interface.artemis_cli
 
 demo: ## Run all demos
 	@echo "Running demos..."
 	@echo "\n--- Artemis Features Demo ---"
-	@$(LOAD_ENV) python Concept_Demos/demo_artemis.py
+	@$(LOAD_ENV) $(PYTHON) Concept_Demos/demo_artemis.py
 	@echo "\n--- Memory Integration Demo ---"
-	@$(LOAD_ENV) python Concept_Demos/demo_memory_integration.py
+	@$(LOAD_ENV) $(PYTHON) Concept_Demos/demo_memory_integration.py
 	@echo "\n--- City Postal Demo ---"
-	@$(LOAD_ENV) python Concept_Demos/demo_city_postal.py
+	@$(LOAD_ENV) $(PYTHON) Concept_Demos/demo_city_postal.py
 	@echo "\nDemos complete!"
 
 server: ## Start MCP server (Memory Layer)
@@ -186,7 +188,7 @@ frontend: ## Start the web frontend dev server (needs `make api` running separat
 
 api: ## Start the FastAPI dashboard backend on :8000 (paired with `make frontend`)
 	@echo "Starting FastAPI dashboard backend on http://localhost:8000 ..."
-	@$(LOAD_ENV) python -m uvicorn app.api.main:app --reload --host 0.0.0.0 --port 8000
+	@$(LOAD_ENV) $(PYTHON) -m uvicorn app.api.main:app --reload --host 0.0.0.0 --port 8000
 
 # ============================================
 # BUILD & PACKAGE
@@ -194,7 +196,7 @@ api: ## Start the FastAPI dashboard backend on :8000 (paired with `make frontend
 
 build: ## Build the package
 	@echo "Building package..."
-	python -m build
+	$(PYTHON) -m build
 	@echo "Build complete!"
 
 # ============================================

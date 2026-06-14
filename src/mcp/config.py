@@ -63,4 +63,5 @@ AGENT_OUTPUT_DIR = os.getenv("AGENT_OUTPUT_DIR", "Agent Outputs")
 
 # --- EXO cluster (local LLM inference) --------------------------------------
 EXO_BASE_URL = os.getenv("EXO_BASE_URL", "http://localhost:52415")
+EXO_MODEL_URL = os.getenv("EXO_MODEL_URL", "")
 EXO_MODEL_ID = os.getenv("EXO_MODEL_ID", "gpt-4o-2024-08-06")

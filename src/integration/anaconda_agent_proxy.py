@@ -120,7 +120,8 @@ def discover_anaconda_agents(
     if not isinstance(data, list):
         return []
     return [
-        m for m in data
+        m
+        for m in data
         if isinstance(m, dict)
         and isinstance(m.get("meta"), dict)
         and m["meta"].get("provider") == provider_tag
@@ -154,7 +155,11 @@ def parse_sse_chat_completion(stream: Iterable[Any]) -> Dict[str, Any]:
     for raw_line in stream:
         if raw_line is None:
             continue
-        line = raw_line.decode("utf-8") if isinstance(raw_line, (bytes, bytearray)) else raw_line
+        line = (
+            raw_line.decode("utf-8")
+            if isinstance(raw_line, (bytes, bytearray))
+            else raw_line
+        )
         line = line.strip()
         if not line.startswith("data:"):
             continue
@@ -320,7 +325,9 @@ class AnacondaAgentProxy(BaseAgent):
         except requests.RequestException as exc:
             logger.warning(
                 "Anaconda agent %r at %s unreachable: %s",
-                self.name, self.chat_endpoint, exc,
+                self.name,
+                self.chat_endpoint,
+                exc,
             )
             return {
                 "summary": f"Anaconda agent {self.name} unreachable",
