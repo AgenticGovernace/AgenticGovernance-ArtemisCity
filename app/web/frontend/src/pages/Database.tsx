@@ -599,11 +599,13 @@ const RunsTab = () => {
                           <Box
                             key={idx}
                             p={2}
-                            bg="gray.50"
+                            bg="rgba(255,255,255,0.04)"
+                            border="1px solid"
+                            borderColor="rgba(255,255,255,0.10)"
                             borderRadius="md"
                             fontSize="xs"
                           >
-                            <Text>
+                            <Text color="#e2e8f0">
                               <strong>{event.event_type}</strong> -{' '}
                               {event.message || event.details}
                             </Text>

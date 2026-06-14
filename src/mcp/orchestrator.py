@@ -80,11 +80,24 @@ def _get_run_logger():
 
 
 def _sanitize_for_log(value: Any) -> str:
-    """Convert values to a single-line printable representation for logging."""
-    text = str(value)
-    return "".join(
-        ch if ch.isprintable() and ch not in "\n\r\t" else " " for ch in text
+    """Convert values to a single-line printable representation for logging.
+
+    The pattern is deliberate: a ``.replace`` chain on the newline / CR /
+    tab characters followed by a printable-only whitelist. CodeQL's
+    ``py/log-injection`` query recognizes the ``.replace`` chain as a
+    log-newline-injection sanitizer, which is what flags this helper as
+    a recognized sink protector across the codebase. The whitelist
+    catches anything else non-printable (zero-width chars, control
+    chars, etc.) without depending on CodeQL recognising
+    ``str.isprintable``.
+    """
+    text = (
+        str(value)
+        .replace("\r", " ")
+        .replace("\n", " ")
+        .replace("\t", " ")
     )
+    return "".join(ch if ch.isprintable() else " " for ch in text)
 
 
 class Orchestrator:
@@ -161,24 +174,64 @@ class Orchestrator:
 
         # Hebbian-weighted routing: bias agent selection by learned agent->task
         # success. Disable with ARTEMIS_HEBBIAN_ROUTING=0; tune the blend with
-        # ARTEMIS_HEBBIAN_ROUTING_ALPHA (0=composite only, 1=Hebbian weight only).
+        # ARTEMIS_HEBBIAN_ROUTING_ALPHA  (weight on Hebbian, default 0.3)
+        # and ARTEMIS_HEBBIAN_ROUTING_BETA (weight on trust,   default 0.0).
+        # Composite weight is (1 - alpha - beta). Exclude agents below
+        # ARTEMIS_ROUTING_TRUST_FLOOR (default 0.0 = disabled).
         self.hebbian_routing_enabled = os.getenv(
             "ARTEMIS_HEBBIAN_ROUTING", "1"
         ).strip().lower() not in ("0", "false", "no", "off")
-        try:
-            _routing_alpha = float(os.getenv("ARTEMIS_HEBBIAN_ROUTING_ALPHA", "0.3"))
-        except ValueError:
-            _routing_alpha = 0.3
+
+        def _env_float(name: str, default: float) -> float:
+            try:
+                return float(os.getenv(name, str(default)))
+            except ValueError:
+                return default
+
+        _routing_alpha = _env_float("ARTEMIS_HEBBIAN_ROUTING_ALPHA", 0.3)
+        _routing_beta = _env_float("ARTEMIS_HEBBIAN_ROUTING_BETA", 0.0)
+        _routing_trust_floor = _env_float("ARTEMIS_ROUTING_TRUST_FLOOR", 0.0)
+
         # Unmatched / unspecified tasks fall back to the general-purpose LLM
         # capability (set ARTEMIS_ROUTING_FALLBACK_CAPABILITY="" to disable).
         _fallback_cap = (
             os.getenv("ARTEMIS_ROUTING_FALLBACK_CAPABILITY", "llm_chat").strip() or None
         )
+
+        # Trust interface is constructed lazily and tolerated as a soft
+        # dependency: any failure (missing DB, sqlite quirks under tests, etc.)
+        # leaves the trust signal disabled rather than blocking orchestrator
+        # boot. The router itself also defaults trust reads to the neutral
+        # prior on any error, so this is belt-and-braces.
+        _trust_interface = None
+        if _routing_beta > 0.0 or _routing_trust_floor > 0.0:
+            try:
+                from ..integration.trust_interface import TrustInterface
+
+                _trust_interface = TrustInterface()
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Trust-aware routing requested but TrustInterface unavailable "
+                    "(continuing without trust signal): %s",
+                    exc,
+                )
+                # The trust signal is unavailable -- neutralise the trust
+                # weights too. Otherwise a configured trust_floor > 0
+                # would exclude every agent (all reads return the
+                # neutral prior 0.5) and a configured beta would just
+                # add a constant 0.5 * beta to every blended score
+                # without contributing any ranking signal.
+                _routing_beta = 0.0
+                _routing_trust_floor = 0.0
+
         self.hebbian_router = HebbianRouter(
             self.agent_registry,
             self.hebbian,
             alpha=_routing_alpha,
             fallback_capability=_fallback_cap,
+            trust_interface=_trust_interface,
+            beta=_routing_beta,
+            trust_floor=_routing_trust_floor,
         )
 
         self._ensure_obsidian_agent_dirs()
@@ -522,6 +575,214 @@ class Orchestrator:
             )
 
         return results
+
+    def stream_route_and_execute(
+        self,
+        task_context: Dict[str, Any],
+        original_task_note_path: Optional[str] = None,
+    ):
+        """Stream a routing + execution flow as a sequence of events.
+
+        Yields dicts in this order:
+            {"type": "routing",  "decision": {...}}
+            {"type": "token",    "text": "..."}     # zero or more
+            {"type": "complete", "task_id": ..., "agent_name": ..., "summary": ..., "note_path": ...}
+        or on failure:
+            {"type": "error", "error": "..."}
+
+        Agents that expose ``supports_streaming = True`` and a ``stream_task``
+        method (currently only ``LLMAgent``) drive the ``token`` events
+        directly. Agents without streaming are still routed through this
+        path — they execute synchronously and emit a single ``token`` event
+        with the full summary, so the client UI does not need to special-
+        case which agent was picked.
+        """
+        try:
+            resolved_capability = self._resolve_required_capability(task_context)
+            if not resolved_capability:
+                yield {
+                    "type": "error",
+                    "error": "Task dictionary must contain a 'required_capability' "
+                    "or provide a known agent.",
+                }
+                return
+
+            if task_context.get("required_capability") != resolved_capability:
+                task_context = dict(task_context)
+                task_context["required_capability"] = resolved_capability
+
+            # Resolve the agent: either user-pinned, or the Hebbian decision.
+            explicit_agent = task_context.get("agent")
+            decision = None
+            if explicit_agent:
+                agent_name = explicit_agent
+            elif self.hebbian_routing_enabled:
+                decision = self.hebbian_router.route(task_context)
+                agent_name = decision.agent_name
+            else:
+                agent_name = self.agent_registry.route_task(task_context)
+
+            yield {
+                "type": "routing",
+                "decision": decision.to_dict() if decision else None,
+                "agent_name": agent_name,
+            }
+        except (ValueError, KeyError) as exc:
+            logger.error(
+                "Stream routing failed: %s", _sanitize_for_log(exc), exc_info=True
+            )
+            # The streaming endpoint already created the Obsidian note as
+            # "in progress" before invoking this generator. Without this
+            # update the note would stay stuck at "in progress" even though
+            # nothing ever executed.
+            if original_task_note_path:
+                task_id_for_status = task_context.get("task_id", "unknown_task")
+                try:
+                    self.update_task_status_in_obsidian(
+                        original_task_note_path,
+                        "routing_failed",
+                        task_id_for_status,
+                    )
+                except Exception:
+                    logger.error(
+                        "Failed to mark routing_failed on Obsidian note.",
+                        exc_info=True,
+                    )
+            # Generic message to the SSE client; sanitized detail is
+            # already in server logs above (CodeQL py/stack-trace-exposure).
+            yield {
+                "type": "error",
+                "error": "Routing failed; see server logs for details.",
+            }
+            return
+
+        # From here on, mirror assign_and_execute_task's responsibilities
+        # but interleave token emission while the agent is producing output.
+        task_id = task_context.get("task_id", "auto_generated")
+        agent = self.agent_registry.get_agent(agent_name)
+        if not agent:
+            yield {
+                "type": "error",
+                "error": f"Agent '{agent_name}' not registered with the orchestrator.",
+            }
+            return
+
+        task_success = False
+        results: Dict[str, Any] = {}
+        try:
+            enriched_context = self._enrich_task_with_memory(task_context)
+
+            if getattr(agent, "supports_streaming", False) and hasattr(
+                agent, "stream_task"
+            ):
+                for event in agent.stream_task(enriched_context):
+                    etype = event.get("type")
+                    if etype == "token":
+                        yield {"type": "token", "text": event.get("text", "")}
+                    elif etype == "final":
+                        results = event.get("result") or {}
+                        break
+                if not results:
+                    # Agent's stream_task didn't terminate with a final event;
+                    # synthesise a failure result rather than silently
+                    # dropping the run.
+                    results = {
+                        "status": "failed",
+                        "summary": "Streaming agent did not emit a final event.",
+                    }
+            else:
+                # Non-streaming agent: run synchronously, emit the whole
+                # response as a single token event so the UI animation is
+                # consistent.
+                results = agent.perform_task(enriched_context)
+                summary_text = str(results.get("summary", ""))
+                if summary_text:
+                    yield {"type": "token", "text": summary_text}
+
+            task_success = results.get("status") != "failed"
+
+            # Persist report (same path as assign_and_execute_task).
+            report_filename = (
+                f"{agent_name.replace(' ', '_')}_Report_{task_id}_{len(results)}.md"
+            )
+            report_md = self.obs_generator.generate_agent_report(
+                agent_name, task_id, results
+            )
+            report_path = f"{AGENT_OUTPUT_DIR}/{report_filename}"
+            try:
+                self.memory_bus.write_note_with_embedding(
+                    report_path,
+                    report_md,
+                    metadata={"agent": agent_name, "task_id": task_id},
+                )
+            except Exception:
+                # exc_info=True attaches the stack trace; agent_name omitted
+                # from the message to avoid user-controlled data flowing into
+                # log records (CodeQL py/log-injection).
+                logger.error("Failed to persist streaming report.", exc_info=True)
+
+            if original_task_note_path:
+                self.update_task_status_in_obsidian(
+                    original_task_note_path,
+                    "completed" if task_success else "failed",
+                    task_id,
+                )
+
+        except Exception:  # noqa: BLE001
+            # Same rationale as above -- exception detail is on exc_info,
+            # not interpolated into the message. Generic strings flow to
+            # the SSE client (CodeQL py/stack-trace-exposure); the full
+            # exception is preserved in server logs via exc_info=True.
+            logger.error("Streaming execution failed.", exc_info=True)
+            task_success = False
+            results = {
+                "status": "failed",
+                "error": "Task execution failed; see server logs for details.",
+                "summary": "Task failed; see server logs for details.",
+            }
+            if original_task_note_path:
+                self.update_task_status_in_obsidian(
+                    original_task_note_path, "failed", task_id
+                )
+
+        # Hebbian update fires regardless of branch. Inlined here (rather
+        # than delegating to _update_hebbian_weights) because the helper
+        # logs the agent_name/task_id, which would create new flow paths
+        # CodeQL flags as py/log-injection through this streaming entry
+        # point. Persistence still happens; the log line is just dropped
+        # on this path -- the existing per-task lifecycle logger above
+        # already captures success/failure.
+        hebbian_error: Optional[str] = None
+        try:
+            if task_success:
+                self.hebbian.strengthen_connection(agent_name, task_id)
+            else:
+                self.hebbian.weaken_connection(agent_name, task_id)
+        except Exception:
+            logger.error(
+                "Hebbian update failed in streaming executor.", exc_info=True
+            )
+            # Surface the failure to the client. The non-streaming
+            # assign_and_execute_task path lets the exception propagate
+            # and returns HTTP 500; in a streaming connection that would
+            # truncate the SSE, so we keep the connection alive and
+            # report the failure inline. The task itself still completed
+            # -- only the learning update was lost.
+            hebbian_error = "Hebbian persistence failed; see server logs."
+
+        # Compose the error field: prefer the agent-level error if any,
+        # otherwise the Hebbian-update error, otherwise None.
+        complete_error = results.get("error") or hebbian_error
+
+        yield {
+            "type": "complete",
+            "task_id": task_id,
+            "agent_name": agent_name,
+            "status": "success" if task_success else "failed",
+            "summary": results.get("summary", "Task executed"),
+            "note_path": original_task_note_path,
+            "error": complete_error,
+        }
 
     def _update_hebbian_weights(self, agent_name: str, task_id: str, success: bool):
         """

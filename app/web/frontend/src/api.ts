@@ -211,3 +211,105 @@ export const executeInstruction = (data: {
   agent?: string;
   title?: string;
 }) => jsonPost('/cli/execute', data);
+
+/**
+ * Handlers invoked as the streaming executor emits SSE events. Each is
+ * optional so callers only wire up what they care about. ``abort`` lets
+ * the consumer cancel the in-flight stream mid-flight.
+ */
+export interface ExecuteStreamHandlers {
+  onRouting?: (data: { decision: unknown; agent_name: string; task_id: string }) => void;
+  onToken?: (text: string) => void;
+  onComplete?: (data: {
+    task_id: string;
+    agent_name: string;
+    status: string;
+    summary: string;
+    note_path: string | null;
+    error: string | null;
+  }) => void;
+  onError?: (message: string) => void;
+}
+
+/**
+ * Execute a CLI-style instruction and stream the response over SSE.
+ *
+ * The fetch-based SSE consumer is preferred over EventSource because we
+ * need to POST the request body (EventSource is GET-only) and inject
+ * ``X-API-Key`` for the FastAPI auth dependency.
+ *
+ * Returns an abort controller — call ``.abort()`` to cancel the stream
+ * (the FastAPI side will see the client disconnect and stop emitting).
+ */
+export const executeInstructionStream = (
+  data: { instruction: string; capability?: string; agent?: string; title?: string },
+  handlers: ExecuteStreamHandlers
+): AbortController => {
+  const controller = new AbortController();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'text/event-stream',
+  };
+  if (API_KEY) headers['X-API-Key'] = API_KEY;
+
+  (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/cli/execute/stream`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+        signal: controller.signal,
+      });
+      if (!response.ok || !response.body) {
+        const text = await response.text().catch(() => '');
+        handlers.onError?.(text || `HTTP ${response.status}`);
+        return;
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      // Parse SSE: events are separated by a blank line; each frame may
+      // contain "event: <name>" and one or more "data: <line>" lines.
+      const flush = (raw: string) => {
+        const lines = raw.split('\n');
+        let event = 'message';
+        const dataLines: string[] = [];
+        for (const line of lines) {
+          if (line.startsWith('event:')) event = line.slice(6).trim();
+          else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+        }
+        if (dataLines.length === 0) return;
+        let payload: any = dataLines.join('\n');
+        try {
+          payload = JSON.parse(payload);
+        } catch {
+          // leave as string
+        }
+        if (event === 'routing') handlers.onRouting?.(payload);
+        else if (event === 'token') handlers.onToken?.(payload.text ?? '');
+        else if (event === 'complete') handlers.onComplete?.(payload);
+        else if (event === 'error') handlers.onError?.(payload.error ?? String(payload));
+      };
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        // SSE frames are terminated by "\n\n".
+        let idx;
+        while ((idx = buffer.indexOf('\n\n')) !== -1) {
+          const frame = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+          if (frame.trim()) flush(frame);
+        }
+      }
+      if (buffer.trim()) flush(buffer);
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      handlers.onError?.(err?.message || String(err));
+    }
+  })();
+
+  return controller;
+};

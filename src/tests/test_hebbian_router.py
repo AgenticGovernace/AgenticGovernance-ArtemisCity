@@ -56,6 +56,24 @@ class FakeHebbian:
         return self._weights.get(name, 0.0)
 
 
+class _TrustScore:
+    def __init__(self, score):
+        self.score = score
+
+
+class FakeTrust:
+    """Minimal stand-in for TrustInterface.get_trust_score(name)."""
+
+    def __init__(self, scores=None, raise_on=None):
+        self._scores = scores or {}
+        self._raise_on = set(raise_on or ())
+
+    def get_trust_score(self, name, entity_type="agent"):
+        if name in self._raise_on:
+            raise RuntimeError("simulated trust failure")
+        return _TrustScore(self._scores.get(name, 0.8))
+
+
 def _two_research_agents(composites, **kwargs):
     reg = FakeRegistry(
         [_Agent("A", ["research"]), _Agent("B", ["research"])],
@@ -191,3 +209,116 @@ def test_hebbian_router_returns_decision_breakdown():
     assert decision.alpha == 0.5
     assert {c.name for c in decision.candidates} == {"A", "B"}
     assert decision.agent_name in {"A", "B"}
+
+
+# ---- Trust-aware routing ---------------------------------------------------
+
+
+@pytest.mark.unit
+def test_hebbian_router_beta_one_prefers_highest_trust():
+    """At beta=1 (alpha=0) the trust signal alone decides — highest trust wins."""
+    reg = _two_research_agents({"A": 0.9, "B": 0.6})  # A wins on composite
+    trust = FakeTrust({"A": 0.2, "B": 0.95})  # but B is more trusted
+    router = HebbianRouter(reg, FakeHebbian(), alpha=0.0, beta=1.0, trust_interface=trust)
+    assert router.route_name({"required_capability": "research"}) == "B"
+
+
+@pytest.mark.unit
+def test_hebbian_router_trust_floor_excludes_low_trust_agent():
+    """An agent below trust_floor is excluded even if its composite is best."""
+    reg = _two_research_agents({"A": 0.95, "B": 0.5})
+    trust = FakeTrust({"A": 0.1, "B": 0.9})  # A would win, but is below floor
+    router = HebbianRouter(
+        reg, FakeHebbian(), alpha=0.3, trust_interface=trust, trust_floor=0.5
+    )
+    decision = router.route({"required_capability": "research"})
+    assert decision.agent_name == "B"
+    assert {c.name for c in decision.candidates} == {"B"}  # A filtered out
+    assert decision.trust_floor == 0.5
+
+
+@pytest.mark.unit
+def test_hebbian_router_with_no_trust_interface_is_backwards_compatible():
+    """Omitting trust_interface preserves the legacy 2-signal blend exactly."""
+    reg = _two_research_agents({"A": 0.9, "B": 0.6})
+    heb = FakeHebbian({"A": 1.0, "B": 10.0})
+
+    legacy = HebbianRouter(reg, heb, alpha=0.5)
+    trust_disabled = HebbianRouter(reg, heb, alpha=0.5, trust_interface=None)
+
+    d_legacy = legacy.route({"required_capability": "research"})
+    d_new = trust_disabled.route({"required_capability": "research"})
+    assert d_legacy.agent_name == d_new.agent_name
+    # blended scores must match within float noise
+    legacy_by = {c.name: c.blended for c in d_legacy.candidates}
+    new_by = {c.name: c.blended for c in d_new.candidates}
+    for name in legacy_by:
+        assert abs(legacy_by[name] - new_by[name]) < 1e-9
+
+
+@pytest.mark.unit
+def test_hebbian_router_tolerates_broken_trust_source():
+    """A trust source that raises falls back to the neutral prior, not a crash."""
+    reg = _two_research_agents({"A": 0.9, "B": 0.6})
+    trust = FakeTrust(raise_on={"A", "B"})  # every read raises
+    router = HebbianRouter(
+        reg, FakeHebbian(), alpha=0.0, beta=0.5, trust_interface=trust
+    )
+    # With both trust reads neutral and alpha=0, composite tie-broken on score:
+    # A (0.9) beats B (0.6).
+    assert router.route_name({"required_capability": "research"}) == "A"
+
+
+@pytest.mark.unit
+def test_hebbian_router_clamps_alpha_plus_beta_to_one():
+    """alpha + beta > 1 silently clamps beta so the composite weight stays >= 0."""
+    reg = _two_research_agents({"A": 0.9, "B": 0.6})
+    router = HebbianRouter(reg, FakeHebbian(), alpha=0.8, beta=0.9)  # would sum to 1.7
+    assert router.alpha == 0.8
+    assert router.beta == pytest.approx(0.2)  # clamped to 1 - alpha
+
+
+@pytest.mark.unit
+def test_hebbian_router_trust_floor_with_no_survivors_raises():
+    """If the trust floor excludes every candidate, routing raises a trust-specific error."""
+    reg = _two_research_agents({"A": 0.9, "B": 0.6})
+    trust = FakeTrust({"A": 0.1, "B": 0.1})
+    router = HebbianRouter(
+        reg, FakeHebbian(), trust_interface=trust, trust_floor=0.5
+    )
+    # Trust-floor exclusion has its own diagnostic so the operator can
+    # tell "no agent below floor" apart from "no agent advertised the
+    # capability" -- the two failure modes need different fixes.
+    with pytest.raises(ValueError, match="below trust floor"):
+        router.route({"required_capability": "research"})
+
+
+@pytest.mark.unit
+def test_hebbian_router_trust_floor_exclusion_does_not_silently_fall_back():
+    """A trust-floor-only exclusion must not retry on fallback_capability.
+
+    The fallback path is for "no agent advertised this capability". A
+    trust-floor exclusion is a policy decision -- silently routing to the
+    LLM agent's llm_chat would bypass the operator's trust requirement.
+    """
+    reg = FakeRegistry(
+        [
+            _Agent("Research", ["web_search"]),  # below floor
+            _Agent("LLM", ["llm_chat"]),  # above floor
+        ],
+        {"Research": 0.9, "LLM": 0.5},
+    )
+    # Research advertises web_search (the requested capability) but its
+    # trust is below floor. The LLM agent (which fallback would target)
+    # is above floor, but should NOT be selected -- the user asked for
+    # web_search subject to a trust requirement, and the trust failed.
+    trust = FakeTrust({"Research": 0.1, "LLM": 0.9})
+    router = HebbianRouter(
+        reg,
+        FakeHebbian(),
+        trust_interface=trust,
+        trust_floor=0.5,
+        fallback_capability="llm_chat",
+    )
+    with pytest.raises(ValueError, match="below trust floor"):
+        router.route({"required_capability": "web_search"})

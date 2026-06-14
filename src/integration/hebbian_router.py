@@ -1,11 +1,14 @@
 """Hebbian-weighted task routing.
 
 Biases agent selection by *learned* success, not just the static composite
-score. Among the agents capable of a task (and not quarantined/suspended), the
-router blends each agent's static composite score with its Hebbian average
-connection weight::
+score. Among the agents capable of a task (and not quarantined/suspended, and
+above the trust floor when one is configured), the router blends each agent's
+static composite score with its Hebbian average connection weight and its
+current trust score::
 
-    score(agent) = (1 - alpha) * composite(agent) + alpha * hebbian_norm(agent)
+    score(agent) = (1 - alpha - beta) * composite(agent)
+                 + alpha * hebbian_norm(agent)
+                 + beta  * trust_score(agent)
 
 ``hebbian_norm`` is the agent's average Hebbian weight normalised across the
 current candidates to ``[0, 1]``. With no Hebbian history (cold start) every
@@ -16,17 +19,25 @@ increasingly preferred. This is the production wiring of the adaptive
 agent-selection rule prototyped in the ML notebooks (the highest-weight agent
 wins, weights move by +/-1 on success/failure).
 
-``alpha`` in ``[0, 1]`` controls how much learned weight overrides the static
-score: ``0`` = pure composite (legacy behaviour), ``1`` = pure Hebbian weight.
+``trust_score`` is the agent's current trust value in ``[0, 1]`` from
+:class:`~src.integration.trust_interface.TrustInterface` (already decayed to
+the moment of the routing decision). ``trust_floor`` is a hard cutoff: any
+agent whose trust falls below it is excluded from candidacy, the same way
+quarantined or suspended agents are. Floor exclusion happens *before* the
+blend, so a sub-threshold agent cannot win regardless of Hebbian history.
+
+``alpha`` and ``beta`` in ``[0, 1]`` with ``alpha + beta <= 1`` control how
+much learned weight and trust override the static score. ``alpha=beta=0``
+collapses routing back to the registry's composite-only behaviour.
 
 ``fallback_capability`` makes a general-purpose agent reachable: if no agent
 advertises the requested capability (or the task omits one), the router retries
 with the fallback capability (e.g. the LLM agent's ``llm_chat``) before giving
 up. Leave it ``None`` to keep strict capability-matching (raise on no match).
 
-The router is deliberately defensive: any failure reading a weight or score is
-treated as the neutral prior, so a missing or mocked Hebbian source never breaks
-routing — it simply falls back to composite-only behaviour.
+The router is deliberately defensive: any failure reading a weight, score, or
+trust value is treated as the neutral prior, so a missing or mocked source
+never breaks routing — it simply falls back to whatever signals remain.
 """
 
 from __future__ import annotations
@@ -48,7 +59,10 @@ except ImportError:  # pragma: no cover - benchmark/bare layouts
 _BLOCKED_STATUSES = ("quarantined", "suspended")
 
 DEFAULT_ALPHA = 0.3
+DEFAULT_BETA = 0.0
+DEFAULT_TRUST_FLOOR = 0.0
 NEUTRAL_PRIOR = 0.5
+NEUTRAL_TRUST = 0.5
 
 
 @dataclass
@@ -59,6 +73,7 @@ class CandidateScore:
     composite: float
     hebbian_weight: float  # raw average Hebbian weight
     hebbian_norm: float  # normalised across candidates, [0, 1]
+    trust_score: float  # current trust in [0, 1] (already decay-adjusted)
     blended: float
 
 
@@ -68,6 +83,8 @@ class RoutingDecision:
 
     agent_name: str
     alpha: float
+    beta: float = 0.0
+    trust_floor: float = 0.0
     candidates: List[CandidateScore] = field(default_factory=list)
     # The originally-requested capability, set when this decision came from the
     # fallback path (i.e. no agent had the requested capability). None otherwise.
@@ -82,13 +99,15 @@ class RoutingDecision:
         return {
             "agent_name": self.agent_name,
             "alpha": self.alpha,
+            "beta": self.beta,
+            "trust_floor": self.trust_floor,
             "fallback_from": self.fallback_from,
             "candidates": [c.__dict__ for c in self.candidates],
         }
 
 
 class HebbianRouter:
-    """Select the best agent for a task by blending composite score + Hebbian weight."""
+    """Select the best agent for a task by blending composite + Hebbian + trust."""
 
     def __init__(
         self,
@@ -97,6 +116,9 @@ class HebbianRouter:
         alpha: float = DEFAULT_ALPHA,
         neutral_prior: float = NEUTRAL_PRIOR,
         fallback_capability: Optional[str] = None,
+        trust_interface: Any = None,
+        beta: float = DEFAULT_BETA,
+        trust_floor: float = DEFAULT_TRUST_FLOOR,
     ) -> None:
         """Initialize the router.
 
@@ -104,19 +126,33 @@ class HebbianRouter:
             registry: An ``AgentRegistry`` (read for capabilities, scores,
                 governance state).
             hebbian: A ``HebbianWeightManager`` (read for average agent weight).
-            alpha: Blend factor in ``[0, 1]``; higher means learned weight
-                matters more relative to the static composite score.
+            alpha: Blend factor in ``[0, 1]``; weight on the Hebbian signal.
             neutral_prior: Hebbian signal used when no history exists (cold
                 start), so new agents are neither rewarded nor penalised.
             fallback_capability: Capability to route to when the requested one
                 has no eligible agent (or the task omits a capability). ``None``
                 keeps strict matching (raise on no match).
+            trust_interface: A ``TrustInterface`` (read for agent trust score).
+                ``None`` disables the trust signal entirely — the router falls
+                back to the two-signal blend (composite + Hebbian).
+            beta: Blend factor in ``[0, 1]``; weight on the trust signal. The
+                composite term carries ``1 - alpha - beta``; alpha + beta is
+                clamped to ``<= 1`` to keep the blend a convex combination.
+            trust_floor: Hard cutoff in ``[0, 1]``. Agents whose trust score
+                falls below this threshold are excluded from candidacy before
+                blending. ``0`` (the default) disables floor exclusion.
         """
         self.registry = registry
         self.hebbian = hebbian
         self.alpha = max(0.0, min(1.0, float(alpha)))
+        # Clamp beta so alpha + beta stays in [0, 1]; without this a misconfig
+        # (env var typo, hand-wired test) could produce a negative composite
+        # weight and silently invert ranking.
+        self.beta = max(0.0, min(1.0 - self.alpha, float(beta)))
         self.neutral_prior = neutral_prior
         self.fallback_capability = fallback_capability or None
+        self.trust_interface = trust_interface
+        self.trust_floor = max(0.0, min(1.0, float(trust_floor)))
 
     def route(self, task: Dict[str, Any]) -> RoutingDecision:
         """Route a task to the highest blended-score eligible agent.
@@ -173,13 +209,38 @@ class HebbianRouter:
         self, capability: str, fell_back_from: Optional[str] = None
     ) -> Optional[RoutingDecision]:
         """Score and choose among agents with ``capability``; None if there are none."""
-        candidates = [
+        # First pass: capability + governance (quarantine/suspension) filter.
+        eligible = [
             agent.name
             for agent in self.registry.get_all_agents()
             if capability in getattr(agent, "capabilities", [])
             and not self._is_blocked(agent.name)
         ]
+        if not eligible:
+            return None
+
+        # Read trust per candidate up front so we can apply the floor and reuse
+        # the value in the blend without a second lookup. _trust_score returns
+        # the neutral prior on any error, so missing trust never blocks routing.
+        trusts = {name: self._trust_score(name) for name in eligible}
+
+        # Second pass: trust floor. Skipped entirely when trust_floor == 0
+        # (the default) so legacy callers see no behavior change.
+        if self.trust_floor > 0.0:
+            candidates = [n for n in eligible if trusts[n] >= self.trust_floor]
+        else:
+            candidates = eligible
         if not candidates:
+            if self.trust_floor > 0.0 and eligible:
+                # Eligible agents exist but every one was below the trust
+                # floor. Do not fall through to the "no capable agent"
+                # path -- if the caller wanted llm_chat as a backup, it
+                # would also have to clear the same floor. Raise instead
+                # so the user sees the real reason routing failed.
+                raise ValueError(
+                    f"All candidates for capability {capability!r} are "
+                    f"below trust floor {self.trust_floor:.2f}"
+                )
             return None
 
         raw = {
@@ -187,15 +248,23 @@ class HebbianRouter:
             for name in candidates
         }
         max_heb = max((heb for _, heb in raw.values()), default=0.0)
+        composite_weight = max(0.0, 1.0 - self.alpha - self.beta)
 
         scored: List[CandidateScore] = []
         for name in candidates:
             composite, heb_raw = raw[name]
             # Cold start (no weights anywhere) -> neutral prior for everyone, so
-            # ranking collapses to the composite score.
+            # ranking collapses to the composite + trust portion.
             heb_norm = (heb_raw / max_heb) if max_heb > 0 else self.neutral_prior
-            blended = (1.0 - self.alpha) * composite + self.alpha * heb_norm
-            scored.append(CandidateScore(name, composite, heb_raw, heb_norm, blended))
+            trust = trusts[name]
+            blended = (
+                composite_weight * composite
+                + self.alpha * heb_norm
+                + self.beta * trust
+            )
+            scored.append(
+                CandidateScore(name, composite, heb_raw, heb_norm, trust, blended)
+            )
 
         # Deterministic order: highest blended, then composite; name ascending
         # within ties (stable sort: sort by name first, then by the metrics).
@@ -205,26 +274,33 @@ class HebbianRouter:
 
         if fell_back_from is not None:
             logger.info(
-                "Hebbian routing FALLBACK (%r -> capability %r, alpha=%.2f) -> %s",
+                "Hebbian routing FALLBACK (%r -> capability %r, "
+                "alpha=%.2f beta=%.2f) -> %s",
                 fell_back_from,
                 capability,
                 self.alpha,
+                self.beta,
                 best.name,
             )
         else:
             logger.info(
-                "Hebbian routing (alpha=%.2f) -> %s "
-                "(blended=%.3f, composite=%.3f, heb_weight=%.3f) over %d candidate(s)",
+                "Hebbian routing (alpha=%.2f beta=%.2f) -> %s "
+                "(blended=%.3f, composite=%.3f, heb=%.3f, trust=%.2f) "
+                "over %d candidate(s)",
                 self.alpha,
+                self.beta,
                 best.name,
                 best.blended,
                 best.composite,
                 best.hebbian_weight,
+                best.trust_score,
                 len(scored),
             )
         return RoutingDecision(
             agent_name=best.name,
             alpha=self.alpha,
+            beta=self.beta,
+            trust_floor=self.trust_floor,
             candidates=scored,
             fallback_from=fell_back_from if fell_back_from != "<unspecified>" else None,
         )
@@ -258,3 +334,22 @@ class HebbianRouter:
             return max(0.0, float(self.hebbian.get_agent_average_weight(name)))
         except Exception:  # mocked/missing source -> treat as no history
             return 0.0
+
+    def _trust_score(self, name: str) -> float:
+        """Trust value in [0, 1] for an agent; neutral prior if unavailable.
+
+        When ``trust_interface`` is ``None`` (trust signal disabled at
+        construction time), every candidate reads the neutral prior so the
+        beta term contributes a constant and ranking collapses to composite
+        + Hebbian — the same behavior as ``beta == 0``.
+        """
+        if self.trust_interface is None:
+            return NEUTRAL_TRUST
+        try:
+            score = self.trust_interface.get_trust_score(name)
+            # TrustInterface returns a TrustScore dataclass; some test doubles
+            # may return a plain float. Accept both.
+            raw = getattr(score, "score", score)
+            return max(0.0, min(1.0, float(raw)))
+        except Exception:  # mocked/missing source -> neutral prior
+            return NEUTRAL_TRUST
