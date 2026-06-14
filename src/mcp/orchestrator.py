@@ -615,7 +615,9 @@ class Orchestrator:
                 "agent_name": agent_name,
             }
         except (ValueError, KeyError) as exc:
-            logger.error("Stream routing failed.", exc_info=True)
+            logger.error(
+                "Stream routing failed: %s", _sanitize_for_log(exc), exc_info=True
+            )
             # The streaming endpoint already created the Obsidian note as
             # "in progress" before invoking this generator. Without this
             # update the note would stay stuck at "in progress" even though
@@ -633,7 +635,12 @@ class Orchestrator:
                         "Failed to mark routing_failed on Obsidian note.",
                         exc_info=True,
                     )
-            yield {"type": "error", "error": str(exc)}
+            # Generic message to the SSE client; sanitized detail is
+            # already in server logs above (CodeQL py/stack-trace-exposure).
+            yield {
+                "type": "error",
+                "error": "Routing failed; see server logs for details.",
+            }
             return
 
         # From here on, mirror assign_and_execute_task's responsibilities
@@ -708,15 +715,17 @@ class Orchestrator:
                     task_id,
                 )
 
-        except Exception as exc:  # noqa: BLE001
+        except Exception:  # noqa: BLE001
             # Same rationale as above -- exception detail is on exc_info,
-            # not interpolated into the message.
+            # not interpolated into the message. Generic strings flow to
+            # the SSE client (CodeQL py/stack-trace-exposure); the full
+            # exception is preserved in server logs via exc_info=True.
             logger.error("Streaming execution failed.", exc_info=True)
             task_success = False
             results = {
                 "status": "failed",
-                "error": str(exc),
-                "summary": f"Task failed: {exc}",
+                "error": "Task execution failed; see server logs for details.",
+                "summary": "Task failed; see server logs for details.",
             }
             if original_task_note_path:
                 self.update_task_status_in_obsidian(
