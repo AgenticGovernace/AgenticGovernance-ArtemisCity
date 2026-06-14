@@ -139,6 +139,49 @@ def test_hebbian_router_tolerates_broken_hebbian_source():
 
 
 @pytest.mark.unit
+def test_hebbian_router_falls_back_for_unmatched_capability():
+    """An unmatched capability routes to the configured fallback agent."""
+    reg = FakeRegistry(
+        [_Agent("Research", ["web_search"]), _Agent("LLM", ["llm_chat"])],
+        {"Research": 0.9, "LLM": 0.5},
+    )
+    router = HebbianRouter(reg, FakeHebbian(), fallback_capability="llm_chat")
+    decision = router.route({"required_capability": "chitchat"})
+    assert decision.agent_name == "LLM"
+    assert decision.fallback_from == "chitchat"
+
+
+@pytest.mark.unit
+def test_hebbian_router_falls_back_for_missing_capability():
+    """A task with no capability routes to the fallback when configured."""
+    reg = FakeRegistry([_Agent("LLM", ["llm_chat"])], {"LLM": 0.5})
+    router = HebbianRouter(reg, FakeHebbian(), fallback_capability="llm_chat")
+    assert router.route_name({"title": "just chat"}) == "LLM"
+
+
+@pytest.mark.unit
+def test_hebbian_router_no_fallback_still_raises():
+    """Without a fallback, an unmatched capability still raises (legacy)."""
+    reg = FakeRegistry([_Agent("LLM", ["llm_chat"])], {"LLM": 0.5})
+    router = HebbianRouter(reg, FakeHebbian())  # no fallback_capability
+    with pytest.raises(ValueError, match="No agent found with the required capability"):
+        router.route({"required_capability": "chitchat"})
+
+
+@pytest.mark.unit
+def test_hebbian_router_fallback_excluded_when_blocked():
+    """If the fallback agent is quarantined, routing raises rather than using it."""
+    reg = FakeRegistry(
+        [_Agent("LLM", ["llm_chat"])],
+        {"LLM": 0.5},
+        governance={"LLM": {"status": "quarantined"}},
+    )
+    router = HebbianRouter(reg, FakeHebbian(), fallback_capability="llm_chat")
+    with pytest.raises(ValueError, match="No agent found with the required capability"):
+        router.route({"required_capability": "chitchat"})
+
+
+@pytest.mark.unit
 def test_hebbian_router_returns_decision_breakdown():
     """route() returns a RoutingDecision with a per-candidate breakdown."""
     reg = _two_research_agents({"A": 0.7, "B": 0.5})

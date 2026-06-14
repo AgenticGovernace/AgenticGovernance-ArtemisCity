@@ -737,6 +737,52 @@ with `ARTEMIS_PYTHON`.
 
 ---
 
+## Dashboard executor contract
+
+The Vite frontend (`app/web/frontend`) talks directly to the **FastAPI**
+dashboard (`app/api/main.py`), *not* the TS Express layer. The proxy is
+`/api/* -> http://localhost:8000` (see `app/web/frontend/vite.config.ts`),
+and Express on `:4000` is only consumed by external API clients.
+
+Two endpoints carry contracts the frontend depends on:
+
+### `POST /api/cli/execute`
+
+The Executor page (`app/web/frontend/src/pages/Executor.tsx`) submits
+user instructions here. The response is `ExecuteInstructionResponse`:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `task_id` | `str` | Synthetic ID; also the Obsidian note key. |
+| `status` | `"success" \| "failed"` | Top-level outcome. |
+| `summary` | `str` | Human-readable result from the agent. |
+| `note_path` | `str \| None` | Vault-relative path to the persisted report. |
+| `error` | `str \| None` | Failure detail when `status == "failed"`. |
+| `agent_name` | `str \| None` | Which agent actually executed — either the request's `agent` (when pinned) or the agent the Hebbian router picked. |
+| `routing` | `dict \| None` | `HebbianRouter.RoutingDecision.to_dict()` shape (`agent_name`, `alpha`, `fallback_from`, `candidates[]`). `None` when the caller pinned `agent` explicitly. |
+
+Behaviorally: when the request lacks an `agent`, the handler calls
+`orchestrator.hebbian_router.route(task_data)` to capture the decision
+*before* dispatching, then calls `assign_and_execute_task(chosen, ...)`
+with the picked agent. Routing is side-effect-free, so this does not
+double-execute.
+
+### `GET /api/agents`
+
+Returns only agents currently *loaded in the orchestrator's in-memory
+registry* (`orchestrator.agent_registry.get_all_agents()`), not the
+SQLite `agents` table. This filters out rows persisted by past test
+runs whose Python classes are no longer registered — picking one of
+those from the frontend dropdown would otherwise 400 with
+"agent not found". The SQLite read remains as a fallback when the
+orchestrator failed to initialize (`orchestrator is None`).
+
+When extending the executor contract, keep `ExecuteInstructionResponse`
+the single shape and update the Executor page's `ExecutionResult`
+interface in lock-step.
+
+---
+
 ## Governance data model
 
 These live in `src/integration/` and `src/governance/`. They were
@@ -864,8 +910,14 @@ point.
 | Python CLI | `make run` (runs `src/launch/main.py`) |
 | Concept demos | `make demo` |
 | Obsidian MCP server | `make server` |
-| Frontend dev server | `make frontend` |
+| FastAPI dashboard backend (`:8000`) | `make api` |
+| Frontend dev server (`:5173`, proxies `/api` -> `:8000`) | `make frontend` |
 | Build wheel | `make build` |
+
+`make api` and `make frontend` are paired: the frontend's Vite proxy
+targets `localhost:8000`, so the FastAPI backend must be running there.
+The Makefile's `api` target already defaults to that port; if you boot
+uvicorn by hand, keep `--port 8000`.
 
 ---
 
@@ -889,6 +941,9 @@ point.
 | TS ↔ Python bridge (TS side) | `app/api/lib/pythonBridge.ts` |
 | TS API routes | `app/api/v1/*.ts` |
 | FastAPI dashboard | `app/api/main.py` |
+| Hebbian-weighted router | `src/integration/hebbian_router.py` |
+| Executor page (consumes `/api/cli/execute`) | `app/web/frontend/src/pages/Executor.tsx` |
+| Frontend API client | `app/web/frontend/src/api.ts` |
 | Kernel layer | `app/kernel/kernel.py`, `app/kernel/agents/*.py` |
 | ATP parser / validator | `src/agents/atp/` |
 | Environment loader | `src/utils/environments.py` |

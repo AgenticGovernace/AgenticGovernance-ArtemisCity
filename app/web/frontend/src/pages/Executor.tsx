@@ -42,6 +42,24 @@ interface Agent {
 }
 
 /**
+ * Per-candidate routing breakdown returned by the Hebbian router.
+ */
+interface RoutingCandidate {
+  name: string;
+  composite: number;
+  hebbian_weight: number;
+  hebbian_norm: number;
+  blended: number;
+}
+
+interface RoutingDecision {
+  agent_name: string;
+  alpha: number;
+  fallback_from: string | null;
+  candidates: RoutingCandidate[];
+}
+
+/**
  * Interface for execution response
  */
 interface ExecutionResult {
@@ -50,6 +68,8 @@ interface ExecutionResult {
   summary: string;
   note_path?: string;
   error?: string;
+  agent_name?: string | null;
+  routing?: RoutingDecision | null;
 }
 
 /**
@@ -71,6 +91,9 @@ const Executor = () => {
 
   // Predefined capabilities
   const capabilities = [
+    'llm_chat',
+    'text_generation',
+    'reasoning',
     'web_search',
     'text_summarization',
     'system_management',
@@ -317,6 +340,14 @@ Or: Summarize the key findings from the reports folder"
                       {result.task_id}
                     </StatNumber>
                   </Stat>
+                  {result.agent_name && (
+                    <Stat>
+                      <StatLabel fontSize="xs">Routed To</StatLabel>
+                      <StatNumber fontSize="sm" wordBreak="break-all">
+                        {result.agent_name}
+                      </StatNumber>
+                    </Stat>
+                  )}
                   {result.note_path && (
                     <Stat>
                       <StatLabel fontSize="xs">Note Path</StatLabel>
@@ -326,6 +357,53 @@ Or: Summarize the key findings from the reports folder"
                     </Stat>
                   )}
                 </SimpleGrid>
+
+                {/* Hebbian routing decision */}
+                {result.routing && (
+                  <Box mb={4}>
+                    <Text fontWeight="bold" fontSize="sm" mb={2}>
+                      Hebbian Routing Decision
+                      <Badge ml={2} colorScheme="purple">
+                        alpha = {result.routing.alpha.toFixed(2)}
+                      </Badge>
+                      {result.routing.fallback_from && (
+                        <Badge ml={2} colorScheme="orange">
+                          fallback from: {result.routing.fallback_from}
+                        </Badge>
+                      )}
+                    </Text>
+                    <Box
+                      p={3}
+                      bg="purple.50"
+                      borderRadius="md"
+                      fontSize="xs"
+                      borderLeft="4px solid"
+                      borderColor="purple.400"
+                    >
+                      {result.routing.candidates.map((c) => {
+                        const isWinner = c.name === result.routing!.agent_name;
+                        return (
+                          <Flex
+                            key={c.name}
+                            justify="space-between"
+                            py={1}
+                            fontWeight={isWinner ? 'bold' : 'normal'}
+                            color={isWinner ? 'purple.700' : 'gray.700'}
+                          >
+                            <Text>
+                              {isWinner ? '★ ' : '  '}
+                              {c.name}
+                            </Text>
+                            <Text fontFamily="mono">
+                              blended={c.blended.toFixed(3)} · composite=
+                              {c.composite.toFixed(3)} · heb={c.hebbian_weight.toFixed(2)}
+                            </Text>
+                          </Flex>
+                        );
+                      })}
+                    </Box>
+                  </Box>
+                )}
 
                 {/* Summary */}
                 <Box mb={4}>

@@ -178,8 +178,22 @@ Multi-tier approval workflow for self-updates and policy changes.
          │
     ┌────▼──────────────────┐
     │  Return Result        │
+    │  (incl. RoutingDecision: │
+    │   chosen agent +      │
+    │   per-candidate       │
+    │   blended scores)     │
     └───────────────────────┘
 ```
+
+The Hebbian routing decision is not just an internal scoring step — it
+is captured by the FastAPI executor (`POST /api/cli/execute`) and
+returned to the caller as the `agent_name` and `routing` fields on
+`ExecuteInstructionResponse`. The dashboard Executor page renders the
+per-candidate blended-score breakdown so operators can observe how the
+router weighted composite score vs. Hebbian history for each capability
+match. See the "Dashboard executor contract" section of `CLAUDE.md`
+for the response shape.
+
 ## Integration Points
 **Obsidian Integration:**
 

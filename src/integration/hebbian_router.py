@@ -19,6 +19,11 @@ wins, weights move by +/-1 on success/failure).
 ``alpha`` in ``[0, 1]`` controls how much learned weight overrides the static
 score: ``0`` = pure composite (legacy behaviour), ``1`` = pure Hebbian weight.
 
+``fallback_capability`` makes a general-purpose agent reachable: if no agent
+advertises the requested capability (or the task omits one), the router retries
+with the fallback capability (e.g. the LLM agent's ``llm_chat``) before giving
+up. Leave it ``None`` to keep strict capability-matching (raise on no match).
+
 The router is deliberately defensive: any failure reading a weight or score is
 treated as the neutral prior, so a missing or mocked Hebbian source never breaks
 routing — it simply falls back to composite-only behaviour.
@@ -27,7 +32,7 @@ routing — it simply falls back to composite-only behaviour.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 try:  # repo root on path (tests / app)
     from src.utils.helpers import logger
@@ -64,6 +69,9 @@ class RoutingDecision:
     agent_name: str
     alpha: float
     candidates: List[CandidateScore] = field(default_factory=list)
+    # The originally-requested capability, set when this decision came from the
+    # fallback path (i.e. no agent had the requested capability). None otherwise.
+    fallback_from: Optional[str] = None
 
     def to_dict(self) -> dict:
         """Serialize the decision (e.g. for the run logger / API).
@@ -74,6 +82,7 @@ class RoutingDecision:
         return {
             "agent_name": self.agent_name,
             "alpha": self.alpha,
+            "fallback_from": self.fallback_from,
             "candidates": [c.__dict__ for c in self.candidates],
         }
 
@@ -87,6 +96,7 @@ class HebbianRouter:
         hebbian,
         alpha: float = DEFAULT_ALPHA,
         neutral_prior: float = NEUTRAL_PRIOR,
+        fallback_capability: Optional[str] = None,
     ) -> None:
         """Initialize the router.
 
@@ -98,30 +108,71 @@ class HebbianRouter:
                 matters more relative to the static composite score.
             neutral_prior: Hebbian signal used when no history exists (cold
                 start), so new agents are neither rewarded nor penalised.
+            fallback_capability: Capability to route to when the requested one
+                has no eligible agent (or the task omits a capability). ``None``
+                keeps strict matching (raise on no match).
         """
         self.registry = registry
         self.hebbian = hebbian
         self.alpha = max(0.0, min(1.0, float(alpha)))
         self.neutral_prior = neutral_prior
+        self.fallback_capability = fallback_capability or None
 
     def route(self, task: Dict[str, Any]) -> RoutingDecision:
-        """Route a task to the highest blended-score capable agent.
+        """Route a task to the highest blended-score eligible agent.
+
+        Resolution order: the task's ``required_capability`` first, then the
+        configured ``fallback_capability`` (if any).
 
         Args:
-            task: Task dict; must contain ``required_capability``.
+            task: Task dict; should contain ``required_capability``.
 
         Returns:
             RoutingDecision: The chosen agent plus the per-candidate breakdown.
 
         Raises:
-            ValueError: If the task has no capability, or no eligible agent has it.
+            ValueError: If no capability is available to route on, or no
+                eligible agent matches the requested or fallback capability.
         """
         capability = task.get("required_capability")
         if not capability:
+            # No capability at all: only routable if a fallback is configured.
+            if self.fallback_capability:
+                decision = self._route_for(
+                    self.fallback_capability, fell_back_from="<unspecified>"
+                )
+                if decision is not None:
+                    return decision
             raise ValueError(
                 "Task dictionary must contain a 'required_capability' key."
             )
 
+        decision = self._route_for(capability)
+        if decision is not None:
+            return decision
+
+        # Fallback: nothing advertised the requested capability.
+        if self.fallback_capability and self.fallback_capability != capability:
+            decision = self._route_for(
+                self.fallback_capability, fell_back_from=capability
+            )
+            if decision is not None:
+                return decision
+
+        raise ValueError(f"No agent found with the required capability: {capability}")
+
+    def route_name(self, task: Dict[str, Any]) -> str:
+        """Convenience: route and return only the selected agent name."""
+        return self.route(task).agent_name
+
+    # ------------------------------------------------------------------
+    # Internals (all defensive: never raise on a bad/mocked data source)
+    # ------------------------------------------------------------------
+
+    def _route_for(
+        self, capability: str, fell_back_from: Optional[str] = None
+    ) -> Optional[RoutingDecision]:
+        """Score and choose among agents with ``capability``; None if there are none."""
         candidates = [
             agent.name
             for agent in self.registry.get_all_agents()
@@ -129,9 +180,7 @@ class HebbianRouter:
             and not self._is_blocked(agent.name)
         ]
         if not candidates:
-            raise ValueError(
-                f"No agent found with the required capability: {capability}"
-            )
+            return None
 
         raw = {
             name: (self._composite(name), self._hebbian_weight(name))
@@ -154,27 +203,31 @@ class HebbianRouter:
         scored.sort(key=lambda c: (c.blended, c.composite), reverse=True)
         best = scored[0]
 
-        logger.info(
-            "Hebbian routing (alpha=%.2f) -> %s "
-            "(blended=%.3f, composite=%.3f, heb_weight=%.3f) over %d candidate(s)",
-            self.alpha,
-            best.name,
-            best.blended,
-            best.composite,
-            best.hebbian_weight,
-            len(scored),
-        )
+        if fell_back_from is not None:
+            logger.info(
+                "Hebbian routing FALLBACK (%r -> capability %r, alpha=%.2f) -> %s",
+                fell_back_from,
+                capability,
+                self.alpha,
+                best.name,
+            )
+        else:
+            logger.info(
+                "Hebbian routing (alpha=%.2f) -> %s "
+                "(blended=%.3f, composite=%.3f, heb_weight=%.3f) over %d candidate(s)",
+                self.alpha,
+                best.name,
+                best.blended,
+                best.composite,
+                best.hebbian_weight,
+                len(scored),
+            )
         return RoutingDecision(
-            agent_name=best.name, alpha=self.alpha, candidates=scored
+            agent_name=best.name,
+            alpha=self.alpha,
+            candidates=scored,
+            fallback_from=fell_back_from if fell_back_from != "<unspecified>" else None,
         )
-
-    def route_name(self, task: Dict[str, Any]) -> str:
-        """Convenience: route and return only the selected agent name."""
-        return self.route(task).agent_name
-
-    # ------------------------------------------------------------------
-    # Internals (all defensive: never raise on a bad/mocked data source)
-    # ------------------------------------------------------------------
 
     def _is_blocked(self, name: str) -> bool:
         """True if the agent is quarantined or suspended."""

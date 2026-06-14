@@ -5,7 +5,21 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, List, Optional
 
-import requests
+
+class _MissingRequests:
+    """Stand in for requests when dependencies have not been installed."""
+
+    def post(self, *_args: Any, **_kwargs: Any) -> Any:
+        raise RuntimeError(
+            "The 'requests' package is not installed. Run `make install` "
+            "from the repository root to enable Exo HTTP calls."
+        )
+
+
+try:
+    import requests
+except ModuleNotFoundError:
+    requests = _MissingRequests()  # type: ignore[assignment]
 
 from .base_agent import BaseAgent
 
@@ -27,6 +41,10 @@ class LLMAgent(BaseAgent):
                 "llm_chat",
                 "text_generation",
                 "reasoning",
+                # Aliases so common generic requests route here.
+                "chat",
+                "general",
+                "inference",
             ],
         )
         self.model_url = (

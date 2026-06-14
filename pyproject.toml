@@ -177,21 +177,6 @@ dependencies = [
     "nodejs-wheel-binaries==24.16.0",
     "numpy==2.4.6",
     "numpy-core-multiarray-umath",
-    "nvidia-cublas==13.1.1.3",
-    "nvidia-cuda-cupti==13.0.85",
-    "nvidia-cuda-nvrtc==13.0.88",
-    "nvidia-cuda-runtime==13.0.96",
-    "nvidia-cudnn-cu13==9.20.0.48",
-    "nvidia-cufft==12.0.0.61",
-    "nvidia-cufile==1.15.1.6",
-    "nvidia-curand==10.4.0.35",
-    "nvidia-cusolver==12.0.4.66",
-    "nvidia-cusparse==12.6.3.3",
-    "nvidia-cusparselt-cu13==0.8.1",
-    "nvidia-nccl-cu13==2.29.7",
-    "nvidia-nvjitlink==13.0.88",
-    "nvidia-nvshmem-cu13==3.4.5",
-    "nvidia-nvtx==13.0.85",
     "openai==2.41.0",
     "openapi-pydantic==0.5.1",
     "opentelemetry-api==1.42.1",
@@ -362,7 +347,6 @@ build = [
     "wheel>=0.38.1",
 ]
 all = [
-    "artemis-city[dev,test,lint,docs,build]",
 ]
 
 [project.urls]

@@ -224,6 +224,16 @@ class ExecuteInstructionResponse(BaseModel):
     summary: str
     note_path: str | None = None
     error: str | None = None
+    # Which agent actually executed the task. For agent-explicit calls this
+    # is request.agent; for capability-only calls this is whatever the
+    # Hebbian router picked. Lets the frontend show "routed to: X" without
+    # a second round-trip.
+    agent_name: str | None = None
+    # Per-candidate routing breakdown when the Hebbian router was used.
+    # Shape matches HebbianRouter.RoutingDecision.to_dict():
+    # {agent_name, alpha, fallback_from, candidates: [{name, composite,
+    # hebbian_weight, hebbian_norm, blended}, ...]}.
+    routing: Dict[str, Any] | None = None
 
 
 # SQLite paths -- align with the rest of the project, which writes to
@@ -418,12 +428,36 @@ async def health() -> Dict[str, Any]:
 async def get_agents(_key: None = Depends(_require_api_key)):
     """Return the registered agents exposed by the dashboard API.
 
+    Returns only agents that are *live* in the running orchestrator (i.e.
+    a Python instance was registered with a ``perform_task`` method).
+    Falls back to the SQLite registry table when no orchestrator is
+    attached. This filters out agents persisted by past test runs whose
+    Python classes are not currently loaded -- picking one of those from
+    the frontend dropdown would otherwise 400 with 'agent not found'.
+
     Args:
         _key (None): Auth dependency result injected by FastAPI.
 
     Returns:
-        List[AgentResponse]: Registered agents loaded from the registry database.
+        List[AgentResponse]: Registered agents loaded from the live
+            orchestrator, or from the registry database as a fallback.
     """
+    if orchestrator is not None:
+        try:
+            live_agents = orchestrator.agent_registry.get_all_agents()
+            return [
+                AgentResponse(
+                    name=agent.name,
+                    capabilities=list(getattr(agent, "capabilities", []) or []),
+                )
+                for agent in sorted(live_agents, key=lambda a: a.name)
+            ]
+        except Exception as e:
+            logger.warning(
+                "Live agent listing failed, falling back to registry DB: %s",
+                _sanitize_for_log(e),
+            )
+
     conn = _connect_db(AGENT_REGISTRY_DB)
     try:
         rows = conn.execute("""
@@ -1176,14 +1210,25 @@ async def execute_instruction(
         except Exception as e:
             logger.error("Failed to create task in Obsidian: %s", _sanitize_for_log(e))
 
-        # Execute task
+        # Execute task. For capability-only calls, route through the
+        # Hebbian router first so we can surface the decision (chosen
+        # agent + per-candidate blended scores) back to the frontend.
+        # Routing is pure (no side effects) so calling it before
+        # assign_and_execute_task does not double-execute the task.
+        routing_decision = None
         try:
             if agent_for_dispatch:
+                # User picked an agent explicitly; no Hebbian routing.
+                chosen_agent_name = agent_for_dispatch.name
                 result = orchestrator.assign_and_execute_task(
-                    agent_for_dispatch.name, task_data, note_path
+                    chosen_agent_name, task_data, note_path
                 )
             else:
-                result = orchestrator.route_and_execute_task(task_data, note_path)
+                routing_decision = orchestrator.hebbian_router.route(task_data)
+                chosen_agent_name = routing_decision.agent_name
+                result = orchestrator.assign_and_execute_task(
+                    chosen_agent_name, task_data, note_path
+                )
 
             return ExecuteInstructionResponse(
                 task_id=task_id,
@@ -1191,6 +1236,8 @@ async def execute_instruction(
                 summary=result.get("summary", "Task executed"),
                 note_path=note_path,
                 error=None,
+                agent_name=chosen_agent_name,
+                routing=routing_decision.to_dict() if routing_decision else None,
             )
         except Exception as e:
             logger.error("Error executing instruction: %s", _sanitize_for_log(e))
@@ -1203,7 +1250,9 @@ async def execute_instruction(
                 status="failed",
                 summary="Task execution failed",
                 note_path=note_path,
-                error=None,
+                error=str(e),
+                agent_name=None,
+                routing=routing_decision.to_dict() if routing_decision else None,
             )
 
     except HTTPException:

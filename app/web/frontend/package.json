@@ -47,5 +47,8 @@
     "dashboard"
   ],
   "author": "Prinston Palmer",
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "allowScripts": {
+    "esbuild@0.21.5": true
+  }
 }

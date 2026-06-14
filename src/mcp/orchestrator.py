@@ -48,7 +48,6 @@ from src.agents import SummarizerAgent
 from src.agents.artemis_agent import ArtemisAgent
 from src.agents.llm_agent import LLMAgent
 from src.agents.research_agent import ResearchAgent
-from src.integration.anaconda_stack import register_anaconda_stack
 from src.obsidian_integration import ObsidianGenerator, ObsidianManager, ObsidianParser
 from src.utils.helpers import logger
 
@@ -170,8 +169,16 @@ class Orchestrator:
             _routing_alpha = float(os.getenv("ARTEMIS_HEBBIAN_ROUTING_ALPHA", "0.3"))
         except ValueError:
             _routing_alpha = 0.3
+        # Unmatched / unspecified tasks fall back to the general-purpose LLM
+        # capability (set ARTEMIS_ROUTING_FALLBACK_CAPABILITY="" to disable).
+        _fallback_cap = (
+            os.getenv("ARTEMIS_ROUTING_FALLBACK_CAPABILITY", "llm_chat").strip() or None
+        )
         self.hebbian_router = HebbianRouter(
-            self.agent_registry, self.hebbian, alpha=_routing_alpha
+            self.agent_registry,
+            self.hebbian,
+            alpha=_routing_alpha,
+            fallback_capability=_fallback_cap,
         )
 
         self._ensure_obsidian_agent_dirs()
@@ -208,11 +215,25 @@ class Orchestrator:
         # here must NEVER block orchestrator startup -- the helper
         # already swallows discovery errors, but defend in depth.
         try:
+            from src.integration.anaconda_stack import register_anaconda_stack
+
             registered_anaconda = register_anaconda_stack(self.agent_registry)
             if registered_anaconda:
                 logger.info(
                     "Anaconda Agent Studio agents registered: %s",
                     ", ".join(registered_anaconda),
+                )
+        except ModuleNotFoundError as exc:
+            if exc.name == "requests":
+                logger.info(
+                    "Skipping optional Anaconda Agent Studio integration: "
+                    "the 'requests' package is not installed."
+                )
+            else:
+                logger.warning(
+                    "Anaconda Agent Studio integration failed "
+                    "(continuing without it): %s",
+                    exc,
                 )
         except Exception as exc:  # noqa: BLE001
             logger.warning(

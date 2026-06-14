@@ -4,7 +4,7 @@ import sys
 
 sys.modules.pop("src.integration.trust_interface", None)
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -53,7 +53,7 @@ class TestTrustScore:
             entity_type="agent",
             score=0.8,
             level=TrustLevel.HIGH,
-            last_updated=datetime.now(),
+            last_updated=datetime.now(timezone.utc),
         )
 
     def test_defaults(self, score):
@@ -93,7 +93,7 @@ class TestTrustScore:
             entity_type="agent",
             score=0.8,
             level=TrustLevel.HIGH,
-            last_updated=datetime.now() - timedelta(days=10),
+            last_updated=datetime.now(timezone.utc) - timedelta(days=10),
             decay_rate=0.01,
         )
         decayed = ts.apply_decay()
@@ -111,7 +111,7 @@ class TestTrustScore:
             entity_type="agent",
             score=0.8,
             level=TrustLevel.HIGH,
-            last_updated=datetime.now() - timedelta(days=10000),
+            last_updated=datetime.now(timezone.utc) - timedelta(days=10000),
             decay_rate=0.5,
         )
         decayed = ts.apply_decay()
@@ -143,7 +143,7 @@ class TestTrustScore:
             entity_type="agent",
             score=0.95,
             level=TrustLevel.FULL,
-            last_updated=datetime.now(),
+            last_updated=datetime.now(timezone.utc),
         )
         result = ts.reinforce(0.1)
         assert result == 1.0
@@ -173,7 +173,7 @@ class TestTrustScore:
             entity_type="agent",
             score=0.05,
             level=TrustLevel.UNTRUSTED,
-            last_updated=datetime.now(),
+            last_updated=datetime.now(timezone.utc),
         )
         result = ts.penalize(0.2)
         assert result == 0.0
@@ -189,7 +189,7 @@ class TestTrustScore:
             entity_type="agent",
             score=0.95,
             level=TrustLevel.FULL,
-            last_updated=datetime.now(),
+            last_updated=datetime.now(timezone.utc),
         )
         # FULL
         ts._update_level()
@@ -312,7 +312,7 @@ class TestTrustInterface:
             entity_type="agent",
             score=0.35,
             level=TrustLevel.LOW,
-            last_updated=datetime.now(),
+            last_updated=datetime.now(timezone.utc),
         )
         assert iface.can_perform_operation("low_agent", "read") is True
         assert iface.can_perform_operation("low_agent", "write") is False
@@ -333,7 +333,7 @@ class TestTrustInterface:
             entity_type="agent",
             score=0.1,
             level=TrustLevel.UNTRUSTED,
-            last_updated=datetime.now(),
+            last_updated=datetime.now(timezone.utc),
         )
         assert iface.can_perform_operation("bad", "read") is False
 
@@ -402,7 +402,7 @@ class TestTrustInterface:
             entity_type="agent",
             score=0.1,
             level=TrustLevel.UNTRUSTED,
-            last_updated=datetime.now(),
+            last_updated=datetime.now(timezone.utc),
         )
         filtered = iface.filter_by_trust(items, TrustLevel.HIGH)
         assert len(filtered) == 1
