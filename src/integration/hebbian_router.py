@@ -231,6 +231,16 @@ class HebbianRouter:
         else:
             candidates = eligible
         if not candidates:
+            if self.trust_floor > 0.0 and eligible:
+                # Eligible agents exist but every one was below the trust
+                # floor. Do not fall through to the "no capable agent"
+                # path -- if the caller wanted llm_chat as a backup, it
+                # would also have to clear the same floor. Raise instead
+                # so the user sees the real reason routing failed.
+                raise ValueError(
+                    f"All candidates for capability {capability!r} are "
+                    f"below trust floor {self.trust_floor:.2f}"
+                )
             return None
 
         raw = {
