@@ -13,10 +13,7 @@
 *.pfx
 *.jks
 *.keystore
-credentials.json
-auth.json
-secrets.yaml
-secrets.yml
+
 # --- Python ---
 __pycache__/
 # --- Node.js ---
@@ -55,22 +52,23 @@ renv.lock
 
 # --- Build output ---
 dist/
-build/
 
 # --- Databases & runtime data ---
-*.db
 *.sqlite
 *.sqlite3
-
 # --- Logs ---
 *.log
+*.log.*
+
+# --- Data directories ---
+**/data/
+# --- Logs ---
 
 # --- Test & type-check caches ---
 .pytest_cache/
 .mypy_cache/
 .coverage
 coverage.xml
-htmlcov/
 
 # --- Virtual environments ---
 .venv/
@@ -87,12 +85,8 @@ venv/
 
 .RData
 /.air
-README\#OnDisk.md
-README-Multi-Agent Coordination Platform (MCP)-1.eraserdiagram
-AgenticGovernance-ArtemisCity.code-workspace
 /MCP/
 CLAUDE.html
-.agents/
 /.run
 /memory_store
 data/run_logs.db-journal
@@ -101,7 +95,6 @@ obsidian_vault/Agent Inputs/ethics_research_20260605104845.md
 obsidian_vault/Agent Outputs/Research_Agent_Report_user_instruction_20260605104845_5.md
 obsidian_vault/Agent Outputs/Summarizer_Agent_Report_direct_summary_T001_5.md
 /obsidian_vault/.obsidian
-req.md
 /src/artemis_city.egg-info/dependency_links.txt
 /src/artemis_city.egg-info/PKG-INFO
 /src/artemis_city.egg-info/requires.txt
