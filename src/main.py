@@ -304,7 +304,7 @@ def main() -> None:
         for original_note_path, task_data in new_tasks:
             task_title = task_data.get("title", "Untitled Task")
             capability = task_data.get("required_capability")
-            setting = task_data.get("setting", {})
+            task_data.get("setting", {})
             if capability:
                 logger.info(
                     f"Processing task '{task_title}' with capability '{capability}' from '{original_note_path}'"

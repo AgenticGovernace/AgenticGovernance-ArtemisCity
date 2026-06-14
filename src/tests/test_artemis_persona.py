@@ -6,8 +6,12 @@ Tests the ArtemisPersona, ReflectionEngine, and SemanticTagger components.
 
 import pytest
 
-from src.agents.artemis import (ArtemisPersona, ReflectionEngine, ResponseMode,
-                                SemanticTagger)
+from src.agents.artemis import (
+    ArtemisPersona,
+    ReflectionEngine,
+    ResponseMode,
+    SemanticTagger,
+)
 
 
 class TestArtemisPersona:

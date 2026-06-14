@@ -1,28 +1,55 @@
-"""Agent package exports for MCP."""
+"""Agent package exports for Artemis City.
 
-from .artemis import (ArtemisPersona, Citation, ConceptGraph, ConceptNode,
-                      ReflectionEngine, ResponseMode, SemanticTag,
-                      SemanticTagger)
-from .artemis_agent import ArtemisAgent
-from .base_agent import BaseAgent
-from .llm_agent import LLMAgent
-from .research_agent import ResearchAgent
-from .summarizer_agent import SummarizerAgent
+Exports are resolved lazily so importing ``src.agents.base_agent`` does not
+load optional agent implementations and their provider dependencies.
+"""
 
-__all__ = [
-    # Artemis persona components
-    "ArtemisPersona",
-    "ResponseMode",
-    "ReflectionEngine",
-    "ConceptGraph",
-    "ConceptNode",
-    "SemanticTagger",
-    "SemanticTag",
-    "Citation",
-    # Agent implementations
-    "BaseAgent",
-    "ArtemisAgent",
-    "LLMAgent",
-    "ResearchAgent",
-    "SummarizerAgent",
-]
+from __future__ import annotations
+
+from importlib import import_module
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .artemis import (
+        ArtemisPersona,
+        Citation,
+        ConceptGraph,
+        ConceptNode,
+        ReflectionEngine,
+        ResponseMode,
+        SemanticTag,
+        SemanticTagger,
+    )
+    from .artemis_agent import ArtemisAgent
+    from .base_agent import BaseAgent
+    from .llm_agent import LLMAgent
+    from .research_agent import ResearchAgent
+    from .summarizer_agent import SummarizerAgent
+
+_LAZY_EXPORTS = {
+    "ArtemisPersona": ".artemis",
+    "ResponseMode": ".artemis",
+    "ReflectionEngine": ".artemis",
+    "ConceptGraph": ".artemis",
+    "ConceptNode": ".artemis",
+    "SemanticTagger": ".artemis",
+    "SemanticTag": ".artemis",
+    "Citation": ".artemis",
+    "BaseAgent": ".base_agent",
+    "ArtemisAgent": ".artemis_agent",
+    "LLMAgent": ".llm_agent",
+    "ResearchAgent": ".research_agent",
+    "SummarizerAgent": ".summarizer_agent",
+}
+
+__all__ = list(_LAZY_EXPORTS)
+
+
+def __getattr__(name: str) -> Any:
+    if name not in _LAZY_EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    module = import_module(_LAZY_EXPORTS[name], __name__)
+    value = getattr(module, name)
+    globals()[name] = value
+    return value

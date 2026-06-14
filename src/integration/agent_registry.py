@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
-from src.agents import BaseAgent
+from src.agents.base_agent import BaseAgent
 from src.utils.helpers import logger
 
 # Governance constants — mirror GOVERNANCE.md

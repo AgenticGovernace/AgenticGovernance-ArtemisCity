@@ -154,7 +154,8 @@ def handle_user_instruction(
                 return
             effective_capability = derived_capability
     if not effective_capability:
-        effective_capability = "web_search"
+        # Generic instructions default to the general-purpose LLM capability.
+        effective_capability = "llm_chat"
 
     task_data = {
         "task_id": task_id,

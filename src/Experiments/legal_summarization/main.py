@@ -39,14 +39,17 @@ from sys import path
 _repo_root = Path(__file__).resolve().parents[3]
 path.insert(0, str(_repo_root))
 
-from src.Experiments.legal_summarization.batch_runner import \
-    BatchRunner  # noqa: E402
-from src.Experiments.legal_summarization.dataset_loader import \
-    LegalDatasetLoader  # noqa: E402
-from src.Experiments.legal_summarization.run_store import \
-    RunStore  # noqa: E402
+from src.Experiments.legal_summarization.batch_runner import BatchRunner  # noqa: E402
+from src.Experiments.legal_summarization.dataset_loader import (
+    LegalDatasetLoader,
+)  # noqa: E402
+from src.Experiments.legal_summarization.run_store import RunStore  # noqa: E402
 from src.Experiments.legal_summarization.summarization_config import (  # noqa: E402
-    AggregationLevel, AudienceLevel, SummarizationConfig, SummarizationMode)
+    AggregationLevel,
+    AudienceLevel,
+    SummarizationConfig,
+    SummarizationMode,
+)
 
 logging.basicConfig(
     level=logging.INFO,

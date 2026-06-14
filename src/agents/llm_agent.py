@@ -1,22 +1,37 @@
-"""LLM-backed agent implementation with Exo-compatible chat completion calls."""
+"""LLM-backed agent implementation with Exo model endpoint calls."""
 
 from __future__ import annotations
 
 import os
 from typing import Any, Dict, List, Optional
 
-import requests
+
+class _MissingRequests:
+    """Stand in for requests when dependencies have not been installed."""
+
+    def post(self, *_args: Any, **_kwargs: Any) -> Any:
+        raise RuntimeError(
+            "The 'requests' package is not installed. Run `make install` "
+            "from the repository root to enable Exo HTTP calls."
+        )
+
+
+try:
+    import requests
+except ModuleNotFoundError:
+    requests = _MissingRequests()  # type: ignore[assignment]
 
 from .base_agent import BaseAgent
 
 
 class LLMAgent(BaseAgent):
-    """Route prompt-style tasks to an Exo/OpenAI-compatible chat endpoint."""
+    """Route prompt-style tasks to the configured Exo model endpoint."""
 
     def __init__(
         self,
         name: str = "LLM Agent",
         base_url: Optional[str] = None,
+        model_url: Optional[str] = None,
         model_id: Optional[str] = None,
         timeout_seconds: float = 5.0,
     ) -> None:
@@ -26,11 +41,19 @@ class LLMAgent(BaseAgent):
                 "llm_chat",
                 "text_generation",
                 "reasoning",
+                # Aliases so common generic requests route here.
+                "chat",
+                "general",
+                "inference",
             ],
         )
-        self.base_url = (
-            base_url or os.getenv("EXO_BASE_URL", "http://localhost:52415")
+        self.model_url = (
+            model_url
+            or os.getenv("EXO_MODEL_URL")
+            or base_url
+            or os.getenv("EXO_BASE_URL", "http://localhost:52415")
         ).rstrip("/")
+        self.base_url = self.model_url
         self.model_id = model_id or os.getenv("EXO_MODEL_ID", "gpt-4o-2024-08-06")
         self.timeout_seconds = timeout_seconds
         self.api_key = os.getenv("EXO_API_KEY", "").strip()
@@ -47,18 +70,24 @@ class LLMAgent(BaseAgent):
         temperature = float(task_context.get("temperature", 0.2))
         max_tokens = int(task_context.get("max_tokens", 600))
         model = str(task_context.get("model") or self.model_id)
+        model_url = self._with_v1_suffix(
+            str(task_context.get("model_url") or self.model_url)
+        )
 
         self.report_status(
             f"Dispatching {len(messages)} message(s) to Exo model '{model}'."
         )
         try:
-            response = self._call_exo(messages, model, temperature, max_tokens)
+            response = self._call_exo(
+                messages, model, temperature, max_tokens, model_url
+            )
             self.report_status("Exo response received.")
             return {
                 "status": "success",
                 "summary": response["content"],
                 "provider": "exo",
                 "model": model,
+                "model_url": model_url,
                 "usage": response.get("usage", {}),
                 "response_id": response.get("id"),
             }
@@ -71,6 +100,7 @@ class LLMAgent(BaseAgent):
                 "summary": fallback,
                 "provider": "fallback",
                 "model": model,
+                "model_url": model_url,
                 "llm_error": str(exc),
             }
 
@@ -111,6 +141,7 @@ class LLMAgent(BaseAgent):
         model: str,
         temperature: float,
         max_tokens: int,
+        model_url: str,
     ) -> Dict[str, Any]:
         payload = {
             "model": model,
@@ -123,14 +154,9 @@ class LLMAgent(BaseAgent):
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
-        api_base = self.base_url
-        if not api_base.endswith("/v1"):
-            api_base = f"{api_base}/v1"
-        endpoint = f"{api_base}/chat/completions"
-
         try:
             response = requests.post(
-                endpoint,
+                model_url,
                 json=payload,
                 headers=headers,
                 timeout=self.timeout_seconds,
@@ -144,7 +170,13 @@ class LLMAgent(BaseAgent):
                 "id": body.get("id"),
             }
         except Exception as exc:  # noqa: BLE001
-            raise RuntimeError(f"Exo request failed at {endpoint}: {exc}") from exc
+            raise RuntimeError(f"Exo request failed at {model_url}: {exc}") from exc
+
+    def _with_v1_suffix(self, url: str) -> str:
+        endpoint = url.rstrip("/")
+        if not endpoint.endswith("/v1"):
+            endpoint = f"{endpoint}/v1"
+        return endpoint
 
     def _extract_message_content(self, body: Dict[str, Any]) -> str:
         choices = body.get("choices")

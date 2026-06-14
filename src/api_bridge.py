@@ -30,8 +30,7 @@ import sys
 from typing import Any, Callable, Dict
 
 from src.governance.approvals import SelfUpdateGovernor, UpdateProposal
-from src.governance.trust import (TrustMetrics, compute_trust_score,
-                                  trust_breakdown)
+from src.governance.trust import TrustMetrics, compute_trust_score, trust_breakdown
 from src.integration.agent_registry import AgentRegistryStore
 
 

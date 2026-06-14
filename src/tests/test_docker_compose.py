@@ -4,9 +4,10 @@ Unit tests for validating the docker-compose.yaml configuration.
 Tests the structure, services, and security constraints defined in the file.
 """
 
+from pathlib import Path
+
 import pytest
 import yaml
-from pathlib import Path
 
 
 @pytest.fixture

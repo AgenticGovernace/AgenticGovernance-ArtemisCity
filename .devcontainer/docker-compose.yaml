@@ -1,17 +1,21 @@
 services:
   app:
     build: 
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    env_file: .env
 
     volumes:
-      - ../..:/workspaces:cached
+      - ../:/workspaces:cached
+    depends_on:
+      - db
       
     # Overrides default command so things don't shut down after the process ends.
     command: sleep infinity
 
     # Runs app on the same network as the database container, allows "forwardPorts" in devcontainer.json function.
-    network_mode: service:db
+    networks:
+      - devnet
 
     # Use "forwardPorts" in **devcontainer.json** to forward an app port locally. 
     # (Adding the "ports" property to this file will not forward from a Codespace.)
@@ -21,6 +25,8 @@ services:
     restart: unless-stopped
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    networks:
+      - devnet
     environment:
       # Local-only dev database. Use a simple password for dev only.
       # Never use 'trust' auth in production.
@@ -32,3 +38,7 @@ services:
 
 volumes:
   postgres-data:
+
+networks:
+  devnet:
+    driver: bridge
