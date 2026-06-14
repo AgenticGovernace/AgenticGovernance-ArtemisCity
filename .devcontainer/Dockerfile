@@ -1,38 +1,45 @@
-FROM mcr.microsoft.com/devcontainers/javascript-node:1-24-bookworm
+FROM node:24-bookworm
 
-# Install Python 3.12 and build tools
+# Install Python 3.11 (stable in Debian bookworm) and build tools
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get install -y --no-install-recommends \
-        python3.12 \
-        python3.12-venv \
-        python3.12-dev \
+        python3 \
+        python3-venv \
+        python3-dev \
+        python3-pip \
         build-essential \
         libpq-dev \
+        postgresql-client \
         curl \
+        wget \
         git \
+        git-lfs \
+        jq \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Set Python 3.12 as default
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 \
-    && update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1
+# Verify Python is available
+RUN python3 --version
 
-# Install uv for fast Python dependency management
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Install common development tools with uv
-RUN /root/.cargo/bin/uv pip install --system --quiet \
+# Install common development tools with pip
+RUN pip3 install --no-cache-dir --break-system-packages \
     black \
     pylint \
     mypy \
     isort \
     pytest \
     pytest-cov \
-    ruff
+    pytest-asyncio \
+    ruff \
+    flake8 \
+    uv
 
 # Install Node.js global tools
 RUN npm install -g \
     typescript \
     ts-node \
+    ts-node-dev \
     prettier \
-    eslint
+    eslint \
+    @typescript-eslint/eslint-plugin \
+    @typescript-eslint/parser

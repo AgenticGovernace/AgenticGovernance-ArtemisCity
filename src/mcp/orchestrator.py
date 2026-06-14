@@ -48,12 +48,12 @@ from src.agents import SummarizerAgent
 from src.agents.artemis_agent import ArtemisAgent
 from src.agents.llm_agent import LLMAgent
 from src.agents.research_agent import ResearchAgent
-from src.obsidian_integration import (ObsidianGenerator, ObsidianManager,
-                                      ObsidianParser)
+from src.obsidian_integration import ObsidianGenerator, ObsidianManager, ObsidianParser
 from src.utils.helpers import logger
 
 from ..integration.agent_registry import AgentRegistry
 from ..integration.governance import GovernanceMonitor
+from ..integration.hebbian_router import HebbianRouter
 from ..integration.memory_bus import MemoryBus
 from ..mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
 from ..mcp.hebbian_weights import HebbianWeightManager
@@ -159,6 +159,28 @@ class Orchestrator:
         self.agent_registry = AgentRegistry()
         self._register_agents()
 
+        # Hebbian-weighted routing: bias agent selection by learned agent->task
+        # success. Disable with ARTEMIS_HEBBIAN_ROUTING=0; tune the blend with
+        # ARTEMIS_HEBBIAN_ROUTING_ALPHA (0=composite only, 1=Hebbian weight only).
+        self.hebbian_routing_enabled = os.getenv(
+            "ARTEMIS_HEBBIAN_ROUTING", "1"
+        ).strip().lower() not in ("0", "false", "no", "off")
+        try:
+            _routing_alpha = float(os.getenv("ARTEMIS_HEBBIAN_ROUTING_ALPHA", "0.3"))
+        except ValueError:
+            _routing_alpha = 0.3
+        # Unmatched / unspecified tasks fall back to the general-purpose LLM
+        # capability (set ARTEMIS_ROUTING_FALLBACK_CAPABILITY="" to disable).
+        _fallback_cap = (
+            os.getenv("ARTEMIS_ROUTING_FALLBACK_CAPABILITY", "llm_chat").strip() or None
+        )
+        self.hebbian_router = HebbianRouter(
+            self.agent_registry,
+            self.hebbian,
+            alpha=_routing_alpha,
+            fallback_capability=_fallback_cap,
+        )
+
         self._ensure_obsidian_agent_dirs()
         self._validate_kernel_state()
         logger.info("MCP Orchestrator initialized with Agent Registry.")
@@ -174,11 +196,51 @@ class Orchestrator:
             - ArtemisAgent: System management and coordination
             - ResearchAgent: Research and information gathering
             - SummarizerAgent: Content summarization
+            - LLMAgent: LLM inference over the configured EXO endpoint
+
+        Anaconda Agent Studio integration:
+            After in-process agents are registered, the orchestrator
+            attempts to register any running Anaconda Agent Studio
+            agents from the stack at ~/Source/artemis-agent-stack/.
+            Integration is opt-in via ``ANACONDA_AGENT_PORTS`` in
+            ``src/.env``; when that var is empty (the default), this is
+            a no-op and the in-process agents alone serve traffic.
         """
         self.agent_registry.register_agent(ArtemisAgent())
         self.agent_registry.register_agent(ResearchAgent())
         self.agent_registry.register_agent(SummarizerAgent())
         self.agent_registry.register_agent(LLMAgent())
+
+        # Bridge in any running Anaconda Agent Studio agents. Failures
+        # here must NEVER block orchestrator startup -- the helper
+        # already swallows discovery errors, but defend in depth.
+        try:
+            from src.integration.anaconda_stack import register_anaconda_stack
+
+            registered_anaconda = register_anaconda_stack(self.agent_registry)
+            if registered_anaconda:
+                logger.info(
+                    "Anaconda Agent Studio agents registered: %s",
+                    ", ".join(registered_anaconda),
+                )
+        except ModuleNotFoundError as exc:
+            if exc.name == "requests":
+                logger.info(
+                    "Skipping optional Anaconda Agent Studio integration: "
+                    "the 'requests' package is not installed."
+                )
+            else:
+                logger.warning(
+                    "Anaconda Agent Studio integration failed "
+                    "(continuing without it): %s",
+                    exc,
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Anaconda Agent Studio integration failed (continuing without it): %s",
+                exc,
+            )
+
         logger.info(
             "All agent classes loaded and instances registered with the Agent Registry."
         )
@@ -295,7 +357,10 @@ class Orchestrator:
                 task_context = dict(task_context)
                 task_context["required_capability"] = resolved_capability
 
-            agent_name = self.agent_registry.route_task(task_context)
+            if self.hebbian_routing_enabled:
+                agent_name = self.hebbian_router.route_name(task_context)
+            else:
+                agent_name = self.agent_registry.route_task(task_context)
             logger.info("Task routed to '%s'.", _sanitize_for_log(agent_name))
             return self.assign_and_execute_task(
                 agent_name, task_context, original_task_note_path

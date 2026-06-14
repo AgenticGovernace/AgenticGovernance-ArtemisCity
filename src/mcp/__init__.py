@@ -8,6 +8,8 @@ CLI instead of raising an opaque import error.
 
 from __future__ import annotations
 
+from importlib import import_module
+
 
 def _run_as_script() -> None:
     """Run the orchestrator CLI when this package file is executed directly."""
@@ -27,10 +29,31 @@ def _run_as_script() -> None:
 if __name__ == "__main__" and not __package__:
     _run_as_script()
 
+from . import config
 from .config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
-from .hebbian_weights import HebbianWeightManager
-from .orchestrator import Orchestrator
-from .vector_store import LocalVectorStore, VectorRecord
+
+_LAZY_EXPORTS = {
+    "Orchestrator": (".orchestrator", "Orchestrator"),
+    "HebbianWeightManager": (".hebbian_weights", "HebbianWeightManager"),
+    "LocalVectorStore": (".vector_store", "LocalVectorStore"),
+    "VectorRecord": (".vector_store", "VectorRecord"),
+}
+
+
+def __getattr__(name: str):
+    """Load heavyweight MCP exports only when they are requested."""
+    if name not in _LAZY_EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    module_name, attribute_name = _LAZY_EXPORTS[name]
+    value = getattr(import_module(module_name, __name__), attribute_name)
+    globals()[name] = value
+    return value
+
+
+def __dir__() -> list[str]:
+    return sorted([*globals(), *_LAZY_EXPORTS])
+
 
 __all__ = [
     "Orchestrator",
@@ -40,4 +63,5 @@ __all__ = [
     "OBSIDIAN_VAULT_PATH",
     "AGENT_INPUT_DIR",
     "AGENT_OUTPUT_DIR",
+    "config",
 ]

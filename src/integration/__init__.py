@@ -1,31 +1,49 @@
-"""Memory integration bridge for Artemis City.
+"""Memory integration package exports for Artemis City.
 
-This module provides integration with the Artemis Agentic Memory Layer (MCP Server),
-enabling agents to interact with Obsidian vault as a knowledge base.
-
-The Postal Service provides a living city theme where agents send mail through
-Pack Rat and store documents in the City Archives.
+Exports are resolved lazily so importing a focused submodule such as
+``src.integration.agent_registry`` does not pull in memory clients, agents, or
+optional HTTP dependencies.
 """
 
-from .context_loader import ContextEntry, ContextLoader
-from .memory_client import MCPOperation, MCPResponse, MemoryClient
-from .postal_service import MailPacket, PostOffice, get_post_office
-from .trust_interface import (TrustInterface, TrustLevel, TrustScore,
-                              get_trust_interface)
+from __future__ import annotations
 
-__all__ = [
-    # Core memory components
-    "MemoryClient",
-    "MCPResponse",
-    "MCPOperation",
-    "TrustInterface",
-    "TrustScore",
-    "TrustLevel",
-    "get_trust_interface",
-    "ContextLoader",
-    "ContextEntry",
-    # Living city theme
-    "PostOffice",
-    "MailPacket",
-    "get_post_office",
-]
+from importlib import import_module
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .context_loader import ContextEntry, ContextLoader
+    from .memory_client import MCPOperation, MCPResponse, MemoryClient
+    from .postal_service import MailPacket, PostOffice, get_post_office
+    from .trust_interface import (
+        TrustInterface,
+        TrustLevel,
+        TrustScore,
+        get_trust_interface,
+    )
+
+_LAZY_EXPORTS = {
+    "MemoryClient": ".memory_client",
+    "MCPResponse": ".memory_client",
+    "MCPOperation": ".memory_client",
+    "TrustInterface": ".trust_interface",
+    "TrustScore": ".trust_interface",
+    "TrustLevel": ".trust_interface",
+    "get_trust_interface": ".trust_interface",
+    "ContextLoader": ".context_loader",
+    "ContextEntry": ".context_loader",
+    "PostOffice": ".postal_service",
+    "MailPacket": ".postal_service",
+    "get_post_office": ".postal_service",
+}
+
+__all__ = list(_LAZY_EXPORTS)
+
+
+def __getattr__(name: str) -> Any:
+    if name not in _LAZY_EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    module = import_module(_LAZY_EXPORTS[name], __name__)
+    value = getattr(module, name)
+    globals()[name] = value
+    return value

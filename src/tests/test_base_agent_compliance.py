@@ -27,6 +27,7 @@ from typing import Any, Dict, List, Type
 import pytest
 
 from src.agents.artemis_agent import ArtemisAgent
+
 # Import base class and all concrete implementations
 from src.agents.base_agent import BaseAgent
 from src.agents.llm_agent import LLMAgent

@@ -5,8 +5,12 @@ The maintained kernel implementation lives under :mod:`app.kernel`.
 
 from app.kernel.agent_router import AgentRouter
 from app.kernel.kernel import Kernel
-from app.kernel.memory_bus import (FileMemoryBackend, MemoryBackend, MemoryBus,
-                                   VectorMemoryBackend)
+from app.kernel.memory_bus import (
+    FileMemoryBackend,
+    MemoryBackend,
+    MemoryBus,
+    VectorMemoryBackend,
+)
 
 __all__ = [
     "Kernel",

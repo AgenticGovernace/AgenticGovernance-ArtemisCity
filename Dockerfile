@@ -53,6 +53,9 @@ COPY --from=builder /src/src/ ./src
 # in docker-compose.yml. Override at runtime with `-e API_PORT=...`.
 EXPOSE 4000
 
+# Create app directory with proper permissions for node user
+RUN chown -R node:node /src
+
 # Run as a non-root user for security best practices
 # The node:alpine image typically creates a 'node' user with appropriate permissions
 USER node
