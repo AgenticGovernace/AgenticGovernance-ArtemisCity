@@ -280,11 +280,45 @@ def test_hebbian_router_clamps_alpha_plus_beta_to_one():
 
 @pytest.mark.unit
 def test_hebbian_router_trust_floor_with_no_survivors_raises():
-    """If the trust floor excludes every candidate, routing raises the no-match error."""
+    """If the trust floor excludes every candidate, routing raises a trust-specific error."""
     reg = _two_research_agents({"A": 0.9, "B": 0.6})
     trust = FakeTrust({"A": 0.1, "B": 0.1})
     router = HebbianRouter(
         reg, FakeHebbian(), trust_interface=trust, trust_floor=0.5
     )
-    with pytest.raises(ValueError, match="No agent found with the required capability"):
+    # Trust-floor exclusion has its own diagnostic so the operator can
+    # tell "no agent below floor" apart from "no agent advertised the
+    # capability" -- the two failure modes need different fixes.
+    with pytest.raises(ValueError, match="below trust floor"):
         router.route({"required_capability": "research"})
+
+
+@pytest.mark.unit
+def test_hebbian_router_trust_floor_exclusion_does_not_silently_fall_back():
+    """A trust-floor-only exclusion must not retry on fallback_capability.
+
+    The fallback path is for "no agent advertised this capability". A
+    trust-floor exclusion is a policy decision -- silently routing to the
+    LLM agent's llm_chat would bypass the operator's trust requirement.
+    """
+    reg = FakeRegistry(
+        [
+            _Agent("Research", ["web_search"]),  # below floor
+            _Agent("LLM", ["llm_chat"]),  # above floor
+        ],
+        {"Research": 0.9, "LLM": 0.5},
+    )
+    # Research advertises web_search (the requested capability) but its
+    # trust is below floor. The LLM agent (which fallback would target)
+    # is above floor, but should NOT be selected -- the user asked for
+    # web_search subject to a trust requirement, and the trust failed.
+    trust = FakeTrust({"Research": 0.1, "LLM": 0.9})
+    router = HebbianRouter(
+        reg,
+        FakeHebbian(),
+        trust_interface=trust,
+        trust_floor=0.5,
+        fallback_capability="llm_chat",
+    )
+    with pytest.raises(ValueError, match="below trust floor"):
+        router.route({"required_capability": "web_search"})

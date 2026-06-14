@@ -1359,7 +1359,13 @@ async def execute_instruction_stream(
             logger.error(
                 "Streaming executor crashed: %s", _sanitize_for_log(exc)
             )
-            yield _sse_pack("error", {"error": str(exc)})
+            # Don't leak the raw exception (which may include a stack
+            # trace or internal paths) to an SSE client. Server logs
+            # above already carry the sanitized detail.
+            yield _sse_pack(
+                "error",
+                {"error": "Streaming executor crashed; see server logs."},
+            )
 
     return StreamingResponse(
         _stream(),

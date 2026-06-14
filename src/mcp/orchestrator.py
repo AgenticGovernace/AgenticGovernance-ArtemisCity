@@ -202,6 +202,14 @@ class Orchestrator:
                     "(continuing without trust signal): %s",
                     exc,
                 )
+                # The trust signal is unavailable -- neutralise the trust
+                # weights too. Otherwise a configured trust_floor > 0
+                # would exclude every agent (all reads return the
+                # neutral prior 0.5) and a configured beta would just
+                # add a constant 0.5 * beta to every blended score
+                # without contributing any ranking signal.
+                _routing_beta = 0.0
+                _routing_trust_floor = 0.0
 
         self.hebbian_router = HebbianRouter(
             self.agent_registry,
@@ -608,6 +616,23 @@ class Orchestrator:
             }
         except (ValueError, KeyError) as exc:
             logger.error("Stream routing failed.", exc_info=True)
+            # The streaming endpoint already created the Obsidian note as
+            # "in progress" before invoking this generator. Without this
+            # update the note would stay stuck at "in progress" even though
+            # nothing ever executed.
+            if original_task_note_path:
+                task_id_for_status = task_context.get("task_id", "unknown_task")
+                try:
+                    self.update_task_status_in_obsidian(
+                        original_task_note_path,
+                        "routing_failed",
+                        task_id_for_status,
+                    )
+                except Exception:
+                    logger.error(
+                        "Failed to mark routing_failed on Obsidian note.",
+                        exc_info=True,
+                    )
             yield {"type": "error", "error": str(exc)}
             return
 
@@ -671,11 +696,10 @@ class Orchestrator:
                     metadata={"agent": agent_name, "task_id": task_id},
                 )
             except Exception:
-                logger.error(
-                    "Failed to persist report for %s.",
-                    _sanitize_for_log(agent_name),
-                    exc_info=True,
-                )
+                # exc_info=True attaches the stack trace; agent_name omitted
+                # from the message to avoid user-controlled data flowing into
+                # log records (CodeQL py/log-injection).
+                logger.error("Failed to persist streaming report.", exc_info=True)
 
             if original_task_note_path:
                 self.update_task_status_in_obsidian(
@@ -685,11 +709,9 @@ class Orchestrator:
                 )
 
         except Exception as exc:  # noqa: BLE001
-            logger.error(
-                "Streaming execution failed for agent %s.",
-                _sanitize_for_log(agent_name),
-                exc_info=True,
-            )
+            # Same rationale as above -- exception detail is on exc_info,
+            # not interpolated into the message.
+            logger.error("Streaming execution failed.", exc_info=True)
             task_success = False
             results = {
                 "status": "failed",
@@ -701,8 +723,34 @@ class Orchestrator:
                     original_task_note_path, "failed", task_id
                 )
 
-        # Hebbian update fires regardless of branch.
-        self._update_hebbian_weights(agent_name, task_id, task_success)
+        # Hebbian update fires regardless of branch. Inlined here (rather
+        # than delegating to _update_hebbian_weights) because the helper
+        # logs the agent_name/task_id, which would create new flow paths
+        # CodeQL flags as py/log-injection through this streaming entry
+        # point. Persistence still happens; the log line is just dropped
+        # on this path -- the existing per-task lifecycle logger above
+        # already captures success/failure.
+        hebbian_error: Optional[str] = None
+        try:
+            if task_success:
+                self.hebbian.strengthen_connection(agent_name, task_id)
+            else:
+                self.hebbian.weaken_connection(agent_name, task_id)
+        except Exception:
+            logger.error(
+                "Hebbian update failed in streaming executor.", exc_info=True
+            )
+            # Surface the failure to the client. The non-streaming
+            # assign_and_execute_task path lets the exception propagate
+            # and returns HTTP 500; in a streaming connection that would
+            # truncate the SSE, so we keep the connection alive and
+            # report the failure inline. The task itself still completed
+            # -- only the learning update was lost.
+            hebbian_error = "Hebbian persistence failed; see server logs."
+
+        # Compose the error field: prefer the agent-level error if any,
+        # otherwise the Hebbian-update error, otherwise None.
+        complete_error = results.get("error") or hebbian_error
 
         yield {
             "type": "complete",
@@ -711,7 +759,7 @@ class Orchestrator:
             "status": "success" if task_success else "failed",
             "summary": results.get("summary", "Task executed"),
             "note_path": original_task_note_path,
-            "error": results.get("error"),
+            "error": complete_error,
         }
 
     def _update_hebbian_weights(self, agent_name: str, task_id: str, success: bool):
