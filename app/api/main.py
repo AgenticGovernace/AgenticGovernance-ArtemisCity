@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 
@@ -1260,3 +1261,113 @@ async def execute_instruction(
     except Exception as e:
         logger.error("Error processing instruction: %s", _sanitize_for_log(e))
         raise HTTPException(status_code=500, detail="Failed to process instruction.")
+
+
+@app.post("/api/cli/execute/stream")
+async def execute_instruction_stream(
+    request: ExecuteInstructionRequest, _key: None = Depends(_require_api_key)
+):
+    """Stream a routing + execution flow as Server-Sent Events.
+
+    Event sequence:
+        event: routing   data: {decision: {...}, agent_name: "..."}
+        event: token     data: {text: "..."}              (zero or more)
+        event: complete  data: {task_id, summary, note_path, status, error}
+        event: error     data: {error: "..."}             (terminal on failure)
+
+    The LLM agent streams real Exo tokens; other agents emit a single
+    token event with the full summary so the client UI doesn't have to
+    branch on agent type. The orchestrator's normal post-processing
+    (memory bus persist, Hebbian update, Obsidian status update) still
+    runs after the stream completes.
+    """
+    if not orchestrator:
+        raise HTTPException(status_code=500, detail="Orchestrator not initialized.")
+    if not request.instruction.strip():
+        raise HTTPException(status_code=400, detail="Instruction cannot be empty.")
+
+    from datetime import datetime
+
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    task_id = f"user_instruction_{timestamp}"
+    task_title = request.title or request.instruction.strip().split("\n")[0][:80]
+
+    effective_capability = request.capability or "web_search"
+    if request.agent:
+        agent_obj = orchestrator.agent_registry.get_agent(request.agent)
+        if not agent_obj:
+            raise HTTPException(status_code=400, detail="Specified agent not found.")
+        if not request.capability and agent_obj.capabilities:
+            effective_capability = agent_obj.capabilities[0]
+
+    task_data = {
+        "task_id": task_id,
+        "title": task_title,
+        "context": request.instruction,
+        "content": request.instruction,
+        "required_capability": effective_capability,
+        "status": "pending",
+        "tags": ["user_instruction", effective_capability],
+    }
+    if request.agent:
+        task_data["agent"] = request.agent
+
+    # Create the Obsidian note before the stream starts, so the run is
+    # auditable even if the stream is dropped mid-flight.
+    note_path = None
+    try:
+        note_path = orchestrator.create_new_task_in_obsidian(task_data)
+        orchestrator.update_task_status_in_obsidian(note_path, "in progress", task_id)
+    except Exception as e:
+        logger.error(
+            "Failed to create streaming task in Obsidian: %s", _sanitize_for_log(e)
+        )
+
+    def _sse_pack(event: str, data: dict) -> str:
+        return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+    def _stream():
+        try:
+            for ev in orchestrator.stream_route_and_execute(task_data, note_path):
+                etype = ev.get("type")
+                if etype == "routing":
+                    yield _sse_pack(
+                        "routing",
+                        {
+                            "decision": ev.get("decision"),
+                            "agent_name": ev.get("agent_name"),
+                            "task_id": task_id,
+                        },
+                    )
+                elif etype == "token":
+                    yield _sse_pack("token", {"text": ev.get("text", "")})
+                elif etype == "complete":
+                    yield _sse_pack(
+                        "complete",
+                        {
+                            "task_id": ev.get("task_id"),
+                            "agent_name": ev.get("agent_name"),
+                            "status": ev.get("status"),
+                            "summary": ev.get("summary"),
+                            "note_path": ev.get("note_path"),
+                            "error": ev.get("error"),
+                        },
+                    )
+                elif etype == "error":
+                    yield _sse_pack("error", {"error": ev.get("error", "")})
+        except Exception as exc:  # noqa: BLE001
+            logger.error(
+                "Streaming executor crashed: %s", _sanitize_for_log(exc)
+            )
+            yield _sse_pack("error", {"error": str(exc)})
+
+    return StreamingResponse(
+        _stream(),
+        media_type="text/event-stream",
+        headers={
+            # Disable proxy buffering so tokens arrive promptly.
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

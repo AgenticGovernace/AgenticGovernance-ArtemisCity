@@ -10,6 +10,7 @@
 import {
   Box,
   Button,
+  Checkbox,
   FormControl,
   FormLabel,
   Heading,
@@ -30,8 +31,8 @@ import {
   StatLabel,
   StatNumber,
 } from '@chakra-ui/react';
-import { useEffect, useState } from 'react';
-import { executeInstruction, fetchAgents } from '../api.ts';
+import { useEffect, useRef, useState } from 'react';
+import { executeInstruction, executeInstructionStream, fetchAgents } from '../api.ts';
 
 /**
  * Interface for agent data
@@ -49,12 +50,15 @@ interface RoutingCandidate {
   composite: number;
   hebbian_weight: number;
   hebbian_norm: number;
+  trust_score: number;
   blended: number;
 }
 
 interface RoutingDecision {
   agent_name: string;
   alpha: number;
+  beta: number;
+  trust_floor: number;
   fallback_from: string | null;
   candidates: RoutingCandidate[];
 }
@@ -88,6 +92,12 @@ const Executor = () => {
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [loadingAgents, setLoadingAgents] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [streamingMode, setStreamingMode] = useState(false);
+  // Live token buffer for the streaming path. Kept separate from `result`
+  // so the user sees text accumulate as Exo emits chunks; on the
+  // ``complete`` SSE event we fold the final text into `result.summary`.
+  const [streamBuffer, setStreamBuffer] = useState('');
+  const streamAbortRef = useRef<AbortController | null>(null);
 
   // Predefined capabilities
   const capabilities = [
@@ -124,42 +134,93 @@ const Executor = () => {
       return;
     }
 
-    try {
-      setExecuting(true);
-      setError(null);
-      setResult(null);
+    const payload = {
+      instruction,
+      agent: selectedAgent || undefined,
+      capability: capability || undefined,
+      title: title || undefined,
+    };
 
-      const response = await executeInstruction({
-        instruction,
-        agent: selectedAgent || undefined,
-        capability: capability || undefined,
-        title: title || undefined,
-      });
+    setExecuting(true);
+    setError(null);
+    setResult(null);
+    setStreamBuffer('');
 
-      setResult(response);
-
-      // Clear form on success
-      if (response.status === 'success') {
-        setInstruction('');
-        setSelectedAgent('');
-        setCapability('');
-        setTitle('');
+    if (!streamingMode) {
+      try {
+        const response = await executeInstruction(payload);
+        setResult(response);
+        if (response.status === 'success') {
+          setInstruction('');
+          setSelectedAgent('');
+          setCapability('');
+          setTitle('');
+        }
+      } catch (err) {
+        setError(
+          `Execution failed: ${err instanceof Error ? err.message : 'Unknown error'}`
+        );
+        console.error(err);
+      } finally {
+        setExecuting(false);
       }
-    } catch (err) {
-      setError(`Execution failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      console.error(err);
-    } finally {
-      setExecuting(false);
+      return;
     }
+
+    // Streaming mode: open SSE and accumulate tokens. The routing event
+    // pre-populates `result` with the decision so the panel renders
+    // immediately; tokens fill `streamBuffer`; the complete event
+    // finalises `result.summary`.
+    let accumulated = '';
+    streamAbortRef.current = executeInstructionStream(payload, {
+      onRouting: ({ decision, agent_name, task_id }) => {
+        setResult({
+          task_id,
+          status: 'in_progress',
+          summary: '',
+          agent_name,
+          routing: (decision as RoutingDecision) || null,
+        });
+      },
+      onToken: (text) => {
+        accumulated += text;
+        setStreamBuffer(accumulated);
+      },
+      onComplete: (data) => {
+        setResult((prev) => ({
+          ...(prev || ({} as ExecutionResult)),
+          task_id: data.task_id,
+          status: data.status,
+          summary: data.summary || accumulated,
+          note_path: data.note_path || undefined,
+          error: data.error || undefined,
+          agent_name: data.agent_name,
+        }));
+        setExecuting(false);
+        if (data.status === 'success') {
+          setInstruction('');
+          setSelectedAgent('');
+          setCapability('');
+          setTitle('');
+        }
+      },
+      onError: (message) => {
+        setError(`Stream failed: ${message}`);
+        setExecuting(false);
+      },
+    });
   };
 
   const handleClear = () => {
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = null;
     setInstruction('');
     setSelectedAgent('');
     setCapability('');
     setTitle('');
     setResult(null);
     setError(null);
+    setStreamBuffer('');
   };
 
   return (
@@ -246,6 +307,23 @@ Or: Summarize the key findings from the reports folder"
               />
             </FormControl>
 
+            {/* Streaming toggle */}
+            <FormControl>
+              <Checkbox
+                isChecked={streamingMode}
+                onChange={(e) => setStreamingMode(e.target.checked)}
+                isDisabled={executing}
+                colorScheme="teal"
+              >
+                <Text as="span" fontWeight="bold">
+                  Stream response
+                </Text>
+                <Text as="span" fontSize="xs" color="gray.500" ml={2}>
+                  (renders tokens as they arrive from the LLM agent)
+                </Text>
+              </Checkbox>
+            </FormControl>
+
             {/* Error Alert */}
             {error && (
               <Alert status="error" borderRadius="md">
@@ -283,12 +361,12 @@ Or: Summarize the key findings from the reports folder"
             {/* Help Text */}
             <Box
               p={3}
-              bg="blue.50"
+              bg="rgba(34,211,238,0.08)"
               borderRadius="md"
               borderLeft="4px solid"
-              borderColor="blue.400"
+              borderColor="rgba(34,211,238,0.5)"
             >
-              <Text fontSize="xs" color="gray.700">
+              <Text fontSize="xs" color="#cbd5e1">
                 <strong>Tips:</strong>
                 <br />• Leave Agent blank to auto-select based on capability
                 <br />• Leave Capability blank for automatic detection
@@ -300,15 +378,46 @@ Or: Summarize the key findings from the reports folder"
 
         {/* Results Section */}
         <Box flex={1} minW={{ lg: '400px' }}>
-          {executing && (
+          {executing && !streamBuffer && (
             <Box textAlign="center" py={8}>
               <Spinner size="lg" color="blue.500" mb={4} />
               <Text fontSize="lg" fontWeight="bold">
                 Executing...
               </Text>
               <Text fontSize="sm" color="gray.600" mt={2}>
-                Your instruction is being processed
+                {streamingMode
+                  ? 'Waiting for the first token...'
+                  : 'Your instruction is being processed'}
               </Text>
+            </Box>
+          )}
+
+          {/* Live token stream — visible while tokens are arriving but
+              before the complete event finalises `result.summary`. */}
+          {streamBuffer && executing && (
+            <Box mb={4}>
+              <Flex align="center" mb={2}>
+                <Spinner size="xs" color="teal.500" mr={2} />
+                <Text fontWeight="bold" fontSize="sm">
+                  Streaming…
+                  {result?.agent_name && (
+                    <Badge ml={2} colorScheme="teal">{result.agent_name}</Badge>
+                  )}
+                </Text>
+              </Flex>
+              <Box
+                p={3}
+                bg="rgba(20,184,166,0.08)"
+                borderRadius="md"
+                fontSize="sm"
+                borderLeft="4px solid"
+                borderColor="rgba(20,184,166,0.5)"
+                color="#5eead4"
+                whiteSpace="pre-wrap"
+                fontFamily="mono"
+              >
+                {streamBuffer}
+              </Box>
             </Box>
           )}
 
@@ -364,8 +473,16 @@ Or: Summarize the key findings from the reports folder"
                     <Text fontWeight="bold" fontSize="sm" mb={2}>
                       Hebbian Routing Decision
                       <Badge ml={2} colorScheme="purple">
-                        alpha = {result.routing.alpha.toFixed(2)}
+                        α = {result.routing.alpha.toFixed(2)}
                       </Badge>
+                      <Badge ml={2} colorScheme="teal">
+                        β = {result.routing.beta.toFixed(2)}
+                      </Badge>
+                      {result.routing.trust_floor > 0 && (
+                        <Badge ml={2} colorScheme="red">
+                          trust ≥ {result.routing.trust_floor.toFixed(2)}
+                        </Badge>
+                      )}
                       {result.routing.fallback_from && (
                         <Badge ml={2} colorScheme="orange">
                           fallback from: {result.routing.fallback_from}
@@ -374,11 +491,11 @@ Or: Summarize the key findings from the reports folder"
                     </Text>
                     <Box
                       p={3}
-                      bg="purple.50"
+                      bg="rgba(168,85,247,0.08)"
                       borderRadius="md"
                       fontSize="xs"
                       borderLeft="4px solid"
-                      borderColor="purple.400"
+                      borderColor="rgba(168,85,247,0.5)"
                     >
                       {result.routing.candidates.map((c) => {
                         const isWinner = c.name === result.routing!.agent_name;
@@ -388,15 +505,17 @@ Or: Summarize the key findings from the reports folder"
                             justify="space-between"
                             py={1}
                             fontWeight={isWinner ? 'bold' : 'normal'}
-                            color={isWinner ? 'purple.700' : 'gray.700'}
+                            color={isWinner ? '#d8b4fe' : '#cbd5e1'}
                           >
-                            <Text>
+                            <Text color="inherit">
                               {isWinner ? '★ ' : '  '}
                               {c.name}
                             </Text>
-                            <Text fontFamily="mono">
+                            <Text fontFamily="mono" color="inherit">
                               blended={c.blended.toFixed(3)} · composite=
-                              {c.composite.toFixed(3)} · heb={c.hebbian_weight.toFixed(2)}
+                              {c.composite.toFixed(3)} · heb=
+                              {c.hebbian_weight.toFixed(2)} · trust=
+                              {c.trust_score.toFixed(2)}
                             </Text>
                           </Flex>
                         );
@@ -412,15 +531,18 @@ Or: Summarize the key findings from the reports folder"
                   </Text>
                   <Box
                     p={3}
-                    bg="gray.50"
+                    bg="rgba(255,255,255,0.04)"
                     borderRadius="md"
                     fontSize="sm"
                     borderLeft="4px solid"
                     borderColor={
-                      result.status === 'success' ? 'green.400' : 'red.400'
+                      result.status === 'success'
+                        ? 'rgba(34,197,94,0.6)'
+                        : 'rgba(239,68,68,0.6)'
                     }
+                    whiteSpace="pre-wrap"
                   >
-                    <Text>{result.summary}</Text>
+                    <Text color="#e2e8f0">{result.summary}</Text>
                   </Box>
                 </Box>
 

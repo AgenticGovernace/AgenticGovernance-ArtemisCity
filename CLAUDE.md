@@ -759,13 +759,32 @@ user instructions here. The response is `ExecuteInstructionResponse`:
 | `note_path` | `str \| None` | Vault-relative path to the persisted report. |
 | `error` | `str \| None` | Failure detail when `status == "failed"`. |
 | `agent_name` | `str \| None` | Which agent actually executed — either the request's `agent` (when pinned) or the agent the Hebbian router picked. |
-| `routing` | `dict \| None` | `HebbianRouter.RoutingDecision.to_dict()` shape (`agent_name`, `alpha`, `fallback_from`, `candidates[]`). `None` when the caller pinned `agent` explicitly. |
+| `routing` | `dict \| None` | `HebbianRouter.RoutingDecision.to_dict()` shape: `agent_name`, `alpha`, `beta`, `trust_floor`, `fallback_from`, and `candidates[]` (each carrying `name`, `composite`, `hebbian_weight`, `hebbian_norm`, `trust_score`, `blended`). `None` when the caller pinned `agent` explicitly. |
 
 Behaviorally: when the request lacks an `agent`, the handler calls
 `orchestrator.hebbian_router.route(task_data)` to capture the decision
 *before* dispatching, then calls `assign_and_execute_task(chosen, ...)`
 with the picked agent. Routing is side-effect-free, so this does not
 double-execute.
+
+The router blends three signals — composite score, Hebbian-learned
+weight, and trust score — as
+`(1 - α - β)·composite + α·hebbian_norm + β·trust`. Tune at boot via
+env:
+
+| Env var | Default | Effect |
+|---|---|---|
+| `ARTEMIS_HEBBIAN_ROUTING` | `1` | Master toggle. Set to `0`/`false` to fall back to the registry's composite-only routing. |
+| `ARTEMIS_HEBBIAN_ROUTING_ALPHA` | `0.3` | Weight on Hebbian history. |
+| `ARTEMIS_HEBBIAN_ROUTING_BETA` | `0.0` | Weight on trust score. `0` disables the trust signal in the blend. |
+| `ARTEMIS_ROUTING_TRUST_FLOOR` | `0.0` | Hard cutoff: agents with trust below this are excluded before scoring. `0` disables floor exclusion. |
+| `ARTEMIS_ROUTING_FALLBACK_CAPABILITY` | `llm_chat` | Capability to retry on if no agent advertises the requested one. Empty string disables fallback. |
+
+`TrustInterface` is only instantiated when `beta > 0` or
+`trust_floor > 0`, so the orchestrator pays no trust-DB cost when the
+trust signal is disabled. Any failure constructing the trust source
+logs a warning and leaves the router running in its 2-signal
+configuration — trust-aware routing is best-effort, not load-bearing.
 
 ### `GET /api/agents`
 
@@ -780,6 +799,33 @@ orchestrator failed to initialize (`orchestrator is None`).
 When extending the executor contract, keep `ExecuteInstructionResponse`
 the single shape and update the Executor page's `ExecutionResult`
 interface in lock-step.
+
+### `POST /api/cli/execute/stream`
+
+SSE variant of the executor for live token rendering. Same request body
+as `/api/cli/execute`. The response is a `text/event-stream` carrying
+this event sequence:
+
+| Event | Data | When |
+|---|---|---|
+| `routing` | `{decision, agent_name, task_id}` | First frame. `decision` is the same `RoutingDecision.to_dict()` blob; `null` when the user pinned an `agent` explicitly. |
+| `token` | `{text}` | Zero or more frames as the agent produces output. For `LLMAgent` these are real Exo SSE deltas; for non-streaming agents a single frame carries the full summary. |
+| `complete` | `{task_id, agent_name, status, summary, note_path, error}` | Terminal on success. Mirrors `ExecuteInstructionResponse`. |
+| `error` | `{error}` | Terminal on failure (routing error, agent crash, etc.). |
+
+Streaming is opt-in per request — `Executor.tsx` exposes it as a
+"Stream response" checkbox and falls back to the JSON endpoint when
+unchecked. The orchestrator's post-flow (memory bus persist, Hebbian
+update, Obsidian status update) runs after the stream completes, so
+both endpoints leave the same trail.
+
+Agents declare streaming support via `supports_streaming = True` plus a
+`stream_task(task_context) -> Iterator[dict]` method that yields
+`{"type": "token", "text": "..."}` events and exactly one terminal
+`{"type": "final", "result": {...}}`. Agents without it are still
+served by `/api/cli/execute/stream`, just with a single `token` event
+carrying the full summary — the client does not need to branch on
+agent type.
 
 ---
 
