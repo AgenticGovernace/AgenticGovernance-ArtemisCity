@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 
 class _MissingRequests:
@@ -33,7 +34,7 @@ class LLMAgent(BaseAgent):
         base_url: Optional[str] = None,
         model_url: Optional[str] = None,
         model_id: Optional[str] = None,
-        timeout_seconds: float = 5.0,
+        timeout_seconds: float = 60.0,
     ) -> None:
         super().__init__(
             name,
@@ -54,7 +55,9 @@ class LLMAgent(BaseAgent):
             or os.getenv("EXO_BASE_URL", "http://localhost:52415")
         ).rstrip("/")
         self.base_url = self.model_url
-        self.model_id = model_id or os.getenv("EXO_MODEL_ID", "gpt-4o-2024-08-06")
+        self.model_id = model_id or os.getenv(
+            "EXO_MODEL_ID", "mlx-community/Qwen3-0.6B-4bit"
+        )
         self.timeout_seconds = timeout_seconds
         self.api_key = os.getenv("EXO_API_KEY", "").strip()
 
@@ -68,9 +71,13 @@ class LLMAgent(BaseAgent):
             }
 
         temperature = float(task_context.get("temperature", 0.2))
-        max_tokens = int(task_context.get("max_tokens", 600))
+        # 4000 default leaves room for reasoning-mode models (Qwen3.5, o1-style)
+        # to produce real content after their thinking budget. The earlier 600
+        # was enough for non-reasoning chat models but caused reasoning models
+        # to hit the length limit mid-thought and return empty content.
+        max_tokens = int(task_context.get("max_tokens", 4000))
         model = str(task_context.get("model") or self.model_id)
-        model_url = self._with_v1_suffix(
+        model_url = self._with_chat_completions_path(
             str(task_context.get("model_url") or self.model_url)
         )
 
@@ -172,11 +179,26 @@ class LLMAgent(BaseAgent):
         except Exception as exc:  # noqa: BLE001
             raise RuntimeError(f"Exo request failed at {model_url}: {exc}") from exc
 
-    def _with_v1_suffix(self, url: str) -> str:
+    def _with_chat_completions_path(self, url: str) -> str:
+        """Normalize ``url`` to Exo's OpenAI-compatible chat-completions path.
+
+        Exo follows the OpenAI spec: chat completions are served at
+        ``<base>/v1/chat/completions``. Earlier callers may pass any of:
+
+        - ``http://host:port``                          -> append ``/v1/chat/completions``
+        - ``http://host:port/v1``                       -> append ``/chat/completions``
+        - ``http://host:port/v1/chat/completions``      -> leave as-is
+
+        Hitting just ``/v1`` returns HTTP 405 (Method Not Allowed) — that
+        was the pre-fix behavior and the reason every Exo call silently
+        fell back to the offline-fallback summary.
+        """
         endpoint = url.rstrip("/")
-        if not endpoint.endswith("/v1"):
-            endpoint = f"{endpoint}/v1"
-        return endpoint
+        if endpoint.endswith("/v1/chat/completions"):
+            return endpoint
+        if endpoint.endswith("/v1"):
+            return f"{endpoint}/chat/completions"
+        return f"{endpoint}/v1/chat/completions"
 
     def _extract_message_content(self, body: Dict[str, Any]) -> str:
         choices = body.get("choices")
@@ -192,10 +214,204 @@ class LLMAgent(BaseAgent):
                 for item in content:
                     if isinstance(item, dict) and item.get("type") == "text":
                         parts.append(str(item.get("text", "")))
-                return " ".join(part for part in parts if part).strip()
-            return str(content).strip()
+                text = " ".join(part for part in parts if part).strip()
+            else:
+                text = str(content).strip()
+            if text:
+                return text
+            # Reasoning-mode models (Qwen3.5, o1-style) split their output:
+            # ``content`` is the final answer, ``reasoning_content`` is the
+            # chain of thought. If the model hit max_tokens during reasoning
+            # ``content`` will be empty — surface the reasoning so the user
+            # at least sees what the model was thinking about, with a clear
+            # marker that the answer was cut off.
+            reasoning = message.get("reasoning_content")
+            if isinstance(reasoning, str) and reasoning.strip():
+                finish = first.get("finish_reason", "")
+                note = (
+                    "[Model hit max_tokens during reasoning — increase "
+                    "max_tokens to get a final answer.]\n\n"
+                    if finish == "length"
+                    else "[Model reasoning only — no final content emitted.]\n\n"
+                )
+                return note + reasoning.strip()
+            return text  # empty, but at least typed correctly
 
         return str(first.get("text", "")).strip()
+
+    # --- Streaming -----------------------------------------------------
+    # Optional capability: the orchestrator's streaming executor checks for
+    # ``supports_streaming`` and calls ``stream_task`` when present. Agents
+    # without this method are served by single-chunk emission upstream, so
+    # adding streaming here doesn't force a change on every other agent.
+
+    supports_streaming = True
+
+    def stream_task(self, task_context: dict) -> Iterator[Dict[str, Any]]:
+        """Execute an LLM task as a stream of events.
+
+        Yields one event per step::
+
+            {"type": "token", "text": "..."}   # zero or more
+            {"type": "final", "result": {...}} # exactly one, last
+
+        The ``final`` event mirrors the dict ``perform_task`` would have
+        returned, so the orchestrator can run its normal post-processing
+        (memory bus write, Hebbian update) on it.
+
+        When Exo is unreachable, we fall back to a single-chunk emission of
+        the same offline-fallback message ``perform_task`` produces, so the
+        UI stays consistent across both code paths.
+        """
+        messages = self._build_messages(task_context)
+        if not messages:
+            yield {
+                "type": "final",
+                "result": {
+                    "status": "failed",
+                    "summary": "No prompt or messages provided for LLM processing.",
+                },
+            }
+            return
+
+        temperature = float(task_context.get("temperature", 0.2))
+        max_tokens = int(task_context.get("max_tokens", 4000))
+        model = str(task_context.get("model") or self.model_id)
+        model_url = self._with_chat_completions_path(
+            str(task_context.get("model_url") or self.model_url)
+        )
+
+        self.report_status(
+            f"Streaming {len(messages)} message(s) to Exo model '{model}'."
+        )
+
+        chunks: List[str] = []
+        try:
+            for piece in self._stream_exo(
+                messages, model, temperature, max_tokens, model_url
+            ):
+                if not piece:
+                    continue
+                chunks.append(piece)
+                yield {"type": "token", "text": piece}
+            full = "".join(chunks).strip()
+            if not full:
+                # Exo returned an empty stream (rare but observed) -> fall back.
+                raise RuntimeError("Exo stream produced no content")
+            self.report_status("Exo stream completed.")
+            yield {
+                "type": "final",
+                "result": {
+                    "status": "success",
+                    "summary": full,
+                    "provider": "exo",
+                    "model": model,
+                    "model_url": model_url,
+                },
+            }
+        except Exception as exc:  # noqa: BLE001
+            fallback = self._build_fallback_summary(messages)
+            self.report_status(
+                f"Exo stream failed, using fallback response: {exc}"
+            )
+            # Emit the fallback as a single token so UI animation still works.
+            yield {"type": "token", "text": fallback}
+            yield {
+                "type": "final",
+                "result": {
+                    "status": "success",
+                    "summary": fallback,
+                    "provider": "fallback",
+                    "model": model,
+                    "model_url": model_url,
+                    "llm_error": str(exc),
+                },
+            }
+
+    def _stream_exo(
+        self,
+        messages: List[Dict[str, str]],
+        model: str,
+        temperature: float,
+        max_tokens: int,
+        model_url: str,
+    ) -> Iterator[str]:
+        """Yield content deltas from an Exo SSE response.
+
+        Exo follows the OpenAI chat-completions SSE format: lines beginning
+        with ``data:`` carry a JSON chunk; the literal line ``data: [DONE]``
+        terminates the stream. We extract ``choices[0].delta.content`` from
+        each chunk and yield it as a string.
+        """
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+        }
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+        }
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        response = requests.post(
+            model_url,
+            json=payload,
+            headers=headers,
+            timeout=self.timeout_seconds,
+            stream=True,
+        )
+        response.raise_for_status()
+
+        try:
+            for raw_line in response.iter_lines(decode_unicode=True):
+                if not raw_line:
+                    continue
+                line = raw_line.strip()
+                if not line.startswith("data:"):
+                    continue
+                data = line[len("data:") :].strip()
+                if not data or data == "[DONE]":
+                    if data == "[DONE]":
+                        return
+                    continue
+                try:
+                    chunk = json.loads(data)
+                except json.JSONDecodeError:
+                    continue
+                delta = self._extract_delta_content(chunk)
+                if delta:
+                    yield delta
+        finally:
+            response.close()
+
+    def _extract_delta_content(self, chunk: Dict[str, Any]) -> str:
+        """Pull the incremental content out of one Exo SSE JSON chunk."""
+        choices = chunk.get("choices")
+        if not isinstance(choices, list) or not choices:
+            return ""
+        first = choices[0] if isinstance(choices[0], dict) else {}
+        delta = first.get("delta")
+        if isinstance(delta, dict):
+            content = delta.get("content")
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list):
+                parts = []
+                for item in content:
+                    if isinstance(item, dict) and item.get("type") == "text":
+                        parts.append(str(item.get("text", "")))
+                return "".join(parts)
+        # Some servers send the final chunk as message.content instead of delta.
+        message = first.get("message")
+        if isinstance(message, dict):
+            content = message.get("content")
+            if isinstance(content, str):
+                return content
+        return ""
 
     def _build_fallback_summary(self, messages: List[Dict[str, str]]) -> str:
         user_messages = [m["content"] for m in messages if m.get("role") == "user"]

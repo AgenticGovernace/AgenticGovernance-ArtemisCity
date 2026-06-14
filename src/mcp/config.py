@@ -64,4 +64,9 @@ AGENT_OUTPUT_DIR = os.getenv("AGENT_OUTPUT_DIR", "Agent Outputs")
 # --- EXO cluster (local LLM inference) --------------------------------------
 EXO_BASE_URL = os.getenv("EXO_BASE_URL", "http://localhost:52415")
 EXO_MODEL_URL = os.getenv("EXO_MODEL_URL", "")
-EXO_MODEL_ID = os.getenv("EXO_MODEL_ID", "gpt-4o-2024-08-06")
+# Smallest text-generation model in the mlx-community registry (~327 MB)
+# — fast first-token latency and a sensible default when no real Exo
+# instance is configured. Override with EXO_MODEL_ID for production. The
+# previous default ("gpt-4o-2024-08-06") was an OpenAI model name that no
+# self-hosted Exo can serve, causing every call to 404.
+EXO_MODEL_ID = os.getenv("EXO_MODEL_ID", "mlx-community/Qwen3-0.6B-4bit")

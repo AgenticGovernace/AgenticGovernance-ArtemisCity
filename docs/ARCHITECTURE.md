@@ -149,7 +149,11 @@ Multi-tier approval workflow for self-updates and policy changes.
     │  Kernel (Routing)     │
     │  - Parse task         │
     │  - Query Registry     │
-    │  - Rank by Hebbian    │
+    │  - Filter on trust    │
+    │    floor + governance │
+    │  - Rank by blend of   │
+    │    composite +        │
+    │    Hebbian + trust    │
     └────┬──────────────────┘
          │
     ┌────▼──────────────────┐
@@ -190,9 +194,12 @@ is captured by the FastAPI executor (`POST /api/cli/execute`) and
 returned to the caller as the `agent_name` and `routing` fields on
 `ExecuteInstructionResponse`. The dashboard Executor page renders the
 per-candidate blended-score breakdown so operators can observe how the
-router weighted composite score vs. Hebbian history for each capability
-match. See the "Dashboard executor contract" section of `CLAUDE.md`
-for the response shape.
+router weighted composite score, Hebbian history, and trust for each
+capability match. The blend is
+`(1 - α - β)·composite + α·hebbian_norm + β·trust`; agents below
+`trust_floor` are excluded before scoring. See the "Dashboard executor
+contract" section of `CLAUDE.md` for the response shape and the
+controlling env vars.
 
 ## Integration Points
 **Obsidian Integration:**

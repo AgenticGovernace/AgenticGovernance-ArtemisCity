@@ -276,6 +276,18 @@ const theme = extendTheme({
               borderColor: accents.kernel,
               boxShadow: `0 0 0 1px ${accents.kernel}`,
             },
+            // Native <option> elements don't inherit field styling --
+            // browsers paint them with system colors, which on the dark
+            // page produced an unreadable light-on-light or dark-on-dark
+            // list. Force the dark panel palette so every Select across
+            // the app has a legible dropdown menu.
+            '& option': {
+              backgroundColor: '#0b1224',
+              color: fg['0'],
+            },
+          },
+          icon: {
+            color: fg['2'],
           },
         },
       },
