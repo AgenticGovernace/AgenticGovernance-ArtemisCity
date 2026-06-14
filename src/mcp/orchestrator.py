@@ -671,11 +671,10 @@ class Orchestrator:
                     metadata={"agent": agent_name, "task_id": task_id},
                 )
             except Exception:
-                logger.error(
-                    "Failed to persist report for %s.",
-                    _sanitize_for_log(agent_name),
-                    exc_info=True,
-                )
+                # exc_info=True attaches the stack trace; agent_name omitted
+                # from the message to avoid user-controlled data flowing into
+                # log records (CodeQL py/log-injection).
+                logger.error("Failed to persist streaming report.", exc_info=True)
 
             if original_task_note_path:
                 self.update_task_status_in_obsidian(
@@ -685,11 +684,9 @@ class Orchestrator:
                 )
 
         except Exception as exc:  # noqa: BLE001
-            logger.error(
-                "Streaming execution failed for agent %s.",
-                _sanitize_for_log(agent_name),
-                exc_info=True,
-            )
+            # Same rationale as above -- exception detail is on exc_info,
+            # not interpolated into the message.
+            logger.error("Streaming execution failed.", exc_info=True)
             task_success = False
             results = {
                 "status": "failed",
@@ -701,8 +698,22 @@ class Orchestrator:
                     original_task_note_path, "failed", task_id
                 )
 
-        # Hebbian update fires regardless of branch.
-        self._update_hebbian_weights(agent_name, task_id, task_success)
+        # Hebbian update fires regardless of branch. Inlined here (rather
+        # than delegating to _update_hebbian_weights) because the helper
+        # logs the agent_name/task_id, which would create new flow paths
+        # CodeQL flags as py/log-injection through this streaming entry
+        # point. Persistence still happens; the log line is just dropped
+        # on this path -- the existing per-task lifecycle logger above
+        # already captures success/failure.
+        try:
+            if task_success:
+                self.hebbian.strengthen_connection(agent_name, task_id)
+            else:
+                self.hebbian.weaken_connection(agent_name, task_id)
+        except Exception:
+            logger.error(
+                "Hebbian update failed in streaming executor.", exc_info=True
+            )
 
         yield {
             "type": "complete",
