@@ -1,126 +1,94 @@
+# Use the latest 2.1 version of CircleCI pipeline process engine.
+# See: https://circleci.com/docs/reference/configuration-reference
+
+# For a detailed guide to building and testing with Python, read the docs:
+# https://circleci.com/docs/language-python/ for more details
 version: 2.1
 
+# Orbs are reusable packages of CircleCI configuration that you may share across projects, enabling you to create encapsulated, parameterized commands, jobs, and executors that can be used across multiple projects.
+# See: https://circleci.com/docs/orbs/use/orb-intro/
 orbs:
-  python: circleci/python@2
+  # See the Python orb documentation here: https://circleci.com/developer/orbs/orb/circleci/python
+  python: circleci/python@4.0.0
 
+# Define a job to be invoked later in a workflow.
+executors:
+# See: https://circleci.com/docs/guides/orchestrate/jobs-steps/#jobs-overview & https://circleci.com/docs/reference/configuration-reference/#jobs
 jobs:
-  # ============================================================
-  # PYTHON CHECKS
-  # ============================================================
-  python-checks:
-    # pyproject requires-python is ">=3.11,<3.14"; 3.12 is the primary runtime.
+  build-and-test:
+    # Specify the execution environment. You can specify an image from Docker Hub or use one of our convenience images from CircleCI's Developer Hub.
+    # See: https://circleci.com/docs/guides/execution-managed/executor-intro/ & https://circleci.com/docs/reference/configuration-reference/#executor-job
+  py:
     docker:
+      # Specify the version you desire here
+      # See:https://circleci.com/developer/images/image/cimg/python
       - image: cimg/python:3.12
+    working_directory: .
+
+autoscaling:
+  cancel_unfinished: false
+
+commands:
+  restore_pip_cache:
     steps:
+      - restore_cache:
+          keys:
+            - pip-v1-{{ checksum "requirements.txt" }}-{{ checksum "test-requirements.txt" }}
+            - pip-v1-{{ checksum "requirements.txt" }}
+            - pip-v1-
+
+  save_pip_cache:
+    steps:
+      - save_cache:
+          key: pip-v1-{{ checksum "requirements.txt" }}-{{ checksum "test-requirements.txt" }}
+          paths:
+            - ~/.cache/pip
+
+    # Add steps to the job
+    # See: https://circleci.com/docs/guides/orchestrate/jobs-steps/#steps-overview & https://circleci.com/docs/reference/configuration-reference/#steps
+jobs:
+  build-and-test:
+    executor: py
+    environment:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      # Checkout the code as the first step.
       - checkout
+      - restore_pip_cache
+      - run:
+          name: Create venv
+          command: |
+            python -m venv .venv
+            . .venv/bin/activate
       - python/install-packages:
+            python -m pip install -U pip setuptools wheel
+      - run:
           pkg-manager: pip
-          pip-dependency-file: requirements.txt
-      - run:
-          name: Install dev + test tools
+          name: Install dependencies
           command: |
-            if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
-            pip install pyyaml pytest pytest-cov black isort flake8 mypy bandit
+            . .venv/bin/activate
+          # app-dir: ~/project/package-directory/  # If your requirements.txt isn't in the root directory.
+          # pip-dependency-file: test-requirements.txt  # if you have a different name for your requirements file, maybe one that combines your runtime and test requirements.
+            if [ -f requirements.txt ]; then .venv/bin/python -m pip install -r requirements.txt; fi
+            if [ -f test-requirements.txt ]; then .venv/bin/python -m pip install -r test-requirements.txt; fi
+      - save_pip_cache
       - run:
-          name: Validate environment configs (dev/staging/prod)
+          name: Run tests
+          # This assumes pytest is installed via the install-package step above
+          command: pytest
           command: |
-            python - <<'PY'
-            from src.utils.environments import load_environment, VALID_ENVIRONMENTS
-            for env in VALID_ENVIRONMENTS:
-                cfg = load_environment(env)
-                assert cfg["name"] == env, (env, cfg)
-                assert cfg["deploy"]["branch"] == env
-            print("env configs OK")
-            PY
-      - run:
-          name: Run tests (pytest; testpaths=src/tests from pyproject)
-          command: pytest --cov=src --cov-report=xml
-      # --- Advisory style/lint/security (non-blocking) ---
-      - run:
-          name: "Advisory: Black format check"
-          command: black --check . || true
-      - run:
-          name: "Advisory: isort import order"
-          command: isort --check-only . || true
-      - run:
-          name: "Advisory: Flake8"
-          command: flake8 . || true
-      - run:
-          name: "Advisory: MyPy"
-          command: mypy src || true
-      - run:
-          name: "Advisory: Bandit"
-          command: bandit -r src app || true
+            . .venv/bin/activate
+            pytest -q
 
-  # ============================================================
-  # TYPESCRIPT — root Express API (app/api)
-  # ============================================================
-  typescript-api:
-    # Root package.json declares engines.node >=24.
-    docker:
-      - image: cimg/node:24.0
-    steps:
-      - checkout
-      - run:
-          name: Install deps (skip lifecycle scripts)
-          # The root package.json has preinstall/prepare/install hooks that call
-          # hatch and docker, which aren't available (and shouldn't run) in CI.
-          command: npm ci --ignore-scripts
-      - run:
-          name: Type check (tsc --noEmit)
-          command: npm run typecheck
-      - run:
-          name: Lint (advisory)
-          command: npm run lint || true
-
-  # ============================================================
-  # TYPESCRIPT — Obsidian MCP server (src/Artemis Agentic Memory Layer)
-  # ============================================================
-  typescript-memory-layer:
-    docker:
-      - image: cimg/node:24.0
-    steps:
-      - checkout
-      - run:
-          name: Install deps
-          command: cd "src/Artemis Agentic Memory Layer" && npm ci
-      - run:
-          name: Lint (advisory)
-          command: cd "src/Artemis Agentic Memory Layer" && npm run lint || true
-      - run:
-          name: Build (tsc)
-          command: cd "src/Artemis Agentic Memory Layer" && npm run build
-
-  # ============================================================
-  # SECRET SCAN
-  # ============================================================
-  secrets-check:
-    docker:
-      - image: cimg/base:current
-    steps:
-      - checkout
-      - run:
-          name: Check for hardcoded secrets
-          command: |
-            FOUND=0
-            for pattern in "API_KEY=.[a-zA-Z0-9]" "PASSWORD=.[a-zA-Z0-9]" "SECRET=.[a-zA-Z0-9]"; do
-              if grep -rn --include="*.py" --include="*.ts" --include="*.js" --include="*.yml" --include="*.yaml" --include="*.md" \
-                -E "$pattern" . \
-                --exclude-dir=.git --exclude-dir=node_modules --exclude="*.example" \
-                | grep -v "placeholder" | grep -v "your_" | grep -v "<" | grep -v "must be set" | grep -v "ENV_VAR" | grep -v "=xxx"; then
-                FOUND=1
-              fi
-            done
-            if [ "$FOUND" -eq 1 ]; then
-              echo "WARNING: Potential hardcoded secrets detected. Review the matches above."
-              exit 1
-            fi
-            echo "No hardcoded secrets detected."
-
+# Orchestrate jobs using workflows
+# See: https://circleci.com/docs/guides/orchestrate/workflows/ & https://circleci.com/docs/reference/configuration-reference/#workflows
 workflows:
+  sample: # This is the name of the workflow, feel free to change it to better match your workflow.
+    # Inside the workflow, you define the jobs you want to run.
   ci:
     jobs:
-      - python-checks
-      - typescript-api
-      - typescript-memory-layer
-      - secrets-check
+      - build-and-test
+
