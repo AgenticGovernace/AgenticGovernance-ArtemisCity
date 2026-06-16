@@ -1,5 +1,6 @@
 {
     "recommendations": [
-        "ms-python.vscode-python-envs"
+        "ms-python.vscode-python-envs",
+        "ms-azuretools.vscode-docker"
     ]
 }
