@@ -1,9 +1,9 @@
 [project]
 name = "artemis-city"
-version = "0.1.0"
+version = "0.7.0"
 description = "Architectural framework for agentic reasoning with transparent, accountable action across distributed intelligence systems"
-readme = "README.md"
-requires-python = ">=3.11,<3.15"
+readme = "./README.md"
+requires-python = ">=3.9,<3.16"
 authors = [
     { name = "Prinston Palmer", email = "prinstonpalmer879@gmail.com" }
 ]
@@ -345,8 +345,6 @@ build = [
     "hatchling>=1.21.0",
     "twine>=3.0.0",
     "wheel>=0.38.1",
-]
-all = [
 ]
 
 [project.urls]
