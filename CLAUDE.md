@@ -1,4 +1,6 @@
-# Agent Instructions 
+# Agent Instructions
+j
+Always Read .github/instructions/.instructions.md in totality prior to anycoding input
 
 ## Document Structure
 
