@@ -24,8 +24,20 @@ class ObsidianManager:
         logger.info(f"Obsidian Manager initialized for vault: {self.vault_path}")
 
     def _get_full_path(self, relative_path: str) -> Path:
-        """Constructs the full path within the vault."""
-        return self.vault_path / relative_path
+        """Resolve a vault-relative path and reject vault escapes."""
+        requested = Path(relative_path)
+        if requested.is_absolute():
+            raise ValueError("vault path must be relative")
+        if ".." in requested.parts:
+            raise ValueError("vault path must not contain '..' traversal")
+
+        vault_root = self.vault_path.resolve()
+        full_path = (vault_root / requested).resolve()
+        try:
+            full_path.relative_to(vault_root)
+        except ValueError as exc:
+            raise ValueError("vault path escapes configured vault root") from exc
+        return full_path
 
     def read_note(self, relative_path: str) -> str | None:
         """Reads the content of an Obsidian note.
@@ -116,3 +128,22 @@ class ObsidianManager:
         full_path = self._get_full_path(relative_folder_path)
         full_path.mkdir(parents=True, exist_ok=True)
         logger.info(f"Ensured folder exists: {relative_folder_path}")
+
+    def delete_note(self, relative_path: str) -> bool:
+        """Delete a note within the vault.
+
+        Args:
+            relative_path (str): Vault-relative note path to delete.
+
+        Returns:
+            bool: True when a file was deleted, False when it did not exist.
+        """
+        full_path = self._get_full_path(relative_path)
+        if not full_path.exists():
+            logger.warning(f"Note not found for delete: {full_path}")
+            return False
+        if not full_path.is_file():
+            raise ValueError("vault path is not a file")
+        full_path.unlink()
+        logger.info(f"Deleted note: {relative_path}")
+        return True
