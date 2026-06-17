@@ -1,295 +1,82 @@
 /**
  * Agent Controller
  *
- * Handles business logic for agent management operations.
+ * Read-only agent facade backed by the authoritative Python registry.
  */
 
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import { callBridge } from '../lib/pythonBridge';
 
-interface AgentCard {
-  id: string;
-  name: string;
-  role: string;
-  status: 'active' | 'suspended' | 'inactive';
-  trustLevel: number;
-  capabilities: string[];
-  zones: string[];
-  metadata: Record<string, any>;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface AgentStore {
-  agents: Map<string, AgentCard>;
-}
-
-// In-memory store (would be replaced with database in production)
-const store: AgentStore = {
-  agents: new Map()
+type AgentRecord = Record<string, unknown> & {
+  name?: string;
+  capabilities?: string[];
+  trust_score?: number | null;
+  trust_tier?: string | null;
+  status?: string | null;
 };
 
-// Initialize with default agents
-const defaultAgents: AgentCard[] = [
-  {
-    id: 'artemis',
-    name: 'Artemis',
-    role: 'Mayor / Orchestrator',
-    status: 'active',
-    trustLevel: 0.95,
-    capabilities: ['orchestrate', 'delegate', 'monitor', 'report'],
-    zones: ['all'],
-    metadata: {
-      description: 'Central orchestrator and task coordinator',
-      emoji: '🏛️'
-    },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'packrat',
-    name: 'PackRat',
-    role: 'Postmaster / Memory Manager',
-    status: 'active',
-    trustLevel: 0.85,
-    capabilities: ['read', 'write', 'search', 'organize', 'archive'],
-    zones: ['vault', 'memory'],
-    metadata: {
-      description: 'Manages vault operations and memory persistence',
-      emoji: '📦'
-    },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'copilot',
-    name: 'Copilot',
-    role: 'Assistant / User Interface',
-    status: 'active',
-    trustLevel: 0.80,
-    capabilities: ['assist', 'query', 'suggest', 'format'],
-    zones: ['user', 'interface'],
-    metadata: {
-      description: 'User-facing assistant and query handler',
-      emoji: '🤖'
-    },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'daemon',
-    name: 'Daemon',
-    role: 'City Manager / Background Services',
-    status: 'active',
-    trustLevel: 0.85,
-    capabilities: ['schedule', 'maintain', 'backup', 'optimize'],
-    zones: ['system', 'background'],
-    metadata: {
-      description: 'Handles background tasks and system maintenance',
-      emoji: '⚙️'
-    },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-];
+interface AgentListResponse {
+  agents?: AgentRecord[];
+  total?: number;
+}
 
-// Initialize store with default agents
-defaultAgents.forEach(agent => store.agents.set(agent.id, agent));
-
-/**
- * Controller responsible for managing the in-memory agent registry used by the demo API.
- */
 export class AgentController {
-  /**
-   * Get all registered agents
-   *
-   * @returns Promise resolving to an array of AgentCard values produced by getting all registered agents.
-   */
-  async getAllAgents(): Promise<AgentCard[]> {
-    return Array.from(store.agents.values());
+  async getAllAgents(): Promise<AgentRecord[]> {
+    const data = (await callBridge('registry.list_agents')) as AgentListResponse;
+    return Array.isArray(data.agents) ? data.agents : [];
   }
 
-  /**
-   * Get a specific agent by ID
-   *
-   * @param id - Agent identifier to look up or mutate.
-   * @returns Promise resolving to a AgentCard | null value produced by getting a specific agent by ID.
-   */
-  async getAgent(id: string): Promise<AgentCard | null> {
-    return store.agents.get(id) || null;
+  async getAgent(id: string): Promise<AgentRecord> {
+    return (await callBridge('registry.get_agent', { name: id })) as AgentRecord;
   }
 
-  /**
-   * Register a new agent
-   *
-   * @param agentData - Partial agent definition used to create a new registry entry.
-   * @returns Promise resolving to a AgentCard value produced by registering a new agent.
-   */
-  async registerAgent(agentData: Partial<AgentCard>): Promise<AgentCard> {
-    const id = agentData.id || this.generateId(agentData.name || 'agent');
+  async registerAgent(agentData: Partial<AgentRecord>): Promise<AgentRecord> {
+    return (await callBridge('registry.register_agent', agentData)) as AgentRecord;
+  }
 
-    const agent: AgentCard = {
-      id,
-      name: agentData.name || id,
-      role: agentData.role || 'Citizen',
+  async updateAgent(id: string, updates: Partial<AgentRecord>): Promise<AgentRecord> {
+    return (await callBridge('registry.update_agent', { name: id, updates })) as AgentRecord;
+  }
+
+  async deleteAgent(id: string): Promise<unknown> {
+    return callBridge('registry.delete_agent', { name: id });
+  }
+
+  async suspendAgent(id: string, reason?: string): Promise<AgentRecord> {
+    return (await callBridge('registry.set_agent_status', {
+      name: id,
+      status: 'suspended',
+      reason,
+    })) as AgentRecord;
+  }
+
+  async activateAgent(id: string): Promise<AgentRecord> {
+    return (await callBridge('registry.set_agent_status', {
+      name: id,
       status: 'active',
-      trustLevel: agentData.trustLevel ?? 0.5,
-      capabilities: agentData.capabilities || [],
-      zones: agentData.zones || [],
-      metadata: agentData.metadata || {},
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    store.agents.set(id, agent);
-    return agent;
+    })) as AgentRecord;
   }
 
-  /**
-   * Update an existing agent
-   *
-   * @param id - Agent identifier to look up or mutate.
-   * @param updates - Field updates to merge into the existing agent definition.
-   * @returns Promise resolving to a AgentCard | null value produced by updating an existing agent.
-   */
-  async updateAgent(id: string, updates: Partial<AgentCard>): Promise<AgentCard | null> {
-    const existing = store.agents.get(id);
-    if (!existing) return null;
-
-    const updated: AgentCard = {
-      ...existing,
-      ...updates,
-      id, // Prevent ID change
-      updatedAt: new Date().toISOString()
-    };
-
-    store.agents.set(id, updated);
-    return updated;
-  }
-
-  /**
-   * Delete an agent
-   *
-   * @param id - Agent identifier to look up or mutate.
-   * @returns Promise resolving to whether delete an agent.
-   */
-  async deleteAgent(id: string): Promise<boolean> {
-    return store.agents.delete(id);
-  }
-
-  /**
-   * Suspend an agent
-   *
-   * @param id - Agent identifier to look up or mutate.
-   * @param reason - Reason to record alongside the suspension operation.
-   * @returns Promise resolving to a AgentCard | null value produced by suspending an agent.
-   */
-  async suspendAgent(id: string, reason?: string): Promise<AgentCard | null> {
-    const agent = store.agents.get(id);
-    if (!agent) return null;
-
-    agent.status = 'suspended';
-    agent.metadata.suspendedAt = new Date().toISOString();
-    agent.metadata.suspendReason = reason;
-    agent.updatedAt = new Date().toISOString();
-
-    store.agents.set(id, agent);
-    return agent;
-  }
-
-  /**
-   * Activate an agent
-   *
-   * @param id - Agent identifier to look up or mutate.
-   * @returns Promise resolving to a AgentCard | null value produced by activating an agent.
-   */
-  async activateAgent(id: string): Promise<AgentCard | null> {
-    const agent = store.agents.get(id);
-    if (!agent) return null;
-
-    agent.status = 'active';
-    delete agent.metadata.suspendedAt;
-    delete agent.metadata.suspendReason;
-    agent.updatedAt = new Date().toISOString();
-
-    store.agents.set(id, agent);
-    return agent;
-  }
-
-  /**
-   * Get agent's card (formatted for display)
-   *
-   * @param id - Agent identifier to look up or mutate.
-   * @returns Promise resolving to a Record<string, any> | null value produced by getting agent's card (formatted for display).
-   */
-  async getAgentCard(id: string): Promise<Record<string, any> | null> {
-    const agent = store.agents.get(id);
-    if (!agent) return null;
+  async getAgentCard(id: string): Promise<{ markdown: string; agent: AgentRecord }> {
+    const agent = await this.getAgent(id);
+    const name = String(agent.name ?? id);
+    const capabilities = Array.isArray(agent.capabilities)
+      ? agent.capabilities.join(', ')
+      : '';
+    const trust =
+      typeof agent.trust_score === 'number'
+        ? agent.trust_score.toFixed(3)
+        : String(agent.trust_tier ?? 'unknown');
+    const status = String(agent.status ?? 'unknown');
 
     return {
-      ...agent,
-      trustBadge: this.getTrustBadge(agent.trustLevel),
-      statusEmoji: this.getStatusEmoji(agent.status),
-      formattedCapabilities: agent.capabilities.join(', '),
-      formattedZones: agent.zones.join(', ')
+      agent,
+      markdown: [
+        `# ${name}`,
+        '',
+        `- Status: ${status}`,
+        `- Trust: ${trust}`,
+        `- Capabilities: ${capabilities || 'none declared'}`,
+      ].join('\n'),
     };
-  }
-
-  /**
-   * Get agents by zone
-   *
-   * @param zone - Zone name used to filter matching agents.
-   * @returns Promise resolving to an array of AgentCard values produced by getting agents by zone.
-   */
-  async getAgentsByZone(zone: string): Promise<AgentCard[]> {
-    return Array.from(store.agents.values()).filter(
-      agent => agent.zones.includes(zone) || agent.zones.includes('all')
-    );
-  }
-
-  /**
-   * Get agents by capability
-   *
-   * @param capability - Capability name used to filter matching agents.
-   * @returns Promise resolving to an array of AgentCard values produced by getting agents by capability.
-   */
-  async getAgentsByCapability(capability: string): Promise<AgentCard[]> {
-    return Array.from(store.agents.values()).filter(
-      agent => agent.capabilities.includes(capability)
-    );
-  }
-
-  /**
-   * Get agents by status
-   *
-   * @param status - Agent status used to filter matching agents.
-   * @returns Promise resolving to an array of AgentCard values produced by getting agents by status.
-   */
-  async getAgentsByStatus(status: string): Promise<AgentCard[]> {
-    return Array.from(store.agents.values()).filter(
-      agent => agent.status === status
-    );
-  }
-
-  // Helper methods
-  private generateId(name: string): string {
-    return name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString(36);
-  }
-
-  private getTrustBadge(level: number): string {
-    if (level >= 0.9) return '🏆 FULL';
-    if (level >= 0.7) return '⭐ HIGH';
-    if (level >= 0.5) return '✓ MEDIUM';
-    if (level >= 0.3) return '⚠️ LOW';
-    return '🚫 UNTRUSTED';
-  }
-
-  private getStatusEmoji(status: string): string {
-    switch (status) {
-      case 'active': return '🟢';
-      case 'suspended': return '🟡';
-      case 'inactive': return '🔴';
-      default: return '⚪';
-    }
   }
 }

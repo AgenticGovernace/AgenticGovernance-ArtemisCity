@@ -1,253 +1,125 @@
 /**
  * ATP (Artemis Transmission Protocol) Routes
  *
- * Endpoints for sending and processing ATP messages.
+ * Parse and validate through the Python bridge.
  */
 
 import { Router, Request, Response } from 'express';
 import { ATPController } from '../controllers/atpController';
+import { asyncHandler, Errors } from '../middleware/errorHandler';
 
 const router = Router();
 const controller = new ATPController();
 
-/**
- * POST /api/v1/atp/send
- * Send an ATP message for routing
- */
-router.post('/send', async (req: Request, res: Response) => {
-  try {
-    const result = await controller.sendMessage(req.body);
-    res.json(result);
-  } catch (error: any) {
-    res.status(400).json({
-      success: false,
-      error: error.message
-    });
+function requestBody(req: Request): Record<string, unknown> {
+  return (req.body ?? {}) as Record<string, unknown>;
+}
+
+function requireMessage(req: Request): string {
+  const payload = requestBody(req);
+  const message = payload.message ?? payload.text;
+  if (typeof message !== 'string' || message.length === 0) {
+    throw Errors.BadRequest('message is required');
   }
-});
+  return message;
+}
 
-/**
- * POST /api/v1/atp/route
- * Route a message to appropriate agent(s)
- */
-router.post('/route', async (req: Request, res: Response) => {
-  try {
-    const { message } = req.body;
+router.post(
+  '/parse',
+  asyncHandler(async (req: Request, res: Response) => {
+    const data = await controller.parseMessage(requireMessage(req));
+    res.json({ success: true, data });
+  })
+);
 
-    if (!message) {
-      res.status(400).json({
-        success: false,
-        error: 'message is required'
-      });
-      return;
-    }
+router.post(
+  '/validate',
+  asyncHandler(async (req: Request, res: Response) => {
+    const payload = requestBody(req);
+    const strict = payload.strict === true;
+    const data = await controller.validateMessage(requireMessage(req), strict);
+    res.json({ success: true, data });
+  })
+);
 
-    const routing = await controller.routeMessage(message);
-    res.json({
-      success: true,
-      data: routing
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+router.post(
+  '/send',
+  asyncHandler(async (req: Request, res: Response) => {
+    const data = await controller.sendMessage(requestBody(req));
+    res.json({ success: true, data });
+  })
+);
 
-/**
- * POST /api/v1/atp/validate
- * Validate an ATP message format
- */
-router.post('/validate', (req: Request, res: Response) => {
-  try {
-    const validation = controller.validateMessage(req.body);
-    res.json({
-      success: true,
-      data: validation
-    });
-  } catch (error: any) {
-    res.status(400).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+router.post(
+  '/route',
+  asyncHandler(async (req: Request, res: Response) => {
+    const data = await controller.routeMessage(requestBody(req));
+    res.json({ success: true, data });
+  })
+);
 
-/**
- * GET /api/v1/atp/modes
- * Get available ATP modes
- */
-router.get('/modes', (req: Request, res: Response) => {
-  res.json({
-    success: true,
-    data: controller.getModes()
-  });
-});
+router.get(
+  '/modes',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const data = await controller.getModes();
+    res.json({ success: true, data });
+  })
+);
 
-/**
- * GET /api/v1/atp/priorities
- * Get available ATP priorities
- */
-router.get('/priorities', (req: Request, res: Response) => {
-  res.json({
-    success: true,
-    data: controller.getPriorities()
-  });
-});
+router.get(
+  '/priorities',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const data = await controller.getPriorities();
+    res.json({ success: true, data });
+  })
+);
 
-/**
- * GET /api/v1/atp/action-types
- * Get available ATP action types
- */
-router.get('/action-types', (req: Request, res: Response) => {
-  res.json({
-    success: true,
-    data: controller.getActionTypes()
-  });
-});
+router.get(
+  '/action-types',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const data = await controller.getActionTypes();
+    res.json({ success: true, data });
+  })
+);
 
-/**
- * GET /api/v1/atp/template
- * Get ATP message template
- */
-router.get('/template', (req: Request, res: Response) => {
-  res.json({
-    success: true,
-    data: {
-      template: {
-        header: {
-          mode: 'QUERY',
-          context: 'Brief description of the task',
-          priority: 'MEDIUM',
-          actionType: 'READ',
-          targetZone: 'system',
-          specialNotes: 'Optional special instructions',
-          senderId: 'your-agent-id'
-        },
-        payload: {
-          content: 'Main message content'
-        }
-      },
-      requiredFields: ['header.mode', 'header.context', 'payload'],
-      optionalFields: ['header.priority', 'header.actionType', 'header.targetZone', 'header.specialNotes']
-    }
-  });
-});
+router.get(
+  '/template',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const data = await controller.getTemplate();
+    res.json({ success: true, data });
+  })
+);
 
-/**
- * POST /api/v1/atp/format
- * Format content as ATP message (returns formatted string)
- */
-router.post('/format', async (req: Request, res: Response) => {
-  try {
-    // First validate and send to get a complete message
-    const sendResult = await controller.sendMessage(req.body);
+router.post(
+  '/format',
+  asyncHandler(async (req: Request, res: Response) => {
+    const data = await controller.formatMessage(requestBody(req));
+    res.json({ success: true, data });
+  })
+);
 
-    if (!sendResult.success) {
-      res.status(400).json(sendResult);
-      return;
-    }
+router.get(
+  '/message/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const data = await controller.getMessage(req.params.id);
+    res.json({ success: true, data });
+  })
+);
 
-    // Get the message back and format it
-    const message = controller.getMessage(sendResult.messageId);
-    if (!message) {
-      res.status(404).json({
-        success: false,
-        error: 'Message not found after creation'
-      });
-      return;
-    }
+router.get(
+  '/response/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const data = await controller.getResponse(req.params.id);
+    res.json({ success: true, data });
+  })
+);
 
-    const formatted = controller.formatMessage(message);
-    res.json({
-      success: true,
-      data: {
-        message,
-        formatted
-      }
-    });
-  } catch (error: any) {
-    res.status(400).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/**
- * GET /api/v1/atp/message/:id
- * Get a message by ID
- */
-router.get('/message/:id', (req: Request, res: Response) => {
-  try {
-    const message = controller.getMessage(req.params.id);
-
-    if (!message) {
-      res.status(404).json({
-        success: false,
-        error: `Message not found: ${req.params.id}`
-      });
-      return;
-    }
-
-    res.json({
-      success: true,
-      data: message
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/**
- * GET /api/v1/atp/response/:id
- * Get response for a message
- */
-router.get('/response/:id', (req: Request, res: Response) => {
-  try {
-    const response = controller.getResponse(req.params.id);
-
-    if (!response) {
-      res.status(404).json({
-        success: false,
-        error: `Response not found for message: ${req.params.id}`
-      });
-      return;
-    }
-
-    res.json({
-      success: true,
-      data: response
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/**
- * GET /api/v1/atp/queue
- * Get message queue status
- */
-router.get('/queue', (req: Request, res: Response) => {
-  try {
-    const status = controller.getQueueStatus();
-    res.json({
-      success: true,
-      data: status
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+router.get(
+  '/queue',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const data = await controller.getQueueStatus();
+    res.json({ success: true, data });
+  })
+);
 
 export default router;

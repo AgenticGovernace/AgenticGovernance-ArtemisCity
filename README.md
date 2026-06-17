@@ -15,6 +15,8 @@ New contributors should start with this mental model:
 - `src/Artemis Agentic Memory Layer/`  is a standalone TypeScript MCP server for Obsidian.
 Some scripts and historical files still reflect earlier layouts. Prefer the paths documented below over older references in legacy notes.
 
+This restructure phase follows the active `src/` plus `app/api` bridge architecture. It intentionally does not create `ts_service` or `python_service` directories; older alignment notes that proposed those layouts are historical context only.
+
 ## Core components
 ### Python orchestration core (`src/`)
 This is the main implementation surface for orchestration, governance, memory, and tests.
@@ -67,6 +69,7 @@ Responsibilities:
 - authenticates requests through Express middleware
 - forwards Python-backed operations through `app/api/lib/pythonBridge.ts` 
 - runs the bridge by spawning `python -m src.api_bridge` 
+Supported external behavior is backed by bridge commands in `src/api_bridge.py`; routes exposed under `/api/v1` should update Python-owned state or read Python-owned stores.
 ### Dashboard and web-facing code (`app/web/frontend/`)
 This directory currently contains mixed frontend and server-side TypeScript surfaces:
 
@@ -224,7 +227,7 @@ Then open `http://localhost:8080`.
 ```text
 .
 ├── app/
-│   ├── api/                         # FastAPI dashboard API + TypeScript API surface
+│   ├── api/                         # FastAPI dashboard API + TS Express boundary
 │   └── web/frontend/               # React dashboard source + additional TS routes/controllers
 ├── Concept_Demos/                  # Browser demos and CLI walkthroughs
 ├── config/environments/            # dev / staging / prod environment profiles
@@ -253,8 +256,11 @@ When the Python core starts, the orchestrator:
 ### Request handling
 - FastAPI serves dashboard-oriented endpoints and can operate in a fallback mode when the full orchestrator cannot be imported.
 - The TypeScript API exposes versioned `/api/v1/*`  routes and shells out to the Python bridge for Python-backed operations.
+- Express does not reimplement registry, memory, ATP, or trust logic in TypeScript. Exposed routes call `src/api_bridge.py` so state stays in Python-owned stores.
 - The React client consumes `/api`  endpoints and is configured to proxy those requests to the FastAPI backend during development.
 - The standalone Obsidian MCP server exposes vault operations over HTTP using bearer-style authentication.
+### Package boundary
+The wheel is scoped to the Python core packages (`src/`) and the kernel package (`app/kernel/`). Dashboard/API directories such as `app/api`, `app/web`, and `app/scripts` stay outside the wheel. The current `pyproject.toml` dependency list is still lock-style and includes dashboard/dev transitive packages; splitting that list into lean optional extras is tracked as follow-up packaging work.
 ### Error handling and governance
 - trust and governance metadata are stored alongside agent registry data
 - repeated violations can quarantine an agent
@@ -542,12 +548,12 @@ Public HTTP boundary with Python bridge integration:
 
 | Route | Description |
 | ----- | ----- |
-| `/api/v1/agents`  | Agent management |
-| `/api/v1/registry`  | Registry operations |
-| `/api/v1/governance`  | Governance operations |
-| `/api/v1/memory`  | Memory operations |
-| `/api/v1/atp`  | ATP message handling |
-| `/api/v1/trust`  | Trust score operations |
+| `/api/v1/agents`  | Bridge-backed registry facade and agent status/mutation operations |
+| `/api/v1/registry`  | Bridge-backed registry operations |
+| `/api/v1/governance`  | Bridge-backed trust computation and update evaluation |
+| `/api/v1/memory`  | Bridge-backed exact read, write, list, search, stats, and delete |
+| `/api/v1/atp`  | Bridge-backed ATP parse, validate, queue, history, routing, format, and metadata |
+| `/api/v1/trust`  | Bridge-backed trust score, permission, report, and Hebbian weight operations |
 | `/api/v1/llm`  | LLM features |
 #### 3.3.3 Python Bridge Protocol
 **Location**: `src/api_bridge.py` (Python), `app/api/lib/pythonBridge.ts` (TypeScript)
@@ -1054,5 +1060,3 @@ uvicorn app.api.main:app --port 8000  # FastAPI
 | Living City Metaphor | `docs/LIVING_CITY.md`  |
 | Environments | `docs/ENVIRONMENTS.md`  |
 | Security | <p>`SECURITY.md` </p><p></p><p> </p> |
-
-

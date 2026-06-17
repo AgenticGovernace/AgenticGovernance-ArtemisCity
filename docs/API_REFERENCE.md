@@ -2,72 +2,105 @@
 
 # API Reference
 ## Overview
-Artemis City exposes three primary API surfaces:
+Artemis City currently exposes two HTTP surfaces:
 
-1. **Agent API**: Task submission and execution
-2. **ATP (Artemis Transmission Protocol)**: Structured inter-agent messaging
-3. **System APIs**: Registry, Memory Bus, Governance (admin-only)
-All APIs use HTTP/JSON for REST endpoints and support gRPC where noted.
-![Node.js Expense Report Generation Process](undefined "Node.js Expense Report Generation Process")
+1. **FastAPI dashboard API** (`app/api/main.py`): dashboard-oriented `/api/*` endpoints used by the Vite frontend.
+2. **TypeScript Express API** (`app/api/index.ts`): external `/api/v1/*` boundary. Supported Python-backed behavior goes through `app/api/lib/pythonBridge.ts`, which calls `python -m src.api_bridge`.
+
+This phase keeps the active `src/` plus `app/api` bridge architecture. It does not introduce `ts_service` or `python_service` directories. Any endpoint shape below that is not listed in the bridge-backed table is planned, not current production behavior.
+
+## Current Express `/api/v1` Surface
+
+All routes below require the Express API authentication middleware except health endpoints.
+
+| Endpoint | Status | Python bridge command |
+|---|---|---|
+| `GET /api/v1/agents` | Implemented | `registry.list_agents` |
+| `GET /api/v1/agents/:id` | Implemented | `registry.get_agent` |
+| `GET /api/v1/agents/:id/card` | Implemented | `registry.get_agent` |
+| `POST /api/v1/agents` | Implemented | `registry.register_agent` |
+| `PUT /api/v1/agents/:id` | Implemented | `registry.update_agent` |
+| `DELETE /api/v1/agents/:id` | Implemented | `registry.delete_agent` |
+| `POST /api/v1/agents/:id/suspend` | Implemented | `registry.set_agent_status` |
+| `POST /api/v1/agents/:id/activate` | Implemented | `registry.set_agent_status` |
+| `GET /api/v1/registry/agents` | Implemented | `registry.list_agents` |
+| `GET /api/v1/registry/agents/:agentId` | Implemented | `registry.get_agent` |
+| `GET /api/v1/registry/agents/:agentId/violations` | Implemented | `registry.get_violations` |
+| `POST /api/v1/registry/agents/:agentId/clear-violations` | Implemented | `registry.clear_violations` |
+| `PATCH /api/v1/registry/agents/:agentId/trust-tier` | Implemented | `registry.set_trust_tier` |
+| `POST /api/v1/governance/agents/:agentId/trust` | Implemented | `governance.compute_trust` |
+| `POST /api/v1/governance/updates` | Implemented | `governance.evaluate_update` |
+| `POST /api/v1/memory/read` | Implemented | `memory.read` |
+| `POST /api/v1/memory/write` | Implemented | `memory.write` |
+| `POST /api/v1/memory/search` | Implemented | `memory.search` |
+| `POST /api/v1/memory/list` | Implemented | `memory.list` |
+| `GET /api/v1/memory/stats` | Implemented | `memory.stats` |
+| `POST /api/v1/memory/delete` | Implemented | `memory.delete` |
+| `POST /api/v1/atp/parse` | Implemented | `atp.parse` |
+| `POST /api/v1/atp/validate` | Implemented | `atp.validate` |
+| `POST /api/v1/atp/send` | Implemented | `atp.send` |
+| `POST /api/v1/atp/route` | Implemented | `atp.route` |
+| `GET /api/v1/atp/modes` | Implemented | `atp.modes` |
+| `GET /api/v1/atp/priorities` | Implemented | `atp.priorities` |
+| `GET /api/v1/atp/action-types` | Implemented | `atp.action_types` |
+| `GET /api/v1/atp/template` | Implemented | `atp.template` |
+| `POST /api/v1/atp/format` | Implemented | `atp.format` |
+| `GET /api/v1/atp/message/:id` | Implemented | `atp.get_message` |
+| `GET /api/v1/atp/response/:id` | Implemented | `atp.get_response` |
+| `GET /api/v1/atp/queue` | Implemented | `atp.queue` |
+| `GET /api/v1/trust/:entityId` | Implemented | `trust.get_score` |
+| `POST /api/v1/trust/:entityId/failure` | Implemented | `trust.record_failure` |
+| `GET /api/v1/trust/hebbian/weights` | Implemented | `hebbian.weights` |
+| `PUT /api/v1/trust/hebbian/weights` | Implemented | `hebbian.update` |
+| `GET /api/v1/trust/levels` | Implemented | `trust.levels` |
+| `GET /api/v1/trust/report` | Implemented | `trust.report` |
+| `PUT /api/v1/trust/:entityId` | Implemented | `trust.set_score` |
+| `POST /api/v1/trust/:entityId/success` | Implemented | `trust.record_success` |
+| `GET /api/v1/trust/:entityId/permissions` | Implemented | `trust.permissions` |
+| `POST /api/v1/trust/:entityId/can-perform` | Implemented | `trust.can_perform` |
+
+### Bridge Error Mapping
+
+| Bridge code | HTTP status |
+|---|---:|
+| `NOT_FOUND` | 404 |
+| `INVALID_REQUEST`, `INVALID_JSON` | 400 |
+| `UNKNOWN_COMMAND`, `BRIDGE_ERROR`, `INTERNAL_ERROR`, `BRIDGE_UNAVAILABLE` | 500 |
 
 ## Agent Transmission Protocol (ATP)
 ATP is the structured message format for agent-to-agent communication and kernel-to-agent direction.
 
 ### ATP Message Format
 ```
-#Mode <mode>
-#Context <context_id>
-#Priority <priority_level>
-#ActionType <action_type>
-#TargetZone <zone_identifier>
-#SpecialNotes <notes>
+#Mode: Build
+#Context: Brief mission goal
+#Priority: Normal
+#ActionType: Execute
+#TargetZone: src/
+#SpecialNotes: Optional notes
 
 <message_body>
 ```
 ### ATP Tags Specification
 | Tag | Values | Required | Example | Purpose |
 | ----- | ----- | ----- | ----- | ----- |
-| `#Mode`  | `direct`, `batch`, `stream`, `async`  | Yes | `#Mode direct`  | Communication mode |
-| `#Context`  | UUID, string (max 64 chars) | Yes | `#Context exec-2026-02-21-xyz`  | Trace/correlation ID |
-| `#Priority`  | `critical` (0), `high` (1), `normal` (2), `low` (3) | Yes | `#Priority high`  | Queue priority |
-| `#ActionType`  | See section below | Yes | `#ActionType query`  | What agent should do |
-| `#TargetZone`  | `kernel`, `registry`, `memory`, `sandbox`, `governance`  | Yes | `#TargetZone memory`  | System component target |
-| `#SpecialNotes`  | String (max 256 chars) | No | `#SpecialNotes retry on timeout`  | Metadata/hints |
-### ActionType Values
-**Query Operations:**
+| `#Mode:` | `Build`, `Review`, `Organize`, `Capture`, `Synthesize`, `Commit`, `Reflect` | Recommended | `#Mode: Build` | Overall intent |
+| `#Context:` | Free-form text | Recommended | `#Context: Add bridge tests` | Mission goal |
+| `#Priority:` | `Critical`, `High`, `Normal`, `Low` | Optional | `#Priority: Normal` | Urgency |
+| `#ActionType:` or `#Action:` | `Summarize`, `Scaffold`, `Execute`, `Reflect` | Recommended | `#ActionType: Execute` | Expected response |
+| `#TargetZone:` | Path or project area | Optional | `#TargetZone: src/api_bridge.py` | Affected area |
+| `#SpecialNotes:` | Free-form text | Optional | `#SpecialNotes: Keep API stable` | Warnings or context |
 
-- `query`  : Read/lookup operation
-- `search`  : Semantic or keyword search
-- `list`  : Enumerate items
-- `get_status`  : Check current state
-**Modification Operations:**
-- `create`  : Insert new record
-- `update`  : Modify existing record
-- `delete`  : Remove record
-- `upsert`  : Create or update
-**Execution Operations:**
-- `execute`  : Run task/agent
-- `schedule`  : Queue for later execution
-- `cancel`  : Abort running task
-- `retry`  : Re-execute failed task
-**Management Operations:**
-- `register`  : Register agent or capability
-- `revoke`  : Remove registration
-- `approve`  : Approve pending action
-- `reject`  : Deny pending action
-**Governance Operations:**
-- `propose_update`  : Submit self-update
-- `rollback`  : Revert to checkpoint
-- `override`  : Bypass policy check
+Canonical parse and validation are implemented in `src/agents/atp/atp_models.py`, `src/agents/atp/atp_parser.py`, and `src/agents/atp/atp_validator.py`, exposed through `atp.parse` and `atp.validate`.
 ### ATP Message Examples
 #### Example 1: Query Task from Memory Bus
 ```
-#Mode direct
-#Context task-exec-2026-02-21-abc123
-#Priority high
-#ActionType query
-#TargetZone memory
-#SpecialNotes require_semantic_match=true
+#Mode: Synthesize
+#Context: Find tasks related to data processing
+#Priority: High
+#ActionType: Summarize
+#TargetZone: memory
+#SpecialNotes: require_semantic_match=true
 
 {
   "query_type": "semantic",
@@ -81,11 +114,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
 ```
 #### Example 2: Submit Task for Execution (Kernel)
 ```
-#Mode direct
-#Context user-request-2026-02-21-xyz789
-#Priority normal
-#ActionType execute
-#TargetZone kernel
+#Mode: Build
+#Context: Submit a task for execution
+#Priority: Normal
+#ActionType: Execute
+#TargetZone: kernel
 
 {
   "task": {
@@ -100,11 +133,11 @@ ATP is the structured message format for agent-to-agent communication and kernel
 ```
 #### Example 3: Batch Agent Communication
 ```
-#Mode batch
-#Context batch-sync-2026-02-21-batch001
-#Priority normal
-#ActionType update
-#TargetZone registry
+#Mode: Organize
+#Context: Batch registry synchronization
+#Priority: Normal
+#ActionType: Execute
+#TargetZone: registry
 
 {
   "operations": [
@@ -123,12 +156,12 @@ ATP is the structured message format for agent-to-agent communication and kernel
 ```
 #### Example 4: Async Governance Update Proposal
 ```
-#Mode async
-#Context update-proposal-2026-02-21-tier2
-#Priority high
-#ActionType propose_update
-#TargetZone governance
-#SpecialNotes trust_score=0.85, risk_tier=monitored
+#Mode: Review
+#Context: Evaluate an update proposal
+#Priority: High
+#ActionType: Reflect
+#TargetZone: governance
+#SpecialNotes: trust_score=0.85, risk_tier=monitored
 
 {
   "update_id": "uuid",
@@ -143,7 +176,7 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "checkpoint_id": "uuid"
 }
 ```
-## Kernel API
+## Planned Kernel API
 ### Submit Task
 **Endpoint:** `POST /api/v1/tasks` 
 
@@ -232,7 +265,7 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "offset": 0
 }
 ```
-## Memory Bus API
+## Planned Memory Bus API
 ### Write Document
 **Endpoint:** `POST /api/v1/memory/write` 
 
@@ -384,7 +417,7 @@ ATP is the structured message format for agent-to-agent communication and kernel
   }
 }
 ```
-## Agent Registry API
+## Planned Agent Registry API
 ### Register Agent
 **Endpoint:** `POST /api/v1/registry/agents` 
 
@@ -536,7 +569,7 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "override_timestamp": "2026-02-21T10:30:00Z"
 }
 ```
-## Governance API
+## Planned Governance API
 ### Propose Update
 **Endpoint:** `POST /api/v1/governance/updates` 
 
@@ -674,7 +707,7 @@ ATP is the structured message format for agent-to-agent communication and kernel
   "notes": "System restored to stable state"
 }
 ```
-## Hebbian Learning API
+## Planned Hebbian Learning API
 ### Get Hebbian Weights
 **Endpoint:** `GET /api/v1/hebbian/weights?agent_id={agent_id}` 
 
@@ -757,7 +790,7 @@ Authorization: Bearer <api_key>
 ```
 API keys provisioned per agent/user. Scopes restrict which endpoints are accessible.
 
-## Webhook Events
+## Planned Webhook Events
 Subscribe to events via `POST /api/v1/webhooks`:
 
 ```json

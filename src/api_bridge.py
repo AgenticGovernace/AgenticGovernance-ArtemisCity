@@ -26,12 +26,31 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 import sys
-from typing import Any, Callable, Dict
+import time
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Callable, Dict, Tuple
 
+from src.agents.atp.atp_models import ATPActionType, ATPMode, ATPPriority
+from src.agents.atp.atp_parser import ATPParser
+from src.agents.atp.atp_validator import ATPValidator
 from src.governance.approvals import SelfUpdateGovernor, UpdateProposal
 from src.governance.trust import TrustMetrics, compute_trust_score, trust_breakdown
 from src.integration.agent_registry import AgentRegistryStore
+from src.integration.memory_bus import MemoryBus
+from src.integration.trust_interface import (
+    TRUST_THRESHOLDS,
+    TrustInterface,
+    TrustLevel,
+    TrustScore,
+    _score_to_level,
+)
+from src.mcp.hebbian_weights import HebbianWeightManager
+from src.mcp.vector_store import LocalVectorStore
+from src.obsidian_integration.manager import ObsidianManager
 
 
 class BridgeError(Exception):
@@ -60,6 +79,210 @@ def _require(payload: Dict[str, Any], key: str) -> Any:
     return payload[key]
 
 
+def _require_str(payload: Dict[str, Any], key: str, allow_empty: bool = False) -> str:
+    value = _require(payload, key) if not allow_empty else payload.get(key)
+    if value is None:
+        raise BridgeError(f"missing required field: {key}", code="INVALID_REQUEST")
+    if not isinstance(value, str):
+        raise BridgeError(f"{key} must be a string", code="INVALID_REQUEST")
+    if not allow_empty and value.strip() == "":
+        raise BridgeError(f"missing required field: {key}", code="INVALID_REQUEST")
+    return value
+
+
+def _optional_limit(
+    payload: Dict[str, Any], key: str = "limit", default: int = 10, maximum: int = 100
+) -> int:
+    raw_limit = payload.get(key, default)
+    try:
+        limit = int(raw_limit)
+    except (TypeError, ValueError):
+        raise BridgeError(
+            f"{key} must be an integer, got {raw_limit!r}", code="INVALID_REQUEST"
+        )
+    if limit < 1:
+        raise BridgeError(f"{key} must be >= 1", code="INVALID_REQUEST")
+    if limit > maximum:
+        raise BridgeError(f"{key} must be <= {maximum}", code="INVALID_REQUEST")
+    return limit
+
+
+def _optional_float(
+    payload: Dict[str, Any],
+    key: str,
+    default: float | None = None,
+    minimum: float | None = None,
+    maximum: float | None = None,
+) -> float | None:
+    if key not in payload or payload[key] is None:
+        return default
+    try:
+        value = float(payload[key])
+    except (TypeError, ValueError):
+        raise BridgeError(f"{key} must be a number", code="INVALID_REQUEST")
+    if minimum is not None and value < minimum:
+        raise BridgeError(f"{key} must be >= {minimum}", code="INVALID_REQUEST")
+    if maximum is not None and value > maximum:
+        raise BridgeError(f"{key} must be <= {maximum}", code="INVALID_REQUEST")
+    return value
+
+
+def _optional_string_list(payload: Dict[str, Any], key: str) -> list[str] | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return [item.strip() for item in value.split(",") if item.strip()]
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise BridgeError(f"{key} must be a list of strings", code="INVALID_REQUEST")
+    return value
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _safe_note_path(path: str, allow_empty: bool = False) -> str:
+    if not isinstance(path, str):
+        raise BridgeError("path must be a string", code="INVALID_REQUEST")
+    if path == "":
+        if allow_empty:
+            return ""
+        raise BridgeError("missing required field: path", code="INVALID_REQUEST")
+
+    requested = Path(path)
+    if requested.is_absolute():
+        raise BridgeError("path must be relative to the vault", code="INVALID_REQUEST")
+    if ".." in requested.parts:
+        raise BridgeError("path must not contain '..' traversal", code="INVALID_REQUEST")
+    return requested.as_posix()
+
+
+def _require_note_path(payload: Dict[str, Any], key: str = "path") -> str:
+    return _safe_note_path(_require_str(payload, key), allow_empty=False)
+
+
+def _optional_note_path(
+    payload: Dict[str, Any], key: str = "path", default: str = ""
+) -> str:
+    value = payload.get(key, default)
+    if value is None:
+        value = default
+    return _safe_note_path(value, allow_empty=True)
+
+
+def _validation_to_dict(result) -> Dict[str, Any]:
+    return {
+        "is_valid": result.is_valid,
+        "valid": result.is_valid,
+        "warnings": result.warnings,
+        "errors": result.errors,
+        "suggestions": result.suggestions,
+        "has_issues": result.has_issues,
+    }
+
+
+def _memory_manager(payload: Dict[str, Any]) -> ObsidianManager:
+    vault_path = payload.get("vault_path") or os.environ.get("OBSIDIAN_VAULT_PATH")
+    return ObsidianManager(vault_path=vault_path)
+
+
+def _memory_dependencies(payload: Dict[str, Any]) -> Tuple[ObsidianManager, MemoryBus]:
+    manager = _memory_manager(payload)
+
+    vector_db_path = (
+        payload.get("vector_db_path")
+        or os.environ.get("ARTEMIS_VECTOR_DB")
+        or "data/vector_store.db"
+    )
+    search_dirs = payload.get("search_dirs")
+    if search_dirs is None:
+        search_dirs = [""]
+    if not isinstance(search_dirs, list) or not all(
+        isinstance(item, str) for item in search_dirs
+    ):
+        raise BridgeError("search_dirs must be a list of strings", "INVALID_REQUEST")
+    search_dirs = [_safe_note_path(item, allow_empty=True) for item in search_dirs]
+
+    vector_store = LocalVectorStore(db_path=str(vector_db_path))
+    return manager, MemoryBus(manager, vector_store, search_dirs=search_dirs)
+
+
+def _trust_interface(payload: Dict[str, Any]) -> TrustInterface:
+    db_path = payload.get("trust_db_path") or os.environ.get("ARTEMIS_TRUST_DB")
+    return TrustInterface(db_path=Path(db_path) if db_path else None)
+
+
+def _hebbian_manager(payload: Dict[str, Any]) -> HebbianWeightManager:
+    db_path = (
+        payload.get("hebbian_db_path")
+        or os.environ.get("ARTEMIS_HEBBIAN_DB")
+        or "data/hebbian_weights.db"
+    )
+    return HebbianWeightManager(db_path=str(db_path))
+
+
+def _atp_db_path(payload: Dict[str, Any]) -> str:
+    return (
+        payload.get("atp_db_path")
+        or os.environ.get("ARTEMIS_ATP_DB")
+        or "data/atp_messages.db"
+    )
+
+
+def _ensure_atp_store(payload: Dict[str, Any]) -> str:
+    db_path = str(_atp_db_path(payload))
+    db_dir = os.path.dirname(db_path)
+    if db_path != ":memory:" and db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS atp_messages (
+                message_id TEXT PRIMARY KEY,
+                raw_message TEXT NOT NULL,
+                parsed_json TEXT NOT NULL,
+                validation_json TEXT NOT NULL,
+                status TEXT NOT NULL,
+                route_json TEXT,
+                response_json TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_atp_status_created "
+            "ON atp_messages(status, created_at DESC)"
+        )
+        conn.commit()
+    return db_path
+
+
+def _atp_row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
+    return {
+        "message_id": row["message_id"],
+        "raw_message": row["raw_message"],
+        "message": json.loads(row["parsed_json"]),
+        "validation": json.loads(row["validation_json"]),
+        "status": row["status"],
+        "route": json.loads(row["route_json"]) if row["route_json"] else None,
+        "response": json.loads(row["response_json"]) if row["response_json"] else None,
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
+def _parse_and_validate_atp(raw_input: str, strict: bool = False) -> Dict[str, Any]:
+    message, metrics = ATPParser().parse_with_metrics(raw_input)
+    validation = ATPValidator(strict=strict).validate(message)
+    return {
+        "message": message.to_dict(),
+        "metrics": metrics,
+        "validation": _validation_to_dict(validation),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Command handlers — each takes the payload dict and returns a JSON-able dict
 # ---------------------------------------------------------------------------
@@ -75,6 +298,147 @@ def _get_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
     record = _store(payload).get_agent_record(name)
     if record is None:
         raise BridgeError(f"agent not found: {name}", code="NOT_FOUND")
+    return record
+
+
+def _register_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
+    name = payload.get("name") or payload.get("id")
+    if not isinstance(name, str) or not name.strip():
+        raise BridgeError("missing required field: name", code="INVALID_REQUEST")
+    name = name.strip()
+    capabilities = _optional_string_list(payload, "capabilities") or []
+    description = payload.get("description") or payload.get("role")
+    if description is not None and not isinstance(description, str):
+        raise BridgeError("description must be a string", code="INVALID_REQUEST")
+
+    alignment = _optional_float(payload, "alignment", 0.5, 0.0, 1.0)
+    accuracy = _optional_float(payload, "accuracy", 0.5, 0.0, 1.0)
+    efficiency = _optional_float(payload, "efficiency", 0.5, 0.0, 1.0)
+    trust_tier = payload.get("trust_tier", "monitored")
+    if trust_tier not in ("auto", "monitored", "human"):
+        raise BridgeError("trust_tier must be auto, monitored, or human", "INVALID_REQUEST")
+    status = payload.get("status", "active")
+    if status not in ("active", "suspended", "quarantined"):
+        raise BridgeError("status must be active, suspended, or quarantined", "INVALID_REQUEST")
+    trust_score = _optional_float(payload, "trust_score", None, 0.0, 1.0)
+    if trust_score is None and "trustLevel" in payload:
+        trust_score = _optional_float(payload, "trustLevel", None, 0.0, 1.0)
+
+    store = _store(payload)
+    now = time.time()
+    with sqlite3.connect(store.db_path) as conn:
+        conn.execute(
+            """
+            INSERT INTO agents (
+                name, capabilities, description, alignment, accuracy, efficiency,
+                created_at, updated_at, trust_tier, status, trust_score
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(name) DO UPDATE SET
+                capabilities = excluded.capabilities,
+                description = excluded.description,
+                alignment = excluded.alignment,
+                accuracy = excluded.accuracy,
+                efficiency = excluded.efficiency,
+                updated_at = excluded.updated_at,
+                trust_tier = excluded.trust_tier,
+                status = excluded.status,
+                trust_score = excluded.trust_score
+            """,
+            (
+                name,
+                json.dumps(capabilities),
+                description,
+                alignment,
+                accuracy,
+                efficiency,
+                now,
+                now,
+                trust_tier,
+                status,
+                trust_score,
+            ),
+        )
+        conn.commit()
+    return store.get_agent_record(name) or {}
+
+
+def _update_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
+    name = _require_str(payload, "name")
+    updates = payload.get("updates", {})
+    if not isinstance(updates, dict):
+        raise BridgeError("updates must be an object", code="INVALID_REQUEST")
+    store = _store(payload)
+    if store.get_agent_record(name) is None:
+        raise BridgeError(f"agent not found: {name}", code="NOT_FOUND")
+
+    set_parts = ["updated_at = ?"]
+    params: list[Any] = [time.time()]
+
+    if "capabilities" in updates:
+        set_parts.append("capabilities = ?")
+        params.append(json.dumps(_optional_string_list(updates, "capabilities") or []))
+    if "description" in updates or "role" in updates:
+        description = updates.get("description") or updates.get("role")
+        if description is not None and not isinstance(description, str):
+            raise BridgeError("description must be a string", code="INVALID_REQUEST")
+        set_parts.append("description = ?")
+        params.append(description)
+    for key in ("alignment", "accuracy", "efficiency", "trust_score"):
+        if key in updates:
+            set_parts.append(f"{key} = ?")
+            params.append(_optional_float(updates, key, None, 0.0, 1.0))
+    if "trustLevel" in updates and "trust_score" not in updates:
+        set_parts.append("trust_score = ?")
+        params.append(_optional_float(updates, "trustLevel", None, 0.0, 1.0))
+    if "trust_tier" in updates:
+        tier = updates["trust_tier"]
+        if tier not in ("auto", "monitored", "human"):
+            raise BridgeError("trust_tier must be auto, monitored, or human", "INVALID_REQUEST")
+        set_parts.append("trust_tier = ?")
+        params.append(tier)
+    if "status" in updates:
+        status = updates["status"]
+        if status not in ("active", "suspended", "quarantined"):
+            raise BridgeError("status must be active, suspended, or quarantined", "INVALID_REQUEST")
+        set_parts.append("status = ?")
+        params.append(status)
+
+    params.append(name)
+    with sqlite3.connect(store.db_path) as conn:
+        conn.execute(f"UPDATE agents SET {', '.join(set_parts)} WHERE name = ?", params)
+        conn.commit()
+    return store.get_agent_record(name) or {}
+
+
+def _delete_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
+    name = _require_str(payload, "name")
+    store = _store(payload)
+    if store.get_agent_record(name) is None:
+        raise BridgeError(f"agent not found: {name}", code="NOT_FOUND")
+    with sqlite3.connect(store.db_path) as conn:
+        conn.execute("DELETE FROM violations WHERE agent_name = ?", (name,))
+        cursor = conn.execute("DELETE FROM agents WHERE name = ?", (name,))
+        conn.commit()
+    return {"name": name, "deleted": cursor.rowcount > 0}
+
+
+def _set_agent_status(payload: Dict[str, Any]) -> Dict[str, Any]:
+    name = _require_str(payload, "name")
+    status = _require_str(payload, "status")
+    if status not in ("active", "suspended", "quarantined"):
+        raise BridgeError("status must be active, suspended, or quarantined", "INVALID_REQUEST")
+    store = _store(payload)
+    if store.get_agent_record(name) is None:
+        raise BridgeError(f"agent not found: {name}", code="NOT_FOUND")
+    with sqlite3.connect(store.db_path) as conn:
+        conn.execute(
+            "UPDATE agents SET status = ?, updated_at = ? WHERE name = ?",
+            (status, time.time(), name),
+        )
+        conn.commit()
+    record = store.get_agent_record(name) or {}
+    if "reason" in payload:
+        record["reason"] = payload["reason"]
     return record
 
 
@@ -224,15 +588,566 @@ def _evaluate_update(payload: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+def _parse_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
+    raw_input = _require_str(payload, "message")
+    message, metrics = ATPParser().parse_with_metrics(raw_input)
+    return {"message": message.to_dict(), "metrics": metrics}
+
+
+def _validate_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
+    raw_input = _require_str(payload, "message")
+    strict = bool(payload.get("strict", False))
+    message = ATPParser().parse(raw_input)
+    validation = ATPValidator(strict=strict).validate(message)
+    return {
+        "message": message.to_dict(),
+        "validation": _validation_to_dict(validation),
+    }
+
+
+def _send_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
+    raw_input = payload.get("message") or payload.get("text") or payload.get("atpMessage")
+    if not isinstance(raw_input, str) or not raw_input.strip():
+        raise BridgeError("missing required field: message", code="INVALID_REQUEST")
+    strict = bool(payload.get("strict", False))
+    parsed = _parse_and_validate_atp(raw_input, strict=strict)
+    message_id = str(uuid.uuid4())
+    now = _now_iso()
+    db_path = _ensure_atp_store(payload)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            INSERT INTO atp_messages (
+                message_id, raw_message, parsed_json, validation_json,
+                status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                message_id,
+                raw_input,
+                json.dumps(parsed["message"]),
+                json.dumps(parsed["validation"]),
+                "queued",
+                now,
+                now,
+            ),
+        )
+        conn.commit()
+    return {
+        "message_id": message_id,
+        "status": "queued",
+        "message": parsed["message"],
+        "validation": parsed["validation"],
+        "queued_at": now,
+    }
+
+
+def _infer_route_capability(message: Dict[str, Any], payload: Dict[str, Any]) -> str:
+    explicit = payload.get("required_capability") or payload.get("capability")
+    if isinstance(explicit, str) and explicit.strip():
+        return explicit.strip()
+    target = str(message.get("target_zone") or "").lower()
+    action = str(message.get("action_type") or "").lower()
+    mode = str(message.get("mode") or "").lower()
+    if "memory" in target:
+        return "memory_inspection"
+    if "summarize" in action or mode == "synthesize":
+        return "text_summarization"
+    if "review" in mode or "reflect" in action:
+        return "reasoning"
+    if "plan" in target or "scaffold" in action:
+        return "planning"
+    return "llm_chat"
+
+
+def _route_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
+    message_id = payload.get("message_id") or payload.get("id")
+    db_path = _ensure_atp_store(payload)
+    raw_input = payload.get("message") or payload.get("text") or payload.get("atpMessage")
+    stored: Dict[str, Any] | None = None
+    if message_id:
+        if not isinstance(message_id, str):
+            raise BridgeError("message_id must be a string", code="INVALID_REQUEST")
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT * FROM atp_messages WHERE message_id = ?", (message_id,)
+            ).fetchone()
+        if row is None:
+            raise BridgeError(f"ATP message not found: {message_id}", code="NOT_FOUND")
+        stored = _atp_row_to_dict(row)
+        raw_input = stored["raw_message"]
+    if not isinstance(raw_input, str) or not raw_input.strip():
+        raise BridgeError("missing required field: message", code="INVALID_REQUEST")
+
+    parsed = _parse_and_validate_atp(raw_input)
+    required_capability = _infer_route_capability(parsed["message"], payload)
+    agents = _store(payload).list_agent_records()
+    active_agents = [
+        agent
+        for agent in agents
+        if agent.get("status") == "active"
+        and required_capability in (agent.get("capabilities") or [])
+    ]
+    fallback_agents = [
+        agent
+        for agent in agents
+        if agent.get("status") == "active"
+        and "llm_chat" in (agent.get("capabilities") or [])
+    ]
+    candidates = active_agents or fallback_agents
+    selected = candidates[0]["name"] if candidates else None
+    route = {
+        "required_capability": required_capability,
+        "agent_name": selected,
+        "fallback_used": not bool(active_agents) and bool(fallback_agents),
+        "candidates": candidates,
+    }
+    if stored:
+        now = _now_iso()
+        with sqlite3.connect(db_path) as conn:
+            conn.execute(
+                """
+                UPDATE atp_messages
+                SET status = ?, route_json = ?, updated_at = ?
+                WHERE message_id = ?
+                """,
+                ("routed", json.dumps(route), now, message_id),
+            )
+            conn.commit()
+    return {"message": parsed["message"], "validation": parsed["validation"], "route": route}
+
+
+def _atp_modes(_: Dict[str, Any]) -> Dict[str, Any]:
+    return {"modes": [mode.value for mode in ATPMode if mode != ATPMode.UNKNOWN]}
+
+
+def _atp_priorities(_: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "priorities": [
+            priority.value for priority in ATPPriority if priority != ATPPriority.UNKNOWN
+        ]
+    }
+
+
+def _atp_action_types(_: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "action_types": [
+            action.value for action in ATPActionType if action != ATPActionType.UNKNOWN
+        ]
+    }
+
+
+def _atp_template(_: Dict[str, Any]) -> Dict[str, Any]:
+    template = "\n".join(
+        [
+            "#Mode: Build",
+            "#Context: ",
+            "#Priority: Normal",
+            "#ActionType: Execute",
+            "#TargetZone: ",
+            "#SpecialNotes: ",
+            "",
+            "",
+        ]
+    )
+    return {"template": template}
+
+
+def _format_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
+    source = payload.get("message")
+    if isinstance(source, dict):
+        data = source
+    else:
+        data = payload
+    lines = [
+        f"#Mode: {data.get('mode', 'Build')}",
+        f"#Context: {data.get('context', '')}",
+        f"#Priority: {data.get('priority', 'Normal')}",
+        f"#ActionType: {data.get('action_type') or data.get('actionType') or 'Execute'}",
+        f"#TargetZone: {data.get('target_zone') or data.get('targetZone') or ''}",
+        f"#SpecialNotes: {data.get('special_notes') or data.get('specialNotes') or ''}",
+        "",
+        str(data.get("content", "")),
+    ]
+    formatted = "\n".join(lines)
+    return {"formatted": formatted, "parsed": ATPParser().parse(formatted).to_dict()}
+
+
+def _get_atp_message(payload: Dict[str, Any]) -> Dict[str, Any]:
+    message_id = _require_str(payload, "message_id")
+    db_path = _ensure_atp_store(payload)
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT * FROM atp_messages WHERE message_id = ?", (message_id,)
+        ).fetchone()
+    if row is None:
+        raise BridgeError(f"ATP message not found: {message_id}", code="NOT_FOUND")
+    return _atp_row_to_dict(row)
+
+
+def _get_atp_response(payload: Dict[str, Any]) -> Dict[str, Any]:
+    record = _get_atp_message(payload)
+    return {
+        "message_id": record["message_id"],
+        "status": record["status"],
+        "response": record["response"],
+        "route": record["route"],
+    }
+
+
+def _atp_queue(payload: Dict[str, Any]) -> Dict[str, Any]:
+    limit = _optional_limit(payload, default=50, maximum=200)
+    db_path = _ensure_atp_store(payload)
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        counts = {
+            row["status"]: row["count"]
+            for row in conn.execute(
+                "SELECT status, COUNT(*) AS count FROM atp_messages GROUP BY status"
+            ).fetchall()
+        }
+        rows = conn.execute(
+            "SELECT * FROM atp_messages ORDER BY created_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+    return {
+        "counts": counts,
+        "total": sum(counts.values()),
+        "messages": [_atp_row_to_dict(row) for row in rows],
+    }
+
+
+def _memory_read(payload: Dict[str, Any]) -> Dict[str, Any]:
+    path = _require_note_path(payload)
+    try:
+        manager = _memory_manager(payload)
+        content = manager.read_note(path)
+    except ValueError as exc:
+        raise BridgeError(str(exc), code="INVALID_REQUEST") from exc
+    if content is None:
+        raise BridgeError(f"note not found: {path}", code="NOT_FOUND")
+    return {
+        "status": "success",
+        "source": "exact",
+        "path": path,
+        "content": content,
+        "score": 1.0,
+    }
+
+
+def _memory_write(payload: Dict[str, Any]) -> Dict[str, Any]:
+    path = _require_note_path(payload)
+    content = _require_str(payload, "content", allow_empty=True)
+    metadata = payload.get("metadata")
+    if metadata is not None and not isinstance(metadata, dict):
+        raise BridgeError("metadata must be an object", code="INVALID_REQUEST")
+    embed = payload.get("embed", True)
+    if not isinstance(embed, bool):
+        raise BridgeError("embed must be a boolean", code="INVALID_REQUEST")
+
+    try:
+        _, bus = _memory_dependencies(payload)
+        return bus.write_note_with_embedding(
+            path,
+            content,
+            metadata=metadata,
+            embed=embed,
+        )
+    except ValueError as exc:
+        raise BridgeError(str(exc), code="INVALID_REQUEST") from exc
+
+
+def _memory_list(payload: Dict[str, Any]) -> Dict[str, Any]:
+    path = _optional_note_path(payload)
+    suffix = payload.get("suffix", ".md")
+    if not isinstance(suffix, str):
+        raise BridgeError("suffix must be a string", code="INVALID_REQUEST")
+    try:
+        manager = _memory_manager(payload)
+        files = manager.list_notes_in_folder(path, suffix=suffix)
+    except ValueError as exc:
+        raise BridgeError(str(exc), code="INVALID_REQUEST") from exc
+    return {"path": path, "files": files, "count": len(files)}
+
+
+def _memory_delete(payload: Dict[str, Any]) -> Dict[str, Any]:
+    path = _require_note_path(payload)
+    try:
+        manager, bus = _memory_dependencies(payload)
+        deleted = manager.delete_note(path)
+        if deleted:
+            bus.vector_store.delete(bus._normalize_doc_id(path))
+    except ValueError as exc:
+        raise BridgeError(str(exc), code="INVALID_REQUEST") from exc
+    if not deleted:
+        raise BridgeError(f"note not found: {path}", code="NOT_FOUND")
+    return {"status": "success", "path": path, "deleted": True}
+
+
+def _memory_stats(payload: Dict[str, Any]) -> Dict[str, Any]:
+    path = _optional_note_path(payload)
+    suffix = payload.get("suffix", ".md")
+    if not isinstance(suffix, str):
+        raise BridgeError("suffix must be a string", code="INVALID_REQUEST")
+    try:
+        manager, bus = _memory_dependencies(payload)
+        root = manager._get_full_path(path)
+    except ValueError as exc:
+        raise BridgeError(str(exc), code="INVALID_REQUEST") from exc
+
+    files: list[Path] = []
+    total_bytes = 0
+    if root.exists():
+        if root.is_file():
+            files = [root] if root.suffix == suffix else []
+        else:
+            files = [item for item in root.rglob(f"*{suffix}") if item.is_file()]
+        total_bytes = sum(item.stat().st_size for item in files)
+    return {
+        "status": "success",
+        "path": path,
+        "note_count": len(files),
+        "total_bytes": total_bytes,
+        "vector_count": bus.vector_store.count(),
+    }
+
+
+def _memory_search(payload: Dict[str, Any]) -> Dict[str, Any]:
+    query = _require_str(payload, "query")
+    limit = _optional_limit(payload, default=10, maximum=100)
+    path = _optional_note_path(payload, default="")
+    tags = payload.get("tags")
+    if tags is not None and (
+        not isinstance(tags, list) or not all(isinstance(tag, str) for tag in tags)
+    ):
+        raise BridgeError("tags must be a list of strings", code="INVALID_REQUEST")
+    try:
+        _, bus = _memory_dependencies(payload)
+        results = bus.read(query, relative_path=path or None, max_results=limit)
+    except ValueError as exc:
+        raise BridgeError(str(exc), code="INVALID_REQUEST") from exc
+    if tags:
+        normalized_tags = [tag if tag.startswith("#") else f"#{tag}" for tag in tags]
+        results = [
+            result
+            for result in results
+            if any(tag in result.get("content", "") for tag in normalized_tags)
+        ]
+    return {"query": query, "results": results, "count": len(results)}
+
+
+def _trust_get_score(payload: Dict[str, Any]) -> Dict[str, Any]:
+    entity_id = _require_str(payload, "entity_id")
+    entity_type = payload.get("entity_type", "agent")
+    if not isinstance(entity_type, str):
+        raise BridgeError("entity_type must be a string", code="INVALID_REQUEST")
+    score = _trust_interface(payload).get_trust_score(entity_id, entity_type)
+    return score.to_dict()
+
+
+def _trust_set_score(payload: Dict[str, Any]) -> Dict[str, Any]:
+    entity_id = _require_str(payload, "entity_id")
+    entity_type = payload.get("entity_type", "agent")
+    if not isinstance(entity_type, str):
+        raise BridgeError("entity_type must be a string", code="INVALID_REQUEST")
+    score_value = _optional_float(payload, "score", None, 0.0, 1.0)
+    if score_value is None:
+        raise BridgeError("missing required field: score", code="INVALID_REQUEST")
+    interface = _trust_interface(payload)
+    existing = interface.get_trust_score(entity_id, entity_type)
+    updated = TrustScore(
+        entity_id=entity_id,
+        entity_type=entity_type,
+        score=score_value,
+        level=_score_to_level(score_value),
+        last_updated=datetime.now(timezone.utc),
+        decay_rate=existing.decay_rate,
+        reinforcement_events=existing.reinforcement_events,
+        penalty_events=existing.penalty_events,
+    )
+    interface._persist(updated)
+    return updated.to_dict()
+
+
+def _trust_record_success(payload: Dict[str, Any]) -> Dict[str, Any]:
+    entity_id = _require_str(payload, "entity_id")
+    entity_type = payload.get("entity_type", "agent")
+    amount = _optional_float(payload, "amount", 0.02, 0.0, 1.0) or 0.02
+    interface = _trust_interface(payload)
+    score = interface.record_success(entity_id, str(entity_type), amount)
+    return interface.get_trust_score(entity_id, str(entity_type)).to_dict() | {
+        "recorded": "success",
+        "score": score,
+    }
+
+
+def _trust_record_failure(payload: Dict[str, Any]) -> Dict[str, Any]:
+    entity_id = _require_str(payload, "entity_id")
+    entity_type = payload.get("entity_type", "agent")
+    amount = _optional_float(payload, "amount", 0.05, 0.0, 1.0) or 0.05
+    interface = _trust_interface(payload)
+    score = interface.record_failure(entity_id, str(entity_type), amount)
+    return interface.get_trust_score(entity_id, str(entity_type)).to_dict() | {
+        "recorded": "failure",
+        "score": score,
+    }
+
+
+def _trust_permissions(payload: Dict[str, Any]) -> Dict[str, Any]:
+    entity_id = _require_str(payload, "entity_id")
+    entity_type = str(payload.get("entity_type", "agent"))
+    interface = _trust_interface(payload)
+    trust_score = interface.get_trust_score(entity_id, entity_type)
+    return {
+        "entity_id": entity_id,
+        "entity_type": entity_type,
+        "trust": trust_score.to_dict(),
+        "permissions": interface.OPERATION_PERMISSIONS.get(trust_score.level, []),
+    }
+
+
+def _trust_can_perform(payload: Dict[str, Any]) -> Dict[str, Any]:
+    entity_id = _require_str(payload, "entity_id")
+    operation = _require_str(payload, "operation")
+    entity_type = str(payload.get("entity_type", "agent"))
+    allowed = _trust_interface(payload).can_perform_operation(
+        entity_id, operation, entity_type
+    )
+    return {
+        "entity_id": entity_id,
+        "entity_type": entity_type,
+        "operation": operation,
+        "allowed": allowed,
+    }
+
+
+def _trust_levels(_: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "levels": [
+            {
+                "level": level.value,
+                "threshold": TRUST_THRESHOLDS[level],
+            }
+            for level in TrustLevel
+        ]
+    }
+
+
+def _trust_report(payload: Dict[str, Any]) -> Dict[str, Any]:
+    return _trust_interface(payload).get_trust_report()
+
+
+def _trust_apply_decay(payload: Dict[str, Any]) -> Dict[str, Any]:
+    decay_rate = _optional_float(payload, "decay_rate", None, 0.0, 1.0)
+    interface = _trust_interface(payload)
+    updated = []
+    for score in list(interface.trust_scores.values()):
+        if decay_rate is not None:
+            score.decay_rate = decay_rate
+        score.apply_decay()
+        interface._persist(score)
+        updated.append(score.to_dict())
+    return {"updated": updated, "count": len(updated)}
+
+
+def _hebbian_weights(payload: Dict[str, Any]) -> Dict[str, Any]:
+    limit = _optional_limit(payload, default=50, maximum=500)
+    min_weight = _optional_float(payload, "min_weight", 0.0) or 0.0
+    manager = _hebbian_manager(payload)
+    connections = manager.get_all_connections(min_weight=min_weight)[:limit]
+    return {"summary": manager.get_network_summary(), "connections": connections}
+
+
+def _hebbian_update(payload: Dict[str, Any]) -> Dict[str, Any]:
+    origin = payload.get("origin") or payload.get("agent1")
+    target = payload.get("target") or payload.get("agent2")
+    if not isinstance(origin, str) or not origin.strip():
+        raise BridgeError("missing required field: origin", code="INVALID_REQUEST")
+    if not isinstance(target, str) or not target.strip():
+        raise BridgeError("missing required field: target", code="INVALID_REQUEST")
+    delta = _optional_float(payload, "delta", None)
+    if delta is None:
+        raise BridgeError("missing required field: delta", code="INVALID_REQUEST")
+    manager = _hebbian_manager(payload)
+    current = manager.get_weight(origin, target)
+    new_weight = max(0.0, current + delta)
+    now = datetime.now().isoformat()
+    with sqlite3.connect(manager.db_path) as conn:
+        conn.execute(
+            """
+            INSERT INTO node_connections (
+                origin_node, target_node, weight, activation_count, success_count,
+                failure_count, last_updated, created_at
+            ) VALUES (?, ?, ?, 1, ?, ?, ?, ?)
+            ON CONFLICT(origin_node, target_node)
+            DO UPDATE SET
+                weight = ?,
+                activation_count = activation_count + 1,
+                success_count = success_count + ?,
+                failure_count = failure_count + ?,
+                last_updated = ?
+            """,
+            (
+                origin,
+                target,
+                new_weight,
+                1 if delta > 0 else 0,
+                1 if delta < 0 else 0,
+                now,
+                now,
+                new_weight,
+                1 if delta > 0 else 0,
+                1 if delta < 0 else 0,
+                now,
+            ),
+        )
+        conn.commit()
+    return manager.get_connection_stats(origin, target) or {}
+
+
 COMMANDS: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
+    "atp.parse": _parse_atp,
+    "atp.validate": _validate_atp,
+    "atp.send": _send_atp,
+    "atp.route": _route_atp,
+    "atp.modes": _atp_modes,
+    "atp.priorities": _atp_priorities,
+    "atp.action_types": _atp_action_types,
+    "atp.template": _atp_template,
+    "atp.format": _format_atp,
+    "atp.get_message": _get_atp_message,
+    "atp.get_response": _get_atp_response,
+    "atp.queue": _atp_queue,
+    "memory.read": _memory_read,
+    "memory.write": _memory_write,
+    "memory.list": _memory_list,
+    "memory.search": _memory_search,
+    "memory.delete": _memory_delete,
+    "memory.stats": _memory_stats,
     "registry.list_agents": _list_agents,
     "registry.get_agent": _get_agent,
+    "registry.register_agent": _register_agent,
+    "registry.update_agent": _update_agent,
+    "registry.delete_agent": _delete_agent,
+    "registry.set_agent_status": _set_agent_status,
     "registry.get_violations": _get_violations,
     "registry.clear_violations": _clear_violations,
     "registry.set_trust_tier": _set_trust_tier,
     "registry.record_violation": _record_violation,
     "governance.compute_trust": _compute_trust,
     "governance.evaluate_update": _evaluate_update,
+    "trust.get_score": _trust_get_score,
+    "trust.set_score": _trust_set_score,
+    "trust.record_success": _trust_record_success,
+    "trust.record_failure": _trust_record_failure,
+    "trust.permissions": _trust_permissions,
+    "trust.can_perform": _trust_can_perform,
+    "trust.levels": _trust_levels,
+    "trust.report": _trust_report,
+    "trust.apply_decay": _trust_apply_decay,
+    "hebbian.weights": _hebbian_weights,
+    "hebbian.update": _hebbian_update,
 }
 
 

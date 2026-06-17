@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling>=1.21.0"]
+build-backend = "hatchling.build"
+
 [project]
 name = "artemis-city"
 version = "0.7.0"
@@ -300,6 +304,10 @@ dependencies = [
     "zipp==4.1.0",
 ]
 
+# Packaging audit note: this phase pins the wheel contents to the Python core
+# packages only. The base dependency list is still lock-style and includes
+# dashboard/dev transitive dependencies; splitting those into lean optional
+# extras should be handled in a follow-up with lockfile regeneration.
 [project.optional-dependencies]
 dev = [
     "ipdb>=0.13.13",
@@ -352,3 +360,10 @@ GitHub = "https://github.com/AgenticGovernace/AgenticGovernance-ArtemisCity.git"
 Documentation = "https://artemiscity.mintlify.app/"
 Website = "https://artemiscity.com/"
 Demo = "https://artemiscity.com/demos"
+
+[tool.hatch.build.targets.wheel]
+only-include = [
+    "src",
+    "app/__init__.py",
+    "app/kernel",
+]
