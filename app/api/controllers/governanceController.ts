@@ -67,4 +67,23 @@ export class GovernanceController {
       ...proposal,
     });
   }
+
+  async recordViolation(
+    agentName: string,
+    violationType: string,
+    details: Record<string, unknown> = {}
+  ): Promise<any> {
+    return callBridge('registry.record_violation', {
+      name: agentName,
+      violation_type: violationType,
+      details,
+    });
+  }
+
+  async setTrustTier(agentName: string, tier: string): Promise<any> {
+    return callBridge('registry.set_trust_tier', {
+      name: agentName,
+      tier,
+    });
+  }
 }

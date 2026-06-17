@@ -69,6 +69,7 @@ class ATPParser:
         "mode",
         "context",
         "priority",
+        "action",
         "actiontype",
         "targetzone",
         "specialnotes",
@@ -147,7 +148,7 @@ class ATPParser:
         """
         # Mode
         if "mode" in headers:
-            message.mode = self._parse_enum(headers["mode"], ATPMode, ATPMode)
+            message.mode = self._parse_enum(headers["mode"], ATPMode, ATPMode.UNKNOWN)
 
         # Context
         if "context" in headers:
@@ -160,9 +161,10 @@ class ATPParser:
             )
 
         # Action Type
-        if "actiontype" in headers:
+        action_value = headers.get("actiontype") or headers.get("action")
+        if action_value is not None:
             message.action_type = self._parse_enum(
-                headers["actiontype"], ATPActionType, ATPActionType.UNKNOWN
+                action_value, ATPActionType, ATPActionType.UNKNOWN
             )
 
         # Target Zone

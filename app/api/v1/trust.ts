@@ -1,286 +1,131 @@
 /**
  * Trust Routes
  *
- * Endpoints for trust management and Hebbian learning.
+ * Bridge-backed trust and Hebbian reads/mutations.
  */
 
 import { Router, Request, Response } from 'express';
 import { TrustController } from '../controllers/trustController';
+import { asyncHandler, Errors } from '../middleware/errorHandler';
 
 const router = Router();
 const controller = new TrustController();
 
-/**
- * GET /api/v1/trust/report
- * Get comprehensive trust report
- */
-router.get('/report', async (req: Request, res: Response) => {
-  try {
-    const report = await controller.getTrustReport();
-    res.json({
-      success: true,
-      data: report
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+function requestBody(req: Request): Record<string, unknown> {
+  return (req.body ?? {}) as Record<string, unknown>;
+}
 
-/**
- * GET /api/v1/trust/:entityId
- * Get trust score for an entity
- */
-router.get('/:entityId', async (req: Request, res: Response) => {
-  try {
-    const { entityId } = req.params;
-    const trust = await controller.getTrustScore(entityId);
+router.get(
+  '/hebbian/weights',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const data = await controller.getHebbianWeights();
+    res.json({ success: true, data });
+  })
+);
 
-    if (trust === null) {
-      res.status(404).json({
-        success: false,
-        error: `Entity not found: ${entityId}`
-      });
-      return;
+router.put(
+  '/hebbian/weights',
+  asyncHandler(async (req: Request, res: Response) => {
+    const payload = requestBody(req);
+    const { agent1, agent2, delta } = payload;
+    if (typeof agent1 !== 'string' || typeof agent2 !== 'string') {
+      throw Errors.BadRequest('agent1 and agent2 are required');
     }
-
-    res.json({
-      success: true,
-      data: trust
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/**
- * PUT /api/v1/trust/:entityId
- * Set trust score for an entity
- */
-router.put('/:entityId', async (req: Request, res: Response) => {
-  try {
-    const { entityId } = req.params;
-    const { score, entityType = 'agent' } = req.body;
-
-    if (typeof score !== 'number' || score < 0 || score > 1) {
-      res.status(400).json({
-        success: false,
-        error: 'score must be a number between 0 and 1'
-      });
-      return;
+    if (typeof delta !== 'number') {
+      throw Errors.BadRequest('delta must be a number');
     }
+    const data = await controller.updateHebbianWeight(agent1, agent2, delta);
+    res.json({ success: true, data });
+  })
+);
 
-    const result = await controller.setTrustScore(entityId, score, entityType);
-    res.json({
-      success: true,
-      data: result,
-      message: 'Trust score updated'
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+router.get(
+  '/levels',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const data = await controller.getTrustLevels();
+    res.json({ success: true, data });
+  })
+);
 
-/**
- * POST /api/v1/trust/:entityId/success
- * Record successful operation
- */
-router.post('/:entityId/success', async (req: Request, res: Response) => {
-  try {
-    const { entityId } = req.params;
-    const { amount = 0.02 } = req.body;
+router.get(
+  '/report',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const data = await controller.getTrustReport();
+    res.json({ success: true, data });
+  })
+);
 
-    const newScore = await controller.recordSuccess(entityId, amount);
+router.get(
+  '/:entityId',
+  asyncHandler(async (req: Request, res: Response) => {
+    const data = await controller.getTrustScore(req.params.entityId);
+    res.json({ success: true, data });
+  })
+);
 
-    if (newScore === null) {
-      res.status(404).json({
-        success: false,
-        error: `Entity not found: ${entityId}`
-      });
-      return;
+router.put(
+  '/:entityId',
+  asyncHandler(async (req: Request, res: Response) => {
+    const payload = requestBody(req);
+    const score = payload.score;
+    if (typeof score !== 'number') {
+      throw Errors.BadRequest('score must be a number');
     }
+    const entityType =
+      typeof payload.entityType === 'string' ? payload.entityType : 'agent';
+    const data = await controller.setTrustScore(req.params.entityId, score, entityType);
+    res.json({ success: true, data });
+  })
+);
 
-    res.json({
-      success: true,
-      data: { entityId, newScore, delta: amount },
-      message: 'Success recorded'
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/**
- * POST /api/v1/trust/:entityId/failure
- * Record failed operation
- */
-router.post('/:entityId/failure', async (req: Request, res: Response) => {
-  try {
-    const { entityId } = req.params;
-    const { amount = 0.05 } = req.body;
-
-    const newScore = await controller.recordFailure(entityId, amount);
-
-    if (newScore === null) {
-      res.status(404).json({
-        success: false,
-        error: `Entity not found: ${entityId}`
-      });
-      return;
+router.post(
+  '/:entityId/success',
+  asyncHandler(async (req: Request, res: Response) => {
+    const payload = requestBody(req);
+    const amount = payload.amount ?? 0.02;
+    if (typeof amount !== 'number' || amount < 0) {
+      throw Errors.BadRequest('amount must be a non-negative number');
     }
+    const data = await controller.recordSuccess(req.params.entityId, amount);
+    res.json({ success: true, data });
+  })
+);
 
-    res.json({
-      success: true,
-      data: { entityId, newScore, delta: -amount },
-      message: 'Failure recorded'
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/**
- * GET /api/v1/trust/:entityId/permissions
- * Check what operations an entity can perform
- */
-router.get('/:entityId/permissions', async (req: Request, res: Response) => {
-  try {
-    const { entityId } = req.params;
-    const permissions = await controller.getPermissions(entityId);
-
-    res.json({
-      success: true,
-      data: permissions
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/**
- * POST /api/v1/trust/:entityId/can-perform
- * Check if entity can perform specific operation
- */
-router.post('/:entityId/can-perform', async (req: Request, res: Response) => {
-  try {
-    const { entityId } = req.params;
-    const { operation } = req.body;
-
-    if (!operation) {
-      res.status(400).json({
-        success: false,
-        error: 'operation is required'
-      });
-      return;
+router.post(
+  '/:entityId/failure',
+  asyncHandler(async (req: Request, res: Response) => {
+    const payload = requestBody(req);
+    const amount = payload.amount ?? 0.05;
+    if (typeof amount !== 'number' || amount < 0) {
+      throw Errors.BadRequest('amount must be a non-negative number');
     }
-
-    const canPerform = await controller.canPerformOperation(entityId, operation);
+    const data = await controller.recordFailure(req.params.entityId, amount);
     res.json({
       success: true,
-      data: {
-        entityId,
-        operation,
-        allowed: canPerform
-      }
+      data,
+      message: 'Failure recorded as a registry violation',
     });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+  })
+);
 
-/**
- * GET /api/v1/trust/hebbian/weights
- * Get Hebbian connection weights
- */
-router.get('/hebbian/weights', async (req: Request, res: Response) => {
-  try {
-    const weights = await controller.getHebbianWeights();
-    res.json({
-      success: true,
-      data: weights
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+router.get(
+  '/:entityId/permissions',
+  asyncHandler(async (req: Request, res: Response) => {
+    const data = await controller.getPermissions(req.params.entityId);
+    res.json({ success: true, data });
+  })
+);
 
-/**
- * PUT /api/v1/trust/hebbian/weights
- * Update Hebbian connection weight
- */
-router.put('/hebbian/weights', async (req: Request, res: Response) => {
-  try {
-    const { agent1, agent2, delta } = req.body;
-
-    if (!agent1 || !agent2 || typeof delta !== 'number') {
-      res.status(400).json({
-        success: false,
-        error: 'agent1, agent2, and delta are required'
-      });
-      return;
+router.post(
+  '/:entityId/can-perform',
+  asyncHandler(async (req: Request, res: Response) => {
+    const operation = requestBody(req).operation;
+    if (typeof operation !== 'string' || operation.length === 0) {
+      throw Errors.BadRequest('operation is required');
     }
-
-    const newWeight = await controller.updateHebbianWeight(agent1, agent2, delta);
-    res.json({
-      success: true,
-      data: {
-        connection: `${agent1}-${agent2}`,
-        newWeight,
-        delta
-      },
-      message: 'Hebbian weight updated'
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/**
- * GET /api/v1/trust/levels
- * Get trust level definitions
- */
-router.get('/levels', (req: Request, res: Response) => {
-  res.json({
-    success: true,
-    data: {
-      levels: [
-        { name: 'FULL', range: '0.9 - 1.0', operations: ['read', 'write', 'delete', 'search', 'tag', 'update', 'frontmatter'] },
-        { name: 'HIGH', range: '0.7 - 0.9', operations: ['read', 'write', 'search', 'tag', 'update', 'frontmatter'] },
-        { name: 'MEDIUM', range: '0.5 - 0.7', operations: ['read', 'write', 'search', 'tag'] },
-        { name: 'LOW', range: '0.3 - 0.5', operations: ['read', 'search'] },
-        { name: 'UNTRUSTED', range: '0.0 - 0.3', operations: [] }
-      ],
-      decayRate: '1% per day',
-      reinforcement: '+0.02 per success',
-      penalty: '-0.05 per failure'
-    }
-  });
-});
+    const data = await controller.canPerformOperation(req.params.entityId, operation);
+    res.json({ success: true, data });
+  })
+);
 
 export default router;
