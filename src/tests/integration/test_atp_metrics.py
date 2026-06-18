@@ -14,8 +14,8 @@ for _key in [k for k in sys.modules if k == "agents" or k.startswith("agents.")]
 
 import pytest
 import time
-from agents.atp.atp_parser import ATPParser
-from agents.atp.atp_models import ATPMessage, ATPMode, ATPPriority, ATPActionType
+from src.agents.atp.atp_parser import ATPParser
+from src.agents.atp.atp_models import ATPMessage, ATPMode, ATPPriority, ATPActionType
 
 
 class TestParseWithMetricsBasic:

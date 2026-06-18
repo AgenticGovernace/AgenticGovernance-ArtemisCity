@@ -16,7 +16,7 @@ for _key in [k for k in sys.modules if k == "integration" or k.startswith("integ
     del sys.modules[_key]
 
 import pytest
-from integration.sandbox import (
+from src.integration.sandbox import (
     AgentSandbox,
     SandboxManager,
     ViolationType,

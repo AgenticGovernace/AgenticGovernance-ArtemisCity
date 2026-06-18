@@ -1,10 +1,6 @@
-"""Tests for the Artemis exception hierarchy (src/exceptions.py)."""
+"""Tests for the Artemis exception hierarchy (src/integration/exceptions.py)."""
 
-import sys
-import importlib
-
-sys.modules.pop("exceptions", None)
-from exceptions import (
+from src.integration.exceptions import (
     AgentCapabilityError,
     AgentError,
     AgentNotFoundError,

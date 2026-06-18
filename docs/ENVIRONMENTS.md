@@ -15,14 +15,25 @@ forget.
 ## Flow
 
 ```
-feature/* --PR--> dev --PR--> staging --PR--> prod
+feature/* --PR--> dev --push--> [Promote cascade] --ff--> staging --ff--> prod
 ```
 
-- Feature branches always target `dev`.
-- Promote `dev -> staging` and `staging -> prod` either by opening a PR
-  manually or by running the `Promote` workflow from the Actions tab.
-- `prod` is protected; only promotion PRs merged from `staging` may land
-  there.
+- Feature branches always target `dev`. Day to day you only touch `dev`.
+- A **push to `dev`** triggers the `Promote` cascade (`promote.yml`): it
+  runs the test gate, then fast-forwards `staging` to the tested commit,
+  deploys `staging`, fast-forwards `prod`, and deploys `prod` — all in one
+  run, with no manual branch surgery.
+- Promotion advances the env branches with a plain `git push` of the tested
+  commit, **not** a promotion pull request. Because `dev` is never used as a
+  PR head branch, it is never auto-deleted — you no longer have to recreate
+  `dev` after every promotion.
+- Approval gates live on the GitHub **Environments**, not on branch PRs: if
+  the `staging` / `prod` Environments have required reviewers, the matching
+  deploy job pauses for approval before it runs. The cascade still flows
+  hands-off through any environment that has zero required reviewers.
+- The cascade is fast-forward only (no `--force`). If `staging` or `prod`
+  was diverged outside the cascade, the push fails loudly instead of
+  clobbering history.
 
 ## Config
 
@@ -44,11 +55,24 @@ approvals are configured on the Environment itself in repo Settings.
 ## Workflows
 
 - `ci.yml` runs on every push and PR to `dev`, `staging`, `prod`.
-- `deploy.yml` runs on push to an env branch and deploys to the matching
-  GitHub Environment. The deploy step is a provider-agnostic placeholder;
+- `promote.yml` is the promotion cascade. On a push to `dev` (or manual
+  dispatch) it runs the test gate and then advances `staging` and `prod`
+  by fast-forward, invoking `deploy.yml` for each. It needs
+  `contents: write` to move the branch pointers.
+- `deploy.yml` deploys to the matching GitHub Environment. It is invoked
+  three ways: directly on push to an env branch, manually via
+  `workflow_dispatch`, and as a **reusable workflow** (`workflow_call`)
+  from `promote.yml`. The deploy step is a provider-agnostic placeholder;
   wire your container build or `aws`/`az`/`gcloud` deploy action there.
-- `promote.yml` opens a draft promotion PR (`dev -> staging` or
-  `staging -> prod`) on demand.
+
+> **Note on `GITHUB_TOKEN` and branch protection.** Pushes the cascade
+> makes with the default `GITHUB_TOKEN` do not re-trigger other workflows
+> (that is why `promote.yml` calls `deploy.yml` directly rather than
+> relying on `deploy.yml`'s own push trigger). If you protect `staging` /
+> `prod` with rules that *require a pull request*, the cascade's direct
+> push will be rejected — gate those environments with **required
+> reviewers on the GitHub Environment** instead, and keep
+> "Automatically delete head branches" off so manual PRs never eat `dev`.
 
 ## One-time setup (after merge)
 

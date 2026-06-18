@@ -14,22 +14,32 @@ This document describes the Continuous Integration and Continuous Deployment (CI
 
 ## Overview
 
-Artemis City uses GitHub Actions for CI/CD with four main workflows:
+Artemis City deploys across three long-lived environment branches —
+`dev`, `staging`, `prod` — that map 1:1 to GitHub Environments. See
+`docs/ENVIRONMENTS.md` for the branch model; this document covers the
+pipeline that drives it.
 
-- **CI**: Runs on every push and pull request
-- **Release**: Triggers on version tags for automated releases
-- **Dependencies**: Weekly security scans and update checks
-- **Code Quality**: Advanced quality metrics and reporting
+GitHub Actions provides four workflows:
+
+- **CI** (`ci.yml`): tests + config validation on every push/PR to the
+  env branches.
+- **Promote** (`promote.yml`): the promotion cascade. A push to `dev`
+  flows automatically to `staging` and then `prod`.
+- **Deploy** (`deploy.yml`): deploys a commit to its matching GitHub
+  Environment. Runs on direct push, manual dispatch, or as the reusable
+  workflow the cascade calls.
+- **Dependency Submission** (`dependency-submission.yml`): best-effort
+  dependency-graph snapshot (non-blocking).
+
+CircleCI (`.circleci/config.yml`) runs an equivalent build-and-test job
+as a second, provider-independent signal.
 
 ### Technology Stack
 
-- **CI Platform**: GitHub Actions
-- **Python Testing**: pytest with coverage
-- **Linting**: Black, isort, Flake8, Pylint
-- **Type Checking**: MyPy
-- **Security**: Bandit, Safety, Gitleaks
-- **Node.js**: TypeScript compilation, npm audit
-- **Coverage**: Codecov integration
+- **CI Platform**: GitHub Actions (plus CircleCI mirror)
+- **Python Testing**: pytest (`src/tests`)
+- **Supported Python**: 3.11, 3.12, 3.13 (`requires-python = ">=3.11,<3.15"`)
+- **Environment model**: `dev -> staging -> prod` (see `docs/ENVIRONMENTS.md`)
 
 ## Workflows
 
@@ -37,156 +47,76 @@ Artemis City uses GitHub Actions for CI/CD with four main workflows:
 
 **Triggers:**
 
-- Push to `main` or `develop` branches
-- Pull requests to `main` or `develop`
-
-**Jobs:**
-
-#### Python Quality Checks
-
-- **lint-python**: Code formatting and style checks
-    - Black (format validation)
-    - isort (import sorting)
-    - Flake8 (style guide)
-    - Pylint (static analysis)
-
-- **type-check-python**: Type annotation validation
-    - MyPy type checker
-
-- **security-python**: Security vulnerability scanning
-    - Bandit (code security)
-    - Safety (dependency vulnerabilities)
-
-- **test-python**: Unit tests across Python versions
-    - Matrix: Python 3.8, 3.9, 3.10, 3.11, 3.12, 3.13
-    - Coverage reporting to Codecov
-    - XML coverage export
-
-#### Node.js Quality Checks
-
-- **lint-typescript**: TypeScript/JavaScript linting
-    - ESLint checks
-    - Prettier format validation
-
-- **build-typescript**: Compilation verification
-    - TypeScript compilation
-    - Build artifact validation
-
-#### Additional Checks
-
-- **secret-scan**: Detect committed secrets
-    - Gitleaks integration
-    - Historical commit scanning
-
-- **docs**: Documentation build validation
-    - MkDocs build test
-
-- **integration**: End-to-end integration test
-    - Python + Node.js integration
-    - Import validation
-    - CLI smoke test
-
-### 2. Release Workflow (`.github/workflows/release.yml`)
-
-**Triggers:**
-
-- Git tags matching `v*.*.*` pattern
-    - Example: `v0.1.0`, `v1.2.3`
-
-**Jobs:**
-
-#### Build
-
-- Package creation with `python -m build`
-- Twine validation
-- Artifact upload
-
-#### GitHub Release
-
-- Automatic release creation
-- Changelog extraction
-- Binary distribution attachment
-- Pre-release detection (alpha, beta, rc)
-
-#### PyPI Publication
-
-- Automated PyPI upload
-- Skip existing versions
-- Trusted publisher workflow
-
-#### Docker Build (Optional)
-
-- Multi-arch Docker images
-- Semantic versioning tags
-- Docker Hub publication
-- Currently disabled (enable when Dockerfile added)
-
-### 3. Dependencies Workflow (`.github/workflows/dependencies.yml`)
-
-**Triggers:**
-
-- Weekly schedule (Monday 9 AM UTC)
+- Push to `dev`, `staging`, or `prod`
+- Pull requests targeting `dev`, `staging`, or `prod`
 - Manual dispatch
 
 **Jobs:**
 
-#### Python Dependencies
+- **docs-mirror**: fails if `CLAUDE.md` and `AGENTS.md` are not
+  byte-for-byte identical.
+- **python**: matrix over Python 3.11 / 3.12 / 3.13 —
+    - installs `requirements.txt` + `requirements-dev.txt`,
+    - validates every `config/environments/*.yaml` via
+      `src.utils.environments.load_environment`,
+    - runs `python -m pytest src/tests`.
 
-- Outdated package detection
-- pip-audit security scan
-- Safety vulnerability check
-- Report generation
+### 2. Promote Workflow (`.github/workflows/promote.yml`)
 
-#### Node Dependencies
-
-- npm outdated check
-- npm audit security scan
-- Report generation
-
-#### Issue Creation
-
-- Automatic GitHub issue on vulnerabilities
-- Workflow artifact links
-- Security label assignment
-
-### 4. Code Quality Workflow (`.github/workflows/code-quality.yml`)
+The promotion cascade. See `docs/ENVIRONMENTS.md` for the full branch
+model.
 
 **Triggers:**
 
-- Pull requests
-- Weekly schedule (Sunday 9 AM UTC)
-- Manual dispatch
+- Push to `dev`
+- Manual dispatch (promotes the current `dev` tip)
+
+**Jobs (sequential):**
+
+1. **test** — test gate (same checks as CI). Nothing promotes unless this
+   is green.
+2. **promote-staging** — fast-forwards `staging` to the tested commit with
+   `git push` (no PR, no branch deletion).
+3. **deploy-staging** — calls `deploy.yml` (reusable) for the `staging`
+   Environment.
+4. **promote-prod** — fast-forwards `prod` to the same commit.
+5. **deploy-prod** — calls `deploy.yml` for the `prod` Environment.
+
+Approvals are enforced by required reviewers on the `staging` / `prod`
+GitHub Environments, so the cascade pauses for sign-off where configured
+and flows straight through where not.
+
+### 3. Deploy Workflow (`.github/workflows/deploy.yml`)
+
+**Triggers:**
+
+- Push to `dev`, `staging`, or `prod`
+- Manual dispatch (pick the environment)
+- `workflow_call` — reusable entry point used by the Promote cascade
 
 **Jobs:**
 
-#### Coverage
+- **resolve**: picks the target environment from the `environment` input
+  (dispatch/call) or the branch name (push).
+- **deploy**: binds to the matching GitHub Environment, loads its
+  `config/environments/<env>.yaml`, then runs the provider-agnostic
+  build + deploy placeholder steps.
 
-- Test coverage reporting
-- Codecov integration
-- HTML report generation
+### 4. Dependency Submission (`.github/workflows/dependency-submission.yml`)
 
-#### Complexity
+**Triggers:**
 
-- Cyclomatic complexity (Radon)
-- Maintainability index
-- Complexity threshold enforcement (Xenon)
+- Push / PR to `dev`, `staging`, `prod`
+- Manual dispatch
 
-#### Duplication
+Submits a best-effort dependency-graph snapshot for `pyproject.toml`. The
+job is `continue-on-error`, so it never blocks the pipeline.
 
-- Code duplication detection
-- Pylint duplicate-code check
+### CircleCI mirror (`.circleci/config.yml`)
 
-#### Static Analysis
-
-- Dead code detection (Vulture)
-- Strict type checking (MyPy)
-- Report generation
-
-#### Statistics
-
-- Line count metrics
-- PR comment with statistics
-- Multi-language support
+A single `build-and-test` job on `cimg/python:3.12` that installs the
+requirements, validates the environment configs, and runs
+`pytest src/tests` — a provider-independent copy of the GitHub CI signal.
 
 ## Pipeline Stages
 
@@ -259,7 +189,7 @@ Python version matrix:
 ```yaml
 strategy:
   matrix:
-    python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+    python-version: ['3.11', '3.12', '3.13']
 ```
 
 ### Caching
@@ -338,7 +268,7 @@ version = "1.0.0"
 ```bash
 git add pyproject.toml CHANGELOG.md
 git commit -m "Release v1.0.0"
-git push origin main
+git push origin prod
 ```
 
 **4. Create and push tag:**
@@ -589,5 +519,5 @@ Add to README.md:
 ```markdown
 ![CI](https://github.com/yourusername/artemis-city/workflows/CI/badge.svg)
 ![Release](https://github.com/yourusername/artemis-city/workflows/Release/badge.svg)
-[![codecov](https://codecov.io/gh/yourusername/artemis-city/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/artemis-city)
+[![codecov](https://codecov.io/gh/yourusername/artemis-city/branch/prod/graph/badge.svg)](https://codecov.io/gh/yourusername/artemis-city)
 ```
