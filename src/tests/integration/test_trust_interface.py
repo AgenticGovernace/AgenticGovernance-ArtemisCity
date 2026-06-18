@@ -6,7 +6,7 @@ sys.modules.pop("integration.trust_interface", None)
 
 import pytest
 from datetime import datetime, timedelta
-from integration.trust_interface import (
+from src.integration.trust_interface import (
     TrustInterface,
     TrustLevel,
     TrustScore,

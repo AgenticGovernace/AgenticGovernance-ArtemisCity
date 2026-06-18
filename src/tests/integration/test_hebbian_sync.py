@@ -13,7 +13,7 @@ for _key in [k for k in sys.modules if k == "integration" or k.startswith("integ
 
 import pytest
 import time
-from integration.hebbian_sync import HebbianSyncService, WeightUpdate, BatchResult
+from src.integration.hebbian_sync import HebbianSyncService, WeightUpdate, BatchResult
 
 
 class TestWeightUpdate:

@@ -13,7 +13,7 @@ for _key in [k for k in sys.modules if k == "integration" or k.startswith("integ
 
 import pytest
 from datetime import datetime, timedelta
-from integration.memory_decay import MemoryDecayService, MemoryNode, DecayEvent
+from src.integration.memory_decay import MemoryDecayService, MemoryNode, DecayEvent
 
 
 class TestMemoryNode:
