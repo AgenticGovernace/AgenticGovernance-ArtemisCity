@@ -7,7 +7,7 @@ sys.modules.pop("integration.governance", None)
 
 import pytest
 from pathlib import Path
-from integration.governance import GovernanceMonitor
+from src.integration.governance import GovernanceMonitor
 
 
 class TestGovernanceMonitor:
