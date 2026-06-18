@@ -117,7 +117,9 @@ repos:
       - id: mixed-line-ending
         args: [ --fix=lf ]
       - id: no-commit-to-branch
-        args: [ --branch, main, --branch, master ]
+        # prod/staging are advanced only by the Promote cascade (git push from
+        # CI), never by hand. Feature work and direct commits land on dev.
+        args: [ --branch, prod, --branch, staging ]
 
   # ============================================
   # PYTHON FORMATTING

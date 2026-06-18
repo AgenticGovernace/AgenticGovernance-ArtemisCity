@@ -12,7 +12,7 @@ for _key in [k for k in sys.modules if k == "governance" or k.startswith("govern
     del sys.modules[_key]
 
 import pytest
-from governance.self_update_governance import (
+from src.governance.self_update_governance import (
     SelfUpdateGovernor,
     ApprovalLevel,
     WorkflowChange,
@@ -20,7 +20,7 @@ from governance.self_update_governance import (
     ProposalStatus,
     SandboxTestResults,
 )
-from governance.rollback import RollbackManager, Checkpoint
+from src.governance.rollback import RollbackManager, Checkpoint
 
 
 # ---------------------------------------------------------------------------

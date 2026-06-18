@@ -1,51 +1,35 @@
-# Use the latest 2.1 version of CircleCI pipeline process engine.
+# CircleCI 2.1 pipeline for Artemis City.
 # See: https://circleci.com/docs/reference/configuration-reference
-
-# For a detailed guide to building and testing with Python, read the docs:
-# https://circleci.com/docs/language-python/ for more details
+#
+# This mirrors the GitHub Actions `ci.yml` job: install deps, validate the
+# environment configs, and run the Python test suite under src/tests.
 version: 2.1
 
-# Orbs are reusable packages of CircleCI configuration that you may share across projects, enabling you to create encapsulated, parameterized commands, jobs, and executors that can be used across multiple projects.
-# See: https://circleci.com/docs/orbs/use/orb-intro/
-orbs:
-  # See the Python orb documentation here: https://circleci.com/developer/orbs/orb/circleci/python
-  python: circleci/python@4.0.0
-
-# Define a job to be invoked later in a workflow.
+# Reusable execution environment.
 executors:
-# See: https://circleci.com/docs/guides/orchestrate/jobs-steps/#jobs-overview & https://circleci.com/docs/reference/configuration-reference/#jobs
-jobs:
-  build-and-test:
-    # Specify the execution environment. You can specify an image from Docker Hub or use one of our convenience images from CircleCI's Developer Hub.
-    # See: https://circleci.com/docs/guides/execution-managed/executor-intro/ & https://circleci.com/docs/reference/configuration-reference/#executor-job
   py:
     docker:
-      # Specify the version you desire here
-      # See:https://circleci.com/developer/images/image/cimg/python
+      # Pin a concrete Python minor version that matches our support matrix.
+      # See: https://circleci.com/developer/images/image/cimg/python
       - image: cimg/python:3.12
-    working_directory: .
-
-autoscaling:
-  cancel_unfinished: false
+    working_directory: ~/project
 
 commands:
   restore_pip_cache:
     steps:
       - restore_cache:
           keys:
-            - pip-v1-{{ checksum "requirements.txt" }}-{{ checksum "test-requirements.txt" }}
-            - pip-v1-{{ checksum "requirements.txt" }}
-            - pip-v1-
+            - pip-v2-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
+            - pip-v2-{{ checksum "requirements.txt" }}
+            - pip-v2-
 
   save_pip_cache:
     steps:
       - save_cache:
-          key: pip-v1-{{ checksum "requirements.txt" }}-{{ checksum "test-requirements.txt" }}
+          key: pip-v2-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
           paths:
             - ~/.cache/pip
 
-    # Add steps to the job
-    # See: https://circleci.com/docs/guides/orchestrate/jobs-steps/#steps-overview & https://circleci.com/docs/reference/configuration-reference/#steps
 jobs:
   build-and-test:
     executor: py
@@ -53,42 +37,38 @@ jobs:
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
-
+      # Default the loader to the dev environment for the config-validation step.
+      ARTEMIS_ENV: dev
     steps:
-      # Checkout the code as the first step.
       - checkout
       - restore_pip_cache
       - run:
-          name: Create venv
-          command: |
-            python -m venv .venv
-            . .venv/bin/activate
-      - python/install-packages:
-            python -m pip install -U pip setuptools wheel
-      - run:
-          pkg-manager: pip
           name: Install dependencies
           command: |
-            . .venv/bin/activate
-          # app-dir: ~/project/package-directory/  # If your requirements.txt isn't in the root directory.
-          # pip-dependency-file: test-requirements.txt  # if you have a different name for your requirements file, maybe one that combines your runtime and test requirements.
-            if [ -f requirements.txt ]; then .venv/bin/python -m pip install -r requirements.txt; fi
-            if [ -f test-requirements.txt ]; then .venv/bin/python -m pip install -r test-requirements.txt; fi
+            python -m pip install --upgrade pip setuptools wheel
+            if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+            if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+            # Belt-and-suspenders for the config-validation and test steps.
+            pip install pyyaml pytest
       - save_pip_cache
       - run:
-          name: Run tests
-          # This assumes pytest is installed via the install-package step above
-          command: pytest
+          name: Validate environment configs
           command: |
-            . .venv/bin/activate
-            pytest -q
+            python - <<'PY'
+            from src.utils.environments import load_environment, VALID_ENVIRONMENTS
+            for env in VALID_ENVIRONMENTS:
+                cfg = load_environment(env)
+                assert cfg["name"] == env, (env, cfg)
+                assert cfg["deploy"]["branch"] == env, (env, cfg)
+            print("env configs OK")
+            PY
+      - run:
+          name: Run tests
+          command: python -m pytest src/tests -q
 
-# Orchestrate jobs using workflows
-# See: https://circleci.com/docs/guides/orchestrate/workflows/ & https://circleci.com/docs/reference/configuration-reference/#workflows
+# Orchestrate jobs using workflows.
+# See: https://circleci.com/docs/reference/configuration-reference/#workflows
 workflows:
-  sample: # This is the name of the workflow, feel free to change it to better match your workflow.
-    # Inside the workflow, you define the jobs you want to run.
   ci:
     jobs:
       - build-and-test
-
