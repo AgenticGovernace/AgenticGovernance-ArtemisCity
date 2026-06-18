@@ -3,7 +3,8 @@ name: Promote
 # Automated promotion cascade: a push to `dev` flows all the way to `prod`
 # without anyone touching the staging/prod branches by hand.
 #
-#   push dev --> test --> ff staging --> deploy staging --> ff prod --> deploy prod
+#   push dev --> CI gate (matrix + docs mirror) --> ff staging --> deploy
+#                staging --> ff prod --> deploy prod
 #
 # Promotion advances the environment branches with a plain `git push` of the
 # tested commit. There is no promotion *pull request*, so `dev` is never
@@ -17,7 +18,9 @@ name: Promote
 on:
   push:
     branches: [dev]
-  # Manual re-run of the cascade from the Actions tab (promotes current dev tip).
+  # Manual re-run of the cascade from the Actions tab. Regardless of which ref
+  # the UI selects, the cascade always promotes the current `dev` tip (resolved
+  # in the `resolve` job below) — never the default branch or an arbitrary ref.
   workflow_dispatch: {}
 
 # contents: write is required to advance the staging/prod branch pointers.
@@ -29,14 +32,68 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  test:
-    name: Test gate
+  # Resolve the exact commit to promote ONCE, so the gate tests and the branch
+  # pushes all refer to the same SHA.
+  #  - push:             the commit that was pushed to dev (== github.sha).
+  #  - workflow_dispatch: the current tip of origin/dev (github.sha would be the
+  #                       tip of whatever ref the UI selected, which defaults to
+  #                       the default branch — promoting that would be wrong).
+  resolve:
+    name: Resolve dev commit
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.pick.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: pick
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            sha="${{ github.sha }}"
+          else
+            git fetch --no-tags origin dev
+            sha="$(git rev-parse FETCH_HEAD)"
+          fi
+          echo "Promoting dev commit: $sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+  # --- CI gate: must mirror ci.yml's required checks so a version-specific or
+  # docs-mirror failure cannot slip a commit through to staging/prod. ---
+
+  docs-mirror:
+    name: Docs mirror gate
+    needs: resolve
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+      - name: CLAUDE.md and AGENTS.md must stay byte-for-byte mirrors
+        run: |
+          if ! diff -q CLAUDE.md AGENTS.md >/dev/null; then
+            echo "::error::CLAUDE.md and AGENTS.md have drifted — they must be byte-for-byte identical." >&2
+            diff CLAUDE.md AGENTS.md || true
+            exit 1
+          fi
+          echo "CLAUDE.md and AGENTS.md are in sync."
+
+  test:
+    name: Test gate
+    needs: resolve
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Mirror ci.yml's matrix exactly.
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install deps
         run: |
@@ -59,20 +116,19 @@ jobs:
 
   promote-staging:
     name: Promote dev -> staging
-    needs: test
+    needs: [resolve, docs-mirror, test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
+          # Check out the exact tested commit so it is present locally to push.
+          ref: ${{ needs.resolve.outputs.sha }}
           fetch-depth: 0
-      - name: Fast-forward staging to the tested dev commit
-        env:
-          SHA: ${{ github.sha }}
+      - name: Fast-forward staging to the tested commit
         run: |
-          # Advance (or create) staging to point at the tested commit. No
-          # --force: a non-fast-forward push fails loudly, which is the right
+          # No --force: a non-fast-forward push fails loudly, which is the right
           # signal that someone diverged staging outside the cascade.
-          git push origin "${SHA}:refs/heads/staging"
+          git push origin "HEAD:refs/heads/staging"
 
   deploy-staging:
     name: Deploy staging
@@ -84,20 +140,19 @@ jobs:
 
   promote-prod:
     name: Promote staging -> prod
-    needs: deploy-staging
+    needs: [resolve, deploy-staging]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
+          # staging now points at this commit (set by promote-staging) and
+          # nothing between here moves it, so promoting the same tested commit
+          # to prod keeps the dev -> staging -> prod history strictly linear.
+          ref: ${{ needs.resolve.outputs.sha }}
           fetch-depth: 0
       - name: Fast-forward prod to the deployed staging commit
-        env:
-          SHA: ${{ github.sha }}
         run: |
-          # staging now points at ${SHA} (set by promote-staging) and nothing
-          # between here moves it, so promoting the same commit to prod keeps
-          # the dev -> staging -> prod history strictly linear.
-          git push origin "${SHA}:refs/heads/prod"
+          git push origin "HEAD:refs/heads/prod"
 
   deploy-prod:
     name: Deploy prod
