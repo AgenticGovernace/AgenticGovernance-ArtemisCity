@@ -6,8 +6,6 @@ import json
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from src.integration.anaconda_agent_proxy import (
     ANACONDA_API_KEY_ENV,
     DEFAULT_ANACONDA_API_KEY,
