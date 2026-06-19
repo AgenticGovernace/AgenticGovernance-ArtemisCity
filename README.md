@@ -260,7 +260,7 @@ When the Python core starts, the orchestrator:
 - The React client consumes `/api`  endpoints and is configured to proxy those requests to the FastAPI backend during development.
 - The standalone Obsidian MCP server exposes vault operations over HTTP using bearer-style authentication.
 ### Package boundary
-The wheel is scoped to the Python core packages (`src/`) and the kernel package (`app/kernel/`). Dashboard/API directories such as `app/api`, `app/web`, and `app/scripts` stay outside the wheel. The current `pyproject.toml` dependency list is still lock-style and includes dashboard/dev transitive packages; splitting that list into lean optional extras is tracked as follow-up packaging work.
+The wheel is scoped to the Python core packages (`src/`) and the kernel package (`app/kernel/`). Dashboard/API directories such as `app/api`, `app/web`, and `app/scripts` stay outside the wheel. The current `src/pyproject.toml` dependency list is still lock-style and includes dashboard/dev transitive packages; splitting that list into lean optional extras is tracked as follow-up packaging work.
 ### Error handling and governance
 - trust and governance metadata are stored alongside agent registry data
 - repeated violations can quarantine an agent

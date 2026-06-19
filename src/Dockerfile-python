@@ -26,13 +26,13 @@ RUN apt-get update \
 # changes. requirements.txt is dev/test/lint tooling; the runtime set
 # (fastapi, uvicorn, redis, sqlalchemy, ...) is generated from
 # pyproject.toml [project.dependencies] into requirements-runtime.txt.
-COPY requirements-runtime.txt ./
+COPY ../requirements-runtime.txt ./
 RUN pip install --no-cache-dir -r requirements-runtime.txt
 
 # Copy the Python source tree. The FastAPI dashboard imports
 # ``app.api.main`` and the bridge / orchestrator code under ``src/``.
 COPY src/ ./src/
-COPY app/ ./app/
+COPY ../app ./app/
 
 # Drop root for runtime.
 RUN useradd --create-home --uid 10001 artemis \

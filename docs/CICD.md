@@ -109,7 +109,7 @@ and flows straight through where not.
 - Push / PR to `dev`, `staging`, `prod`
 - Manual dispatch
 
-Submits a best-effort dependency-graph snapshot for `pyproject.toml`. The
+Submits a best-effort dependency-graph snapshot for `../src/pyproject.toml`. The
 job is `continue-on-error`, so it never blocks the pipeline.
 
 ### CircleCI mirror (`.circleci/config.yml`)
@@ -246,7 +246,7 @@ gh secret set DOCKER_PASSWORD --body "your-token"
 
 ### Creating a Release
 
-**1. Update version in `pyproject.toml`:**
+**1. Update version in `../src/pyproject.toml`:**
 
 ```toml
 [project]
@@ -371,7 +371,7 @@ pytest
 
 **Check**:
 
-- `pyproject.toml` syntax
+- `../src/pyproject.toml` syntax
 - Missing files in MANIFEST.in
 - Build dependencies
 
