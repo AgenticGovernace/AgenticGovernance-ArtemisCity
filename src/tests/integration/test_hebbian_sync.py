@@ -4,8 +4,6 @@ Tests exercise the public API of ``HebbianSyncService``, ``WeightUpdate``,
 and ``BatchResult`` as defined in ``src/integration/hebbian_sync.py``.
 """
 
-import time
-
 import pytest
 
 from src.integration.hebbian_sync import BatchResult, HebbianSyncService, WeightUpdate
