@@ -37,21 +37,21 @@ print(f"  {total-fail}/{total} passed")
 print("\n=== real capability map + fallback=llm_chat ===")
 from src.integration.hebbian_router import HebbianRouter
 class A:
-    def __init__(s,n,c): s.name=n; s.capabilities=c
+    def __init__(self, n, c): self.name = n; self.capabilities = c
 class S:
-    def __init__(s,c): s.composite_score=c
+    def __init__(self, c): self.composite_score = c
 class Reg:
-    def __init__(s):
-        s._a=[A("Artemis Agent",["system_management","agent_coordination"]),
-              A("Research Agent",["web_search","document_analysis"]),
-              A("Summarizer Agent",["text_summarization"]),
-              A("LLM Agent",["llm_chat","text_generation","reasoning","chat","general","inference"])]
-        s.scores={x.name:S(0.5) for x in s._a}
-    def get_all_agents(s): return s._a
-    def get_governance_state(s,n): return {"status":"active"}
-    def is_quarantined(s,n): return False
+    def __init__(self):
+        self._a = [A("Artemis Agent", ["system_management", "agent_coordination"]),
+                   A("Research Agent", ["web_search", "document_analysis"]),
+                   A("Summarizer Agent", ["text_summarization"]),
+                   A("LLM Agent", ["llm_chat", "text_generation", "reasoning", "chat", "general", "inference"])]
+        self.scores = {x.name: S(0.5) for x in self._a}
+    def get_all_agents(self): return self._a
+    def get_governance_state(self, n): return {"status": "active"}
+    def is_quarantined(self, n): return False
 class Heb:
-    def get_agent_average_weight(s,n): return 0.0
+    def get_agent_average_weight(self, n): return 0.0
 r = HebbianRouter(Reg(), Heb(), fallback_capability="llm_chat")
 for cap in ["web_search","general","chitchat","inference"]:
     print(f"  required_capability={cap!r:12} -> {r.route_name({'required_capability':cap})}")
