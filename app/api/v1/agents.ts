@@ -28,7 +28,10 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const card = await controller.getAgentCard(req.params.id);
     if (req.query.format === 'markdown') {
-      res.type('text/markdown').send(card.markdown);
+      res
+        .type('text/plain')
+        .set('X-Content-Type-Options', 'nosniff')
+        .send(card.markdown);
       return;
     }
     res.json({
