@@ -1,4 +1,6 @@
-# Agent Instructions 
+# Agent Instructions
+
+Always Read .github/instructions/.instructions.md in totality prior to anycoding input
 
 ## Document Structure
 
@@ -933,8 +935,10 @@ duplicate `app/web/frontend/.env` required.
   their function (orchestrator, memory layer, etc.) and let
   `docs/LIVING_CITY.md` own the metaphor. The metaphor is a deliberate
   framing choice — don't water it down by paraphrasing it elsewhere.
-- **Do not assume `dev` exists.** Past promotions auto-deleted it; if
-  you need to branch, branch off `prod` (see `docs/ENVIRONMENTS.md`).
+- **`dev` is long-lived — branch off it for feature work.** The promotion
+  cascade fast-forwards `staging`/`prod` with `git push` instead of
+  consuming `dev` as a promotion PR head, so `dev` is no longer
+  auto-deleted (see `docs/ENVIRONMENTS.md`).
 
 ---
 

@@ -1,13 +1,48 @@
 {
-    "python-envs.pythonProjects": [
-        {
-            "path": "src",
-            "envManager": "ms-python.python:venv",
-            "packageManager": "ms-python.python:pip"
-        }
-    ],
-    "python-envs.workspaceSearchPaths": [
-        ".venv"
-    ],
-    "python.terminal.useEnvFile": true
+    "editor.formatOnSave": false,
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+    "editor.wordWrap": "on",
+    "files.exclude": {
+        "**/.DS_Store": false,
+        "**/.git": false,
+        "**/.hg": false,
+        "**/.svn": false,
+        "**/Thumbs.db": false
+    },
+    "editor.mouseWheelZoom": true,
+    "editor.allowVariableFontsInAccessibilityMode": true,
+    "editor.accessibilitySupport": "on",
+    "editor.inlineSuggest.edits.showCollapsed": true,
+    "git.addAICoAuthor": "all",
+    "git.alwaysShowStagedChangesResourceGroup": true,
+    "git.alwaysSignOff": true,
+    "git.autoStash": true,
+    "git.branchProtectionPrompt": "alwaysCommit",
+    "git.closeDiffOnOperation": true,
+    "git.commitShortHashLength": 40,
+    "git.diagnosticsCommitHook.enabled": true,
+    "git.enableSmartCommit": true,
+    "git.ignoreSubmodules": true,
+    "git.followTagsWhenSync": true,
+    "git.fetchOnPull": true,
+    "git.enableCommitSigning": true,
+    "git.openRepositoryInParentFolders": "always",
+    "git.pruneOnFetch": true,
+    "git.pullBeforeCheckout": true,
+    "html.completion.attributeDefaultValue": "empty",
+    "accessibility.signalOptions.debouncePositionChanges": true,
+    "files.autoGuessEncoding": true,
+    "files.autoSaveWhenNoErrors": true,
+    "files.autoSaveWorkspaceFilesOnly": true,
+    "files.insertFinalNewline": true,
+    "files.trimTrailingWhitespace": true,
+    "files.trimFinalNewlines": true,
+    "files.watcherExclude": {
+        ".git/objects/**": false,
+        ".git/subtree-cache/**": false,
+        ".hg/store/**": false,
+        "*/.git/objects/**": false,
+        "*/.git/subtree-cache/**": false,
+        "*/.hg/store/**": false
+    }
 }

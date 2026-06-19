@@ -74,6 +74,8 @@ app.get(`/api/${API_VERSION}`, (req: Request, res: Response) => {
     name: 'Artemis City API',
     version: '1.0.0',
     apiVersion: API_VERSION,
+    runtime: 'TypeScript Express boundary backed by src/api_bridge.py for Python core operations',
+    bridgeBehavior: 'Exposed /api/v1 registry, memory, ATP, trust, and Hebbian routes call Python bridge commands',
     endpoints: {
       health: '/health',
       agents: `/api/${API_VERSION}/agents`,
