@@ -17,7 +17,6 @@ from governance.self_update_governance import (
     ApprovalLevel,
     WorkflowChange,
     ApprovalDecision,
-    ProposalStatus,
     SandboxTestResults,
 )
 from governance.rollback import RollbackManager, Checkpoint
