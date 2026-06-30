@@ -19,13 +19,15 @@ const agentRecord = z
   })
   .passthrough();
 
-const successEnvelope = <T extends z.ZodTypeAny>(data: T) =>
-  z
-    .object({
-      success: z.literal(true),
-      data,
-    })
-    .passthrough();
+const successEnvelope = <T extends z.ZodTypeAny>(data: T) => {
+    return z
+        .object({
+            success: z.literal(true),
+            data,
+        })
+        .passthrough();
+};
+export default successEnvelope;
 
 const routeSchemas = {
   agent: successEnvelope(agentRecord),

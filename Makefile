@@ -5,8 +5,8 @@
 # Usage: make <target>
 
 .PHONY: help install install-dev setup-hooks lint lint-fix format check security secrets \
-        test test-cov pre-commit pre-commit-update clean clean-env run cli demo server \
-        frontend build docs docs-serve all ci
+test test-cov pre-commit pre-commit-update clean clean-env run cli demo server \
+frontend build docs docs-serve all ci
 
 # Default target
 .DEFAULT_GOAL := help
@@ -36,7 +36,7 @@ help: ## Show this help message
 
 install: ## Install all dependencies
 	echo "Installing Python dependencies..."
-	$(PIP) install -r ./requirements.txt
+	$v) install -r ./requirements.txt
 	echo "Installation complete!"
 
 install-dev: ## Install development dependencies

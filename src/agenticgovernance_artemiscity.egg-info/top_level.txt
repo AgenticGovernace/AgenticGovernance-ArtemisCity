@@ -1,0 +1,19 @@
+Artemis Agentic Memory Layer
+Experiments
+Kernel
+__init__
+__main__
+agents
+api_bridge
+core
+governance
+integration
+interface
+launch
+main
+mcp
+memory
+obsidian_integration
+seed_vector_store
+tests
+utils

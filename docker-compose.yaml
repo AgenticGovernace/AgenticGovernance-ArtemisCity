@@ -118,7 +118,7 @@ services:
       - grafana-data:/var/lib/grafana
       - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards
       - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
-    networks:
+    networks:q
       - artemis
     depends_on:
       - prometheus

@@ -23,7 +23,7 @@
 - **Dockerfile_1** and **Dockerfile_2** are identical
 - Both are `mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm` with Python 3.11
 - These appear to be devcontainer images; preserved in case they're used by `.devcontainer/` configuration
-- **Recommendation:** Delete one and consolidate if not referenced by `.devcontainer/`
+- **Recommendation:** Delete oneq and consolidate if not referenced by `.devcontainer/`
 
 ## Files Verified
 
