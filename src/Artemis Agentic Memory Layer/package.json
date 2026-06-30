@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Model Context Protocol (MCP) server for Obsidian vaults.",
   "main": "dist/index.js",
+  "packageManager": "npm@10.8.2",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node dist/index.js",
     "build": "tsc",

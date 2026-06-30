@@ -97,7 +97,7 @@ Artemis-City/
 │       └── test_demo_scripts.py
 │
 ├── pytest.ini                         # pytest configuration
-└── requirements-dev.txt               # Test dependencies
+└── pyproject.toml                     # Test dependencies via uv extras
 ```
 
 ---
@@ -1218,23 +1218,10 @@ filterwarnings=
     ignore::DeprecationWarning
 ```
 
-### requirements-dev.txt
+### Python Test Dependencies
 
-```
-# Testing
-pytest>=7.4.0
-pytest-cov>=4.1.0
-pytest-mock>=3.11.0
-pytest-asyncio>=0.21.0
-
-# Code Quality
-ruff>=0.1.0
-mypy>=1.5.0
-
-# Development
-black>=23.0.0
-isort>=5.12.0
-```
+Python test and quality dependencies are declared in `pyproject.toml` optional
+dependency groups and installed with `uv sync --all-extras`.
 
 ### Commands
 

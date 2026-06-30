@@ -11,6 +11,10 @@
 # Default target
 .DEFAULT_GOAL := help
 
+UV ?= uv
+PYTHON ?= $(UV) run python
+NPM ?= npm
+
 # ============================================
 # HELP
 # ============================================
@@ -28,19 +32,18 @@ help: ## Show this help message
 # ============================================
 
 install: ## Install all dependencies
-	echo "Installing Python dependencies..."
-	pip install -r requirements.txt
+	echo "Installing Python dependencies with uv..."
+	cd ../.. && $(UV) sync
 	echo "Installation complete!"
 
 install-dev: ## Install development dependencies
-	echo "Installing development dependencies..."
-	pip install -r requirements-dev.txt
+	echo "Installing development dependencies with uv..."
+	cd ../.. && $(UV) sync --all-extras
 	@echo "Development dependencies installed!"
 
 setup-hooks: ## Install pre-commit hooks
 	@echo "Installing pre-commit hooks..."
-	pip install pre-commit
-	pre-commit install
+	cd ../.. && $(UV) run pre-commit install
 	@echo "Pre-commit hooks installed!"
 
 # ============================================
@@ -50,17 +53,17 @@ setup-hooks: ## Install pre-commit hooks
 lint: ## Run all linters
 	@echo "Running linters..."
 	@echo "\n--- Flake8 ---"
-	flake8 main.py interface/ || true
+	cd ../.. && $(UV) run flake8 src/launch || true
 	@echo "\n--- Pylint ---"
-	pylint main.py interface/ || true
+	cd ../.. && $(UV) run pylint src/launch || true
 	@echo "\nLinting complete!"
 
 lint-fix: ## Run linters with auto-fix
 	@echo "Running linters with auto-fix..."
 	@echo "\n--- Black (formatter) ---"
-	black .
+	cd ../.. && $(UV) run black src/launch
 	@echo "\n--- isort (import sorter) ---"
-	isort .
+	cd ../.. && $(UV) run isort src/launch
 	@echo "\nAuto-fix complete!"
 
 format: lint-fix ## Format code (alias for lint-fix)
@@ -68,13 +71,13 @@ format: lint-fix ## Format code (alias for lint-fix)
 check: ## Run all checks (format, lint, type)
 	@echo "Running all checks..."
 	@echo "\n--- Black (check only) ---"
-	black --check .
+	cd ../.. && $(UV) run black --check src/launch
 	@echo "\n--- isort (check only) ---"
-	isort --check-only .
+	cd ../.. && $(UV) run isort --check-only src/launch
 	@echo "\n--- Flake8 ---"
-	flake8 .
+	cd ../.. && $(UV) run flake8 src/launch
 	@echo "\n--- MyPy (type checking) ---"
-	mypy . || true
+	cd ../.. && $(UV) run mypy src/launch || true
 	@echo "\nAll checks complete!"
 
 # ============================================
@@ -84,9 +87,9 @@ check: ## Run all checks (format, lint, type)
 security: ## Run security checks
 	@echo "Running security checks..."
 	@echo "\n--- Bandit (security scanner) ---"
-	bandit -r . -c pyproject.toml || true
+	cd ../.. && $(UV) run bandit -r src/launch -c pyproject.toml || true
 	@echo "\n--- Safety (dependency vulnerabilities) ---"
-	safety check || true
+	cd ../.. && $(UV) run safety check || true
 	@echo "\nSecurity checks complete!"
 
 secrets: ## Check for accidentally committed secrets
@@ -100,11 +103,11 @@ secrets: ## Check for accidentally committed secrets
 
 test: ## Run tests (when available)
 	@echo "Running tests..."
-	pytest ../tests/ -v || echo "WARNING: No tests directory found"
+	cd ../.. && $(UV) run pytest src/tests/ -v || echo "WARNING: No tests directory found"
 
 test-cov: ## Run tests with coverage
 	@echo "Running tests with coverage..."
-	pytest ../tests/ --cov=.. --cov-report=html --cov-report=term || echo "WARNING: No tests directory found"
+	cd ../.. && $(UV) run pytest src/tests/ --cov=src --cov-report=html --cov-report=term || echo "WARNING: No tests directory found"
 
 # ============================================
 # PRE-COMMIT
@@ -112,11 +115,11 @@ test-cov: ## Run tests with coverage
 
 pre-commit: ## Run pre-commit hooks on all files
 	@echo "Running pre-commit hooks..."
-	pre-commit run --all-files
+	cd ../.. && $(UV) run pre-commit run --all-files
 
 pre-commit-update: ## Update pre-commit hooks
 	@echo "Updating pre-commit hooks..."
-	pre-commit autoupdate
+	cd ../.. && $(UV) run pre-commit autoupdate
 
 # ============================================
 # CLEANUP
@@ -145,21 +148,21 @@ clean-env: ## Remove virtual environment
 
 run: ## Run the launch CLI interactively
 	@echo "Starting Artemis City launcher..."
-	python main.py
+	cd ../.. && $(PYTHON) src/launch/main.py
 
 demo: ## Run all demos
 	@echo "Running demos..."
 	@echo "\n--- Artemis Features Demo ---"
-	python ../../Concept_Demos/demo_artemis.py
+	cd ../.. && $(PYTHON) Concept_Demos/demo_artemis.py
 	@echo "\n--- Memory Integration Demo ---"
-	python ../../Concept_Demos/demo_memory_integration.py
+	cd ../.. && $(PYTHON) Concept_Demos/demo_memory_integration.py
 	@echo "\n--- City Postal Demo ---"
-	python ../../Concept_Demos/demo_city_postal.py
+	cd ../.. && $(PYTHON) Concept_Demos/demo_city_postal.py
 	@echo "\nDemos complete!"
 
 server: ## Start MCP server (Memory Layer)
 	@echo "Starting MCP server..."
-	cd "../Artemis Agentic Memory Layer" && npm run dev
+	cd "../Artemis Agentic Memory Layer" && $(NPM) run dev
 
 # ============================================
 # BUILD & PACKAGE
@@ -167,7 +170,7 @@ server: ## Start MCP server (Memory Layer)
 
 build: ## Build the package
 	@echo "Building package..."
-	python -m build
+	cd ../.. && $(UV) build
 	@echo "Build complete!"
 
 # ============================================
@@ -176,11 +179,11 @@ build: ## Build the package
 
 docs: ## Build documentation (if available)
 	@echo "Building documentation..."
-	mkdocs build || echo "WARNING: MkDocs not configured"
+	cd ../.. && $(UV) run mkdocs build || echo "WARNING: MkDocs not configured"
 
 docs-serve: ## Serve documentation locally
 	@echo "Serving documentation..."
-	mkdocs serve || echo "WARNING: MkDocs not configured"
+	cd ../.. && $(UV) run mkdocs serve || echo "WARNING: MkDocs not configured"
 
 # ============================================
 # ALL-IN-ONE COMMANDS

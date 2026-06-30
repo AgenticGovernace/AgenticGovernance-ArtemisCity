@@ -141,13 +141,9 @@ The root repository itself is not organized around a single top-level Docker dep
 From the repository root:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -e .
-pip install -r requirements-dev.txt
+uv sync --all-extras
 ```
-If you prefer not to install the package in editable mode, the repo also includes `requirements.txt` and `requirements-dev.txt` for direct pip installs.
+`uv` is the only supported Python package manager for this repo. Python dependencies live in `pyproject.toml`; JavaScript and TypeScript dependencies stay in their package-local `package.json` / `package-lock.json` files and are installed with npm.
 
 ### 2. Configure environment files
 The canonical provisioner is `./setup_secrets.sh`. It populates four
@@ -179,11 +175,11 @@ Never commit populated `.env` files (the root `.gitignore` already covers them).
 
 ### 3. Run the Python test suite
 ```bash
-python -m pytest src/tests
+uv run pytest src/tests
 ```
 ### 4. Start the FastAPI dashboard backend
 ```bash
-uvicorn app.api.main:app --reload --port 8000
+uv run uvicorn app.api.main:app --reload --port 8000
 ```
 This matches the proxy target configured in `app/web/frontend/vite.config.ts`.
 
@@ -240,9 +236,9 @@ Then open `http://localhost:8080`.
 │   ├── api_bridge.py               # JSON bridge for TS-to-Python calls
 │   └── Artemis Agentic Memory Layer/  # Standalone TypeScript MCP server
 ├── .env.example
-├── pyproject.toml
-├── requirements.txt
-└── requirements-dev.txt
+├── package.json                    # Root Node package for the TS Express API
+├── package-lock.json
+└── pyproject.toml                  # Python package metadata for uv
 ```
 ## Runtime behavior details
 ### Orchestrator initialization
@@ -1021,7 +1017,8 @@ artemis_agent_success_rate
 │   ├── tests/                  # Test suite
 │   └── api_bridge.py           # TS-Python bridge
 ├── pyproject.toml
-└── requirements.txt
+├── package.json
+└── package-lock.json
 ```
 ### 9.2 Key Dependencies
 | Package | Purpose |
@@ -1048,7 +1045,7 @@ make check
 make run              # Python CLI
 make server           # Obsidian MCP server
 make frontend         # React dashboard
-uvicorn app.api.main:app --port 8000  # FastAPI
+uv run uvicorn app.api.main:app --port 8000  # FastAPI
 ```
 ### 9.4 Related Documentation
 | Document | Location |

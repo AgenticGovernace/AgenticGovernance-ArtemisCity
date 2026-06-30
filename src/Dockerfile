@@ -1,5 +1,5 @@
 # Stage 1: Builder - Install dependencies and build the application
-FROM node:24-alpine AS builder
+FROM node:20-alpine AS builder
 
 # Set the working directory in the container
 WORKDIR /src
@@ -14,19 +14,19 @@ RUN npm ci
 # and @types/* live there and the next ``npm run build`` step requires
 # them). The production stage below installs a separate prod-only copy.
 # Copy the rest of the application code
-COPY . .
+COPY .. .
 
 # Build the TypeScript project
 RUN npm run build
 
 # Stage 2: Production - Create a lean image with only the necessary files
-FROM node:24-alpine
+FROM node:20-alpine
 
 # Set the working directory in the container
 WORKDIR /src
 
 # Set environment variables for production
-ENV NODE_ENV=production \
+ENV NODE_ENV=e \
     ARTEMIS_REPO_ROOT=/src \
     ARTEMIS_PYTHON=python3
 
@@ -66,4 +66,3 @@ CMD ["npm", "start"]
 # Healthcheck honors `API_PORT` overrides so the probe matches whatever
 # port app/api/index.ts is actually listening on (default 4000).
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD node -e "const p=process.env.API_PORT||4000; require('http').get('http://localhost:'+p+'/health', (res) => res.statusCode === 200 ? process.exit(0) : process.exit(1))"
-

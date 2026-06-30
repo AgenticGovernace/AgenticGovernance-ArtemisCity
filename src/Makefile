@@ -4,9 +4,9 @@
 # Convenient commands for development tasks
 # Usage: make <target>
 
-.PHONY: help install install-dev setup-hooks lint lint-fix format check security secrets \
+.PHONY: help install install-python install-dev install-node setup-hooks lint lint-fix format check security secrets \
         test test-cov pre-commit pre-commit-update clean clean-env run cli demo server \
-        frontend build docs docs-serve all ci
+        frontend api node-build node-test node-typecheck build docs docs-serve all ci
 
 # Default target
 .DEFAULT_GOAL := help
@@ -15,8 +15,10 @@
 # the Python core's MCP_API_KEY/MCP_BASE_URL there, but make does not export
 # .env files automatically.
 LOAD_ENV = set -a; [ ! -f .env ] || . ./.env; set +a;
-PYTHON ?= python3
-PIP ?= $(PYTHON) -m pip
+UV ?= uv
+PYTHON ?= $(UV) run python
+NPM ?= npm
+NODE_WORKSPACES := . app/web/frontend "src/Artemis Agentic Memory Layer"
 
 # ============================================
 # HELP
@@ -34,20 +36,30 @@ help: ## Show this help message
 # INSTALLATION
 # ============================================
 
-install: ## Install all dependencies
-	echo "Installing Python dependencies..."
-	$(PIP) install -r ./requirements.txt
-	echo "Installation complete!"
+install: install-python install-node ## Install Python and Node dependencies
 
-install-dev: ## Install development dependencies
-	echo "Installing development dependencies..."
-	$(PIP) install -r requirements-dev.txt
-	@echo "Development dependencies installed!"
+install-python: ## Install Python dependencies with uv
+	@echo "Installing Python dependencies with uv..."
+	$(UV) sync
+	@echo "Python dependencies installed!"
+
+install-dev: ## Install Python development dependencies with uv
+	@echo "Installing Python development dependencies with uv..."
+	$(UV) sync --all-extras
+	@echo "Python development dependencies installed!"
+
+install-node: ## Install Node dependencies for all Node workspaces
+	@echo "Installing Node dependencies..."
+	@for workspace in $(NODE_WORKSPACES); do \
+		echo "\n--- $$workspace ---"; \
+		cd "$$workspace" && $(NPM) install; \
+		cd - >/dev/null; \
+	done
+	@echo "Node dependencies installed!"
 
 setup-hooks: ## Install pre-commit hooks
 	@echo "Installing pre-commit hooks..."
-	$(PIP) install pre-commit
-	pre-commit install
+	$(UV) run pre-commit install
 	@echo "Pre-commit hooks installed!"
 
 # ============================================
@@ -57,17 +69,17 @@ setup-hooks: ## Install pre-commit hooks
 lint: ## Run all linters
 	@echo "Running linters..."
 	@echo "\n--- Flake8 ---"
-	flake8 src/ app/ || true
+	$(UV) run flake8 src/ app/ || true
 	@echo "\n--- Pylint ---"
-	pylint src/ app/ || true
+	$(UV) run pylint src/ app/ || true
 	@echo "\nLinting complete!"
 
 lint-fix: ## Run linters with auto-fix
 	@echo "Running linters with auto-fix..."
 	@echo "\n--- Black (formatter) ---"
-	black .
+	$(UV) run black .
 	@echo "\n--- isort (import sorter) ---"
-	isort .
+	$(UV) run isort .
 	@echo "\nAuto-fix complete!"
 
 format: lint-fix ## Format code (alias for lint-fix)
@@ -75,13 +87,13 @@ format: lint-fix ## Format code (alias for lint-fix)
 check: ## Run all checks (format, lint, type)
 	@echo "Running all checks..."
 	@echo "\n--- Black (check only) ---"
-	black --check .
+	$(UV) run black --check .
 	@echo "\n--- isort (check only) ---"
-	isort --check-only .
+	$(UV) run isort --check-only .
 	@echo "\n--- Flake8 ---"
-	flake8 .
+	$(UV) run flake8 .
 	@echo "\n--- MyPy (type checking) ---"
-	mypy . || true
+	$(UV) run mypy . || true
 	@echo "\nAll checks complete!"
 
 # ============================================
@@ -92,9 +104,9 @@ check: ## Run all checks (format, lint, type)
 security: ## Run security checks
 	@echo "Running security checks..."
 	@echo "\n--- Bandit (security scanner) ---"
-	bandit -r . -c pyproject.toml || true
+	$(UV) run bandit -r . -c pyproject.toml || true
 	@echo "\n--- Safety (dependency vulnerabilities) ---"
-	safety check || true
+	$(UV) run safety check || true
 	@echo "\nSecurity checks complete!"
 
 secrets: ## Check for accidentally committed secrets
@@ -111,7 +123,7 @@ test: ## Run tests (when available)
 	@if [ ! -d src/tests ]; then \
 		echo "WARNING: No tests directory found"; \
 	else \
-		$(PYTHON) -m pytest src/tests/ -v; \
+		$(UV) run pytest src/tests/ -v; \
 	fi
 
 test-cov: ## Run tests with coverage
@@ -119,7 +131,7 @@ test-cov: ## Run tests with coverage
 	@if [ ! -d src/tests ]; then \
 		echo "WARNING: No tests directory found"; \
 	else \
-		$(PYTHON) -m pytest src/tests/ --cov=src --cov=app --cov-report=html --cov-report=term; \
+		$(UV) run pytest src/tests/ --cov=src --cov=app --cov-report=html --cov-report=term; \
 	fi
 
 # ============================================
@@ -128,11 +140,11 @@ test-cov: ## Run tests with coverage
 
 pre-commit: ## Run pre-commit hooks on all files
 	@echo "Running pre-commit hooks..."
-	pre-commit run --all-files
+	$(UV) run pre-commit run --all-files
 
 pre-commit-update: ## Update pre-commit hooks
 	@echo "Updating pre-commit hooks..."
-	pre-commit autoupdate
+	$(UV) run pre-commit autoupdate
 
 # ============================================
 # CLEANUP
@@ -184,11 +196,32 @@ server: ## Start MCP server (Memory Layer)
 frontend: ## Start the web frontend dev server (needs `make api` running separately on :8000)
 	@echo "Starting frontend dev server..."
 	@echo "NOTE: also run 'make api' in another terminal so /api/* requests resolve."
-	cd app/web/frontend && npm run dev
+	cd app/web/frontend && $(NPM) run dev
 
 api: ## Start the FastAPI dashboard backend on :8000 (paired with `make frontend`)
 	@echo "Starting FastAPI dashboard backend on http://localhost:8000 ..."
-	@$(LOAD_ENV) $(PYTHON) -m uvicorn app.api.main:app --reload --host 0.0.0.0 --port 8000
+	@$(LOAD_ENV) $(UV) run uvicorn app.api.main:app --reload --host 0.0.0.0 --port 8000
+
+node-build: ## Build all Node workspaces
+	@for workspace in $(NODE_WORKSPACES); do \
+		echo "\n--- build $$workspace ---"; \
+		cd "$$workspace" && $(NPM) run build; \
+		cd - >/dev/null; \
+	done
+
+node-test: ## Run Node workspace tests where defined
+	@for workspace in $(NODE_WORKSPACES); do \
+		echo "\n--- test $$workspace ---"; \
+		cd "$$workspace" && $(NPM) test --if-present; \
+		cd - >/dev/null; \
+	done
+
+node-typecheck: ## Run Node workspace type checks where defined
+	@for workspace in $(NODE_WORKSPACES); do \
+		echo "\n--- typecheck $$workspace ---"; \
+		cd "$$workspace" && $(NPM) run typecheck --if-present; \
+		cd - >/dev/null; \
+	done
 
 # ============================================
 # BUILD & PACKAGE
@@ -196,7 +229,7 @@ api: ## Start the FastAPI dashboard backend on :8000 (paired with `make frontend
 
 build: ## Build the package
 	@echo "Building package..."
-	$(PYTHON) -m build
+	$(UV) build
 	@echo "Build complete!"
 
 # ============================================
@@ -205,11 +238,11 @@ build: ## Build the package
 
 docs: ## Build documentation (if available)
 	@echo "Building documentation..."
-	mkdocs build || echo "WARNING: MkDocs not configured"
+	$(UV) run mkdocs build || echo "WARNING: MkDocs not configured"
 
 docs-serve: ## Serve documentation locally
 	@echo "Serving documentation..."
-	mkdocs serve || echo "WARNING: MkDocs not configured"
+	$(UV) run mkdocs serve || echo "WARNING: MkDocs not configured"
 
 # ============================================
 # ALL-IN-ONE COMMANDS
@@ -218,5 +251,5 @@ docs-serve: ## Serve documentation locally
 all: clean install-dev format lint security test ## Run all quality checks
 	@echo "All tasks complete!"
 
-ci: check test ## Run CI checks (format check, lint, test)
+ci: check test node-typecheck node-test ## Run CI checks (Python and Node)
 	@echo "CI checks complete!"
