@@ -182,6 +182,11 @@ const usageLog: Array<{
   completionTokens: number;
 }> = [];
 
+const toUsageKey = (value: string): string => {
+  const safeValue = value.replace(/[^a-zA-Z0-9._:-]/g, '_').slice(0, 128);
+  return safeValue || 'unknown';
+};
+
 /**
  * Controller responsible for brokering model selection, simulated inference, and provider metadata for the demo API.
  */
@@ -415,11 +420,12 @@ export class LLMController {
       totalCompletion += log.completionTokens;
 
       // By model
-      if (!byModel[log.model]) {
-        byModel[log.model] = { requests: 0, tokens: 0 };
+      const modelKey = toUsageKey(log.model);
+      if (!Object.prototype.hasOwnProperty.call(byModel, modelKey)) {
+        byModel[modelKey] = { requests: 0, tokens: 0 };
       }
-      byModel[log.model].requests++;
-      byModel[log.model].tokens += totalTokens;
+      byModel[modelKey].requests++;
+      byModel[modelKey].tokens += totalTokens;
 
       // By day
       const day = log.timestamp.split('T')[0];

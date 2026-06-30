@@ -15,23 +15,38 @@ const LEVEL_FROM_ENV: Record<string, LogLevel> = {
 const currentLogLevel: LogLevel =
   LEVEL_FROM_ENV[(process.env.MCP_LOG_LEVEL ?? 'info').toLowerCase()] ?? LogLevel.INFO;
 
+const sanitizeForLog = (value: string): string =>
+  value.replace(/[\r\n]+/g, ' ').replace(/[\x00-\x1F\x7F]/g, '');
+
+const serializeForLog = (value: unknown): string => {
+  if (typeof value === 'string') return value;
+  if (value instanceof Error) return `${value.name}: ${value.message}`;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+};
+
 const log = (level: LogLevel, message: string, ...args: unknown[]) => {
   if (level < currentLogLevel) return;
 
-  const formatted = `[${new Date().toISOString()}] [${LogLevel[level]}] ${message}`;
+  const formatted = `[${new Date().toISOString()}] [${LogLevel[level]}] ${sanitizeForLog(message)}`;
+  const context = args.map((arg) => sanitizeForLog(serializeForLog(arg))).join(' ');
+  const line = context ? `${formatted} ${context}` : formatted;
 
   switch (level) {
     case LogLevel.DEBUG:
-      console.debug(formatted, ...args);
+      console.debug(line);
       break;
     case LogLevel.INFO:
-      console.info(formatted, ...args);
+      console.info(line);
       break;
     case LogLevel.WARN:
-      console.warn(formatted, ...args);
+      console.warn(line);
       break;
     case LogLevel.ERROR:
-      console.error(formatted, ...args);
+      console.error(line);
       break;
   }
 };

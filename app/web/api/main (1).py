@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from typing import Any, Dict, List
 
@@ -12,6 +13,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from src.mcp.config import AGENT_OUTPUT_DIR
 from src.mcp.orchestrator import Orchestrator
 from src.utils.helpers import logger
+
+_LOG_CONTROL_CHARS = re.compile(r"[\r\n\x00-\x1f\x7f]+")
+
+
+def _sanitize_for_log(value: Any) -> str:
+    return _LOG_CONTROL_CHARS.sub(" ", str(value))
 
 
 # --- Pydantic Models ---
@@ -60,7 +67,7 @@ try:
     orchestrator = Orchestrator()
     logger.info("Orchestrator initialized for FastAPI.")
 except Exception as e:
-    logger.error(f"Failed to initialize Orchestrator: {e}")
+    logger.error("Failed to initialize Orchestrator: %s", _sanitize_for_log(e))
     # Depending on the severity, you might want to exit or provide a fallback
     orchestrator = None  # type: ignore
 
@@ -109,8 +116,8 @@ async def get_tasks():
             formatted_tasks.append({**data, "relative_path": path})
         return formatted_tasks
     except Exception as e:
-        logger.error(f"Error fetching tasks: {e}")
-        raise HTTPException(status_code=500, detail=f"Error fetching tasks: {e}")
+        logger.error("Error fetching tasks: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch tasks.")
 
 
 @app.post("/api/tasks", status_code=201)
@@ -130,8 +137,8 @@ async def create_task(task_data: TaskData):
             "required_capability": resolved_capability,
         }
     except Exception as e:
-        logger.error(f"Error creating task: {e}")
-        raise HTTPException(status_code=500, detail=f"Error creating task: {e}")
+        logger.error("Error creating task: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to create task.")
 
 
 @app.get("/api/reports", response_model=List[ReportSummary])
@@ -163,8 +170,8 @@ async def get_reports():
             )
         return summaries
     except Exception as e:
-        logger.error(f"Error listing reports: {e}")
-        raise HTTPException(status_code=500, detail=f"Error listing reports: {e}")
+        logger.error("Error listing reports: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to list reports.")
 
 
 @app.get("/api/reports/{filename:path}")
@@ -181,8 +188,12 @@ async def get_report_content(filename: str):
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Report file not found.")
     except Exception as e:
-        logger.error(f"Error reading report {filename}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error reading report: {e}")
+        logger.error(
+            "Error reading report %s: %s",
+            _sanitize_for_log(filename),
+            _sanitize_for_log(e),
+        )
+        raise HTTPException(status_code=500, detail="Failed to read report.")
 
 
 @app.post("/api/execute-task")
@@ -204,9 +215,7 @@ async def execute_pending_task(task_path: Dict[str, str]):
     try:
         content = orchestrator.obs_manager.read_note(relative_note_path)
         if not content:
-            raise HTTPException(
-                status_code=404, detail=f"Task note not found at {relative_note_path}"
-            )
+            raise HTTPException(status_code=404, detail="Task note not found.")
 
         task_data = orchestrator.obs_parser.parse_task_note(content)
         if not task_data or task_data.get("status", "pending").lower() != "pending":
@@ -243,22 +252,29 @@ async def execute_pending_task(task_path: Dict[str, str]):
             )
         else:
             logger.warning(
-                f"No registered agent found for '{agent_name}'. Routing by capability '{resolved_capability}'."
+                "No registered agent found for '%s'. Routing by capability '%s'.",
+                _sanitize_for_log(agent_name),
+                _sanitize_for_log(resolved_capability),
             )
             results = orchestrator.route_and_execute_task(task_data, relative_note_path)
 
         return {"message": "Task executed successfully", "results": results}
     except ValueError as ve:
         orchestrator.update_task_status_in_obsidian(relative_note_path, "failed", task_data.get("task_id"))  # type: ignore
-        raise HTTPException(status_code=400, detail=str(ve))
+        logger.error("Task validation error: %s", _sanitize_for_log(ve))
+        raise HTTPException(status_code=400, detail="Invalid task payload.")
     except HTTPException:
         raise  # Re-raise FastAPI HTTPExceptions
     except Exception as e:
         # If task_data and relative_note_path are available, update status to failed
         if "task_data" in locals() and "relative_note_path" in locals():
             orchestrator.update_task_status_in_obsidian(relative_note_path, "failed", task_data.get("task_id"))  # type: ignore
-        logger.error(f"Error executing task from {relative_note_path}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error executing task: {e}")
+        logger.error(
+            "Error executing task from %s: %s",
+            _sanitize_for_log(relative_note_path),
+            _sanitize_for_log(e),
+        )
+        raise HTTPException(status_code=500, detail="Failed to execute task.")
 
 
 @app.post("/api/execute-all-pending")
@@ -271,7 +287,5 @@ async def execute_all_pending_tasks():
         summary = orchestrator.execute_all_pending_tasks()
         return summary
     except Exception as e:
-        logger.error(f"Error executing all pending tasks: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Error executing all pending tasks: {e}"
-        )
+        logger.error("Error executing all pending tasks: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to execute pending tasks.")

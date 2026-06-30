@@ -92,7 +92,7 @@ check: ## Run all checks (format, lint, type)
 security: ## Run security checks
 	@echo "Running security checks..."
 	@echo "\n--- Bandit (security scanner) ---"
-	bandit -r . -c pyproject.toml || true
+	bandit -r src app -x src/tests,tests,.venv,venv,node_modules || true
 	@echo "\n--- Safety (dependency vulnerabilities) ---"
 	safety check || true
 	@echo "\nSecurity checks complete!"
