@@ -392,7 +392,7 @@ When creating new agents:
 | `interface/agent_router.yaml` | Agent keyword routing      | YAML   |
 | `requirements.txt`            | Python dependencies        | Text   |
 | `package.json`                | Project metadata           | JSON   |
-| `pyproject.toml`              | Python project config      | TOML   |
+| `../../src/pyproject.toml`              | Python project config      | TOML   |
 | `.gitignore`                  | Version control exclusions | Text   |
 
 ### Documentation Files

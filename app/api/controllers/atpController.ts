@@ -17,11 +17,11 @@ export class ATPController {
   }
 
   async sendMessage(message: unknown): Promise<unknown> {
-    return callBridge('atp.send', normalizeMessagePayload(message));
+    return callBridge('atp.send', normalizeMessagePayload(message, ATP_SEND_FIELDS));
   }
 
   async routeMessage(message: unknown): Promise<unknown> {
-    return callBridge('atp.route', normalizeMessagePayload(message));
+    return callBridge('atp.route', normalizeMessagePayload(message, ATP_ROUTE_FIELDS));
   }
 
   async getModes(): Promise<unknown> {
@@ -41,7 +41,7 @@ export class ATPController {
   }
 
   async formatMessage(message: unknown): Promise<unknown> {
-    return callBridge('atp.format', normalizeMessagePayload(message));
+    return callBridge('atp.format', normalizeMessagePayload(message, ATP_FORMAT_FIELDS));
   }
 
   async getMessage(messageId: string): Promise<unknown> {
@@ -57,12 +57,44 @@ export class ATPController {
   }
 }
 
-function normalizeMessagePayload(message: unknown): Record<string, unknown> {
+const ATP_SEND_FIELDS = ['message', 'text', 'atpMessage', 'strict'] as const;
+const ATP_ROUTE_FIELDS = [
+  ...ATP_SEND_FIELDS,
+  'message_id',
+  'id',
+  'required_capability',
+  'capability',
+] as const;
+const ATP_FORMAT_FIELDS = [
+  'message',
+  'mode',
+  'context',
+  'priority',
+  'action_type',
+  'actionType',
+  'target_zone',
+  'targetZone',
+  'special_notes',
+  'specialNotes',
+  'content',
+] as const;
+
+function normalizeMessagePayload(
+  message: unknown,
+  allowedFields: readonly string[]
+): Record<string, unknown> {
   if (typeof message === 'string') {
     return { message };
   }
   if (message && typeof message === 'object' && !Array.isArray(message)) {
-    return message as Record<string, unknown>;
+    const payload = message as Record<string, unknown>;
+    const sanitized: Record<string, unknown> = {};
+    for (const key of allowedFields) {
+      if (Object.prototype.hasOwnProperty.call(payload, key)) {
+        sanitized[key] = payload[key];
+      }
+    }
+    return sanitized;
   }
   return { message: String(message ?? '') };
 }

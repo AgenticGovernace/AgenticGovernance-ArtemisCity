@@ -14,7 +14,7 @@ RUN npm ci
 # and @types/* live there and the next ``npm run build`` step requires
 # them). The production stage below installs a separate prod-only copy.
 # Copy the rest of the application code
-COPY . .
+COPY .. .
 
 # Build the TypeScript project
 RUN npm run build
