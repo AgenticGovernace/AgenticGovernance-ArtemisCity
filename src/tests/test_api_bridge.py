@@ -490,6 +490,13 @@ class TestTrustAndHebbianCommands:
         success = dispatch("trust.record_success", {**payload, "amount": 0.01})
         assert success["recorded"] == "success"
 
+        before_zero = dispatch("trust.get_score", payload)["score"]
+        zero_success = dispatch("trust.record_success", {**payload, "amount": 0.0})
+        assert zero_success["score"] == pytest.approx(before_zero)
+
+        zero_failure = dispatch("trust.record_failure", {**payload, "amount": 0.0})
+        assert zero_failure["score"] == pytest.approx(before_zero)
+
         permissions = dispatch("trust.permissions", payload)
         assert "read" in permissions["permissions"]
 

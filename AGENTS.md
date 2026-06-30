@@ -672,7 +672,7 @@ authoritative, what is in transition, and what is deliberately frozen.
 | Concept demos | `Concept_Demos/` | Prototype ground for agents and flows | Older but supported. Per the Agent Implementation Guide, work prototyped here graduates to `src/`. |
 
 The Hatch wheel ships **only `src/` and `app/kernel/`** (see
-`pyproject.toml` — `app/api`, `app/web`, `app/scripts` are explicitly
+`src/pyproject.toml` — `app/api`, `app/web`, `app/scripts` are explicitly
 excluded so the wheel does not pull `fastapi`/`express` into consumers that
 do not declare them).
 
@@ -926,7 +926,7 @@ duplicate `app/web/frontend/.env` required.
   `app/web/frontend/`. Anything referencing `web/api/main.py` or
   `web/frontend/` is stale.
 - **Do not add `fastapi` / `express` to runtime dependencies in the
-  wheel.** `pyproject.toml` excludes `app/api`, `app/web`, `app/scripts`
+  wheel.** `src/pyproject.toml` excludes `app/api`, `app/web`, `app/scripts`
   from the wheel for exactly this reason.
 - **Do not call Python from TypeScript outside the bridge.** Every
   registry / governance call goes through `pythonBridge.ts`. Adding a

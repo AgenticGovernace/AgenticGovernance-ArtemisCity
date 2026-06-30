@@ -973,7 +973,7 @@ def _trust_set_score(payload: Dict[str, Any]) -> Dict[str, Any]:
 def _trust_record_success(payload: Dict[str, Any]) -> Dict[str, Any]:
     entity_id = _require_str(payload, "entity_id")
     entity_type = payload.get("entity_type", "agent")
-    amount = _optional_float(payload, "amount", 0.02, 0.0, 1.0) or 0.02
+    amount = _optional_float(payload, "amount", 0.02, 0.0, 1.0)
     interface = _trust_interface(payload)
     score = interface.record_success(entity_id, str(entity_type), amount)
     return interface.get_trust_score(entity_id, str(entity_type)).to_dict() | {
@@ -985,7 +985,7 @@ def _trust_record_success(payload: Dict[str, Any]) -> Dict[str, Any]:
 def _trust_record_failure(payload: Dict[str, Any]) -> Dict[str, Any]:
     entity_id = _require_str(payload, "entity_id")
     entity_type = payload.get("entity_type", "agent")
-    amount = _optional_float(payload, "amount", 0.05, 0.0, 1.0) or 0.05
+    amount = _optional_float(payload, "amount", 0.05, 0.0, 1.0)
     interface = _trust_interface(payload)
     score = interface.record_failure(entity_id, str(entity_type), amount)
     return interface.get_trust_score(entity_id, str(entity_type)).to_dict() | {

@@ -1,43 +1,100 @@
-# CircleCI 2.1 pipeline for Artemis City.
-# See: https://circleci.com/docs/reference/configuration-reference
-#
-# This mirrors the GitHub Actions `ci.yml` job: install deps, validate the
-# environment configs, and run the Python test suite under src/tests.
 version: 2.1
 
-# Reusable execution environment.
-executors:
-  py:
-    docker:
-      # Pin a concrete Python minor version that matches our support matrix.
-      # See: https://circleci.com/developer/images/image/cimg/python
-      - image: cimg/python:3.12
-    working_directory: ~/project
+# =============================================================================
+# Artemis City — unified CI/CD pipeline
+# -----------------------------------------------------------------------------
+# Single source of truth for CI/CD. CircleCI is the sole CI/CD system for this
+# repo (the .github/workflows/* files should be retired — see docs/CI_CD.md).
+#
+# Environment model (authoritative: docs/ENVIRONMENTS.md):
+#
+#   Branch     GitHub Env   Approvals   Deploy
+#   --------   ----------   ---------   --------------------------------------
+#   dev        dev          0           auto on every green build
+#   staging    staging      1           manual approval gate, then deploy
+#   prod       prod         2           manual approval gate, then deploy
+#
+# Note: prod is the DEFAULT branch — there is no `main`.
+#
+# Two ways to reach staging/prod, mirroring the GitHub setup:
+#   1. Direct push to the env branch  -> staging-pipeline / prod-pipeline
+#   2. Promotion cascade from `dev`   -> dev-pipeline (push dev, approve to
+#      fast-forward staging then prod, deploying each — like promote.yml)
+#
+# Stage 1 (checks) runs in parallel on every branch:
+#   docs-mirror · python (3.11/3.12/3.13 matrix) · typescript-api · secrets-check
+# Stage 2 (deploy / promote) is branch-gated and, for staging/prod, approval-gated.
+# =============================================================================
 
+# -----------------------------------------------------------------------------
+# COMMANDS (reusable step sequences)
+# -----------------------------------------------------------------------------
 commands:
   restore_pip_cache:
     steps:
       - restore_cache:
           keys:
-            - pip-v2-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
-            - pip-v2-{{ checksum "requirements.txt" }}
-            - pip-v2-
+            - pip-v3-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
+            - pip-v3-{{ checksum "requirements.txt" }}
+            - pip-v3-
 
   save_pip_cache:
     steps:
       - save_cache:
-          key: pip-v2-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
+          key: pip-v3-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
           paths:
             - ~/.cache/pip
 
+  restore_npm_cache:
+    steps:
+      - restore_cache:
+          keys:
+            - npm-root-v1-{{ checksum "package-lock.json" }}
+            - npm-root-v1-
+
+  save_npm_cache:
+    steps:
+      - save_cache:
+          key: npm-root-v1-{{ checksum "package-lock.json" }}
+          paths:
+            - ~/.npm
+
+# -----------------------------------------------------------------------------
+# JOBS
+# -----------------------------------------------------------------------------
 jobs:
-  build-and-test:
-    executor: py
+
+  # ── Docs mirror gate ───────────────────────────────────────────────────────
+  # CLAUDE.md and AGENTS.md must stay byte-for-byte identical (repo rule).
+  docs-mirror:
+    docker:
+      - image: cimg/base:current
+    working_directory: ~/project
+    steps:
+      - checkout
+      - run:
+          name: CLAUDE.md and AGENTS.md must be byte-for-byte mirrors
+          command: |
+            if ! diff -q CLAUDE.md AGENTS.md >/dev/null; then
+              echo "ERROR: CLAUDE.md and AGENTS.md have drifted — edit both in the same commit." >&2
+              diff CLAUDE.md AGENTS.md || true
+              exit 1
+            fi
+            echo "CLAUDE.md and AGENTS.md are in sync."
+
+  # ── Python checks (matrixed over the supported interpreter versions) ───────
+  python-checks:
+    parameters:
+      pyversion:
+        type: string
+    docker:
+      - image: cimg/python:<< parameters.pyversion >>
+    working_directory: ~/project
     environment:
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
-      # Default the loader to the dev environment for the config-validation step.
+      # Neutral CI value so the env loader never accidentally pulls a real env's config.
       ARTEMIS_ENV: dev
     steps:
       - checkout
@@ -48,11 +105,12 @@ jobs:
             python -m pip install --upgrade pip setuptools wheel
             if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
             if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
-            # Belt-and-suspenders for the config-validation and test steps.
-            pip install pyyaml pytest
+            # Belt-and-suspenders for the checks below; advisory linters are not
+            # declared in requirements-dev so install them here.
+            pip install pyyaml pytest pytest-cov black isort flake8 bandit
       - save_pip_cache
       - run:
-          name: Validate environment configs
+          name: Validate environment configs (dev / staging / prod)
           command: |
             python - <<'PY'
             from src.utils.environments import load_environment, VALID_ENVIRONMENTS
@@ -60,15 +118,279 @@ jobs:
                 cfg = load_environment(env)
                 assert cfg["name"] == env, (env, cfg)
                 assert cfg["deploy"]["branch"] == env, (env, cfg)
-            print("env configs OK")
+            print("env configs OK:", VALID_ENVIRONMENTS)
             PY
       - run:
-          name: Run tests
-          command: python -m pytest src/tests -q
+          name: Run pytest with coverage
+          command: |
+            mkdir -p test-results
+            python -m pytest src/tests \
+              --cov=src \
+              --cov-report=xml:test-results/coverage.xml \
+              --cov-report=term-missing \
+              --junitxml=test-results/junit.xml \
+              -q
+      - store_test_results:
+          path: test-results
+      - store_artifacts:
+          path: test-results
+          destination: test-results
+      # Advisory linters run once (on 3.12) to save credits — non-blocking.
+      # Remove the `|| true` on any one to make it a hard gate.
+      - when:
+          condition:
+            equal: ["3.12", << parameters.pyversion >>]
+          steps:
+            - run:
+                name: "Advisory: Black format check"
+                command: black --check . || true
+            - run:
+                name: "Advisory: isort import order"
+                command: isort --check-only . || true
+            - run:
+                name: "Advisory: Flake8 lint"
+                command: flake8 . || true
+            - run:
+                name: "Advisory: Bandit security scan"
+                command: bandit -r src app -f json -o test-results/bandit.json || true
+            - store_artifacts:
+                path: test-results/bandit.json
+                destination: bandit.json
 
-# Orchestrate jobs using workflows.
-# See: https://circleci.com/docs/reference/configuration-reference/#workflows
+  # ── TypeScript: root Express API ───────────────────────────────────────────
+  typescript-api:
+    docker:
+      - image: cimg/node:24.0
+    working_directory: ~/project
+    steps:
+      - checkout
+      - restore_npm_cache
+      - run:
+          name: Install deps (skip lifecycle scripts)
+          # Root package.json lifecycle hooks can call hatch/docker, which are
+          # not available in CI — --ignore-scripts keeps the install hermetic.
+          command: npm ci --ignore-scripts
+      - save_npm_cache
+      - run:
+          name: Type check (tsc --noEmit)
+          command: npm run typecheck
+      - run:
+          name: Jest tests
+          command: npm test
+      - run:
+          name: "Advisory: ESLint"
+          command: npm run lint || true
+
+  # ── Secrets scan (uses the repo's detect-secrets baseline) ─────────────────
+  secrets-check:
+    docker:
+      - image: cimg/python:3.12
+    working_directory: ~/project
+    steps:
+      - checkout
+      - run:
+          name: detect-secrets (diff against .secrets.baseline)
+          command: |
+            pip install "detect-secrets==1.4.0"
+            # Same check the pre-commit hook runs: fail if a tracked file
+            # introduces a secret not already audited in the baseline.
+            git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline
+
+  # ── Deploy (parameterized; placeholder — wire your provider in below) ───────
+  deploy:
+    parameters:
+      env:
+        type: string
+    docker:
+      - image: cimg/python:3.12
+    working_directory: ~/project
+    environment:
+      ARTEMIS_ENV: << parameters.env >>
+    steps:
+      - checkout
+      - run:
+          name: Load environment config (<< parameters.env >>)
+          command: |
+            pip install pyyaml
+            python - <<'PY'
+            import os, json
+            from src.utils.environments import load_environment
+            cfg = load_environment(os.environ["ARTEMIS_ENV"])
+            print(json.dumps(cfg, indent=2))
+            PY
+      - run:
+          name: Build artifacts (placeholder)
+          command: |
+            echo "Build step for << parameters.env >> — wire your container build or package step here."
+      - run:
+          name: Deploy to << parameters.env >> (placeholder)
+          no_output_timeout: 20m
+          command: |
+            echo "Deploying to << parameters.env >> — replace with your provider's deploy command."
+            # Examples (uncomment + add the matching context/secret):
+            #   flyctl deploy --config fly.<< parameters.env >>.toml
+            #   heroku container:push web --app artemis-city-<< parameters.env >> && \
+            #     heroku container:release web --app artemis-city-<< parameters.env >>
+            #   python scripts/deploy.py --env << parameters.env >>
+
+  # ── Promote (fast-forward an env branch to the tested commit) ──────────────
+  # Mirrors promote.yml's cascade. Requires a write-enabled SSH key added in
+  # CircleCI Project Settings → SSH Keys; put its fingerprint below.
+  promote:
+    parameters:
+      target:
+        type: string
+    docker:
+      - image: cimg/base:current
+    working_directory: ~/project
+    steps:
+      - add_ssh_keys:
+          fingerprints:
+            # REPLACE with your write-enabled deploy/user key fingerprint.
+            - "REPLACE_ME_WITH_WRITE_SSH_KEY_FINGERPRINT"
+      - checkout
+      - run:
+          name: Fast-forward << parameters.target >> to the tested commit
+          command: |
+            # No --force: a non-fast-forward push fails loudly if << parameters.target >>
+            # diverged outside the cascade (matches the GitHub promote cascade).
+            git push origin "HEAD:refs/heads/<< parameters.target >>"
+
+# -----------------------------------------------------------------------------
+# WORKFLOWS
+# -----------------------------------------------------------------------------
 workflows:
-  ci:
+
+  # ── dev: checks → auto-deploy dev, plus the approval-gated promotion cascade ─
+  dev-pipeline:
     jobs:
-      - build-and-test
+      - docs-mirror:
+          filters: { branches: { only: dev } }
+      - python-checks:
+          name: python-<< matrix.pyversion >>
+          matrix:
+            parameters:
+              pyversion: ["3.11", "3.12", "3.13"]
+          filters: { branches: { only: dev } }
+      - typescript-api:
+          filters: { branches: { only: dev } }
+      - secrets-check:
+          filters: { branches: { only: dev } }
+
+      # Auto-deploy dev on green (0 approvals).
+      - deploy:
+          name: deploy-dev
+          env: dev
+          # To scope secrets, create the context and uncomment:
+          # context: [artemis-dev]
+          requires: &checks
+            - docs-mirror
+            - python-3.11
+            - python-3.12
+            - python-3.13
+            - typescript-api
+            - secrets-check
+          filters: { branches: { only: dev } }
+
+      # Promotion cascade: dev → staging → prod, each behind an approval gate.
+      - hold-promote-staging:
+          type: approval
+          requires: *checks
+          filters: { branches: { only: dev } }
+      - promote:
+          name: promote-to-staging
+          target: staging
+          requires: [hold-promote-staging]
+          filters: { branches: { only: dev } }
+      - deploy:
+          name: cascade-deploy-staging
+          env: staging
+          # context: [artemis-staging]
+          requires: [promote-to-staging]
+          filters: { branches: { only: dev } }
+      - hold-promote-prod:
+          type: approval
+          requires: [cascade-deploy-staging]
+          filters: { branches: { only: dev } }
+      - promote:
+          name: promote-to-prod
+          target: prod
+          requires: [hold-promote-prod]
+          filters: { branches: { only: dev } }
+      - deploy:
+          name: cascade-deploy-prod
+          env: prod
+          # context: [artemis-prod]
+          requires: [promote-to-prod]
+          filters: { branches: { only: dev } }
+
+  # ── staging: direct push → checks → 1 approval → deploy ────────────────────
+  staging-pipeline:
+    jobs:
+      - docs-mirror:
+          filters: { branches: { only: staging } }
+      - python-checks:
+          name: python-<< matrix.pyversion >>
+          matrix:
+            parameters:
+              pyversion: ["3.11", "3.12", "3.13"]
+          filters: { branches: { only: staging } }
+      - typescript-api:
+          filters: { branches: { only: staging } }
+      - secrets-check:
+          filters: { branches: { only: staging } }
+      - hold-staging:
+          type: approval
+          requires: *checks
+          filters: { branches: { only: staging } }
+      - deploy:
+          name: deploy-staging
+          env: staging
+          # context: [artemis-staging]
+          requires: [hold-staging]
+          filters: { branches: { only: staging } }
+
+  # ── prod: direct push → checks → approval → deploy ─────────────────────────
+  # prod requires 2 approvals per docs/ENVIRONMENTS.md. CircleCI's built-in
+  # approval is a single hold; enforce 2 DISTINCT reviewers with a restricted
+  # context on deploy-prod (see docs/CI_CD.md → "Two-reviewer prod gate").
+  prod-pipeline:
+    jobs:
+      - docs-mirror:
+          filters: { branches: { only: prod } }
+      - python-checks:
+          name: python-<< matrix.pyversion >>
+          matrix:
+            parameters:
+              pyversion: ["3.11", "3.12", "3.13"]
+          filters: { branches: { only: prod } }
+      - typescript-api:
+          filters: { branches: { only: prod } }
+      - secrets-check:
+          filters: { branches: { only: prod } }
+      - hold-prod:
+          type: approval
+          requires: *checks
+          filters: { branches: { only: prod } }
+      - deploy:
+          name: deploy-prod
+          env: prod
+          # context: [artemis-prod]   # make this a RESTRICTED context for the 2-reviewer gate
+          requires: [hold-prod]
+          filters: { branches: { only: prod } }
+
+  # ── feature / PR branches: checks only, no deploy ──────────────────────────
+  pr-checks:
+    jobs:
+      - docs-mirror:
+          filters: { branches: { ignore: [dev, staging, prod] } }
+      - python-checks:
+          name: python-<< matrix.pyversion >>
+          matrix:
+            parameters:
+              pyversion: ["3.11", "3.12", "3.13"]
+          filters: { branches: { ignore: [dev, staging, prod] } }
+      - typescript-api:
+          filters: { branches: { ignore: [dev, staging, prod] } }
+      - secrets-check:
+          filters: { branches: { ignore: [dev, staging, prod] } }

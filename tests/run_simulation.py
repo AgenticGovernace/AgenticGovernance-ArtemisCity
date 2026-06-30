@@ -15,7 +15,7 @@ import argparse
 import json
 import random
 import textwrap
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 
