@@ -42,8 +42,6 @@ from ..utils.helpers import logger
 if TYPE_CHECKING:
     from logging import Logger
 
-    from Concept_Demos.src.agent_types import TaskContext, TaskResult
-
 
 class BaseAgent(ABC):
     """

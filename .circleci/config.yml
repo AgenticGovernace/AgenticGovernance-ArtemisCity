@@ -1,34 +1,4 @@
 version: 2.1
-
-# =============================================================================
-# Artemis City — unified CI/CD pipeline
-# -----------------------------------------------------------------------------
-# Single source of truth for CI/CD. CircleCI is the sole CI/CD system for this
-# repo (the .github/workflows/* files should be retired — see docs/CI_CD.md).
-#
-# Environment model (authoritative: docs/ENVIRONMENTS.md):
-#
-#   Branch     GitHub Env   Approvals   Deploy
-#   --------   ----------   ---------   --------------------------------------
-#   dev        dev          0           auto on every green build
-#   staging    staging      1           manual approval gate, then deploy
-#   prod       prod         2           manual approval gate, then deploy
-#
-# Note: prod is the DEFAULT branch — there is no `main`.
-#
-# Two ways to reach staging/prod, mirroring the GitHub setup:
-#   1. Direct push to the env branch  -> staging-pipeline / prod-pipeline
-#   2. Promotion cascade from `dev`   -> dev-pipeline (push dev, approve to
-#      fast-forward staging then prod, deploying each — like promote.yml)
-#
-# Stage 1 (checks) runs in parallel on every branch:
-#   docs-mirror · python (3.11/3.12/3.13 matrix) · typescript-api · secrets-check
-# Stage 2 (deploy / promote) is branch-gated and, for staging/prod, approval-gated.
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# COMMANDS (reusable step sequences)
-# -----------------------------------------------------------------------------
 commands:
   restore_pip_cache:
     steps:

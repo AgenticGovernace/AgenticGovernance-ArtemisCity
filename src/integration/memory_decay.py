@@ -44,7 +44,7 @@ try:  # repo root on path (tests / app): `src` is a package
     from src.utils.helpers import logger
 except ImportError:  # pragma: no cover - exercised under benchmark/bare layouts
     try:  # src/ itself on path (benchmark): `utils` is top-level
-        from utils.helpers import logger  # type: ignore
+        from utils.helpers import logger
     except ImportError:  # last resort: never fail to import over logging
         import logging
 
@@ -354,8 +354,10 @@ class MemoryDecayService:
 
     def _safe_sink(self, node: MemoryNode, previous: float, new_weight: float) -> None:
         """Invoke the sink callback without letting failures break a cycle."""
+        if self.sink is None:
+            return
         try:
-            self.sink(node, previous, new_weight)  # type: ignore[misc]
+            self.sink(node, previous, new_weight)
         except Exception:  # pragma: no cover - defensive
             logger.exception("Memory decay sink failed for node %s", node.node_id)
 

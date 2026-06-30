@@ -185,7 +185,7 @@ docs-serve: ## Serve documentation locally
 # ============================================
 # ALL-IN-ONE COMMANDS
 # ============================================
-
+	
 all: clean install-dev format lint security test ## Run all quality checks
 	@echo "All tasks complete!"
 

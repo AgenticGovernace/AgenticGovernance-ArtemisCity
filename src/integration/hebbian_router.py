@@ -49,7 +49,7 @@ try:  # repo root on path (tests / app)
     from src.utils.helpers import logger
 except ImportError:  # pragma: no cover - benchmark/bare layouts
     try:
-        from utils.helpers import logger  # type: ignore
+        from utils.helpers import logger
     except ImportError:
         import logging
 
@@ -258,9 +258,7 @@ class HebbianRouter:
             heb_norm = (heb_raw / max_heb) if max_heb > 0 else self.neutral_prior
             trust = trusts[name]
             blended = (
-                composite_weight * composite
-                + self.alpha * heb_norm
-                + self.beta * trust
+                composite_weight * composite + self.alpha * heb_norm + self.beta * trust
             )
             scored.append(
                 CandidateScore(name, composite, heb_raw, heb_norm, trust, blended)

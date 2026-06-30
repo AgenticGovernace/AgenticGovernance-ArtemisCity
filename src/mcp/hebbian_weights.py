@@ -62,7 +62,8 @@ class HebbianWeightManager:
     def _initialize_database(self):
         """Create the node_connections table if it doesn't exist."""
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS node_connections (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     origin_node TEXT NOT NULL,
@@ -75,15 +76,20 @@ class HebbianWeightManager:
                     created_at TEXT,
                     UNIQUE(origin_node, target_node)
                 )
-            """)
-            conn.execute("""
+            """
+            )
+            conn.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_origin
                 ON node_connections(origin_node)
-            """)
-            conn.execute("""
+            """
+            )
+            conn.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_weight
                 ON node_connections(weight DESC)
-            """)
+            """
+            )
             conn.commit()
 
     def strengthen_connection(self, origin: str, target: str) -> float:
@@ -407,7 +413,8 @@ class HebbianWeightManager:
             Dictionary with network statistics
         """
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute("""
+            cursor = conn.execute(
+                """
                 SELECT
                     COUNT(*) as total_connections,
                     AVG(weight) as avg_weight,
@@ -416,7 +423,8 @@ class HebbianWeightManager:
                     SUM(success_count) as total_successes,
                     SUM(failure_count) as total_failures
                 FROM node_connections
-            """)
+            """
+            )
             result = cursor.fetchone()
 
             if result:

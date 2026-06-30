@@ -60,7 +60,8 @@ class RunLogger:
         """Create logging tables if they don't exist."""
         with sqlite3.connect(self.db_path) as conn:
             # Event log table - tracks all operations
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS event_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id TEXT NOT NULL,
@@ -72,10 +73,12 @@ class RunLogger:
                     duration_ms REAL,
                     created_at REAL NOT NULL
                 )
-            """)
+            """
+            )
 
             # Vector log table - tracks all semantic embeddings
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS vector_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id TEXT NOT NULL,
@@ -89,10 +92,12 @@ class RunLogger:
                     latency_ms REAL,
                     created_at REAL NOT NULL
                 )
-            """)
+            """
+            )
 
             # Database write log - tracks all DB operations
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS db_write_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id TEXT NOT NULL,
@@ -106,7 +111,8 @@ class RunLogger:
                     latency_ms REAL,
                     created_at REAL NOT NULL
                 )
-            """)
+            """
+            )
 
             # Create indexes for efficient querying
             conn.execute(

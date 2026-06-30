@@ -118,8 +118,11 @@ class TestMakeRequest:
         def fake_urlopen(req, timeout=None):
             body = json.dumps({"success": False, "error": "bad request"}).encode()
             raise urllib.error.HTTPError(
-                url="http://x", code=400, msg="Bad Request",
-                hdrs=None, fp=io.BytesIO(body),
+                url="http://x",
+                code=400,
+                msg="Bad Request",
+                hdrs=None,
+                fp=io.BytesIO(body),
             )
 
         monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
@@ -131,8 +134,11 @@ class TestMakeRequest:
     def test_http_error_without_json_body(self, client, monkeypatch):
         def fake_urlopen(req, timeout=None):
             raise urllib.error.HTTPError(
-                url="http://x", code=500, msg="Server Error",
-                hdrs=None, fp=io.BytesIO(b"not json"),
+                url="http://x",
+                code=500,
+                msg="Server Error",
+                hdrs=None,
+                fp=io.BytesIO(b"not json"),
             )
 
         monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)

@@ -107,7 +107,9 @@ class TestAgentRegistry:
         a2 = _StubAgent("Beta", capabilities=["research"])
         registry.register_agent(a1)
         registry.register_agent(a2)
-        registry.scores["Beta"] = AgentScore(alignment=1.0, accuracy=1.0, efficiency=1.0)
+        registry.scores["Beta"] = AgentScore(
+            alignment=1.0, accuracy=1.0, efficiency=1.0
+        )
         best = registry.route_task({"required_capability": "research"})
         assert best == "Beta"
 
@@ -161,7 +163,9 @@ class TestAgentRegistry:
         a2 = _StubAgent("Beta", capabilities=["code"])
         registry.register_agent(a1)
         registry.register_agent(a2)
-        registry.scores["Beta"] = AgentScore(alignment=1.0, accuracy=1.0, efficiency=1.0)
+        registry.scores["Beta"] = AgentScore(
+            alignment=1.0, accuracy=1.0, efficiency=1.0
+        )
         result = registry.get_all_agents_with_scores()
         assert len(result) == 2
         assert result[0]["name"] == "Beta"

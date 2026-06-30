@@ -1,4 +1,5 @@
 """Integration tests for ATP parser metrics."""
+
 import sys
 from enum import Enum
 from pathlib import Path
@@ -260,6 +261,8 @@ class TestParserEdgeCases:
 
     def test_parse_with_metrics_re_raises_parse_errors(self, parser, monkeypatch):
         """Errors in parse() are surfaced to callers."""
-        monkeypatch.setattr(parser, "parse", lambda _: (_ for _ in ()).throw(RuntimeError("boom")))
+        monkeypatch.setattr(
+            parser, "parse", lambda _: (_ for _ in ()).throw(RuntimeError("boom"))
+        )
         with pytest.raises(RuntimeError, match="boom"):
             parser.parse_with_metrics("anything")
