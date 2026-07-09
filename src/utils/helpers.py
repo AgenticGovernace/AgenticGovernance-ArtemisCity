@@ -6,8 +6,8 @@ from logging import Logger
 def setup_logging():
     """Configure the standard Python logger for MCP system.
 
-    Writes to ``$ARTEMIS_LOG_FILE`` when set, otherwise falls back to the
-    historical Concept_Demos path for local dev. Crucially, a missing or
+    Writes to ``$ARTEMIS_LOG_FILE`` when set, otherwise falls back to
+    ``logs/mcp_obsidian.log`` at the repo root. Crucially, a missing or
     unwritable log path no longer crashes the import — we degrade to
     stream-only logging instead. Importing this module is a side-effect
     of every bridge / orchestrator import, so an import-time crash here
@@ -18,8 +18,8 @@ def setup_logging():
     """
     default_log = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
-        "../../Concept_Demos/src",
-        "..",
+        "../..",
+        "logs",
         "mcp_obsidian.log",
     )
     log_file = os.environ.get("ARTEMIS_LOG_FILE", default_log)

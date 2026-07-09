@@ -175,11 +175,11 @@ cli: ## Run the legacy Artemis CLI
 demo: ## Run all demos
 	@echo "Running demos..."
 	@echo "\n--- Artemis Features Demo ---"
-	@$(LOAD_ENV) $(PYTHON) Concept_Demos/demo_artemis.py
+	@$(LOAD_ENV) $(PYTHON) src/launch/demo_artemis.py
 	@echo "\n--- Memory Integration Demo ---"
-	@$(LOAD_ENV) $(PYTHON) Concept_Demos/demo_memory_integration.py
+	@$(LOAD_ENV) $(PYTHON) src/launch/demo_memory_integration.py
 	@echo "\n--- City Postal Demo ---"
-	@$(LOAD_ENV) $(PYTHON) Concept_Demos/demo_city_postal.py
+	@$(LOAD_ENV) $(PYTHON) src/launch/demo_city_postal.py
 	@echo "\nDemos complete!"
 
 server: ## Start MCP server (Memory Layer)

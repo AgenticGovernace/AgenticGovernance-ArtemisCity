@@ -5,6 +5,11 @@ It is a lightweight local probing surface for Artemis City: a CLI creates
 request dictionaries, the kernel routes them by keyword, a concrete agent
 handles the request, and the memory bus records the interaction.
 
+Prototype CLI flows have been consolidated under `src/launch/`. The historical
+`Concept_Demos/` directory now contains static browser prototypes plus tiny
+compatibility shims for older commands; it no longer owns runtime Python
+implementations, integration modules, or a frontend workspace.
+
 For the authoritative Python orchestration core, bridge, governance, and memory
 bus specs, see `docs/ARCHITECTURE.md`, `docs/API_REFERENCE.md`, and
 `docs/MEMORY_BUS.md`.
@@ -14,7 +19,8 @@ bus specs, see `docs/ARCHITECTURE.md`, `docs/API_REFERENCE.md`, and
 ```mermaid
 graph TD
     User((User)) --> CLI[app/kernel/artemis_cli.py]
-    Makefile --> CoreCLI[make run]
+    Makefile --> CoreCLI[make run / make demo]
+    CoreCLI --> Launch[src/launch/*.py]
     CLI --> Kernel[app/kernel/kernel.py]
 
     subgraph "Kernel Layer"
@@ -46,6 +52,8 @@ graph TD
 - `app/kernel/agents/base.py`: abstract `Agent.handle(request, memory)` contract.
 - `app/kernel/agents/daemon_agent.py`: default command handler and fallback.
 - `app/kernel/agents/planner_agent.py`: lightweight plan-drafting handler.
+- `src/launch/`: maintained CLI walkthroughs and orchestration launch scripts.
+- `Concept_Demos/`: static browser prototypes and compatibility shims only.
 
 The router config may name personas that do not yet have concrete classes.
 `Kernel._get_agent_instance()` falls back to `DaemonAgent` for those routes and
@@ -171,3 +179,5 @@ app/kernel/
 - If kernel behavior graduates into the main orchestration core, document the
   boundary change in `docs/ARCHITECTURE.md` and keep this page scoped to the
   `app/kernel/` implementation.
+- Do not add new Python implementation flows under `Concept_Demos/`; put
+  runnable walkthroughs in `src/launch/` and production behavior in `src/`.

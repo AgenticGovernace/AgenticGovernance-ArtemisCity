@@ -2,12 +2,11 @@
 
 Resolution order for every value (highest precedence first):
     1. Real process environment (e.g. exported shell vars, container env).
-    2. ``Concept_Demos/.env`` — overrides the repo-root file for demo runs.
-    3. Repo-root ``.env`` — shared defaults checked in alongside ``.env.example``.
-    4. The hard-coded fallback in this file.
+    2. Repo-root ``.env`` — shared defaults checked in alongside ``.env.example``.
+    3. The hard-coded fallback in this file.
 
 Variable names here are the public contract used by ``orchestrator.py``,
-``app/api/main.py``, ``Concept_Demos/main.py``, and the test suite — keep them
+``app/api/main.py``, ``src/launch/main.py``, and the test suite — keep them
 in sync with ``.env.example``.
 """
 
@@ -33,15 +32,13 @@ except ImportError:  # python-dotenv is a project dependency; degrade gracefully
 
 
 # config.py lives at <repo-root>/src/mcp/config.py, so parents[2] is the repo
-# root. (Earlier indices were off-by-one — likely a leftover from when this
-# file lived under Concept_Demos/src/mcp/.)
+# root.
 _THIS_FILE = Path(__file__).resolve()
 _REPO_ROOT = _THIS_FILE.parents[2]
-_CONCEPT_DEMOS_ROOT = _REPO_ROOT / "Concept_Demos"
 
 # Load lowest-precedence file first; ``override=False`` means anything already
 # set in os.environ (real shell env or earlier .env) is preserved.
-for _candidate in (_REPO_ROOT / ".env", _CONCEPT_DEMOS_ROOT / ".env"):
+for _candidate in (_REPO_ROOT / ".env",):
     if _candidate.is_file():
         load_dotenv(_candidate, override=False)
 

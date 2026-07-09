@@ -238,7 +238,7 @@ class ExecuteInstructionResponse(BaseModel):
 
 
 # SQLite paths -- align with the rest of the project, which writes to
-# ``data/`` at the repo root (see src/api_bridge.py, src/main.py,
+# ``data/`` at the repo root (see src/api_bridge.py,
 # src/launch/main.py and the PKG-INFO doc). The dashboard previously
 # pointed at ``app/api/db/``, a directory that never gets populated, so
 # every Database/Agents/Hebbian/Vector/Runs endpoint 500'd with

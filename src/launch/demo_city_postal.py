@@ -1,10 +1,14 @@
 import sys
 from pathlib import Path
 
-# Add parent directory to path (robust for REPL / notebooks where __file__ is undefined)
+# Add repo paths for direct execution from any working directory.
 _script_file = globals().get("__file__")
-_base_dir = Path(_script_file).resolve().parent if _script_file else Path.cwd()
-sys.path.insert(0, str(_base_dir))
+_repo_root = Path(_script_file).resolve().parents[2] if _script_file else Path.cwd()
+_src_root = _repo_root / "src"
+for _path in (_repo_root, _src_root):
+    _path_str = str(_path)
+    if _path_str not in sys.path:
+        sys.path.insert(0, _path_str)
 
 try:
     from memory.integration import get_post_office, get_trust_interface

@@ -1,13 +1,15 @@
 # Agent Implementation Guide
 
-A comprehensive guide for creating agents in Artemis City, bridging the Concept_Demos prototypes with production implementations in `src/`.
+A comprehensive guide for creating agents in Artemis City using the maintained
+`src/` runtime. `Concept_Demos/` is now a static demo gallery plus CLI
+compatibility shims; new Python agent work belongs in `src/`.
 
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)
 2. [Agent Types & Locations](#agent-types--locations)
 3. [Creating a New Agent](#creating-a-new-agent)
-4. [Migration Path: Demo to Production](#migration-path-demo-to-production)
+4. [Implementation Checklist](#implementation-checklist)
 5. [Testing Your Agent](#testing-your-agent)
 6. [Integration with Orchestrator](#integration-with-orchestrator)
 7. [Best Practices](#best-practices)
@@ -16,36 +18,39 @@ A comprehensive guide for creating agents in Artemis City, bridging the Concept_
 
 ## Architecture Overview
 
-Artemis City uses a **dual-track architecture** for agent development:
+Artemis City uses a **single-source runtime architecture** for agent
+development:
 
 ```apache
 ┌─────────────────────────────────────────────────────────────┐
-│                    CONCEPT_DEMOS/                           │
-│  • Prototyping & experimentation                            │
-│  • Self-contained demonstrations                            │
-│  • Rapid iteration without breaking production              │
-│  • Educational walkthroughs                                 │
-└─────────────────────────────────────────────────────────────┘
-                         ⬇ Migration Path
-┌─────────────────────────────────────────────────────────────┐
 │                        SRC/                                 │
-│  • Production-ready implementations                         │
-│  • Full orchestrator integration                            │
-│  • Obsidian vault + MCP server connectivity                 │
-│  • Hebbian learning & trust management                      │
+│  • Agent implementations                                    │
+│  • Orchestrator integration                                 │
+│  • Obsidian vault + memory bus connectivity                 │
+│  • Hebbian routing, trust, governance, tests                │
+└─────────────────────────────────────────────────────────────┘
+                         ▲
+                         │
+┌─────────────────────────────────────────────────────────────┐
+│                    SRC/LAUNCH/                              │
+│  • Maintained runnable walkthroughs                         │
+│  • CLI demos backed by src.* imports                        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Key Differences
+`Concept_Demos/` remains for static browser prototypes and old command shims
+only. Do not add new agent classes, integration modules, or frontend workspaces
+there.
 
-| Aspect | Concept_Demos | Production (src/) |
-|--------|---------------|-------------------|
-| **Purpose** | Rapid prototyping, education | Production workflows |
-| **Dependencies** | Minimal, self-contained | Full MCP stack |
-| **Database** | Local SQLite in `data/` | Shared production DBs |
-| **Error Handling** | Graceful mocks/stubs | Full exception handling |
-| **Testing** | Manual walkthrough | Automated pytest suite |
-| **Entry Point** | `Concept_Demos/main.py` | `src/main.py` |
+### Runtime Locations
+
+| Purpose | Location |
+|--------|----------|
+| Agent classes | `src/agents/` |
+| Orchestrator registration | `src/mcp/orchestrator.py` |
+| Registry, trust, governance, memory integration | `src/integration/` |
+| Maintained walkthrough scripts | `src/launch/` |
+| Static browser prototypes | `Concept_Demos/` |
 
 ---
 
@@ -66,34 +71,18 @@ src/agents/
     └── semantic_tagging.py # Tag extraction & citation tracking
 ```
 
-### Demo Agents (`Concept_Demos/src/agents/`)
-
-```
-Concept_Demos/src/agents/
-├── base_agent.py           # Identical to production BaseAgent
-├── artemis_agent.py        # Simplified demo version
-├── research_agent.py       # Mock implementation
-├── summarizer_agent.py     # Demo version
-└── artemis/                # Full Artemis persona (for demos)
-    ├── persona.py
-    ├── reflection.py
-    └── semantic_tagging.py
-```
-
----
-
 ## Creating a New Agent
 
-### Step 1: Start with a Concept Demo
+### Step 1: Implement the Agent in `src/agents/`
 
-Create your prototype in `Concept_Demos/src/agents/`:
+Create the agent directly in `src/agents/`:
 
 ```python
-# Concept_Demos/src/agents/my_new_agent.py
+# src/agents/my_new_agent.py
 from .base_agent import BaseAgent
 
 class MyNewAgent(BaseAgent):
-    """Demo version - proof of concept."""
+    """Production agent with a focused capability."""
 
     def __init__(self):
         super().__init__(
@@ -116,12 +105,12 @@ class MyNewAgent(BaseAgent):
         }
 ```
 
-### Step 2: Test in Demo Environment
+### Step 2: Add a Walkthrough When Useful
 
-Create a demo script to test your agent:
+If a human-facing walkthrough helps, add it under `src/launch/`:
 
 ```python
-# Concept_Demos/demo_my_agent.py
+# src/launch/demo_my_agent.py
 from src.agents.my_new_agent import MyNewAgent
 
 def main():
@@ -143,12 +132,12 @@ if __name__ == "__main__":
 
 Run it:
 ```bash
-python3 Concept_Demos/demo_my_agent.py
+python3 src/launch/demo_my_agent.py
 ```
 
-### Step 3: Migrate to Production
+### Step 3: Harden the Agent
 
-Once your prototype is validated, create the production version in `src/agents/`:
+Add input validation, error handling, tests, and any external configuration:
 
 ```python
 # src/agents/my_new_agent.py
@@ -234,11 +223,11 @@ def __init__(self):
 
 ---
 
-## Migration Path: Demo to Production
+## Implementation Checklist
 
 ### Checklist
 
-Use this checklist when migrating an agent from Concept_Demos to production:
+Use this checklist when adding or changing an agent:
 
 - [ ] **Code Quality**
     - [ ] Add comprehensive docstrings
@@ -275,18 +264,8 @@ Use this checklist when migrating an agent from Concept_Demos to production:
     - [ ] Update `docs/ARCHITECTURE.md` if needed
     - [ ] Add usage examples to README
 
-### Migration Example: Research Agent
+### Example: Research Agent
 
-**Before (Concept_Demos):**
-```python
-# Concept_Demos/src/agents/research_agent.py
-class ResearchAgent(BaseAgent):
-    def perform_task(self, task_context):
-        # Simple mock implementation
-        return {"status": "success", "summary": "Mock research complete"}
-```
-
-**After (Production):**
 ```python
 # src/agents/research_agent.py
 import os
@@ -610,35 +589,8 @@ def process_atp_message(self, message_text: str):
 
 ## Example: Complete Agent Implementation
 
-Here's a complete example showing both demo and production versions:
+Here's a complete production-style example:
 
-### Demo Version
-```python
-# Concept_Demos/src/agents/translator_agent.py
-from .base_agent import BaseAgent
-
-class TranslatorAgent(BaseAgent):
-    """Demo translator - returns mock translations."""
-
-    def __init__(self):
-        super().__init__("Translator Agent", capabilities=["translation"])
-
-    def perform_task(self, task_context: dict) -> dict:
-        text = task_context.get("content", "")
-        target_lang = task_context.get("target_language", "es")
-
-        # Mock translation
-        self.report_status(f"Translating to {target_lang}...")
-        translated = f"[MOCK {target_lang.upper()}]: {text}"
-
-        return {
-            "status": "success",
-            "summary": f"Translated to {target_lang}",
-            "translated_text": translated
-        }
-```
-
-### Production Version
 ```python
 # src/agents/translator_agent.py
 import os
@@ -736,40 +688,40 @@ class TranslatorAgent(BaseAgent):
 
 ### File Locations
 
-| Component | Demo Path | Production Path |
-|-----------|-----------|-----------------|
-| Base Agent | `Concept_Demos/src/agents/base_agent.py` | `src/agents/base_agent.py` |
-| Your Agent | `Concept_Demos/src/agents/my_agent.py` | `src/agents/my_agent.py` |
-| Agent Tests | N/A (manual) | `tests/agents/test_my_agent.py` |
-| Demo Script | `Concept_Demos/demo_my_agent.py` | N/A |
-| Entry Point | `Concept_Demos/main.py` | `src/main.py` |
+| Component | Path |
+|-----------|------|
+| Base Agent | `src/agents/base_agent.py` |
+| Your Agent | `src/agents/my_agent.py` |
+| Agent Tests | `src/tests/test_my_agent.py` |
+| Optional Walkthrough | `src/launch/demo_my_agent.py` |
+| Entry Point | `src/launch/main.py` |
 
 ### Command Reference
 
 ```bash
-# Demo development
-python3 Concept_Demos/demo_my_agent.py
+# Walkthrough development
+python3 src/launch/demo_my_agent.py
 
 # Production testing
-pytest tests/agents/test_my_agent.py -v
+pytest src/tests/test_my_agent.py -v
 
 # Integration testing
-pytest tests/integration/ -v
+pytest src/tests/integration/ -v
 
 # Run with orchestrator
-python3 src/main.py --agent my_agent -i "Your instruction"
+python3 src/launch/main.py --agent my_agent -i "Your instruction"
 
 # Check Hebbian stats
-python3 src/main.py --agent-stats "My Agent"
+python3 src/launch/main.py --agent-stats "My Agent"
 ```
 
 ---
 
 ## Next Steps
 
-1. **Start with Concept_Demos**: Prototype your agent quickly
-2. **Test thoroughly**: Use the demo scripts to validate behavior
-3. **Migrate to production**: Follow the migration checklist
+1. **Implement in `src/agents`**: Keep production behavior in the canonical runtime
+2. **Test thoroughly**: Use pytest and optional `src/launch` walkthroughs to validate behavior
+3. **Register with the orchestrator**: Follow the implementation checklist
 4. **Write tests**: Add unit and integration tests
 5. **Document**: Update agent index and architecture docs
 6. **Deploy**: Register with orchestrator and test end-to-end

@@ -4,14 +4,14 @@ Artemis City is an agent-governance and memory-orchestration project built aroun
 - structured agent communication through the Artemis Transmission Protocol (ATP)
 - trust- and governance-aware task routing
 - an Obsidian-backed memory layer with semantic recall
-The repository is intentionally broader than a single service. It contains the authoritative Python orchestration core, API and dashboard surfaces, a standalone Obsidian MCP server, and a set of concept demos used to explore the platform’s behavior.
+The repository is intentionally broader than a single service. It contains the authoritative Python orchestration core, API and dashboard surfaces, a standalone Obsidian MCP server, and static concept demos used to explore the platform’s behavior.
 
 ## Repository reality
 New contributors should start with this mental model:
 
 - `src/`  is the authoritative Python core.
 - `app/`  contains HTTP and UI surfaces that sit on top of the Python core.
-- `Concept_Demos/`  contains older but still useful prototype flows and walkthroughs.
+- `Concept_Demos/`  contains static browser prototypes and compatibility shims; maintained Python walkthroughs live in `src/launch/`.
 - `src/Artemis Agentic Memory Layer/`  is a standalone TypeScript MCP server for Obsidian.
 Some scripts and historical files still reflect earlier layouts. Prefer the paths documented below over older references in legacy notes.
 
@@ -48,7 +48,7 @@ Key modules:
 
 - `src/tests/` 
     - primary Python test suite
-    - `src/tests/conftest.py`  adds both the repo root and `Concept_Demos/src/`  to `sys.path`  so legacy modules remain importable in tests
+    - `src/tests/conftest.py` adds the repo root to `sys.path` so `src.*` imports resolve consistently
 
 ### FastAPI dashboard backend (`app/api/main.py`)
 This service exposes a dashboard-oriented API backed by the Python core and local SQLite databases.
@@ -94,13 +94,13 @@ Responsibilities:
 Use this when you want a dedicated MCP-style memory service independent of the main Python orchestration runtime.
 
 ### Concept demos (`Concept_Demos/`)
-These are prototype assets and walkthroughs used to demonstrate ATP, memory, routing, and Hebbian behavior.
+These are static prototype assets used to demonstrate ATP, memory, routing, and Hebbian behavior.
 
 Highlights:
 
 - browser demos served as static HTML
-- CLI walkthroughs such as `demo_artemis.py` , `demo_city_postal.py` , and `demo_memory_integration.py` 
-- useful for exploring system concepts without standing up every service
+- compatibility shims for old CLI demo commands
+- maintained CLI walkthroughs live under `src/launch/`
 ## How the pieces interact
 At a high level, the system works like this:
 
@@ -212,9 +212,9 @@ make security
 ```
 ### Run demos
 ```bash
-python Concept_Demos/demo_artemis.py
-python Concept_Demos/demo_city_postal.py
-python Concept_Demos/demo_memory_integration.py
+python src/launch/demo_artemis.py
+python src/launch/demo_city_postal.py
+python src/launch/demo_memory_integration.py
 ```
 ### Serve browser demos
 ```bash
@@ -229,7 +229,7 @@ Then open `http://localhost:8080`.
 ├── app/
 │   ├── api/                         # FastAPI dashboard API + TS Express boundary
 │   └── web/frontend/               # React dashboard source + additional TS routes/controllers
-├── Concept_Demos/                  # Browser demos and CLI walkthroughs
+├── Concept_Demos/                  # Static browser demos and CLI compatibility shims
 ├── config/environments/            # dev / staging / prod environment profiles
 ├── src/
 │   ├── agents/                     # Python agent implementations
@@ -1010,7 +1010,7 @@ artemis_agent_success_rate
 │   ├── api/                    # FastAPI + TypeScript API
 │   ├── kernel/                 # In-process router
 │   └── web/frontend/           # React dashboard
-├── Concept_Demos/              # Prototype demos
+├── Concept_Demos/              # Static browser demos and CLI shims
 ├── config/environments/        # Environment configs
 ├── src/
 │   ├── agents/                 # Agent implementations

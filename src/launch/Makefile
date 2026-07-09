@@ -158,11 +158,11 @@ run: ## Run the launch CLI interactively
 demo: ## Run all demos
 	@echo "Running demos..."
 	@echo "\n--- Artemis Features Demo ---"
-	python ../../Concept_Demos/demo_artemis.py
+	python demo_artemis.py
 	@echo "\n--- Memory Integration Demo ---"
-	python ../../Concept_Demos/demo_memory_integration.py
+	python demo_memory_integration.py
 	@echo "\n--- City Postal Demo ---"
-	python ../../Concept_Demos/demo_city_postal.py
+	python demo_city_postal.py
 	@echo "\nDemos complete!"
 
 server: ## Start MCP server (Memory Layer)
