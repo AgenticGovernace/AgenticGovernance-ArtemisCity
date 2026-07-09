@@ -72,7 +72,7 @@ const getLevelColor = (level: LogLevel): string => {
 /**
  * Sanitize values before logging to prevent log injection/forgery
  */
-const sanitizeForLog = (value: unknown): string => {
+export const sanitizeForLog = (value: unknown): string => {
   if (value === null || value === undefined) {
     return '';
   }

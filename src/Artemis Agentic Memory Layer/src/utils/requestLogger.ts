@@ -4,7 +4,7 @@
  * Emits a concise log entry for each inbound HTTP request before passing control to the next middleware.
  */
 import { NextFunction, Request, Response } from 'express';
-import { logger } from './logger';
+import { logger, sanitizeForLog } from './logger';
 /**
  * Log the request method, URL, and remote IP for incoming HTTP traffic.
  *
@@ -14,7 +14,9 @@ import { logger } from './logger';
  */
 
 const requestLogger = (req: Request, _res: Response, next: NextFunction) => {
-  logger.info(`${req.method} ${req.originalUrl} from ${req.ip}`);
+  logger.info(
+    `${sanitizeForLog(req.method)} ${sanitizeForLog(req.originalUrl)} from ${sanitizeForLog(req.ip)}`,
+  );
   next();
 };
 

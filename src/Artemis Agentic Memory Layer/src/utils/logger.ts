@@ -42,3 +42,24 @@ export const logger = {
   warn: (message: string, ...args: unknown[]) => log(LogLevel.WARN, message, ...args),
   error: (message: string, ...args: unknown[]) => log(LogLevel.ERROR, message, ...args),
 };
+
+/**
+ * Sanitize values before logging to prevent log injection/forgery.
+ * Strips CR/LF and other control characters and truncates long values.
+ */
+export const sanitizeForLog = (value: unknown): string => {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  const text = typeof value === 'string' ? value : safeStringify(value);
+  const cleaned = text.replace(/[\r\n]+/g, ' ').replace(/[\x00-\x1f\x7f]/g, '');
+  return cleaned.length > 500 ? `${cleaned.slice(0, 500)}…` : cleaned;
+};
+
+const safeStringify = (value: unknown): string => {
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
+};
