@@ -5,6 +5,7 @@ import pytest
 from src.agents.base_agent import BaseAgent
 from src.integration.agent_registry import QUARANTINE_THRESHOLD, AgentRegistry
 from src.integration.sandbox import (
+    VIOLATION_UNAUTHORIZED_OPERATION,
     VIOLATION_UNAUTHORIZED_PATH,
     VIOLATION_UNAUTHORIZED_TOOL,
     AgentSandbox,
@@ -146,7 +147,7 @@ class TestDenied:
         """
         result = sandbox.check_action("file_read", path="/tmp/x", operation="write")
         assert result.allowed is False
-        assert result.violation_type == VIOLATION_UNAUTHORIZED_PATH
+        assert result.violation_type == VIOLATION_UNAUTHORIZED_OPERATION
 
 
 # ---------------------------------------------------------------------------

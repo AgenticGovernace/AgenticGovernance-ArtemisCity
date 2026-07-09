@@ -2,15 +2,17 @@
 
 import sys
 
+sys.modules.pop("src.integration.trust_interface", None)
 sys.modules.pop("integration.trust_interface", None)
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from src.integration.trust_interface import (
     TrustInterface,
     TrustLevel,
     TrustScore,
     get_trust_interface,
+    reset_trust_interface_for_tests,
 )
 
 
@@ -51,15 +53,16 @@ class TestTrustScore:
         assert result == score.score
 
     def test_apply_decay_after_days(self):
+        now = datetime.now(timezone.utc)
         ts = TrustScore(
             entity_id="x",
             entity_type="agent",
             score=0.8,
             level=TrustLevel.HIGH,
-            last_updated=datetime.now() - timedelta(days=10),
+            last_updated=now - timedelta(days=10),
             decay_rate=0.01,
         )
-        decayed = ts.apply_decay()
+        decayed = ts.apply_decay(now=now)
         expected = 0.8 * (0.99**10)
         assert abs(decayed - expected) < 0.001
 
@@ -144,19 +147,16 @@ class TestTrustScore:
 # ---------------------------------------------------------------------------
 class TestTrustInterface:
     @pytest.fixture
-    def iface(self):
-        return TrustInterface()
+    def iface(self, tmp_path):
+        return TrustInterface(db_path=tmp_path / "trust_scores.db")
 
     def test_default_agents_initialized(self, iface):
-        assert "artemis" in iface.trust_scores
-        assert "pack_rat" in iface.trust_scores
+        assert "agent:artemis" in iface.trust_scores
+        assert "agent:pack_rat" in iface.trust_scores
 
     def test_get_trust_score_existing(self, iface):
-        # Default agents are stored by plain name, but get_trust_score
-        # uses "type:id" keys for NEW lookups.  The "artemis" key was
-        # seeded directly in _initialize_default_agents.
-        assert "artemis" in iface.trust_scores
-        ts = iface.trust_scores["artemis"]
+        assert "agent:artemis" in iface.trust_scores
+        ts = iface.get_trust_score("artemis")
         assert ts.score >= 0.9
 
     def test_get_trust_score_new_agent(self, iface):
@@ -250,10 +250,8 @@ class TestTrustInterface:
 # ---------------------------------------------------------------------------
 class TestGetTrustInterface:
     def test_singleton(self):
-        import integration.trust_interface as mod
-
-        mod._global_trust_interface = None
+        reset_trust_interface_for_tests()
         i1 = get_trust_interface()
         i2 = get_trust_interface()
         assert i1 is i2
-        mod._global_trust_interface = None
+        reset_trust_interface_for_tests()
