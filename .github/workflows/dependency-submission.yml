@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   submit-deps:
-    runs-on: self-hosted
+    runs-on: ubuntu-22.04
     # Best-effort: dependency-graph submission must never block the pipeline.
     continue-on-error: true
     steps:
