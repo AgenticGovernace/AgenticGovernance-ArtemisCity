@@ -17,11 +17,11 @@ name: Promote
 
 on:
   push:
-    branches: [dev]
+    branches: [dev,staging,prod]
   # Manual re-run of the cascade from the Actions tab. Regardless of which ref
   # the UI selects, the cascade always promotes the current `dev` tip (resolved
   # in the `resolve` job below) — never the default branch or an arbitrary ref.
-  workflow_dispatch: {}
+  workflow_dispatch: {  }
 
 # contents: write is required to advance the staging/prod branch pointers.
 permissions:
@@ -29,7 +29,7 @@ permissions:
 
 concurrency:
   group: promote-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   # Resolve the exact commit to promote ONCE, so the gate tests and the branch
@@ -95,8 +95,9 @@ jobs:
           enable-cache: true
       - name: Install deps
         run: |
-          uv venv --python 3.12 .venv
-          uv pip install --python .venv/bin/python -r requirements.txt -r requirements-dev.txt
+          uv venv --python 3.12 .venv --clear  
+          uv add src/lauch/requirements.txt
+          
           uv pip install --python .venv/bin/python pyyaml pytest
       - name: Validate environment configs
         run: |
@@ -114,7 +115,7 @@ jobs:
   promote-staging:
     name: Promote dev -> staging
     needs: [resolve, docs-mirror, test]
-    runs-on: ubuntu-latest
+    runs-on: github
     steps:
       - uses: actions/checkout@v4
         with:
@@ -156,5 +157,5 @@ jobs:
     needs: promote-prod
     uses: ./.github/workflows/deploy.yml
     with:
-      environment: prod
+      environment: github
     secrets: inherit
