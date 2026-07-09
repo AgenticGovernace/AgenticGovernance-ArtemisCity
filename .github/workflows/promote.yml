@@ -40,7 +40,7 @@ jobs:
   #                       the default branch — promoting that would be wrong).
   resolve:
     name: Resolve dev commit
-    runs-on: self-hosted
+    runs-on: ubuntu-22.04
     outputs:
       sha: ${{ steps.pick.outputs.sha }}
     steps:
@@ -81,7 +81,7 @@ jobs:
   test:
     name: Test gate
     needs: resolve
-    runs-on: self-hosted
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
