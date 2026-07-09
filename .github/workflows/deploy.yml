@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   resolve:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     outputs:
       environment: ${{ steps.pick.outputs.environment }}
     steps:
@@ -54,7 +54,7 @@ jobs:
 
   deploy:
     needs: resolve
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     # Binds to the matching GitHub Environment so per-env required reviewers and
     # secrets apply. This is where staging (1) / prod (2) approval gates live.
     environment: ${{ needs.resolve.outputs.environment }}

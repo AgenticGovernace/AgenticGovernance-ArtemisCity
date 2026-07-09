@@ -17,11 +17,11 @@ name: Promote
 
 on:
   push:
-    branches: [dev,staging,prod]
+    branches: [dev]
   # Manual re-run of the cascade from the Actions tab. Regardless of which ref
   # the UI selects, the cascade always promotes the current `dev` tip (resolved
   # in the `resolve` job below) — never the default branch or an arbitrary ref.
-  workflow_dispatch: {  }
+  workflow_dispatch: {}
 
 # contents: write is required to advance the staging/prod branch pointers.
 permissions:
@@ -29,7 +29,7 @@ permissions:
 
 concurrency:
   group: promote-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   # Resolve the exact commit to promote ONCE, so the gate tests and the branch
@@ -40,7 +40,7 @@ jobs:
   #                       the default branch — promoting that would be wrong).
   resolve:
     name: Resolve dev commit
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     outputs:
       sha: ${{ steps.pick.outputs.sha }}
     steps:
@@ -64,7 +64,7 @@ jobs:
   docs-mirror:
     name: Docs mirror gate
     needs: resolve
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -81,7 +81,7 @@ jobs:
   test:
     name: Test gate
     needs: resolve
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -95,9 +95,8 @@ jobs:
           enable-cache: true
       - name: Install deps
         run: |
-          uv venv --python 3.12 .venv --clear  
-          uv add src/lauch/requirements.txt
-          
+          uv venv --python 3.12 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt -r requirements-dev.txt
           uv pip install --python .venv/bin/python pyyaml pytest
       - name: Validate environment configs
         run: |
@@ -115,7 +114,7 @@ jobs:
   promote-staging:
     name: Promote dev -> staging
     needs: [resolve, docs-mirror, test]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -139,7 +138,7 @@ jobs:
   promote-prod:
     name: Promote staging -> prod
     needs: [resolve, deploy-staging]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -157,5 +156,5 @@ jobs:
     needs: promote-prod
     uses: ./.github/workflows/deploy.yml
     with:
-      environment: github
+      environment: prod
     secrets: inherit
