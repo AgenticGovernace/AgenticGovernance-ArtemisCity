@@ -18,7 +18,7 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
-except ImportError:  # python-dotenv is pinned in Pipfile but degrade gracefully
+except ImportError:  # python-dotenv is a project dependency; degrade gracefully
 
     def load_dotenv(*_args, **_kwargs) -> bool:  # type: ignore[misc]
         """Provide a no-op ``load_dotenv`` fallback when python-dotenv is unavailable.

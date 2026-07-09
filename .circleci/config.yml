@@ -1,19 +1,27 @@
 version: 2.1
 commands:
-  restore_pip_cache:
+  install_uv:
+    steps:
+      - run:
+          name: Install uv
+          command: |
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$BASH_ENV"
+
+  restore_uv_cache:
     steps:
       - restore_cache:
           keys:
-            - pip-v3-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
-            - pip-v3-{{ checksum "requirements.txt" }}
-            - pip-v3-
+            - uv-v1-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
+            - uv-v1-{{ checksum "requirements.txt" }}
+            - uv-v1-
 
-  save_pip_cache:
+  save_uv_cache:
     steps:
       - save_cache:
-          key: pip-v3-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
+          key: uv-v1-{{ checksum "requirements.txt" }}-{{ checksum "requirements-dev.txt" }}
           paths:
-            - ~/.cache/pip
+            - ~/.cache/uv
 
   restore_npm_cache:
     steps:
@@ -52,13 +60,11 @@ jobs:
             fi
             echo "CLAUDE.md and AGENTS.md are in sync."
 
-  # ── Python checks (matrixed over the supported interpreter versions) ───────
+  # ── Python checks (single supported interpreter version) ───────────────────
   python-checks:
-    parameters:
-      pyversion:
-        type: string
     docker:
-      - image: cimg/python:<< parameters.pyversion >>
+      # Pin the supported minor line while still receiving 3.12.x patch updates.
+      - image: cimg/python:3.12
     working_directory: ~/project
     environment:
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
@@ -68,21 +74,21 @@ jobs:
       ARTEMIS_ENV: dev
     steps:
       - checkout
-      - restore_pip_cache
+      - install_uv
+      - restore_uv_cache
       - run:
           name: Install dependencies
           command: |
-            python -m pip install --upgrade pip setuptools wheel
-            if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-            if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+            uv venv --python 3.12 .venv
+            uv pip install --python .venv/bin/python -r requirements.txt -r requirements-dev.txt
             # Belt-and-suspenders for the checks below; advisory linters are not
             # declared in requirements-dev so install them here.
-            pip install pyyaml pytest pytest-cov black isort flake8 bandit
-      - save_pip_cache
+            uv pip install --python .venv/bin/python pyyaml pytest pytest-cov black isort flake8 bandit
+      - save_uv_cache
       - run:
           name: Validate environment configs (dev / staging / prod)
           command: |
-            python - <<'PY'
+            .venv/bin/python - <<'PY'
             from src.utils.environments import load_environment, VALID_ENVIRONMENTS
             for env in VALID_ENVIRONMENTS:
                 cfg = load_environment(env)
@@ -94,7 +100,7 @@ jobs:
           name: Run pytest with coverage
           command: |
             mkdir -p test-results
-            python -m pytest src/tests \
+            .venv/bin/python -m pytest src/tests \
               --cov=src \
               --cov-report=xml:test-results/coverage.xml \
               --cov-report=term-missing \
@@ -105,27 +111,23 @@ jobs:
       - store_artifacts:
           path: test-results
           destination: test-results
-      # Advisory linters run once (on 3.12) to save credits — non-blocking.
+      # Advisory linters are non-blocking.
       # Remove the `|| true` on any one to make it a hard gate.
-      - when:
-          condition:
-            equal: ["3.12", << parameters.pyversion >>]
-          steps:
-            - run:
-                name: "Advisory: Black format check"
-                command: black --check . || true
-            - run:
-                name: "Advisory: isort import order"
-                command: isort --check-only . || true
-            - run:
-                name: "Advisory: Flake8 lint"
-                command: flake8 . || true
-            - run:
-                name: "Advisory: Bandit security scan"
-                command: bandit -r src app -f json -o test-results/bandit.json || true
-            - store_artifacts:
-                path: test-results/bandit.json
-                destination: bandit.json
+      - run:
+          name: "Advisory: Black format check"
+          command: .venv/bin/black --check . || true
+      - run:
+          name: "Advisory: isort import order"
+          command: .venv/bin/isort --check-only . || true
+      - run:
+          name: "Advisory: Flake8 lint"
+          command: .venv/bin/flake8 . || true
+      - run:
+          name: "Advisory: Bandit security scan"
+          command: .venv/bin/bandit -r src app -f json -o test-results/bandit.json || true
+      - store_artifacts:
+          path: test-results/bandit.json
+          destination: bandit.json
 
   # ── TypeScript: root Express API ───────────────────────────────────────────
   typescript-api:
@@ -154,17 +156,20 @@ jobs:
   # ── Secrets scan (uses the repo's detect-secrets baseline) ─────────────────
   secrets-check:
     docker:
+      # Pin the supported minor line while still receiving 3.12.x patch updates.
       - image: cimg/python:3.12
     working_directory: ~/project
     steps:
       - checkout
+      - install_uv
       - run:
           name: detect-secrets (diff against .secrets.baseline)
           command: |
-            pip install "detect-secrets==1.4.0"
+            uv venv --python 3.12 .venv
+            uv pip install --python .venv/bin/python "detect-secrets==1.4.0"
             # Same check the pre-commit hook runs: fail if a tracked file
             # introduces a secret not already audited in the baseline.
-            git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline
+            git ls-files -z | xargs -0 .venv/bin/detect-secrets-hook --baseline .secrets.baseline
 
   # ── Deploy (parameterized; placeholder — wire your provider in below) ───────
   deploy:
@@ -172,17 +177,20 @@ jobs:
       env:
         type: string
     docker:
+      # Pin the supported minor line while still receiving 3.12.x patch updates.
       - image: cimg/python:3.12
     working_directory: ~/project
     environment:
       ARTEMIS_ENV: << parameters.env >>
     steps:
       - checkout
+      - install_uv
       - run:
           name: Load environment config (<< parameters.env >>)
           command: |
-            pip install pyyaml
-            python - <<'PY'
+            uv venv --python 3.12 .venv
+            uv pip install --python .venv/bin/python pyyaml
+            .venv/bin/python - <<'PY'
             import os, json
             from src.utils.environments import load_environment
             cfg = load_environment(os.environ["ARTEMIS_ENV"])
@@ -237,10 +245,7 @@ workflows:
       - docs-mirror:
           filters: { branches: { only: dev } }
       - python-checks:
-          name: python-<< matrix.pyversion >>
-          matrix:
-            parameters:
-              pyversion: ["3.11", "3.12", "3.13"]
+          name: python-3.12
           filters: { branches: { only: dev } }
       - typescript-api:
           filters: { branches: { only: dev } }
@@ -255,9 +260,7 @@ workflows:
           # context: [artemis-dev]
           requires: &checks
             - docs-mirror
-            - python-3.11
             - python-3.12
-            - python-3.13
             - typescript-api
             - secrets-check
           filters: { branches: { only: dev } }
@@ -300,10 +303,7 @@ workflows:
       - docs-mirror:
           filters: { branches: { only: staging } }
       - python-checks:
-          name: python-<< matrix.pyversion >>
-          matrix:
-            parameters:
-              pyversion: ["3.11", "3.12", "3.13"]
+          name: python-3.12
           filters: { branches: { only: staging } }
       - typescript-api:
           filters: { branches: { only: staging } }
@@ -329,10 +329,7 @@ workflows:
       - docs-mirror:
           filters: { branches: { only: prod } }
       - python-checks:
-          name: python-<< matrix.pyversion >>
-          matrix:
-            parameters:
-              pyversion: ["3.11", "3.12", "3.13"]
+          name: python-3.12
           filters: { branches: { only: prod } }
       - typescript-api:
           filters: { branches: { only: prod } }
@@ -355,10 +352,7 @@ workflows:
       - docs-mirror:
           filters: { branches: { ignore: [dev, staging, prod] } }
       - python-checks:
-          name: python-<< matrix.pyversion >>
-          matrix:
-            parameters:
-              pyversion: ["3.11", "3.12", "3.13"]
+          name: python-3.12
           filters: { branches: { ignore: [dev, staging, prod] } }
       - typescript-api:
           filters: { branches: { ignore: [dev, staging, prod] } }

@@ -254,7 +254,7 @@ Use this checklist when migrating an agent from Concept_Demos to production:
 
 - [ ] **Dependencies**
     - [ ] Add to `requirements.txt`
-    - [ ] Update `Pipfile` if using pipenv
+    - [ ] Update `requirements.txt` / `requirements-dev.txt` and verify with `uv`
     - [ ] Document environment variables in `.env.example`
 
 - [ ] **Integration**

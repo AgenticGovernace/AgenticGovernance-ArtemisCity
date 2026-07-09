@@ -69,7 +69,7 @@ Keywords: keyword1, keyword2
 ```bash
 # Install dependencies
 # DEPRECATED — use `make install` in the active section below.
-pip install -r requirements.txt
+make install
 
 # Configure Obsidian vault path in .env
 # DEPRECATED — use `./setup_secrets.sh` in the active section below.
@@ -878,7 +878,7 @@ already used there.
 `docs/TEST_PLAN.md` is the canonical test plan (pyramid, coverage targets,
 naming, marker conventions). Don't restate it here. To run the suite
 locally: `make test` (calls `pytest src/tests/`). CI runs the same on
-Python 3.10 / 3.11 / 3.12 plus a config-validation step.
+Python 3.12 plus a config-validation step.
 
 ### Environment variables and secrets
 

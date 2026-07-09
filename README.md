@@ -124,7 +124,7 @@ Environment profiles live in `config/environments/`:
 ### External dependencies
 Depending on which surface you run, the repository may depend on:
 
-- Python 3.10+
+- Python 3.12
 - Node.js 18+ for TypeScript services
 - Obsidian with the Local REST API plugin
 - SQLite databases under `data/`  or `app/api/db/` 
@@ -141,13 +141,13 @@ The root repository itself is not organized around a single top-level Docker dep
 From the repository root:
 
 ```bash
-python3 -m venv .venv
+uv venv --python 3.12 .venv
 source .venv/bin/activate
-pip install --upgrade pip
-pip install -e .
-pip install -r requirements-dev.txt
+uv pip install -r requirements.txt -r requirements-dev.txt
 ```
-If you prefer not to install the package in editable mode, the repo also includes `requirements.txt` and `requirements-dev.txt` for direct pip installs.
+If you prefer to create the environment yourself, use `python3.12 -m venv .venv`
+or `virtualenv --python python3.12 .venv`, then install packages with
+`uv pip install`.
 
 ### 2. Configure environment files
 The canonical provisioner is `./setup_secrets.sh`. It populates four
@@ -179,11 +179,11 @@ Never commit populated `.env` files (the root `.gitignore` already covers them).
 
 ### 3. Run the Python test suite
 ```bash
-python -m pytest src/tests
+make test
 ```
 ### 4. Start the FastAPI dashboard backend
 ```bash
-uvicorn app.api.main:app --reload --port 8000
+make api
 ```
 This matches the proxy target configured in `app/web/frontend/vite.config.ts`.
 
@@ -240,7 +240,7 @@ Then open `http://localhost:8080`.
 │   ├── api_bridge.py               # JSON bridge for TS-to-Python calls
 │   └── Artemis Agentic Memory Layer/  # Standalone TypeScript MCP server
 ├── .env.example
-├── pyproject.toml
+├── src/pyproject.toml
 ├── requirements.txt
 └── requirements-dev.txt
 ```
@@ -931,7 +931,7 @@ GitHub Actions runs on `dev`, `staging`, `prod` branches:
 
 - Environment configuration validation
 - Python dependency installation
-- Test suite execution (Python 3.10/3.11/3.12)
+- Test suite execution (Python 3.12)
 - Lint checks (ruff, flake8, mypy)
 - Security scans (bandit, safety)
 ---
@@ -1020,7 +1020,7 @@ artemis_agent_success_rate
 │   ├── obsidian_integration/   # Vault I/O
 │   ├── tests/                  # Test suite
 │   └── api_bridge.py           # TS-Python bridge
-├── pyproject.toml
+├── src/pyproject.toml
 └── requirements.txt
 ```
 ### 9.2 Key Dependencies
@@ -1048,7 +1048,7 @@ make check
 make run              # Python CLI
 make server           # Obsidian MCP server
 make frontend         # React dashboard
-uvicorn app.api.main:app --port 8000  # FastAPI
+make api              # FastAPI
 ```
 ### 9.4 Related Documentation
 | Document | Location |

@@ -21,7 +21,7 @@ jobs:
       - name: Submit dependency graph
         uses: actions/dependency-submission-action@v4
         with:
-          manifest-path: pyproject.toml
+          manifest-path: src/pyproject.toml
           ecosystem: python
           token: ${{ secrets.GITHUB_TOKEN }}
           fail-on-error: false
