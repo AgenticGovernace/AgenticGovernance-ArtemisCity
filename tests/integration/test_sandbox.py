@@ -23,7 +23,6 @@ from integration.sandbox import (
     AgentSandbox,
     SandboxManager,
     ViolationType,
-    ViolationSeverity,
     QuarantineStatus,
 )
 

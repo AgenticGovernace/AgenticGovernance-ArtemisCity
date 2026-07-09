@@ -420,4 +420,38 @@ describe('bridge-backed Express routes', () => {
     testCase.schema.parse(res.body);
     expect(mockedCallBridge.mock.calls.some(([command]) => command === testCase.command)).toBe(true);
   });
+
+  it('sanitizes ATP send payload before calling the bridge', async () => {
+    mockedCallBridge.mockClear();
+    const response = await request(server).post('/api/v1/atp/send').send({
+      message: '#Mode: Build\nBuild it.',
+      strict: true,
+      atp_db_path: '/tmp/override.db',
+      db_path: '/tmp/registry.db',
+    });
+
+    expect(response.status).toBe(200);
+    expect(mockedCallBridge).toHaveBeenCalledWith('atp.send', {
+      message: '#Mode: Build\nBuild it.',
+      strict: true,
+    });
+  });
+
+  it('sanitizes ATP route payload before calling the bridge', async () => {
+    mockedCallBridge.mockClear();
+    const response = await request(server).post('/api/v1/atp/route').send({
+      message: '#Mode: Build\nBuild it.',
+      required_capability: 'llm_chat',
+      message_id: 'msg-1',
+      atp_db_path: '/tmp/override.db',
+      db_path: '/tmp/registry.db',
+    });
+
+    expect(response.status).toBe(200);
+    expect(mockedCallBridge).toHaveBeenCalledWith('atp.route', {
+      message: '#Mode: Build\nBuild it.',
+      required_capability: 'llm_chat',
+      message_id: 'msg-1',
+    });
+  });
 });

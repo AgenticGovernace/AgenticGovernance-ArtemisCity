@@ -18,6 +18,7 @@ AGENT_STATUSES = ("active", "suspended", "quarantined")
 VIOLATION_TYPES = (
     "unauthorized_tool",
     "unauthorized_path",
+    "unauthorized_operation",
     "rate_limit",
     "missing_capability",
     "unsafe_network",

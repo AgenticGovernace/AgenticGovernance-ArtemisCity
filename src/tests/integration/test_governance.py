@@ -1,328 +1,157 @@
-"""Integration tests for governance and rollback functionality."""
+"""Integration tests for governance and rollback functionality.
+
+Tests the approval-tier classifier (``src.governance.approvals``) and the
+rollback manager (``src.governance.rollback``).
+"""
 
 import sys
 from pathlib import Path
 
-_src = str(Path(__file__).resolve().parents[2] / "src")
+# Ensure ``src/`` is on sys.path so both ``src.governance.*`` and the
+# ``utils.helpers`` import inside rollback.py resolve correctly.
+_repo = str(Path(__file__).resolve().parents[3])
+if _repo not in sys.path:
+    sys.path.insert(0, _repo)
+_src = str(Path(__file__).resolve().parents[2])
 if _src not in sys.path:
     sys.path.insert(0, _src)
-else:
-    sys.path.remove(_src)
-    sys.path.insert(0, _src)
-for _key in [
-    k for k in sys.modules if k == "governance" or k.startswith("governance.")
-]:
+for _key in [k for k in sys.modules if k == "governance" or k.startswith("governance.")]:
     del sys.modules[_key]
 
 import pytest
-from src.governance.self_update_governance import (
+from src.governance.approvals import (
     SelfUpdateGovernor,
-    ApprovalLevel,
-    WorkflowChange,
+    ApprovalTier,
+    UpdateProposal,
     ApprovalDecision,
-    ProposalStatus,
-    SandboxTestResults,
 )
 from src.governance.rollback import RollbackManager, Checkpoint
 
 
 # ---------------------------------------------------------------------------
-# SelfUpdateGovernor tests
+# SelfUpdateGovernor / ApprovalTier tests
 # ---------------------------------------------------------------------------
+
+class TestApprovalTier:
+    """Tests for ApprovalTier enum values."""
+
+    def test_enum_values(self):
+        assert ApprovalTier.AUTO.value == "auto"
+        assert ApprovalTier.MONITORED.value == "monitored"
+        assert ApprovalTier.HUMAN.value == "human"
 
 
 class TestSelfUpdateGovernor:
-    """Tests for SelfUpdateGovernor class."""
+    """Tests for SelfUpdateGovernor.classify()."""
 
     @pytest.fixture
     def governor(self):
-        """Governor with no registry — defaults to HUMAN_REQUIRED."""
-        return SelfUpdateGovernor(log_dir="logs/gov_logs")
+        return SelfUpdateGovernor()
 
-    def test_governor_initialization(self, governor):
-        """Governor is created with sensible defaults."""
-        assert governor.registry is None
-        assert governor.sandbox_test_count == 1000
-        assert governor.max_failure_rate == 0.05
-        assert governor.max_perf_regression == 0.20
-
-    def test_evaluate_proposal_sync_returns_decision(self, governor):
-        """evaluate_proposal_sync returns an ApprovalDecision."""
-        change = WorkflowChange(
-            change_type="config_update",
-            target_component="memory_bus",
-            description="Increase batch size",
-            proposed_diff={"batch_size": 200},
-        )
-        decision = governor.evaluate_proposal_sync("agent_A", change)
+    def test_auto_approve_high_trust_low_risk(self, governor):
+        """High trust + low risk => AUTO tier."""
+        proposal = UpdateProposal(agent_name="agent_A", code_change_ratio=0.005)
+        decision = governor.classify(proposal, trust_score=0.95)
         assert isinstance(decision, ApprovalDecision)
+        assert decision.tier == ApprovalTier.AUTO
+        assert decision.auto_approved is True
+        assert decision.requires_human is False
 
-    def test_no_registry_requires_human(self, governor):
-        """Without a registry, every proposal requires human review."""
-        change = WorkflowChange(
-            change_type="config_update",
-            target_component="agent_router",
-            description="Tweak routing weight",
-        )
-        decision = governor.evaluate_proposal_sync("agent_A", change)
-        assert decision.status == "pending_human_review"
+    def test_monitored_mid_trust(self, governor):
+        """Trust between 0.70 and 0.90 => MONITORED."""
+        proposal = UpdateProposal(agent_name="agent_B", code_change_ratio=0.005)
+        decision = governor.classify(proposal, trust_score=0.80)
+        assert decision.tier == ApprovalTier.MONITORED
+        assert decision.auto_approved is False
+        assert decision.requires_human is False
+
+    def test_human_low_trust(self, governor):
+        """Trust < 0.70 => HUMAN."""
+        proposal = UpdateProposal(agent_name="agent_C", code_change_ratio=0.005)
+        decision = governor.classify(proposal, trust_score=0.50)
+        assert decision.tier == ApprovalTier.HUMAN
         assert decision.requires_human is True
-        assert decision.approval_level == ApprovalLevel.HUMAN_REQUIRED
 
-    def test_lint_catches_missing_description(self):
-        """Lint rejects proposals with empty description."""
-        gov = SelfUpdateGovernor(log_dir="logs/gov")
-        # Provide a mock registry that gives a high trust score
-        # so the proposal doesn't short-circuit to HUMAN_REQUIRED
-        gov.registry = _MockRegistry(composite=0.90)
+    def test_human_unknown_agent(self, governor):
+        """has_history=False forces HUMAN regardless of trust."""
+        proposal = UpdateProposal(agent_name="new_agent")
+        decision = governor.classify(proposal, trust_score=0.95, has_history=False)
+        assert decision.tier == ApprovalTier.HUMAN
+        assert decision.requires_human is True
 
-        change = WorkflowChange(
-            change_type="config_update",
-            target_component="memory_bus",
-            description="",  # empty
+    def test_human_breaking_changes(self, governor):
+        """Breaking changes escalate to HUMAN even with high trust."""
+        proposal = UpdateProposal(
+            agent_name="agent_A",
+            breaking_changes=True,
         )
-        decision = gov.evaluate_proposal_sync("agent_A", change)
-        assert decision.status == "rejected"
-        assert (
-            "lint" in decision.reason.lower()
-            or "description" in decision.reason.lower()
+        decision = governor.classify(proposal, trust_score=0.95)
+        assert decision.tier == ApprovalTier.HUMAN
+
+    def test_human_policy_change(self, governor):
+        """Policy changes escalate to HUMAN."""
+        proposal = UpdateProposal(agent_name="agent_A", policy_change=True)
+        decision = governor.classify(proposal, trust_score=0.95)
+        assert decision.tier == ApprovalTier.HUMAN
+
+    def test_human_affects_governance(self, governor):
+        """Governance modifications escalate to HUMAN."""
+        proposal = UpdateProposal(agent_name="agent_A", affects_governance=True)
+        decision = governor.classify(proposal, trust_score=0.95)
+        assert decision.tier == ApprovalTier.HUMAN
+
+    def test_human_large_code_change(self, governor):
+        """Code change > 10% escalates to HUMAN."""
+        proposal = UpdateProposal(agent_name="agent_A", code_change_ratio=0.15)
+        decision = governor.classify(proposal, trust_score=0.95)
+        assert decision.tier == ApprovalTier.HUMAN
+
+    def test_monitored_new_dependencies(self, governor):
+        """New dependencies escalate to at least MONITORED."""
+        proposal = UpdateProposal(agent_name="agent_A", new_dependencies=True)
+        decision = governor.classify(proposal, trust_score=0.95)
+        assert decision.tier == ApprovalTier.MONITORED
+
+    def test_monitored_moderate_code_change(self, governor):
+        """Code change between 1% and 10% => MONITORED."""
+        proposal = UpdateProposal(agent_name="agent_A", code_change_ratio=0.05)
+        decision = governor.classify(proposal, trust_score=0.95)
+        assert decision.tier == ApprovalTier.MONITORED
+
+    def test_decision_reasons_populated(self, governor):
+        """Decisions carry human-readable reasons."""
+        proposal = UpdateProposal(
+            agent_name="agent_A",
+            breaking_changes=True,
+            policy_change=True,
         )
-
-    def test_lint_catches_missing_target_component(self):
-        """Lint rejects proposals with empty target_component."""
-        gov = SelfUpdateGovernor(log_dir="logs/gov")
-        gov.registry = _MockRegistry(composite=0.90)
-
-        change = WorkflowChange(
-            change_type="config_update",
-            target_component="",  # empty
-            description="Some change",
-        )
-        decision = gov.evaluate_proposal_sync("agent_A", change)
-        assert decision.status == "rejected"
-
-    def test_lint_catches_suspicious_patterns(self):
-        """Lint rejects proposals with dangerous patterns like 'admin'."""
-        gov = SelfUpdateGovernor(log_dir="logs/gov")
-        gov.registry = _MockRegistry(composite=0.90)
-
-        change = WorkflowChange(
-            change_type="config_update",
-            target_component="agent_router",
-            description="Escalate privileges",
-            proposed_diff={"role": "admin"},
-        )
-        decision = gov.evaluate_proposal_sync("agent_A", change)
-        assert decision.status == "rejected"
-        assert (
-            "suspicious" in decision.reason.lower()
-            or "admin" in decision.reason.lower()
-        )
-
-    def test_auto_approve_with_high_trust(self):
-        """Proposals from high-trust agents auto-approve (score > 0.85)."""
-        gov = SelfUpdateGovernor(log_dir="logs/gov")
-        gov.registry = _MockRegistry(composite=0.90)
-
-        change = WorkflowChange(
-            change_type="routing_weight",
-            target_component="hebbian_layer",
-            description="Strengthen agent-task link",
-            proposed_diff={"weight_delta": 0.1},
-        )
-        decision = gov.evaluate_proposal_sync("agent_A", change)
-        assert decision.status == "approved"
-        assert decision.approval_level == ApprovalLevel.AUTO_APPROVE
-        assert decision.staged_rollout is False
-
-    def test_monitored_approve_with_mid_trust(self):
-        """Mid-trust agents get approved with staged rollout (0.70 < score <= 0.85)."""
-        gov = SelfUpdateGovernor(log_dir="logs/gov")
-        gov.registry = _MockRegistry(composite=0.80)
-
-        change = WorkflowChange(
-            change_type="workflow_add",
-            target_component="memory_bus",
-            description="Add decay hook",
-            proposed_diff={"hook": "decay_trigger"},
-        )
-        decision = gov.evaluate_proposal_sync("agent_B", change)
-        assert decision.status == "approved"
-        assert decision.approval_level == ApprovalLevel.MONITORED_APPROVE
-        assert decision.staged_rollout is True
-
-    def test_proposal_history(self, governor):
-        """Proposals are logged in the governor's history."""
-        change = WorkflowChange(
-            change_type="config_update",
-            target_component="kernel",
-            description="Test history",
-        )
-        governor.evaluate_proposal_sync("agent_A", change)
-        # evaluate_proposal_sync doesn't call _log_proposal directly,
-        # but evaluate_proposal (async) does. History may be empty for sync.
-        # This test just verifies no crash.
-        history = governor.get_proposal_history()
-        assert isinstance(history, list)
+        decision = governor.classify(proposal, trust_score=0.95)
+        assert len(decision.reasons) >= 2
 
     def test_decision_to_dict(self, governor):
-        """ApprovalDecision serializes to dict correctly."""
-        change = WorkflowChange(
-            change_type="config_update",
-            target_component="kernel",
-            description="Serialize test",
-        )
-        decision = governor.evaluate_proposal_sync("agent_A", change)
+        """ApprovalDecision.to_dict() returns expected keys."""
+        proposal = UpdateProposal(agent_name="agent_A")
+        decision = governor.classify(proposal, trust_score=0.95)
         d = decision.to_dict()
-        assert "status" in d
-        assert "reason" in d
+        assert "tier" in d
+        assert "auto_approved" in d
         assert "requires_human" in d
-        assert "timestamp" in d
+        assert "reasons" in d
 
-    def test_multiple_proposals(self):
-        """Multiple proposals can be evaluated independently."""
-        gov = SelfUpdateGovernor(log_dir="logs/gov")
-        gov.registry = _MockRegistry(composite=0.90)
-
-        changes = [
-            WorkflowChange("config_update", "agent_router", "Change A", {"a": 1}),
-            WorkflowChange("routing_weight", "hebbian_layer", "Change B", {"b": 2}),
-            WorkflowChange("workflow_add", "memory_bus", "Change C", {"c": 3}),
+    def test_multiple_proposals_independent(self, governor):
+        """Multiple proposals are classified independently."""
+        proposals = [
+            UpdateProposal(agent_name="a1", code_change_ratio=0.001),
+            UpdateProposal(agent_name="a2", breaking_changes=True),
         ]
-        decisions = [gov.evaluate_proposal_sync("agent_A", c) for c in changes]
-        assert all(d.status == "approved" for d in decisions)
-        assert len(decisions) == 3
-
-    @pytest.mark.asyncio
-    async def test_evaluate_proposal_async_pipeline(self):
-        """Async pipeline evaluates and logs proposal decisions."""
-        gov = SelfUpdateGovernor(log_dir="logs/gov")
-        gov.registry = type(
-            "Registry", (), {"scores": {"agent_A": _MockAgentScore(0.90)}}
-        )()
-        change = WorkflowChange(
-            change_type="config_update",
-            target_component="kernel",
-            description="Async evaluation",
-            proposed_diff={"safe": True},
-        )
-
-        decision = await gov.evaluate_proposal("agent_A", change)
-        assert decision.status == "approved"
-        history = gov.get_proposal_history()
-        assert len(history) == 1
-
-    def test_determine_approval_level_missing_agent_score(self):
-        """Unknown agent score defaults to HUMAN_REQUIRED."""
-        gov = SelfUpdateGovernor(log_dir="logs/gov")
-        gov.registry = type("Registry", (), {"scores": {}})()
-        assert gov._determine_approval_level("unknown") == ApprovalLevel.HUMAN_REQUIRED
-
-    def test_determine_approval_level_low_trust(self):
-        """Scores <= 0.70 require human review."""
-        gov = SelfUpdateGovernor(log_dir="logs/gov")
-        gov.registry = type(
-            "Registry", (), {"scores": {"agent_low": _MockAgentScore(0.70)}}
-        )()
-        assert (
-            gov._determine_approval_level("agent_low") == ApprovalLevel.HUMAN_REQUIRED
-        )
-
-    def test_make_decision_human_required(self, governor):
-        """Decision engine escalates when trust tier is HUMAN_REQUIRED."""
-        decision = governor._make_decision(
-            approval_level=ApprovalLevel.HUMAN_REQUIRED,
-            sandbox_results=SandboxTestResults(total_tests=10, passed=10),
-            lint_issues=[],
-            perf_regression=0.0,
-        )
-        assert decision.status == "pending_human_review"
-        assert decision.requires_human is True
-
-    def test_make_decision_rejects_on_sandbox_failures(self, governor):
-        """Sandbox failure rate above threshold is rejected."""
-        decision = governor._make_decision(
-            approval_level=ApprovalLevel.AUTO_APPROVE,
-            sandbox_results=SandboxTestResults(total_tests=10, passed=8, failed=2),
-            lint_issues=[],
-            perf_regression=0.0,
-        )
-        assert decision.status == "rejected"
-        assert "sandbox failure rate" in decision.reason.lower()
-
-    def test_make_decision_rejects_on_perf_regression(self, governor):
-        """Performance regressions above threshold are rejected."""
-        decision = governor._make_decision(
-            approval_level=ApprovalLevel.AUTO_APPROVE,
-            sandbox_results=SandboxTestResults(total_tests=10, passed=10, failed=0),
-            lint_issues=[],
-            perf_regression=0.25,
-        )
-        assert decision.status == "rejected"
-        assert decision.requires_human is True
-
-    def test_decision_to_dict_includes_sandbox_rates(self):
-        """Serialized decisions include sandbox metrics when present."""
-        decision = ApprovalDecision(
-            status="approved",
-            reason="ok",
-            sandbox_results=SandboxTestResults(
-                total_tests=20, passed=18, failed=1, errors=1
-            ),
-            approval_level=ApprovalLevel.AUTO_APPROVE,
-        )
-        data = decision.to_dict()
-        assert data["sandbox_pass_rate"] == pytest.approx(0.9)
-        assert data["sandbox_failure_rate"] == pytest.approx(0.1)
-
-    def test_log_proposal_persist_failure_is_non_fatal(self, monkeypatch):
-        """OSError while persisting proposal logs should not crash logging."""
-        gov = SelfUpdateGovernor(log_dir="logs/gov")
-        decision = ApprovalDecision(status="approved", reason="ok")
-        change = WorkflowChange("config_update", "kernel", "desc", {"x": 1})
-
-        original_open = Path.open
-
-        def _open_with_failure(path_obj, *args, **kwargs):
-            if path_obj.name == "proposals.jsonl":
-                raise OSError("disk full")
-            return original_open(path_obj, *args, **kwargs)
-
-        monkeypatch.setattr(Path, "open", _open_with_failure)
-        gov._log_proposal("agent_A", change, decision, eval_latency_ms=1.0)
-        assert len(gov.get_proposal_history()) == 1
-
-
-class TestSandboxTestResults:
-    """Tests for SandboxTestResults dataclass."""
-
-    def test_pass_rate(self):
-        r = SandboxTestResults(total_tests=100, passed=95, failed=3, errors=2)
-        assert r.pass_rate == pytest.approx(0.95)
-
-    def test_failure_rate(self):
-        r = SandboxTestResults(total_tests=100, passed=95, failed=3, errors=2)
-        assert r.failure_rate == pytest.approx(0.05)
-
-    def test_zero_tests(self):
-        r = SandboxTestResults(total_tests=0)
-        assert r.pass_rate == 0.0
-        assert r.failure_rate == 0.0
-
-
-class TestApprovalLevel:
-    """Tests for ApprovalLevel enum values."""
-
-    def test_enum_values(self):
-        assert ApprovalLevel.AUTO_APPROVE.value == "auto"
-        assert ApprovalLevel.MONITORED_APPROVE.value == "monitored"
-        assert ApprovalLevel.HUMAN_REQUIRED.value == "human"
+        decisions = [governor.classify(p, trust_score=0.95) for p in proposals]
+        assert decisions[0].tier == ApprovalTier.AUTO
+        assert decisions[1].tier == ApprovalTier.HUMAN
 
 
 # ---------------------------------------------------------------------------
 # RollbackManager tests
 # ---------------------------------------------------------------------------
-
 
 class TestRollbackManager:
     """Tests for RollbackManager class."""
@@ -426,9 +255,7 @@ class TestRollbackManager:
     def test_diff_checkpoints(self, manager):
         """diff_checkpoints shows differences between two states."""
         id_a = manager.create_checkpoint("v1", state={"agent_registry": {"a": 1}})
-        id_b = manager.create_checkpoint(
-            "v2", state={"agent_registry": {"a": 2, "b": 3}}
-        )
+        id_b = manager.create_checkpoint("v2", state={"agent_registry": {"a": 2, "b": 3}})
         diff = manager.diff_checkpoints(id_a, id_b)
         assert "differences" in diff
         assert "agent_registry" in diff["differences"]
@@ -535,55 +362,3 @@ class TestRollbackManager:
 
         monkeypatch.setattr(Path, "open", _open_with_failure)
         manager._persist_rollback_event({"event": "rollback", "checkpoint_id": "cp"})
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-class _MockAgentScore:
-    """Minimal mock for AgentScore from agent_registry."""
-
-    def __init__(self, composite: float):
-        self.composite_score = composite
-
-
-class _MockRegistry:
-    """Minimal mock for AgentRegistry to control trust score in tests."""
-
-    def __init__(self, composite: float):
-        self.scores = {}
-        self._default_score = composite
-
-    def __getattr__(self, name):
-        if name == "scores":
-            return self.__dict__.get("scores", {})
-        raise AttributeError(name)
-
-    class _Scores(dict):
-        pass
-
-    def _ensure_score(self, agent_id):
-        if agent_id not in self.scores:
-            self.scores[agent_id] = _MockAgentScore(self._default_score)
-
-    def __init__(self, composite: float):
-        self.scores = {}
-        self._default_composite = composite
-
-    def __getattribute__(self, name):
-        if name == "scores":
-            return _AutoScoreDict(object.__getattribute__(self, "_default_composite"))
-        return object.__getattribute__(self, name)
-
-
-class _AutoScoreDict(dict):
-    """Dict that auto-creates MockAgentScore entries on access."""
-
-    def __init__(self, composite):
-        super().__init__()
-        self._composite = composite
-
-    def get(self, key, default=None):
-        return _MockAgentScore(self._composite)

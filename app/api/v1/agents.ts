@@ -10,6 +10,13 @@ import { asyncHandler } from '../middleware/errorHandler';
 
 const router = Router();
 const controller = new AgentController();
+const escapeHtml = (value: string): string =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
 router.get(
   '/',
@@ -28,7 +35,10 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const card = await controller.getAgentCard(req.params.id);
     if (req.query.format === 'markdown') {
-      res.type('text/markdown').send(card.markdown);
+      res
+        .type('text/plain')
+        .set('X-Content-Type-Options', 'nosniff')
+        .send(escapeHtml(card.markdown));
       return;
     }
     res.json({
