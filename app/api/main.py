@@ -19,11 +19,21 @@ sys.path.insert(
 )
 
 
+try:
+    from src.utils.helpers import sanitize_for_log as _shared_sanitize_for_log
+except Exception:  # pragma: no cover - SQLite-only fallback mode
+    _shared_sanitize_for_log = None
+
+
 def _sanitize_for_log(value: Any) -> str:
     """
     Basic sanitization for values that will be written to logs.
-    Removes carriage returns and newlines to mitigate log injection.
+    Delegates to the shared ``src.utils.helpers.sanitize_for_log`` when
+    the Python core is importable; otherwise falls back to stripping
+    carriage returns and newlines to mitigate log injection.
     """
+    if _shared_sanitize_for_log is not None:
+        return _shared_sanitize_for_log(value)
     text = str(value)
     return text.replace("\r", "").replace("\n", "")
 
@@ -616,7 +626,16 @@ async def get_report_content(filename: str, _key: None = Depends(_require_api_ke
     """
     if not orchestrator:
         vault_path = _get_vault_path()
-        report_path = vault_path / AGENT_OUTPUT_DIR / filename
+        output_dir = (vault_path / AGENT_OUTPUT_DIR).resolve()
+        # Resolve the joined path and require containment in the output
+        # directory so `..` / absolute segments cannot escape the vault.
+        # Do not echo the resolved path back to the client.
+        try:
+            report_path = (output_dir / filename).resolve()
+            if not report_path.is_relative_to(output_dir):
+                raise ValueError("path escapes report output directory")
+        except (ValueError, OSError):
+            raise HTTPException(status_code=400, detail="Invalid report filename.")
         if not report_path.is_file():
             raise HTTPException(status_code=404, detail="Report not found.")
         content = report_path.read_text(encoding="utf-8")
@@ -627,6 +646,9 @@ async def get_report_content(filename: str, _key: None = Depends(_require_api_ke
         if content is None:
             raise HTTPException(status_code=404, detail="Report not found.")
         return {"filename": filename, "content": content}
+    except ValueError:
+        # obs_manager rejects absolute / traversal / vault-escaping paths.
+        raise HTTPException(status_code=400, detail="Invalid report filename.")
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Report not found.")
     except HTTPException:
@@ -1241,6 +1263,8 @@ async def execute_instruction(
                 routing=routing_decision.to_dict() if routing_decision else None,
             )
         except Exception as e:
+            # Log the real exception server-side; never echo exception
+            # details (which may carry stack/context) back to the client.
             logger.error("Error executing instruction: %s", _sanitize_for_log(e))
             if note_path:
                 orchestrator.update_task_status_in_obsidian(
@@ -1251,7 +1275,7 @@ async def execute_instruction(
                 status="failed",
                 summary="Task execution failed",
                 note_path=note_path,
-                error=str(e),
+                error="Task execution failed; see server logs",
                 agent_name=None,
                 routing=routing_decision.to_dict() if routing_decision else None,
             )
