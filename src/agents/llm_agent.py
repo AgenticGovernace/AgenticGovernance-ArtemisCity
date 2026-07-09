@@ -17,10 +17,13 @@ class _MissingRequests:
         )
 
 
+requests: Any
 try:
-    import requests
+    import requests as _requests
 except ModuleNotFoundError:
-    requests = _MissingRequests()  # type: ignore[assignment]
+    requests = _MissingRequests()
+else:
+    requests = _requests
 
 from .base_agent import BaseAgent
 
@@ -48,12 +51,13 @@ class LLMAgent(BaseAgent):
                 "inference",
             ],
         )
-        self.model_url = (
+        configured_url = (
             model_url
             or os.getenv("EXO_MODEL_URL")
             or base_url
             or os.getenv("EXO_BASE_URL", "http://localhost:52415")
-        ).rstrip("/")
+        )
+        self.model_url = self._with_v1_path(configured_url)
         self.base_url = self.model_url
         self.model_id = model_id or os.getenv(
             "EXO_MODEL_ID", "mlx-community/Qwen3-0.6B-4bit"
@@ -77,7 +81,7 @@ class LLMAgent(BaseAgent):
         # to hit the length limit mid-thought and return empty content.
         max_tokens = int(task_context.get("max_tokens", 4000))
         model = str(task_context.get("model") or self.model_id)
-        model_url = self._with_chat_completions_path(
+        model_url = self._with_v1_path(
             str(task_context.get("model_url") or self.model_url)
         )
 
@@ -150,55 +154,103 @@ class LLMAgent(BaseAgent):
         max_tokens: int,
         model_url: str,
     ) -> Dict[str, Any]:
-        payload = {
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "stream": False,
-        }
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
-        try:
-            response = requests.post(
-                model_url,
-                json=payload,
-                headers=headers,
-                timeout=self.timeout_seconds,
-            )
-            response.raise_for_status()
-            body = response.json()
-            content = self._extract_message_content(body)
-            return {
-                "content": content,
-                "usage": body.get("usage", {}),
-                "id": body.get("id"),
-            }
-        except Exception as exc:  # noqa: BLE001
-            raise RuntimeError(f"Exo request failed at {model_url}: {exc}") from exc
+        errors = []
+        for endpoint, payload in self._completion_request_candidates(
+            messages, model, temperature, max_tokens, model_url, stream=False
+        ):
+            try:
+                response = requests.post(
+                    endpoint,
+                    json=payload,
+                    headers=headers,
+                    timeout=self.timeout_seconds,
+                )
+                response.raise_for_status()
+                body = response.json()
+                content = self._extract_message_content(body)
+                return {
+                    "content": content,
+                    "usage": body.get("usage", {}),
+                    "id": body.get("id"),
+                }
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"{endpoint}: {exc}")
+                if not self._should_try_next_endpoint(exc):
+                    break
+        raise RuntimeError("Exo request failed after trying " + "; ".join(errors))
 
-    def _with_chat_completions_path(self, url: str) -> str:
-        """Normalize ``url`` to Exo's OpenAI-compatible chat-completions path.
+    def _completion_request_candidates(
+        self,
+        messages: List[Dict[str, str]],
+        model: str,
+        temperature: float,
+        max_tokens: int,
+        model_url: str,
+        stream: bool,
+    ) -> List[tuple[str, Dict[str, Any]]]:
+        """Return concrete Exo endpoints to try for one completion request."""
+        base = self._with_v1_path(model_url)
+        chat_payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": stream,
+        }
+        completion_payload = {
+            "model": model,
+            "prompt": self._messages_to_prompt(messages),
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": stream,
+        }
+        return [
+            (f"{base}/chat/completions", chat_payload),
+            (f"{base}/completions", completion_payload),
+        ]
 
-        Exo follows the OpenAI spec: chat completions are served at
-        ``<base>/v1/chat/completions``. Earlier callers may pass any of:
+    def _messages_to_prompt(self, messages: List[Dict[str, str]]) -> str:
+        """Flatten chat messages for text-completions style endpoints."""
+        parts = []
+        for message in messages:
+            content = str(message.get("content", "")).strip()
+            if not content:
+                continue
+            role = str(message.get("role", "user")).strip() or "user"
+            parts.append(f"{role}: {content}")
+        return "\n".join(parts)
 
-        - ``http://host:port``                          -> append ``/v1/chat/completions``
-        - ``http://host:port/v1``                       -> append ``/chat/completions``
-        - ``http://host:port/v1/chat/completions``      -> leave as-is
+    def _should_try_next_endpoint(self, exc: Exception) -> bool:
+        """Retry only when a response suggests the endpoint shape was wrong."""
+        response = getattr(exc, "response", None)
+        status_code = getattr(response, "status_code", None)
+        return status_code in {400, 404, 405, 422}
 
-        Hitting just ``/v1`` returns HTTP 405 (Method Not Allowed) — that
-        was the pre-fix behavior and the reason every Exo call silently
-        fell back to the offline-fallback summary.
+    def _with_v1_path(self, url: str) -> str:
+        """Normalize ``url`` to Exo's OpenAI-compatible API base path.
+
+        Exo follows the OpenAI spec: callers configure the API base as
+        ``<base>/v1``. Earlier callers may pass any of:
+
+        - ``http://host:port``                          -> append ``/v1``
+        - ``http://host:port/v1``                       -> leave as-is
+        - ``http://host:port/v1/chat/completions``      -> trim to ``/v1``
+        - ``http://host:port/v1/anything``              -> trim to ``/v1``
+
+        The stored and returned Exo link should end in ``/v1``. Concrete
+        request endpoints are derived from this base.
         """
         endpoint = url.rstrip("/")
-        if endpoint.endswith("/v1/chat/completions"):
-            return endpoint
         if endpoint.endswith("/v1"):
-            return f"{endpoint}/chat/completions"
-        return f"{endpoint}/v1/chat/completions"
+            return endpoint
+        marker = "/v1/"
+        if marker in endpoint:
+            return endpoint[: endpoint.index(marker) + len("/v1")]
+        return f"{endpoint}/v1"
 
     def _extract_message_content(self, body: Dict[str, Any]) -> str:
         choices = body.get("choices")
@@ -235,6 +287,9 @@ class LLMAgent(BaseAgent):
                     else "[Model reasoning only — no final content emitted.]\n\n"
                 )
                 return note + reasoning.strip()
+            fallback_text = first.get("text")
+            if isinstance(fallback_text, str) and fallback_text.strip():
+                return fallback_text.strip()
             return text  # empty, but at least typed correctly
 
         return str(first.get("text", "")).strip()
@@ -277,7 +332,7 @@ class LLMAgent(BaseAgent):
         temperature = float(task_context.get("temperature", 0.2))
         max_tokens = int(task_context.get("max_tokens", 4000))
         model = str(task_context.get("model") or self.model_id)
-        model_url = self._with_chat_completions_path(
+        model_url = self._with_v1_path(
             str(task_context.get("model_url") or self.model_url)
         )
 
@@ -311,9 +366,7 @@ class LLMAgent(BaseAgent):
             }
         except Exception as exc:  # noqa: BLE001
             fallback = self._build_fallback_summary(messages)
-            self.report_status(
-                f"Exo stream failed, using fallback response: {exc}"
-            )
+            self.report_status(f"Exo stream failed, using fallback response: {exc}")
             # Emit the fallback as a single token so UI animation still works.
             yield {"type": "token", "text": fallback}
             yield {
@@ -358,7 +411,7 @@ class LLMAgent(BaseAgent):
             headers["Authorization"] = f"Bearer {self.api_key}"
 
         response = requests.post(
-            model_url,
+            f"{self._with_v1_path(model_url)}/chat/completions",
             json=payload,
             headers=headers,
             timeout=self.timeout_seconds,
@@ -370,7 +423,10 @@ class LLMAgent(BaseAgent):
             for raw_line in response.iter_lines(decode_unicode=True):
                 if not raw_line:
                     continue
-                line = raw_line.strip()
+                if isinstance(raw_line, bytes):
+                    line = raw_line.decode("utf-8", "replace").strip()
+                else:
+                    line = str(raw_line).strip()
                 if not line.startswith("data:"):
                     continue
                 data = line[len("data:") :].strip()

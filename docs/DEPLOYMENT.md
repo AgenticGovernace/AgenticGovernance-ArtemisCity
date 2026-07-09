@@ -13,7 +13,7 @@
 **Software:**
 - Docker 20.10+ or Podman 3.0+
 - Docker Compose 1.29+
-- Python 3.10+ (for CLI tools)
+- Python 3.12 (for CLI tools)
 - Git 2.30+
 
 ### Infrastructure Dependencies
@@ -685,4 +685,3 @@ curl http://vector-store:6333/snapshots | jq .
 docker-compose exec vector-store \
   curl http://localhost:6333/snapshots/create
 ```
-

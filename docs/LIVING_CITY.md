@@ -127,7 +127,7 @@ The Memory Bus is the city's transit system, keeping the Archives (Obsidian) and
 
 ### Write-Through Protocol
 ```python
-from Concept_Demos.src.integration.memory_bus import MemoryBus
+from src.integration.memory_bus import MemoryBus
 
 # All writes go through the Memory Bus for consistency
 result = memory_bus.write_note_with_embedding(
@@ -203,7 +203,7 @@ The city learns from experience through Hebbian weights—connections that stren
 - **Weights inform routing**: Higher weights = preferred assignments
 ### Viewing Network Stats
 ```python
-from Concept_Demos.src.mcp.hebbian_weights import HebbianWeightManager
+from src.mcp.hebbian_weights import HebbianWeightManager
 
 hebbian = HebbianWeightManager()
 
@@ -244,7 +244,7 @@ for citizen in ["pack_rat", "copilot", "Daemon_daemon"]:
 ```
 ### Example 2: Archive Research with Memory Bus
 ```python
-from Concept_Demos.src.mcp.orchestrator import Orchestrator
+from src.mcp.orchestrator import Orchestrator
 
 orchestrator = Orchestrator()
 
@@ -281,7 +281,7 @@ All citizens must be registered with City Hall before they can participate in ci
 ### Registering New Agents
 
 ```python
-from Concept_Demos.src.integration.agent_registry import AgentRegistry
+from src.integration.agent_registry import AgentRegistry
 from src.agents.base_agent import BaseAgent
 
 
@@ -400,7 +400,7 @@ for citizen in citizens:
 ```
 ### Governance Monitoring
 ```python
-from Concept_Demos.src.integration.governance import GovernanceMonitor
+from src.integration.governance import GovernanceMonitor
 
 monitor = GovernanceMonitor(alert_threshold=3)
 
@@ -435,12 +435,12 @@ City Archives/
 ## Running the City Tour
 Experience the living city yourself:
 
-### Option 1: Concept Demo (Offline-Friendly) ⭐ Recommended
-Use the standalone concept demo which gracefully handles missing servers via mocks.
+### Option 1: City Postal Walkthrough (Offline-Friendly) ⭐ Recommended
+Use the maintained launch walkthrough, which gracefully handles missing servers via mocks.
 
 ```bash
 # Run from the repository root
-python3 Concept_Demos/demo_city_postal.py
+python3 src/launch/demo_city_postal.py
 ```
 This demo includes:
 
@@ -457,23 +457,23 @@ Run the full orchestration system with live MCP server and Obsidian vault.
 # Prerequisites: Set up .env with OBSIDIAN_VAULT_PATH
 
 # Run from repo root
-python3 Concept_Demos/main.py --show-hebbian
-python3 Concept_Demos/main.py --agent-stats artemis
-python3 Concept_Demos/main.py -i "Your task instruction here" -c web_search
+python3 src/launch/main.py --show-hebbian
+python3 src/launch/main.py --agent-stats artemis
+python3 src/launch/main.py -i "Your task instruction here" -c web_search
 ```
 ### Option 3: Memory Integration Demo
 Demonstrates trust interface, context loading, and agent-vault workflow.
 
 ```bash
 # Run from the repository root
-python3 Concept_Demos/demo_memory_integration.py
+python3 src/launch/demo_memory_integration.py
 ```
 ### Option 4: Artemis Persona Demo
 Experience the Artemis persona with ATP parsing and reflection engine.
 
 ```bash
 # Run from the repository root
-python3 Concept_Demos/demo_artemis.py
+python3 src/launch/demo_artemis.py
 ```
 ### Option 5: Web Dashboard
 Run the TypeScript API and React frontend for a visual experience.
@@ -518,7 +518,7 @@ The city metaphor makes agent systems **intuitive** and **memorable**:
 - **Educational**: Teaches distributed systems through familiar concepts
 - **Governance-First**: Trust and accountability are built into the metaphor
 ## Next Steps
-1. **Explore**: Run `demo_city_postal.py`  to tour the city
+1. **Explore**: Run `src/launch/demo_city_postal.py` to tour the city
 2. **Extend**: Add new citizens with unique roles
 3. **Customize**: Create new archive sections and postal routes
 4. **Integrate**: Connect the city to your agent workflows

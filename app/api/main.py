@@ -238,7 +238,7 @@ class ExecuteInstructionResponse(BaseModel):
 
 
 # SQLite paths -- align with the rest of the project, which writes to
-# ``data/`` at the repo root (see src/api_bridge.py, src/main.py,
+# ``data/`` at the repo root (see src/api_bridge.py,
 # src/launch/main.py and the PKG-INFO doc). The dashboard previously
 # pointed at ``app/api/db/``, a directory that never gets populated, so
 # every Database/Agents/Hebbian/Vector/Runs endpoint 500'd with
@@ -461,11 +461,13 @@ async def get_agents(_key: None = Depends(_require_api_key)):
 
     conn = _connect_db(AGENT_REGISTRY_DB)
     try:
-        rows = conn.execute("""
+        rows = conn.execute(
+            """
             SELECT name, capabilities
             FROM agents
             ORDER BY name ASC
-            """).fetchall()
+            """
+        ).fetchall()
         agents: List[AgentResponse] = []
         for row in rows:
             capabilities = _parse_json(row["capabilities"], [])
@@ -760,7 +762,8 @@ async def get_agent_scores(_key: None = Depends(_require_api_key)):
     """
     conn = _connect_db(AGENT_REGISTRY_DB)
     try:
-        rows = conn.execute("""
+        rows = conn.execute(
+            """
             SELECT
               name,
               capabilities,
@@ -769,7 +772,8 @@ async def get_agent_scores(_key: None = Depends(_require_api_key)):
               COALESCE(efficiency, 0.0) AS efficiency
             FROM agents
             ORDER BY name ASC
-            """).fetchall()
+            """
+        ).fetchall()
 
         agents: List[AgentScore] = []
         for row in rows:
@@ -810,7 +814,8 @@ async def get_hebbian_stats(_key: None = Depends(_require_api_key)):
     """
     conn = _connect_db(HEBBIAN_DB)
     try:
-        row = conn.execute("""
+        row = conn.execute(
+            """
             SELECT
               COUNT(*) AS total_connections,
               COALESCE(AVG(weight), 0.0) AS avg_weight,
@@ -818,7 +823,8 @@ async def get_hebbian_stats(_key: None = Depends(_require_api_key)):
               COALESCE(SUM(activation_count), 0) AS total_activations,
               COALESCE(SUM(success_count), 0) AS total_successes
             FROM node_connections
-            """).fetchone()
+            """
+        ).fetchone()
         if row is None:
             row = {
                 "total_connections": 0,
@@ -975,12 +981,14 @@ async def get_vector_stats(_key: None = Depends(_require_api_key)):
     """
     conn = _connect_db(VECTOR_DB)
     try:
-        row = conn.execute("""
+        row = conn.execute(
+            """
             SELECT
               COUNT(*) AS total_docs,
               COALESCE(AVG(LENGTH(COALESCE(content, ''))), 0.0) AS avg_content_length
             FROM vectors
-            """).fetchone()
+            """
+        ).fetchone()
         if row is None:
             return VectorStoreStats(total_docs=0, avg_content_length=0.0)
         return VectorStoreStats(
@@ -1283,6 +1291,7 @@ async def execute_instruction_stream(
     """
     if not orchestrator:
         raise HTTPException(status_code=500, detail="Orchestrator not initialized.")
+    active_orchestrator = orchestrator
     if not request.instruction.strip():
         raise HTTPException(status_code=400, detail="Instruction cannot be empty.")
 
@@ -1294,7 +1303,7 @@ async def execute_instruction_stream(
 
     effective_capability = request.capability or "web_search"
     if request.agent:
-        agent_obj = orchestrator.agent_registry.get_agent(request.agent)
+        agent_obj = active_orchestrator.agent_registry.get_agent(request.agent)
         if not agent_obj:
             raise HTTPException(status_code=400, detail="Specified agent not found.")
         if not request.capability and agent_obj.capabilities:
@@ -1316,8 +1325,10 @@ async def execute_instruction_stream(
     # auditable even if the stream is dropped mid-flight.
     note_path = None
     try:
-        note_path = orchestrator.create_new_task_in_obsidian(task_data)
-        orchestrator.update_task_status_in_obsidian(note_path, "in progress", task_id)
+        note_path = active_orchestrator.create_new_task_in_obsidian(task_data)
+        active_orchestrator.update_task_status_in_obsidian(
+            note_path, "in progress", task_id
+        )
     except Exception as e:
         logger.error(
             "Failed to create streaming task in Obsidian: %s", _sanitize_for_log(e)
@@ -1328,7 +1339,9 @@ async def execute_instruction_stream(
 
     def _stream():
         try:
-            for ev in orchestrator.stream_route_and_execute(task_data, note_path):
+            for ev in active_orchestrator.stream_route_and_execute(
+                task_data, note_path
+            ):
                 etype = ev.get("type")
                 if etype == "routing":
                     yield _sse_pack(
@@ -1356,9 +1369,7 @@ async def execute_instruction_stream(
                 elif etype == "error":
                     yield _sse_pack("error", {"error": ev.get("error", "")})
         except Exception as exc:  # noqa: BLE001
-            logger.error(
-                "Streaming executor crashed: %s", _sanitize_for_log(exc)
-            )
+            logger.error("Streaming executor crashed: %s", _sanitize_for_log(exc))
             # Don't leak the raw exception (which may include a stack
             # trace or internal paths) to an SSE client. Server logs
             # above already carry the sanitized detail.

@@ -217,7 +217,7 @@ class LegalDatasetLoader:
         except ImportError:
             logger.error(
                 "Neither local parquet files nor the `datasets` library are available. "
-                "Install with: pip install datasets pyarrow"
+                "Install with: uv pip install datasets pyarrow"
             )
             return
 

@@ -16,8 +16,6 @@ import pytest
 # duplicate identities (Prometheus double-registration, isinstance mismatches).
 _repo_root = str(Path(__file__).parent.parent.parent)
 sys.path.insert(0, _repo_root)
-# Legacy modules (e.g. `exceptions`) still live here; append last.
-sys.path.append(str(Path(_repo_root) / "Concept_Demos" / "src"))
 
 
 # ============================================

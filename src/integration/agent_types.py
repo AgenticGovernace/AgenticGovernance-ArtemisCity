@@ -6,7 +6,6 @@ type safety across the codebase, following JSF AV Rules 209 and 147.
 
 Module Dependencies:
     - typing (standard library)
-    - typing_extensions (for NotRequired on Python < 3.11)
 
 Author: Artemis-City Contributors
 Date: 2024
@@ -14,14 +13,7 @@ Date: 2024
 
 from __future__ import annotations
 
-import sys
-from typing import Any, Dict, List, Literal, Optional, Union
-
-# `NotRequired` landed in stdlib `typing` in 3.11; use typing_extensions on 3.10.
-if sys.version_info >= (3, 11):
-    from typing import NotRequired, TypedDict
-else:
-    from typing_extensions import NotRequired, TypedDict
+from typing import Any, Dict, List, Literal, NotRequired, Optional, TypedDict, Union
 
 
 # =============================================================================

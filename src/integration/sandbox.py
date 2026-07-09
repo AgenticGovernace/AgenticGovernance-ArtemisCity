@@ -20,6 +20,7 @@ from src.utils.helpers import logger
 # Violation types mirror VIOLATION_TYPES in agent_registry / GOVERNANCE.md.
 VIOLATION_UNAUTHORIZED_TOOL = "unauthorized_tool"
 VIOLATION_UNAUTHORIZED_PATH = "unauthorized_path"
+VIOLATION_UNAUTHORIZED_OPERATION = "unauthorized_operation"
 VIOLATION_RATE_LIMIT = "rate_limit"
 VIOLATION_MISSING_CAPABILITY = "missing_capability"
 VIOLATION_UNSAFE_NETWORK = "unsafe_network"
@@ -134,7 +135,7 @@ class AgentSandbox:
 
         if not policy.allows_operation(operation):
             return self._deny(
-                VIOLATION_UNAUTHORIZED_PATH,
+                VIOLATION_UNAUTHORIZED_OPERATION,
                 f"operation {operation!r} not permitted for {tool_name!r}",
                 {
                     "tool_name": tool_name,

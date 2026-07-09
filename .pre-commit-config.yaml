@@ -136,7 +136,7 @@ repos:
       - id: bandit
         args: [ -c, pyproject.toml, -r, . ]
         additional_dependencies: [ "bandit[toml]" ]
-        exclude: ^tests/
+        exclude: ^(tests/|src/tests/)
 
   # ==========================================
   # TYPE CHECKING
@@ -236,7 +236,7 @@ repos:
       - id: check-secrets-custom
         name: Check for secrets (custom patterns)
         entry: >
-          bash -c 'git diff --cached --name-only | xargs -I {} grep -l "API_KEY\\|SECRET\\|PASSWORD" {} 2>/dev/null && echo "WARNING: Potential secrets detected!" && exit 1 || exit 0'
+          bash -c 'if git diff --cached --name-only -z | xargs -0 -r grep -lE "API_KEY|SECRET|PASSWORD" 2>/dev/null; then echo "WARNING: Potential secrets detected!"; exit 1; fi'
         language: system
         pass_filenames: false
         always_run: true

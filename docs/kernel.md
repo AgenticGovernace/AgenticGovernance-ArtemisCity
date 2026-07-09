@@ -1,132 +1,183 @@
 # Artemis Kernel Architecture & Specification
 
-## 1. Technical Architecture Diagram (Build-Time)
+This document describes the maintained in-process kernel under `app/kernel/`.
+It is a lightweight local probing surface for Artemis City: a CLI creates
+request dictionaries, the kernel routes them by keyword, a concrete agent
+handles the request, and the memory bus records the interaction.
 
-This diagram illustrates the static structure of the Artemis-City system, showing files, subsystems, and their connections.
+Prototype CLI flows have been consolidated under `src/launch/`. The historical
+`Concept_Demos/` directory now contains static browser prototypes plus tiny
+compatibility shims for older commands; it no longer owns runtime Python
+implementations, integration modules, or a frontend workspace.
+
+For the authoritative Python orchestration core, bridge, governance, and memory
+bus specs, see `docs/ARCHITECTURE.md`, `docs/API_REFERENCE.md`, and
+`docs/MEMORY_BUS.md`.
+
+## 1. Technical Architecture Diagram
 
 ```mermaid
 graph TD
-    User((User)) --> CLI[Daemon_cli.py]
-    Makefile --> CLI
+    User((User)) --> CLI[app/kernel/artemis_cli.py]
+    Makefile --> CoreCLI[make run / make demo]
+    CoreCLI --> Launch[src/launch/*.py]
+    CLI --> Kernel[app/kernel/kernel.py]
 
-    subgraph "Userland Interface"
-        CLI
+    subgraph "Kernel Layer"
+        Kernel --> Router[app/kernel/agent_router.py]
+        Kernel --> MemoryBus[app/kernel/memory_bus.py]
+        Kernel --> AgentFactory[Concrete agent factory]
+        Router --> RouterConfig[app/kernel/agent_router.yaml]
+        AgentFactory --> DaemonAgent[app/kernel/agents/daemon_agent.py]
+        AgentFactory --> PlannerAgent[app/kernel/agents/planner_agent.py]
     end
 
-    CLI --> Kernel[kernel.py]
-
-    subgraph "Core System"
-        Kernel --> Router[agent_router.py]
-        Kernel --> MemoryBus[memory_bus.py]
-        Kernel --> Agents[agents/*.py]
-    end
-
-    subgraph "Configuration & Data"
-        Router --> RouterConfig[agent_router.yaml]
-        MemoryBus --> BackendObsidian[backends/obsidian]
-        MemoryBus --> BackendSupabase[backends/supabase]
-    end
-
-    subgraph "External Services"
-        Agents --> OpenAI[OpenAI / External LLM API]
+    subgraph "Memory Backends"
+        MemoryBus --> FileMemory[memory_store/*.json]
+        MemoryBus --> VectorMemory[optional vector backend]
     end
 ```
 
-**Components:**
+## 2. Active Components
 
-- **Daemon_cli.py**: Userland command interface. Parses args, creates Request objects.
-- **kernel.py**: Core dispatcher and execution loop. Loads config, routing, and agents.
-- **agent_router.py**: Command routing logic. Tokenizes input, matches keywords, selects agents/memory.
-- **memory_bus.py**: Memory abstraction layer. Handles read/write to Obsidian/Supabase.
-- **agents/*.py**: Specific agent implementations (Daemon, Planner, etc.).
+- `app/kernel/cli.py`: compatibility entry point for `python -m app.kernel.cli`.
+- `app/kernel/artemis_cli.py`: maintained CLI for one-shot commands, plan-file
+  requests, and interactive mode.
+- `app/kernel/kernel.py`: bootstraps state, router, memory bus, and concrete
+  agent dispatch.
+- `app/kernel/agent_router.py`: loads `agent_router.yaml` and routes commands
+  with keyword-boundary matching.
+- `app/kernel/memory_bus.py`: writes/reads memory through local JSON files by
+  default; vector support is optional.
+- `app/kernel/agents/base.py`: abstract `Agent.handle(request, memory)` contract.
+- `app/kernel/agents/daemon_agent.py`: default command handler and fallback.
+- `app/kernel/agents/planner_agent.py`: lightweight plan-drafting handler.
+- `src/launch/`: maintained CLI walkthroughs and orchestration launch scripts.
+- `Concept_Demos/`: static browser prototypes and compatibility shims only.
 
-## 2. Run-Time Execution Pipeline
+The router config may name personas that do not yet have concrete classes.
+`Kernel._get_agent_instance()` falls back to `DaemonAgent` for those routes and
+prints that fallback so the gap stays visible.
 
-This pipeline describes the flow of control when a user executes a command like `$ Daemon run "generate schema for my finances"`.
+## 3. Run-Time Execution Pipeline
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant CLI as Daemon_cli.py
-    participant Kernel as kernel.py
-    participant Router as agent_router.py
-    participant Agent as agents/Daemon_agent.py
-    participant LLM as OpenAI API
-    participant MemBus as memory_bus.py
+    participant CLI as app.kernel.cli
+    participant Kernel as Kernel
+    participant Router as AgentRouter
+    participant Agent as DaemonAgent or PlannerAgent
+    participant MemBus as MemoryBus
+    participant Store as memory_store
 
-    User->>CLI: Daemon run "..."
-    CLI->>CLI: Parse args, create Request
-    CLI->>Kernel: kernel.process(request)
-    Kernel->>Router: route(request)
-    Router-->>Kernel: {agent: "Daemon", memory: "obsidian"}
-    Kernel->>Kernel: Load Agent & Memory Driver
-    Kernel->>Agent: agent.handle(request, memory)
-    Agent->>LLM: Call API (Prompt)
-    LLM-->>Agent: Response
-    Agent-->>Kernel: Return Output
-    Kernel->>MemBus: write(output)
-    MemBus->>MemBus: Write to Backend
-    Kernel-->>CLI: Return Result
-    CLI-->>User: Print Output
+    User->>CLI: python -m app.kernel.cli "draft a roadmap"
+    CLI->>Kernel: {"type": "command", "content": "..."}
+    Kernel->>Kernel: append request to state_kernel.json
+    Kernel->>Router: route(command)
+    Router-->>Kernel: {"agent": "planner", "metadata": {...}}
+    Kernel->>Agent: handle(request, memory)
+    Agent->>MemBus: write(content, metadata)
+    MemBus->>Store: create JSON memory entry
+    Agent-->>Kernel: response string
+    Kernel-->>CLI: formatted result
+    CLI-->>User: print result
 ```
 
-**Execution Steps:**
+## 4. Kernel Responsibilities
 
-1. **User Input**: CLI receives command.
-2. **CLI Processing**: `Daemon_cli.py` parses args and calls `kernel.process`.
-3. **Routing**: `kernel.py` calls `agent_router.py` to determine the target agent and memory backend.
-4. **Dispatch**: `kernel.py` initializes the selected agent and context.
-5. **Agent Execution**: Agent constructs the prompt and calls the LLM.
-6. **State Update**: Kernel receives output, updates state (`state_kernel.json`).
-7. **Memory Persistence**: Kernel directs `memory_bus.py` to store results.
-8. **Output**: Result is returned to CLI and displayed to the user.
+### 4.1 Command Processing
 
-## 3. Kernel Responsibilities & Specification
+- Accepts dictionary requests from the CLI.
+- Supports `type: "command"` for routed command handling.
+- Supports `type: "exec"` as a placeholder plan-file execution path.
+- Appends each request to `state_kernel.json` for simple local auditability.
 
-The **Artemis-City Kernel** acts as the virtual operating system for agents.
+### 4.2 Agent Routing
 
-### 3.1 Command Processing
+- Loads `app/kernel/agent_router.yaml`.
+- Matches configured keywords against the command with word-boundary regexes.
+- Defaults to the `daemon` route when no keyword matches.
 
-- **Input**: Raw CLI strings or structured requests.
-- **Output**: Standardized kernel command objects.
+### 4.3 Agent Dispatch
 
-### 3.2 Agent Routing
+- Instantiates `PlannerAgent` for the `planner` route.
+- Instantiates `DaemonAgent` for the `daemon` route.
+- Falls back to `DaemonAgent` for configured-but-unimplemented routes.
 
-- **Mechanism**: Keyword matching, priority rules, pipeline configurations.
-- **Output**: Selection of one or more agents to handle the task.
+### 4.4 Memory Persistence
 
-### 3.3 Memory Management
+- Uses `FileMemoryBackend` by default.
+- Writes timestamped JSON entries under `memory_store/`.
+- Accepts optional custom backends through `MemoryBus`.
 
-- **Router**: Directs I/O to appropriate backends (Obsidian, Supabase, JSON state).
-- **Abstraction**: Provides a unified API for agents to read/write memory without knowing the backend details.
+## 5. Python Version & Environment Policy
 
-### 3.4 Model Invocation
+Artemis City standardizes on **Python 3.12** for local development, CI, and
+containerized Python surfaces. The repo supports two environment paths only:
 
-- **Gateway**: Centralized handling of API calls to LLMs (OpenAI, etc.) via agents.
+1. `uv` managing the `.venv` environment.
+2. A conventional `.venv` created with `venv` or `virtualenv`, with packages
+   still installed through `uv pip`.
 
-### 3.5 State Persistence
+Do not add new setup instructions for conda, poetry, pyenv-specific ranges, or
+direct pip-only installation.
 
-- **Kernel State**: Maintains execution logs, active context, and system health in `state_kernel.json`.
+## 6. Boot Sequence
 
-### 3.6 Multi-Agent Pipelining
+From the repository root:
 
-- **Chaining**: Supports workflows like `Planner -> Daemon -> Memory`.
+```bash
+make install-dev
+python -m app.kernel.cli "system status"
+```
 
-## 4. Implementation Guide
+Equivalent manual setup:
 
-### 4.1 Boot Sequence
+```bash
+uv venv --python 3.12 .venv
+source .venv/bin/activate
+uv pip install -r requirements.txt -r requirements-dev.txt
+python -m app.kernel.cli "system status"
+```
 
-1. **Install**: `pip install -e .` (registers `Daemon` binary).
-2. **Run**: `Daemon [command]`.
-3. **Flow**: `Daemon_cli.py` -> `kernel.py` -> ...
+If you prefer to create the environment yourself:
 
-### 4.2 File Structure Mapping
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+uv pip install -r requirements.txt -r requirements-dev.txt
+```
 
-- `/Daemon_cli.py`: Entry point.
-- `/kernel.py`: Main logic.
-- `/agent_router.py`: Logic for selection.
-- `/memory_bus.py`: Data layer.
-- `/agents/`: Agent implementations.
-- `/backends/`: Database/Vault drivers.
+`virtualenv --python python3.12 .venv` is also acceptable when `virtualenv` is
+already installed.
 
-This specification serves as the blueprint for the Artemis-City Core implementation.
+## 7. File Structure Mapping
+
+```text
+app/kernel/
+├── __init__.py
+├── agent_router.py
+├── agent_router.yaml
+├── artemis_cli.py
+├── cli.py
+├── kernel.py
+├── memory_bus.py
+└── agents/
+    ├── __init__.py
+    ├── base.py
+    ├── daemon_agent.py
+    └── planner_agent.py
+```
+
+## 8. Notes For Future Kernel Work
+
+- Keep the kernel layer small and local; do not reimplement the authoritative
+  orchestrator, governance registry, or TypeScript bridge behavior here.
+- When adding a concrete kernel agent, add it under `app/kernel/agents/`, update
+  `Kernel._get_agent_instance()`, and add focused tests for the route.
+- If kernel behavior graduates into the main orchestration core, document the
+  boundary change in `docs/ARCHITECTURE.md` and keep this page scoped to the
+  `app/kernel/` implementation.
+- Do not add new Python implementation flows under `Concept_Demos/`; put
+  runnable walkthroughs in `src/launch/` and production behavior in `src/`.

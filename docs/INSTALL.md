@@ -1,13 +1,23 @@
 # Installation Guide
 
-This guide covers all methods for installing and setting up Artemis City.
+This guide covers the supported Artemis City setup path.
 
 ## Prerequisites
 
-- **Python**: 3.8+ (3.13+ recommended)
-- **Node.js**: 18+ (for Memory Layer)
-- **Git**: For cloning the repository
-- **Obsidian**: With Local REST API plugin (for memory features)
+- **Python**: 3.12
+- **uv**: required for Python dependency installation
+- **Node.js**: 18+ for TypeScript services and the standalone memory layer
+- **Git**: for cloning the repository
+- **Obsidian**: with the Local REST API plugin when using vault-backed memory
+
+Artemis City supports only two local Python environment shapes:
+
+1. A `.venv` created by `uv`.
+2. A `.venv` created by `venv` or `virtualenv`, with dependencies installed by
+   `uv pip`.
+
+Do not use conda, poetry, pyenv range files, or direct pip-only installs for new
+repo setup instructions.
 
 ## Quick Install
 
@@ -18,9 +28,7 @@ git clone <repository-url>
 cd Artemis-City
 ```
 
-### 2. Secure Environment Setup
-
-**Automated (Recommended):**
+### 2. Create Secrets
 
 ```bash
 ./setup_secrets.sh              # sync: heal drift, generate what's missing
@@ -28,437 +36,138 @@ cd Artemis-City
 ./setup_secrets.sh --regenerate # rotate ALL canonical keys (use after a leak)
 ```
 
-The script writes four `.env` files (root, `app/api/`, `src/`, and the
-memory layer) with **one shared `MCP_API_KEY`** plus `FASTAPI_API_KEY`
-(root, dashboard) and `ARTEMIS_API_KEY_DEFAULT` (root + `app/api/`, TS
-admin). Re-running discovers existing values from the root `.env` and
-propagates them, so subsequent runs are idempotent and CI can use
-`--check` to fail on drift.
-
-**Manual (only if you can't run the script):**
-
-```bash
-cp .env.example .env
-cp app/api/.env.example app/api/.env
-cp src/.env.example src/.env
-cp "src/Artemis Agentic Memory Layer/.env.example" "src/Artemis Agentic Memory Layer/.env"
-openssl rand -hex 32  # generate one shared MCP_API_KEY — paste into every file
-openssl rand -hex 32  # generate FASTAPI_API_KEY — paste into root .env only
-openssl rand -hex 32  # generate ARTEMIS_API_KEY_DEFAULT key portion — paste as
-                      # ARTEMIS_API_KEY_DEFAULT=<key>:admin:read,write,delete,admin
-                      # into root .env AND app/api/.env
-chmod 600 .env app/api/.env src/.env "src/Artemis Agentic Memory Layer/.env"
-```
+The script writes `.env`, `app/api/.env`, `src/.env`, and
+`src/Artemis Agentic Memory Layer/.env` when that memory-layer directory exists.
+It keeps one shared `MCP_API_KEY`, plus `FASTAPI_API_KEY` for the dashboard and
+`ARTEMIS_API_KEY_DEFAULT` for the TypeScript Express API.
 
 ### 3. Install Python Dependencies
 
-**Using pip (standard):**
+Recommended:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # macOS/Linux
-# .venv\Scripts\activate  # Windows
-pip install -r requirements.txt
+make install-dev
 ```
 
-**Using uv (faster):**
+Equivalent manual setup with uv:
 
 ```bash
-pip install uv
-uv venv
+uv venv --python 3.12 .venv
 source .venv/bin/activate
-uv pip install -r requirements.txt
+uv pip install -r requirements.txt -r requirements-dev.txt
 ```
 
-**Using poetry:**
+Manual setup with an existing virtual environment tool:
 
 ```bash
-poetry install
+python3.12 -m venv .venv
+source .venv/bin/activate
+uv pip install -r requirements.txt -r requirements-dev.txt
 ```
 
-### 4. Install Memory Layer (Node.js)
+`virtualenv --python python3.12 .venv` is also supported when `virtualenv` is
+already installed.
+
+### 4. Install Node Dependencies
+
+Root API/dashboard tooling:
 
 ```bash
-cd "Artemis Agentic Memory Layer "
 npm install
-cd ..
+```
+
+Standalone Obsidian MCP memory layer:
+
+```bash
+cd "src/Artemis Agentic Memory Layer"
+npm install
 ```
 
 ### 5. Verify Installation
 
 ```bash
-# Test Python CLI
-python interface/Daemon_cli.py "help"
-
-# Test demos (requires MCP server running)
-python demo_artemis.py
+make test
+make run
+python -m app.kernel.cli "system status"
 ```
 
-## Installation Methods
+## Common Commands
 
-### Method 1: Standard pip
+| Action | Command |
+|---|---|
+| Runtime dependencies | `make install` |
+| Dev dependencies | `make install-dev` |
+| Tests | `make test` |
+| Tests with coverage | `make test-cov` |
+| FastAPI dashboard backend | `make api` |
+| React frontend | `make frontend` |
+| Standalone memory server | `make server` |
+| Kernel CLI probe | `python -m app.kernel.cli "system status"` |
 
-**Basic installation:**
+## Environment Variables
 
-```bash
-pip install -r requirements.txt
-```
-
-**With development tools:**
-
-```bash
-pip install -r requirements-dev.txt
-```
-
-**With optional features:**
-
-```bash
-pip install -r requirements.txt
-pip install pydantic requests rich  # Enhanced features
-```
-
-### Method 2: uv (Fast Package Manager)
+After `./setup_secrets.sh`, set any optional service-specific values in `.env`:
 
 ```bash
-# Install uv
-pip install uv
-
-# Create virtual environment and install
-uv venv
-source .venv/bin/activate
-uv pip install -r requirements.txt
-
-# Or one-liner
-uv pip install -r requirements.txt
-```
-
-### Method 3: Poetry
-
-```bash
-# Install poetry
-curl -sSL https://install.python-poetry.org | python3 -
-
-# Install dependencies
-poetry install
-
-# With optional extras
-poetry install --extras "dev docs enhanced"
-
-# Activate environment
-poetry shell
-```
-
-### Method 4: pyproject.toml (Modern)
-
-```bash
-# Install in development mode
-pip install -e .
-
-# With optional dependencies
-pip install -e ".[dev]"        # Development tools
-pip install -e ".[docs]"       # Documentation
-pip install -e ".[enhanced]"   # Enhanced features
-pip install -e ".[dev,docs]"   # Multiple extras
-```
-
-## Installation Profiles
-
-### Minimal (Core Only)
-
-**Just run the CLI and basic features:**
-
-```bash
-pip install pyyaml>=6.0.1
-```
-
-### Standard (Recommended)
-
-**Everything you need for regular use:**
-
-```bash
-pip install -r requirements.txt
-```
-
-### Developer
-
-**Full development environment:**
-
-```bash
-pip install -r requirements-dev.txt
-```
-
-### Production
-
-**Optimized for deployment:**
-
-```bash
-pip install --no-dev -r requirements.txt
-```
-
-## Security Configuration
-
-### Environment Variables
-
-Create `.env` files in both locations:
-
-**Root `.env`:**
-
-```bash
-MCP_BASE_URL=http://localhost:3000
-MCP_API_KEY=your_generated_key_here
 OBSIDIAN_BASE_URL=http://localhost:27124
 OBSIDIAN_API_KEY=your_obsidian_key_here
+OBSIDIAN_VAULT_PATH=/absolute/path/to/vault
+OPENAI_API_KEY=your_openai_key_here
+ARTEMIS_ENV=dev
 ```
 
-**Memory Layer `.env`:**
+Never commit populated `.env` files.
 
-`./setup_secrets.sh` already provisions
-`src/Artemis Agentic Memory Layer/.env` with the same `MCP_API_KEY` as
-the root `.env`. If you ran the script, no further action is needed. If
-you set it up manually, after editing the file, run
-`./setup_secrets.sh --check` from the repo root to verify the key
-matches.
+## Updating Dependencies
 
-### Generate Secure Keys
+Keep dependency changes explicit and uv-backed:
 
 ```bash
-# Using openssl
-openssl rand -hex 32
-
-# Using Python
-python -c "import secrets; print(secrets.token_hex(32))"
-
-# Using Node.js
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+uv pip install --python .venv/bin/python -r requirements.txt -r requirements-dev.txt --upgrade
 ```
 
-### File Permissions
+When changing package manifests or lock-style requirements, run the relevant
+tests before committing:
 
 ```bash
-chmod 600 .env
-chmod 600 "Artemis Agentic Memory Layer /.env"
+make test
 ```
 
-## Verify Installation
+## Troubleshooting
 
-### Check Python Environment
+### Wrong Python Version
 
 ```bash
-# Verify Python version
-python --version  # Should be 3.8+
-
-# List installed packages
-pip list | grep -i yaml  # Should show pyyaml 6.0.1+
-
-# Check import
-python -c "import yaml; print(yaml.__version__)"
+cat .python-version
+python --version
 ```
 
-### Check Node Environment
+The repo pin is Python 3.12. Recreate the environment if it was built with a
+different interpreter:
 
 ```bash
-cd "Artemis Agentic Memory Layer "
-
-# Verify Node version
-node --version  # Should be 18+
-
-# Verify npm packages
-npm list --depth=0
-
-# Test build
-npm run build
-```
-
-### Run Tests
-
-```bash
-# CLI test
-python interface/Daemon_cli.py "help"
-
-# Module import test
-python -c "from agents.atp import ATPParser; print('ATP OK')"
-python -c "from memory.integration import MemoryClient; print('Memory OK')"
-
-# Full demo (requires MCP server)
-python demo_artemis.py
-```
-
-## Starting Services
-
-### Start Everything
-
-**Terminal 1 - MCP Server:**
-
-```bash
-cd "Artemis Agentic Memory Layer "
-npm run dev
-```
-
-**Terminal 2 - Artemis CLI:**
-
-```bash
-source .venv/bin/activate
-python interface/Daemon_cli.py
-```
-
-### Alternative: Single Command
-
-```bash
-# Run CLI directly (without interactive mode)
-python interface/Daemon_cli.py "ask artemis about system status"
-```
-
-## 🐳 Docker Installation (Optional)
-
-If you prefer Docker:
-
-```bash
-cd "Artemis Agentic Memory Layer "
-
-# Build
-docker-compose build
-
-# Run
-docker-compose up
-
-# Or detached
-docker-compose up -d
-```
-
-## Updating
-
-### Update Python Dependencies
-
-```bash
-# Pull latest changes
-git pull
-
-# Update packages
-pip install -r requirements.txt --upgrade
-
-# Or with uv
-uv pip install -r requirements.txt --upgrade
-```
-
-### Update Node Dependencies
-
-```bash
-cd "Artemis Agentic Memory Layer "
-npm update
-npm audit fix  # Fix security issues
-```
-
-## Uninstall
-
-### Remove Virtual Environment
-
-```bash
-# Deactivate first
-deactivate
-
-# Remove directory
 rm -rf .venv
-```
-
-### Remove Node Modules
-
-```bash
-cd "Artemis Agentic Memory Layer "
-rm -rf node_modules
-rm package-lock.json
-```
-
-### Remove Configuration
-
-```bash
-# Remove environment files (BE CAREFUL!)
-rm .env
-rm "Artemis Agentic Memory Layer /.env"
-
-# Remove cache
-rm -rf __pycache__
-rm -rf **/__pycache__
-rm -rf .pytest_cache
-```
-
-## ❓ Troubleshooting
-
-### Python Issues
-
-**Problem: `ModuleNotFoundError: No module named 'yaml'`**
-
-```bash
-# Solution: Install PyYAML
-pip install pyyaml>=6.0.1
-```
-
-**Problem: Virtual environment not activating**
-
-```bash
-# Solution: Create new venv
-rm -rf .venv
-python -m venv .venv
+uv venv --python 3.12 .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+uv pip install -r requirements.txt -r requirements-dev.txt
 ```
 
-### Node Issues
+### Missing uv
 
-**Problem: `Cannot find module 'express'`**
+Install uv using your system package manager or the official uv installer, then
+rerun `make install-dev`.
+
+### Import Errors
+
+Confirm that the active interpreter is the project virtual environment:
 
 ```bash
-# Solution: Reinstall node_modules
-cd "Artemis Agentic Memory Layer "
-rm -rf node_modules package-lock.json
-npm install
+which python
+python -c "import src; print('src import OK')"
 ```
 
-**Problem: Port 3000 already in use**
+Then reinstall with uv:
 
 ```bash
-# Solution: Use different port
-PORT=3001 npm run dev
+uv pip install -r requirements.txt -r requirements-dev.txt
 ```
-
-### Memory Layer Issues
-
-**Problem: MCP server connection failed**
-
-```bash
-# Check server is running
-curl http://localhost:3000/health
-
-# Check environment variables
-echo $MCP_API_KEY
-echo $MCP_BASE_URL
-```
-
-**Problem: Obsidian API connection failed**
-
-```bash
-# Verify Obsidian Local REST API plugin is:
-# 1. Installed
-# 2. Enabled
-# 3. API key generated and in .env
-```
-
-## Next Steps
-
-After installation:
-
-1. Read **[SECURITY.md](SECURITY.md)** - Security best practices
-2. Read **[README.md](README.md)** - Project overview
-3. Try **demos** - Run demo scripts to test features
-4. Configure **Obsidian** - Set up Local REST API plugin
-5. Explore **agents** - Review agent definitions in `agents/`
-
-## Getting Help
-
-- Check **[README.md](README.md)** for usage examples
-- Review **[WARP.md](WARP.md)** for development guide
-- Check **[SECURITY.md](SECURITY.md)** for security questions
-- Open an issue on GitHub for bugs or questions
-
----
-
-**Installation complete!**  Your Artemis City is ready for secure development!

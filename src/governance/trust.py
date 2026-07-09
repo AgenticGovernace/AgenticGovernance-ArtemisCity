@@ -139,14 +139,14 @@ def uptime(m: TrustMetrics) -> float:
     return _clamp(1.0 - m.downtime_hours / m.total_hours)
 
 
-def trust_breakdown(m: TrustMetrics) -> Dict[str, float]:
+def trust_breakdown(m: TrustMetrics) -> Dict[str, Dict[str, float]]:
     """Return each normalized trust sub-metric and its weighted contribution.
 
     Args:
         m (TrustMetrics): Trust-metric inputs used for the calculation.
 
     Returns:
-        Dict[str, float]: Nested component, weight, and contribution values for the trust formula.
+        Dict[str, Dict[str, float]]: Nested component, weight, and contribution values for the trust formula.
     """
     components = {
         "success_rate": success_rate(m),

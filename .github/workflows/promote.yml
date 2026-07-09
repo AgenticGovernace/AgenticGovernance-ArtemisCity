@@ -3,7 +3,7 @@ name: Promote
 # Automated promotion cascade: a push to `dev` flows all the way to `prod`
 # without anyone touching the staging/prod branches by hand.
 #
-#   push dev --> CI gate (matrix + docs mirror) --> ff staging --> deploy
+#   push dev --> CI gate (Python 3.12 + docs mirror) --> ff staging --> deploy
 #                staging --> ff prod --> deploy prod
 #
 # Promotion advances the environment branches with a plain `git push` of the
@@ -82,28 +82,25 @@ jobs:
     name: Test gate
     needs: resolve
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # Mirror ci.yml's matrix exactly.
-        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.resolve.outputs.sha }}
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
+          # Pin the supported minor line while still receiving 3.12.x patch updates.
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
       - name: Install deps
         run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
-          pip install pyyaml pytest
+          uv venv --python 3.12 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt -r requirements-dev.txt
+          uv pip install --python .venv/bin/python pyyaml pytest
       - name: Validate environment configs
         run: |
-          python - <<'PY'
+          .venv/bin/python - <<'PY'
           from src.utils.environments import load_environment, VALID_ENVIRONMENTS
           for env in VALID_ENVIRONMENTS:
               cfg = load_environment(env)
@@ -112,7 +109,7 @@ jobs:
           print("env configs OK")
           PY
       - name: Run tests
-        run: python -m pytest src/tests
+        run: .venv/bin/python -m pytest src/tests
 
   promote-staging:
     name: Promote dev -> staging

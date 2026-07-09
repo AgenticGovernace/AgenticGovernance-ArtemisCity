@@ -63,7 +63,7 @@ def entry() -> None:
     if args.orchestrator:
         from src.launch.main import main
     elif args.atp:
-        from src.main import main
+        from src.interface.artemis_cli import main
     else:
         from src.interface.artemis_cli import main
 

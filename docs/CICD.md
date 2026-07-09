@@ -38,7 +38,7 @@ as a second, provider-independent signal.
 
 - **CI Platform**: GitHub Actions (plus CircleCI mirror)
 - **Python Testing**: pytest (`src/tests`)
-- **Supported Python**: 3.11, 3.12, 3.13 (`requires-python = ">=3.11,<3.15"`)
+- **Supported Python**: 3.12 (`requires-python = ">=3.12,<3.13"`)
 - **Environment model**: `dev -> staging -> prod` (see `docs/ENVIRONMENTS.md`)
 
 ## Workflows
@@ -55,8 +55,8 @@ as a second, provider-independent signal.
 
 - **docs-mirror**: fails if `CLAUDE.md` and `AGENTS.md` are not
   byte-for-byte identical.
-- **python**: matrix over Python 3.11 / 3.12 / 3.13 —
-    - installs `requirements.txt` + `requirements-dev.txt`,
+- **python**: Python 3.12 gate —
+    - installs dependencies with `uv` into `.venv`,
     - validates every `config/environments/*.yaml` via
       `src.utils.environments.load_environment`,
     - runs `python -m pytest src/tests`.
@@ -109,14 +109,14 @@ and flows straight through where not.
 - Push / PR to `dev`, `staging`, `prod`
 - Manual dispatch
 
-Submits a best-effort dependency-graph snapshot for `../src/pyproject.toml`. The
+Submits a best-effort dependency-graph snapshot for `src/pyproject.toml`. The
 job is `continue-on-error`, so it never blocks the pipeline.
 
 ### CircleCI mirror (`.circleci/config.yml`)
 
-A single `build-and-test` job on `cimg/python:3.12` that installs the
-requirements, validates the environment configs, and runs
-`pytest src/tests` — a provider-independent copy of the GitHub CI signal.
+A single `python-checks` job on `cimg/python:3.12` that installs dependencies
+with `uv`, validates the environment configs, and runs `pytest src/tests` — a
+provider-independent copy of the GitHub CI signal.
 
 ## Pipeline Stages
 
@@ -178,28 +178,28 @@ Set in workflow files:
 
 ```yaml
 env:
-  PYTHON_VERSION: '3.13'
-  NODE_VERSION: '18'
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: '24'
 ```
 
-### Matrix Testing
+### Python Version
 
-Python version matrix:
+Python is pinned to one supported minor line. CI uses `3.12` instead of a
+specific patch version so the project stays on Python 3.12 while still receiving
+3.12.x patch updates from the CI images/actions:
 
 ```yaml
-strategy:
-  matrix:
-    python-version: ['3.11', '3.12', '3.13']
+python-version: '3.12'
 ```
 
 ### Caching
 
-Dependency caching enabled:
+Dependency caching uses uv:
 
 ```yaml
-- uses: actions/setup-python@v5
+- uses: astral-sh/setup-uv@v5
   with:
-    cache: 'pip'
+    enable-cache: true
 
 - uses: actions/setup-node@v4
   with:
@@ -246,7 +246,7 @@ gh secret set DOCKER_PASSWORD --body "your-token"
 
 ### Creating a Release
 
-**1. Update version in `../src/pyproject.toml`:**
+**1. Update version in `src/pyproject.toml`:**
 
 ```toml
 [project]
@@ -266,7 +266,7 @@ version = "1.0.0"
 **3. Commit changes:**
 
 ```bash
-git add pyproject.toml CHANGELOG.md
+git add src/pyproject.toml CHANGELOG.md
 git commit -m "Release v1.0.0"
 git push origin prod
 ```
@@ -355,14 +355,11 @@ make check
 **Solution**:
 
 ```bash
-# Test with specific Python version
-python3.8 -m pytest
-
 # Run in clean environment
-python -m venv clean_env
+uv venv --python 3.12 clean_env
 source clean_env/bin/activate
-pip install -r requirements.txt
-pytest
+uv pip install -r requirements.txt -r requirements-dev.txt
+python -m pytest src/tests
 ```
 
 #### 3. Build Failures
@@ -371,7 +368,7 @@ pytest
 
 **Check**:
 
-- `../src/pyproject.toml` syntax
+- `src/pyproject.toml` syntax
 - Missing files in MANIFEST.in
 - Build dependencies
 
@@ -401,20 +398,13 @@ paths = [
 
 #### 5. Dependency Conflicts
 
-**Problem**: pip install fails in CI
+**Problem**: uv dependency installation fails in CI
 
 **Solution**:
 
 ```bash
 # Update dependencies
-pip install --upgrade -r requirements.txt
-
-# Create fresh requirements
-pip freeze > requirements.txt
-
-# Use pip-tools for better management
-pip install pip-tools
-pip-compile requirements.in
+uv pip install --python .venv/bin/python -r requirements.txt -r requirements-dev.txt --upgrade
 ```
 
 ### Workflow Debugging
