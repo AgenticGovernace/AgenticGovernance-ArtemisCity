@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -25,6 +26,29 @@ from src.utils.helpers import logger
 
 CHECKPOINT_TYPES = ("deployment", "scheduled", "manual")
 DEFAULT_RETENTION_DAYS = 60
+
+# Checkpoint ids become filenames; forbid path separators / traversal so an
+# attacker-controlled id can never escape the checkpoint directory.
+_CHECKPOINT_ID_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+
+
+def _validate_checkpoint_id(checkpoint_id: str) -> str:
+    """Reject checkpoint ids that could act as path components.
+
+    Args:
+        checkpoint_id (str): Candidate checkpoint identifier.
+
+    Returns:
+        str: The validated checkpoint id, unchanged.
+
+    Raises:
+        ValueError: If the id contains anything outside ``[A-Za-z0-9_.-]``.
+    """
+    if not isinstance(checkpoint_id, str) or not _CHECKPOINT_ID_RE.fullmatch(
+        checkpoint_id
+    ):
+        raise ValueError(f"Invalid checkpoint_id: {checkpoint_id!r}")
+    return checkpoint_id
 
 
 def _now() -> datetime:
@@ -49,7 +73,7 @@ class CheckpointStore:
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
     def _path(self, checkpoint_id: str) -> Path:
-        return self.checkpoint_dir / f"{checkpoint_id}.json"
+        return self.checkpoint_dir / f"{_validate_checkpoint_id(checkpoint_id)}.json"
 
     def create_checkpoint(
         self,

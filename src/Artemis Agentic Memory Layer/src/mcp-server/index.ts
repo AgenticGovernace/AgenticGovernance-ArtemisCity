@@ -8,7 +8,7 @@ import { deleteNote } from './tools/obsidianDeleteNoteTool';
 import { manageFrontmatter } from './tools/obsidianManageFrontmatterTool';
 import { manageTags, MANAGE_TAGS_ACTIONS, ManageTagsAction } from './tools/obsidianManageTagsTool';
 import { searchReplace } from './tools/obsidianSearchReplaceTool';
-import { logger } from '../utils/logger';
+import { logger, sanitizeForLog } from '../utils/logger';
 
 type ToolResult = { success: boolean; [k: string]: unknown };
 
@@ -25,7 +25,7 @@ const handle = (
     res.status(400).json({ success: false, error: `Missing field: ${missing}` });
     return;
   }
-  logger.debug(`Received ${name} request`, req.body);
+  logger.debug(`Received ${name} request`, sanitizeForLog(req.body));
   const result = await fn(req.body);
   res.status(result.success ? 200 : 500).json(result);
 };
@@ -46,7 +46,7 @@ mcpRouter.post('/manageTags', async (req, res) => {
     });
     return;
   }
-  logger.debug(`Received manageTags request for ${path}`);
+  logger.debug(`Received manageTags request for ${sanitizeForLog(path)}`);
   const result = await manageTags(path, tags, action as ManageTagsAction);
   res.status(result.success ? 200 : 500).json(result);
 });

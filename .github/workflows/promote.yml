@@ -3,17 +3,17 @@ name: Promote
 # Automated promotion cascade: a push to `dev` flows all the way to `prod`
 # without anyone touching the staging/prod branches by hand.
 #
-#   push dev --> CI gate (matrix + docs mirror) --> ff staging --> deploy
-#                staging --> ff prod --> deploy prod
+#   push dev --> CI gate (matrix + docs mirror) --> ff staging --> ff prod
 #
 # Promotion advances the environment branches with a plain `git push` of the
 # tested commit. There is no promotion *pull request*, so `dev` is never
 # consumed as a PR head branch and is never auto-deleted — the source of the
 # old "I have to recreate dev after every promotion" pain.
 #
-# Per-environment approval gates are preserved by the `environment:` binding on
-# the deploy jobs (in deploy.yml): if the `staging` / `prod` GitHub Environments
-# have required reviewers, those deploys pause for approval before running.
+# This workflow is the only remaining GitHub Actions pipeline: CI, tests, and
+# deploys live in CircleCI (.circleci/config.yml). Advancing an environment
+# branch here is what triggers the corresponding CircleCI deploy workflow,
+# whose approval gates guard the actual rollout.
 
 on:
   push:
@@ -44,7 +44,7 @@ jobs:
     outputs:
       sha: ${{ steps.pick.outputs.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 0
       - id: pick
@@ -66,7 +66,7 @@ jobs:
     needs: resolve
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: ${{ needs.resolve.outputs.sha }}
       - name: CLAUDE.md and AGENTS.md must stay byte-for-byte mirrors
@@ -88,10 +88,10 @@ jobs:
         # Mirror ci.yml's matrix exactly.
         python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: ${{ needs.resolve.outputs.sha }}
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -119,7 +119,7 @@ jobs:
     needs: [resolve, docs-mirror, test]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           # Check out the exact tested commit so it is present locally to push.
           ref: ${{ needs.resolve.outputs.sha }}
@@ -130,34 +130,18 @@ jobs:
           # signal that someone diverged staging outside the cascade.
           git push origin "HEAD:refs/heads/staging"
 
-  deploy-staging:
-    name: Deploy staging
-    needs: promote-staging
-    uses: ./.github/workflows/deploy.yml
-    with:
-      environment: staging
-    secrets: inherit
-
   promote-prod:
     name: Promote staging -> prod
-    needs: [resolve, deploy-staging]
+    needs: [resolve, promote-staging]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           # staging now points at this commit (set by promote-staging) and
           # nothing between here moves it, so promoting the same tested commit
           # to prod keeps the dev -> staging -> prod history strictly linear.
           ref: ${{ needs.resolve.outputs.sha }}
           fetch-depth: 0
-      - name: Fast-forward prod to the deployed staging commit
+      - name: Fast-forward prod to the promoted staging commit
         run: |
           git push origin "HEAD:refs/heads/prod"
-
-  deploy-prod:
-    name: Deploy prod
-    needs: promote-prod
-    uses: ./.github/workflows/deploy.yml
-    with:
-      environment: prod
-    secrets: inherit

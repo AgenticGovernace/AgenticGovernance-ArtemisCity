@@ -12,6 +12,7 @@ Part of the Artemis City Governance Layer.
 """
 
 import json
+import re
 import shutil
 import time
 from dataclasses import dataclass, field
@@ -20,6 +21,23 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from utils.helpers import logger
+
+# Checkpoint ids become filenames; forbid path separators / traversal so an
+# attacker-controlled id can never escape the checkpoint directory.
+_CHECKPOINT_ID_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+
+
+def _validate_checkpoint_id(checkpoint_id: str) -> str:
+    """Reject checkpoint ids that could act as path components.
+
+    Raises:
+        ValueError: If the id contains anything outside ``[A-Za-z0-9_.-]``.
+    """
+    if not isinstance(checkpoint_id, str) or not _CHECKPOINT_ID_RE.fullmatch(
+        checkpoint_id
+    ):
+        raise ValueError(f"Invalid checkpoint_id: {checkpoint_id!r}")
+    return checkpoint_id
 
 
 @dataclass
@@ -91,7 +109,7 @@ class RollbackManager:
         Returns:
             Checkpoint ID string.
         """
-        checkpoint_id = f"{label}_{int(time.time())}"
+        checkpoint_id = _validate_checkpoint_id(f"{label}_{int(time.time())}")
         state = state or {}
         metadata = metadata or {}
 
@@ -136,7 +154,9 @@ class RollbackManager:
         Raises:
             FileNotFoundError: If checkpoint doesn't exist.
         """
-        checkpoint_path = self.checkpoint_dir / f"{checkpoint_id}.json"
+        checkpoint_path = (
+            self.checkpoint_dir / f"{_validate_checkpoint_id(checkpoint_id)}.json"
+        )
 
         if not checkpoint_path.exists():
             raise FileNotFoundError(
@@ -165,7 +185,9 @@ class RollbackManager:
 
     def get_checkpoint(self, checkpoint_id: str) -> Optional[Checkpoint]:
         """Load a specific checkpoint without applying it."""
-        checkpoint_path = self.checkpoint_dir / f"{checkpoint_id}.json"
+        checkpoint_path = (
+            self.checkpoint_dir / f"{_validate_checkpoint_id(checkpoint_id)}.json"
+        )
         if not checkpoint_path.exists():
             return None
 
@@ -184,6 +206,8 @@ class RollbackManager:
         """List all available checkpoints with metadata."""
         checkpoints = []
         for cp_id in self.checkpoint_history:
+            if not _CHECKPOINT_ID_RE.fullmatch(str(cp_id)):
+                continue
             cp_path = self.checkpoint_dir / f"{cp_id}.json"
             if cp_path.exists():
                 try:
@@ -209,7 +233,9 @@ class RollbackManager:
 
     def delete_checkpoint(self, checkpoint_id: str) -> bool:
         """Remove a checkpoint from disk and history."""
-        checkpoint_path = self.checkpoint_dir / f"{checkpoint_id}.json"
+        checkpoint_path = (
+            self.checkpoint_dir / f"{_validate_checkpoint_id(checkpoint_id)}.json"
+        )
         if checkpoint_path.exists():
             checkpoint_path.unlink()
 
@@ -259,6 +285,8 @@ class RollbackManager:
         """Remove oldest checkpoints if over the retention limit."""
         while len(self.checkpoint_history) > self.max_checkpoints:
             oldest_id = self.checkpoint_history.pop(0)
+            if not _CHECKPOINT_ID_RE.fullmatch(str(oldest_id)):
+                continue
             oldest_path = self.checkpoint_dir / f"{oldest_id}.json"
             if oldest_path.exists():
                 oldest_path.unlink()

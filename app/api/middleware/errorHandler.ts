@@ -5,6 +5,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
+import { sanitizeForLog } from './logger';
 
 /**
  * Custom API Error class
@@ -83,9 +84,11 @@ export const errorHandler = (
   res: Response,
   next: NextFunction
 ): void => {
-  // Log error
-  console.error(`[ERROR] ${new Date().toISOString()} - ${req.method} ${req.path}`);
-  console.error(err.stack || err.message);
+  // Log error (sanitize request-derived values to prevent log forgery)
+  console.error(
+    `[ERROR] ${new Date().toISOString()} - ${sanitizeForLog(req.method)} ${sanitizeForLog(req.path)}`
+  );
+  console.error(sanitizeForLog(err.stack || err.message));
 
   // Determine status code and error details
   let statusCode = 500;

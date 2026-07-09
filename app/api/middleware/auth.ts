@@ -5,6 +5,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
+import { sanitizeForLog } from './logger';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -43,7 +44,7 @@ function loadApiKeys(): Record<string, ApiKeyEntry> {
     const userId = envName.replace('ARTEMIS_API_KEY_', '').toLowerCase();
     const parts = envValue.split(':');
     if (parts.length < 3) {
-      console.warn(`[AUTH] Malformed key env var ${envName}: expected key:role:permissions`);
+      console.warn(`[AUTH] Malformed key env var ${sanitizeForLog(envName)}: expected key:role:permissions`);
       continue;
     }
 

@@ -12,8 +12,18 @@ const router = Router();
 const controller = new LLMController();
 router.use(authMiddleware);
 
+// Explicit allowlist of providers the controller actually knows about.
+// The env-var name is derived from the provider string, so anything
+// outside this list must be rejected before the process.env lookup --
+// otherwise a request-controlled provider name could probe arbitrary
+// `<NAME>_API_KEY` environment variables (js/remote-property-injection).
+export const ALLOWED_PROVIDERS = new Set(['anthropic', 'openai', 'local']);
+
 function resolveProviderApiKey(provider: string): string | undefined {
   const normalized = provider.trim().toLowerCase();
+  if (!ALLOWED_PROVIDERS.has(normalized)) {
+    return undefined;
+  }
   const providerUpper = normalized.toUpperCase().replace(/[^A-Z0-9]/g, '_');
 
   const candidatesByProvider: Record<string, string[]> = {
@@ -242,6 +252,13 @@ router.post('/provider', async (req: Request, res: Response) => {
     }
 
     const providerName = String(provider).trim().toLowerCase();
+    if (!ALLOWED_PROVIDERS.has(providerName)) {
+      res.status(400).json({
+        success: false,
+        error: `Unsupported provider. Allowed: ${[...ALLOWED_PROVIDERS].join(', ')}`
+      });
+      return;
+    }
     const apiKeyFromEnv = resolveProviderApiKey(providerName);
     const isLocalProvider = providerName === 'local';
 

@@ -1,10 +1,12 @@
 version: 2.1
 
 # =============================================================================
-# Artemis City — unified CI/CD pipeline
+# Artemis City — primary CI/CD pipeline
 # -----------------------------------------------------------------------------
-# Single source of truth for CI/CD. CircleCI is the sole CI/CD system for this
-# repo (the .github/workflows/* files should be retired — see docs/CI_CD.md).
+# CircleCI is the PRIMARY CI/CD system for this repo. GitHub Actions retains
+# only the promotion cascade (.github/workflows/promote.yml), which advances
+# the dev -> staging -> prod branch pointers; every branch advance then runs
+# through the branch-filtered workflows below.
 #
 # Environment model (authoritative: docs/ENVIRONMENTS.md):
 #
@@ -16,14 +18,12 @@ version: 2.1
 #
 # Note: prod is the DEFAULT branch — there is no `main`.
 #
-# Two ways to reach staging/prod, mirroring the GitHub setup:
-#   1. Direct push to the env branch  -> staging-pipeline / prod-pipeline
-#   2. Promotion cascade from `dev`   -> dev-pipeline (push dev, approve to
-#      fast-forward staging then prod, deploying each — like promote.yml)
+# Staging/prod deploys trigger when their env branch moves — either by a
+# direct push or via the GitHub promote.yml cascade fast-forwarding it.
 #
 # Stage 1 (checks) runs in parallel on every branch:
 #   docs-mirror · python (3.11/3.12/3.13 matrix) · typescript-api · secrets-check
-# Stage 2 (deploy / promote) is branch-gated and, for staging/prod, approval-gated.
+# Stage 2 (deploy) is branch-gated and, for staging/prod, approval-gated.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -233,35 +233,13 @@ jobs:
             #     heroku container:release web --app artemis-city-<< parameters.env >>
             #   python scripts/deploy.py --env << parameters.env >>
 
-  # ── Promote (fast-forward an env branch to the tested commit) ──────────────
-  # Mirrors promote.yml's cascade. Requires a write-enabled SSH key added in
-  # CircleCI Project Settings → SSH Keys; put its fingerprint below.
-  promote:
-    parameters:
-      target:
-        type: string
-    docker:
-      - image: cimg/base:current
-    working_directory: ~/project
-    steps:
-      - add_ssh_keys:
-          fingerprints:
-            # REPLACE with your write-enabled deploy/user key fingerprint.
-            - "REPLACE_ME_WITH_WRITE_SSH_KEY_FINGERPRINT"
-      - checkout
-      - run:
-          name: Fast-forward << parameters.target >> to the tested commit
-          command: |
-            # No --force: a non-fast-forward push fails loudly if << parameters.target >>
-            # diverged outside the cascade (matches the GitHub promote cascade).
-            git push origin "HEAD:refs/heads/<< parameters.target >>"
-
 # -----------------------------------------------------------------------------
 # WORKFLOWS
 # -----------------------------------------------------------------------------
 workflows:
 
-  # ── dev: checks → auto-deploy dev, plus the approval-gated promotion cascade ─
+  # ── dev: checks → auto-deploy dev ──────────────────────────────────────────
+  # (Promotion to staging/prod stays on GitHub promote.yml.)
   dev-pipeline:
     jobs:
       - docs-mirror:
@@ -292,39 +270,7 @@ workflows:
             - secrets-check
           filters: { branches: { only: dev } }
 
-      # Promotion cascade: dev → staging → prod, each behind an approval gate.
-      - hold-promote-staging:
-          type: approval
-          requires: *checks
-          filters: { branches: { only: dev } }
-      - promote:
-          name: promote-to-staging
-          target: staging
-          requires: [hold-promote-staging]
-          filters: { branches: { only: dev } }
-      - deploy:
-          name: cascade-deploy-staging
-          env: staging
-          # context: [artemis-staging]
-          requires: [promote-to-staging]
-          filters: { branches: { only: dev } }
-      - hold-promote-prod:
-          type: approval
-          requires: [cascade-deploy-staging]
-          filters: { branches: { only: dev } }
-      - promote:
-          name: promote-to-prod
-          target: prod
-          requires: [hold-promote-prod]
-          filters: { branches: { only: dev } }
-      - deploy:
-          name: cascade-deploy-prod
-          env: prod
-          # context: [artemis-prod]
-          requires: [promote-to-prod]
-          filters: { branches: { only: dev } }
-
-  # ── staging: direct push → checks → 1 approval → deploy ────────────────────
+  # ── staging: branch advance (push or promote.yml) → checks → 1 approval → deploy ─
   staging-pipeline:
     jobs:
       - docs-mirror:
@@ -350,10 +296,10 @@ workflows:
           requires: [hold-staging]
           filters: { branches: { only: staging } }
 
-  # ── prod: direct push → checks → approval → deploy ─────────────────────────
+  # ── prod: branch advance (push or promote.yml) → checks → approval → deploy ─
   # prod requires 2 approvals per docs/ENVIRONMENTS.md. CircleCI's built-in
   # approval is a single hold; enforce 2 DISTINCT reviewers with a restricted
-  # context on deploy-prod (see docs/CI_CD.md → "Two-reviewer prod gate").
+  # context on deploy-prod (see docs/CICD.md → "Two-reviewer prod gate").
   prod-pipeline:
     jobs:
       - docs-mirror:

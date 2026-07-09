@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from ..utils.helpers import logger
+from ..utils.helpers import logger, sanitize_for_log
 
 
 class ObsidianGenerator:
@@ -38,7 +38,7 @@ class ObsidianGenerator:
                     markdown += f"- **{key.replace('_', ' ').title()}**: {value}\n"
 
         markdown += f"""\n## Next Steps (Optional)\n\n- [ ]  Review this report\n- [ ]  Discuss findings with team\n"""
-        logger.info(f"Generated report for {agent_name}, task {task_id}")
+        logger.info("Generated report for %s, task %s", sanitize_for_log(agent_name), sanitize_for_log(task_id))
         return markdown
 
     def generate_task_note(self, task_data: dict) -> str:
@@ -84,5 +84,5 @@ class ObsidianGenerator:
                 checkbox = "[x]" if subtask.get("completed") else "[ ]"
                 markdown += f"- {checkbox} {subtask['text']}\n"
 
-        logger.info(f"Generated task note for '{title}'")
+        logger.info("Generated task note for '%s'", sanitize_for_log(title))
         return markdown
