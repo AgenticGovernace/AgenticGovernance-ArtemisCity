@@ -3,7 +3,7 @@ from pathlib import Path
 
 from src.mcp.config import OBSIDIAN_VAULT_PATH
 
-from ..utils.helpers import logger
+from ..utils.helpers import logger, sanitize_for_log
 
 
 class ObsidianManager:
@@ -19,9 +19,9 @@ class ObsidianManager:
             vault_path = _vault
         self.vault_path = Path(vault_path)
         if not self.vault_path.is_dir():
-            logger.error(f"Obsidian vault path does not exist: {self.vault_path}")
+            logger.error("Obsidian vault path does not exist: %s", sanitize_for_log(self.vault_path))
             raise FileNotFoundError(f"Obsidian vault path not found: {self.vault_path}")
-        logger.info(f"Obsidian Manager initialized for vault: {self.vault_path}")
+        logger.info("Obsidian Manager initialized for vault: %s", sanitize_for_log(self.vault_path))
 
     def _get_full_path(self, relative_path: str) -> Path:
         """Resolve a vault-relative path and reject vault escapes."""
@@ -50,11 +50,11 @@ class ObsidianManager:
         """
         full_path = self._get_full_path(relative_path)
         if not full_path.is_file():
-            logger.warning(f"Note not found: {full_path}")
+            logger.warning("Note not found: %s", sanitize_for_log(full_path))
             return None
         with open(full_path, "r", encoding="utf-8") as f:
             content = f.read()
-            logger.debug(f"Read note: {relative_path}")
+            logger.debug("Read note: %s", sanitize_for_log(relative_path))
             return content
 
     def write_note(self, relative_path: str, content: str, overwrite: bool = True):
@@ -86,11 +86,11 @@ class ObsidianManager:
                 except FileNotFoundError:
                     pass
                 raise
-            logger.info(f"Wrote note: {relative_path} (mode: w, atomic)")
+            logger.info("Wrote note: %s (mode: w, atomic)", sanitize_for_log(relative_path))
         else:
             with open(full_path, "a", encoding="utf-8") as f:
                 f.write(content)
-            logger.info(f"Wrote note: {relative_path} (mode: a)")
+            logger.info("Wrote note: %s (mode: a)", sanitize_for_log(relative_path))
 
     def list_notes_in_folder(
         self, relative_folder_path: str, suffix: str = ".md"
@@ -106,14 +106,14 @@ class ObsidianManager:
         """
         full_path = self._get_full_path(relative_folder_path)
         if not full_path.is_dir():
-            logger.warning(f"Folder not found: {full_path}")
+            logger.warning("Folder not found: %s", sanitize_for_log(full_path))
             return []
         notes = [
             str(f.relative_to(full_path))
             for f in full_path.iterdir()
             if f.is_file() and f.suffix == suffix
         ]
-        logger.debug(f"Listed {len(notes)} notes in {relative_folder_path}")
+        logger.debug("Listed %s notes in %s", len(notes), sanitize_for_log(relative_folder_path))
         return notes
 
     def create_folder(self, relative_folder_path: str):
@@ -127,7 +127,7 @@ class ObsidianManager:
         """
         full_path = self._get_full_path(relative_folder_path)
         full_path.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Ensured folder exists: {relative_folder_path}")
+        logger.info("Ensured folder exists: %s", sanitize_for_log(relative_folder_path))
 
     def delete_note(self, relative_path: str) -> bool:
         """Delete a note within the vault.
@@ -140,10 +140,10 @@ class ObsidianManager:
         """
         full_path = self._get_full_path(relative_path)
         if not full_path.exists():
-            logger.warning(f"Note not found for delete: {full_path}")
+            logger.warning("Note not found for delete: %s", sanitize_for_log(full_path))
             return False
         if not full_path.is_file():
             raise ValueError("vault path is not a file")
         full_path.unlink()
-        logger.info(f"Deleted note: {relative_path}")
+        logger.info("Deleted note: %s", sanitize_for_log(relative_path))
         return True

@@ -11,7 +11,7 @@ if _project_root not in sys.path:
 
 from src.mcp.config import AGENT_INPUT_DIR, OBSIDIAN_VAULT_PATH
 from src.mcp.orchestrator import Orchestrator  # noqa: E402
-from src.utils.helpers import logger  # noqa: E402
+from src.utils.helpers import logger, sanitize_for_log  # noqa: E402
 from src.utils.run_logger import init_run_logger  # noqa: E402
 
 
@@ -77,7 +77,7 @@ def setup_example_task_note(obs_manager, memory_bus=None):
     )  # Access internal for convenience
 
     if not full_path.is_file():
-        logger.info(f"Creating example task note at {relative_path}")
+        logger.info("Creating example task note at %s", sanitize_for_log(relative_path))
         content = f"""---\ntask_id: {datetime.now().strftime('%Y%m%d%H%M%S')}\nrequired_capability: web_search\nstatus: pending\ntags: ["example", "research"]\n---\n\n# Research Task: Artificial Intelligence Ethics\n\n## Context\n\nProvide an overview of the current ethical considerations surrounding the development and deployment of Artificial Intelligence. Focus on privacy, bias, and accountability.\n\nKeywords: AI ethics, privacy, bias, accountability, machine learning\nTarget: [[AI Concepts]]\nSource: Internet\n\n## Subtasks\n\n- [ ]  Research current debates on AI ethics\n- [ ]  Find examples of AI bias in real-world applications\n- [ ]  Summarize key regulations or frameworks proposed for AI accountability\n"""
         if memory_bus:
             try:
@@ -85,15 +85,16 @@ def setup_example_task_note(obs_manager, memory_bus=None):
                     relative_path, content, metadata={"demo": True}, embed=True
                 )
             except Exception as exc:
-                logger.error(f"Failed to write example note via memory bus: {exc}")
+                logger.error("Failed to write example note via memory bus: %s", sanitize_for_log(exc))
                 obs_manager.write_note(relative_path, content, overwrite=False)
         else:
             obs_manager.write_note(relative_path, content, overwrite=False)
         logger.info(
-            f"Example task note '{example_filename}' created. Please review it in your Obsidian vault."
+            "Example task note '%s' created. Please review it in your Obsidian vault.",
+            sanitize_for_log(example_filename),
         )
     else:
-        logger.info(f"Example task note '{example_filename}' already exists.")
+        logger.info("Example task note '%s' already exists.", sanitize_for_log(example_filename))
 
 
 def handle_user_instruction(
@@ -138,7 +139,9 @@ def handle_user_instruction(
         agent_for_dispatch = orchestrator.agent_registry.get_agent(agent_name)
         if not agent_for_dispatch:
             logger.error(
-                f"Agent '{agent_name}' not registered. Available: {orchestrator.agent_registry.get_agent_names()}"
+                "Agent '%s' not registered. Available: %s",
+                sanitize_for_log(agent_name),
+                sanitize_for_log(orchestrator.agent_registry.get_agent_names()),
             )
             return
         derived_capability = (
@@ -149,7 +152,8 @@ def handle_user_instruction(
         if not effective_capability:
             if not derived_capability:
                 logger.error(
-                    f"Agent '{agent_name}' has no capabilities defined; cannot dispatch."
+                    "Agent '%s' has no capabilities defined; cannot dispatch.",
+                    sanitize_for_log(agent_name),
                 )
                 return
             effective_capability = derived_capability
@@ -171,14 +175,16 @@ def handle_user_instruction(
         task_data["agent"] = agent_name
 
     logger.info(
-        f"\n--- User Instruction: Dispatching task with capability '{effective_capability}' ---"
+        "\n--- User Instruction: Dispatching task with capability '%s' ---",
+        sanitize_for_log(effective_capability),
     )
     try:
         note_path = orchestrator.create_new_task_in_obsidian(task_data)
         orchestrator.update_task_status_in_obsidian(note_path, "in progress", task_id)
     except Exception as exc:
         logger.error(
-            f"Failed to record instruction in Obsidian before execution: {exc}"
+            "Failed to record instruction in Obsidian before execution: %s",
+            sanitize_for_log(exc),
         )
         note_path = None
 
@@ -187,14 +193,15 @@ def handle_user_instruction(
             orchestrator.assign_and_execute_task(
                 agent_for_dispatch.name, task_data, note_path
             )
-            logger.info(f"Instruction processed by agent '{agent_for_dispatch.name}'.")
+            logger.info("Instruction processed by agent '%s'.", sanitize_for_log(agent_for_dispatch.name))
         else:
             orchestrator.route_and_execute_task(task_data, note_path)
             logger.info(
-                f"Instruction processed for capability '{effective_capability}'."
+                "Instruction processed for capability '%s'.",
+                sanitize_for_log(effective_capability),
             )
     except Exception as exc:
-        logger.error(f"Error processing instruction: {exc}")
+        logger.error("Error processing instruction: %s", sanitize_for_log(exc))
         if note_path:
             orchestrator.update_task_status_in_obsidian(note_path, "failed", task_id)
 
@@ -217,7 +224,8 @@ def main():
 
     if not os.path.exists(OBSIDIAN_VAULT_PATH):
         logger.error(
-            f"Error: Obsidian vault path '{OBSIDIAN_VAULT_PATH}' does not exist."
+            "Error: Obsidian vault path '%s' does not exist.",
+            sanitize_for_log(OBSIDIAN_VAULT_PATH),
         )
         logger.error(
             "Set OBSIDIAN_VAULT_PATH in the project '.env' or export it in your shell to point to your vault."
@@ -275,7 +283,7 @@ def main():
             orchestrator.route_and_execute_task(direct_task_context)
             logger.info("Direct summary task completed. Report written to Obsidian.")
         except ValueError as e:
-            logger.error(f"Failed to assign direct task: {e}")
+            logger.error("Failed to assign direct task: %s", sanitize_for_log(e))
     else:
         logger.info("Skipping demo note creation and static summarizer task.")
 
@@ -290,14 +298,17 @@ def main():
     new_tasks = orchestrator.check_for_new_tasks_from_obsidian()
 
     if new_tasks:
-        logger.info(f"Found {len(new_tasks)} new pending tasks in Obsidian.")
+        logger.info("Found %s new pending tasks in Obsidian.", len(new_tasks))
         for original_note_path, task_data in new_tasks:
             task_title = task_data.get("title", "Untitled Task")
             capability = task_data.get("required_capability")
 
             if capability:
                 logger.info(
-                    f"Processing task '{task_title}' with capability '{capability}' from '{original_note_path}'"
+                    "Processing task '%s' with capability '%s' from '%s'",
+                    sanitize_for_log(task_title),
+                    sanitize_for_log(capability),
+                    sanitize_for_log(original_note_path),
                 )
 
                 # First, update task status to 'in progress' in Obsidian
@@ -308,15 +319,16 @@ def main():
                 # Execute the task
                 try:
                     orchestrator.route_and_execute_task(task_data, original_note_path)
-                    logger.info(f"Task '{task_title}' completed.")
+                    logger.info("Task '%s' completed.", sanitize_for_log(task_title))
                 except Exception as e:
-                    logger.error(f"Error processing task '{task_title}': {e}")
+                    logger.error("Error processing task '%s': %s", sanitize_for_log(task_title), sanitize_for_log(e))
                     orchestrator.update_task_status_in_obsidian(
                         original_note_path, "failed", task_data["task_id"]
                     )
             else:
                 logger.warning(
-                    f"Task '{task_title}' has no 'required_capability'. Skipping."
+                    "Task '%s' has no 'required_capability'. Skipping.",
+                    sanitize_for_log(task_title),
                 )
                 orchestrator.update_task_status_in_obsidian(
                     original_note_path, "no_capability", task_data["task_id"]
@@ -324,7 +336,9 @@ def main():
     else:
         logger.info("No new pending tasks found in Obsidian input folder.")
         logger.info(
-            f"Remember to create a new Markdown note in '{OBSIDIAN_VAULT_PATH}/{AGENT_INPUT_DIR}' with 'status: pending' and 'required_capability' in its YAML frontmatter, for example:"
+            "Remember to create a new Markdown note in '%s/%s' with 'status: pending' and 'required_capability' in its YAML frontmatter, for example:",
+            sanitize_for_log(OBSIDIAN_VAULT_PATH),
+            sanitize_for_log(AGENT_INPUT_DIR),
         )
         logger.info(
             """---\ntask_id: T_NEW_RESEARCH\nrequired_capability: web_search\nstatus: pending\n---\n\n# New Topic for Research\n\nTopic: The future of renewable energy technologies\nContext: Research emerging trends and key players.\nKeywords: solar, wind, geothermal, fusion\n"""
@@ -339,7 +353,7 @@ def main():
             "instruction_provided": bool(args.instruction),
         },
     )
-    logger.info(f"Run log saved to: {run_logger.md_path}")
+    logger.info("Run log saved to: %s", sanitize_for_log(run_logger.md_path))
 
 
 if __name__ == "__main__":

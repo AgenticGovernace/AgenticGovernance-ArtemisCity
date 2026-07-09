@@ -49,7 +49,7 @@ from src.agents.artemis_agent import ArtemisAgent
 from src.agents.llm_agent import LLMAgent
 from src.agents.research_agent import ResearchAgent
 from src.obsidian_integration import ObsidianGenerator, ObsidianManager, ObsidianParser
-from src.utils.helpers import logger
+from src.utils.helpers import logger, sanitize_for_log
 
 from ..integration.agent_registry import AgentRegistry
 from ..integration.governance import GovernanceMonitor
@@ -82,22 +82,13 @@ def _get_run_logger():
 def _sanitize_for_log(value: Any) -> str:
     """Convert values to a single-line printable representation for logging.
 
-    The pattern is deliberate: a ``.replace`` chain on the newline / CR /
-    tab characters followed by a printable-only whitelist. CodeQL's
-    ``py/log-injection`` query recognizes the ``.replace`` chain as a
-    log-newline-injection sanitizer, which is what flags this helper as
-    a recognized sink protector across the codebase. The whitelist
-    catches anything else non-printable (zero-width chars, control
-    chars, etc.) without depending on CodeQL recognising
-    ``str.isprintable``.
+    Thin wrapper around the shared ``src.utils.helpers.sanitize_for_log``
+    so every module applies the same CodeQL-recognized log-injection
+    sanitizer (``.replace`` chain + printable whitelist + truncation).
+    Kept under the historical private name to avoid churning the ~40
+    call sites in this module.
     """
-    text = (
-        str(value)
-        .replace("\r", " ")
-        .replace("\n", " ")
-        .replace("\t", " ")
-    )
-    return "".join(ch if ch.isprintable() else " " for ch in text)
+    return sanitize_for_log(value)
 
 
 class Orchestrator:
