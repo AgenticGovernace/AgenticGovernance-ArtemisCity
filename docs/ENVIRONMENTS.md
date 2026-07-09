@@ -54,24 +54,22 @@ approvals are configured on the Environment itself in repo Settings.
 
 ## Workflows
 
-- `ci.yml` runs on every push and PR to `dev`, `staging`, `prod`.
+CircleCI (`.circleci/config.yml`) is the primary CI/CD system: it runs the
+test matrix, docs-mirror and secrets checks on every push, and owns the
+per-environment deploy workflows with their approval gates.
+
+GitHub Actions retains only the promotion cascade:
+
 - `promote.yml` is the promotion cascade. On a push to `dev` (or manual
   dispatch) it runs the test gate and then advances `staging` and `prod`
-  by fast-forward, invoking `deploy.yml` for each. It needs
-  `contents: write` to move the branch pointers.
-- `deploy.yml` deploys to the matching GitHub Environment. It is invoked
-  three ways: directly on push to an env branch, manually via
-  `workflow_dispatch`, and as a **reusable workflow** (`workflow_call`)
-  from `promote.yml`. The deploy step is a provider-agnostic placeholder;
-  wire your container build or `aws`/`az`/`gcloud` deploy action there.
+  by fast-forward. It needs `contents: write` to move the branch
+  pointers. Advancing an environment branch is what triggers the
+  corresponding CircleCI deploy workflow.
 
-> **Note on `GITHUB_TOKEN` and branch protection.** Pushes the cascade
-> makes with the default `GITHUB_TOKEN` do not re-trigger other workflows
-> (that is why `promote.yml` calls `deploy.yml` directly rather than
-> relying on `deploy.yml`'s own push trigger). If you protect `staging` /
-> `prod` with rules that *require a pull request*, the cascade's direct
-> push will be rejected — gate those environments with **required
-> reviewers on the GitHub Environment** instead, and keep
+> **Note on `GITHUB_TOKEN` and branch protection.** If you protect
+> `staging` / `prod` with rules that *require a pull request*, the
+> cascade's direct push will be rejected — gate those environments with
+> **required reviewers / approvals in CircleCI** instead, and keep
 > "Automatically delete head branches" off so manual PRs never eat `dev`.
 
 ## One-time setup (after merge)

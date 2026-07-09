@@ -19,52 +19,50 @@ Artemis City deploys across three long-lived environment branches —
 `docs/ENVIRONMENTS.md` for the branch model; this document covers the
 pipeline that drives it.
 
-GitHub Actions provides four workflows:
+CircleCI (`.circleci/config.yml`) is the **primary CI/CD system**: it
+runs the docs-mirror check, the Python test matrix, the TypeScript API
+checks, secret scanning, and the per-environment deploy workflows with
+their approval gates.
 
-- **CI** (`ci.yml`): tests + config validation on every push/PR to the
-  env branches.
+GitHub Actions retains a single workflow:
+
 - **Promote** (`promote.yml`): the promotion cascade. A push to `dev`
-  flows automatically to `staging` and then `prod`.
-- **Deploy** (`deploy.yml`): deploys a commit to its matching GitHub
-  Environment. Runs on direct push, manual dispatch, or as the reusable
-  workflow the cascade calls.
-- **Dependency Submission** (`dependency-submission.yml`): best-effort
-  dependency-graph snapshot (non-blocking).
-
-CircleCI (`.circleci/config.yml`) runs an equivalent build-and-test job
-as a second, provider-independent signal.
+  flows automatically to `staging` and then `prod` by fast-forwarding
+  the environment branches. Advancing an environment branch triggers
+  the corresponding CircleCI deploy workflow.
 
 ### Technology Stack
 
-- **CI Platform**: GitHub Actions (plus CircleCI mirror)
+- **CI Platform**: CircleCI (primary), GitHub Actions (promotion cascade only)
 - **Python Testing**: pytest (`src/tests`)
 - **Supported Python**: 3.11, 3.12, 3.13 (`requires-python = ">=3.11,<3.15"`)
 - **Environment model**: `dev -> staging -> prod` (see `docs/ENVIRONMENTS.md`)
 
 ## Workflows
 
-### 1. CI Workflow (`.github/workflows/ci.yml`)
-
-**Triggers:**
-
-- Push to `dev`, `staging`, or `prod`
-- Pull requests targeting `dev`, `staging`, or `prod`
-- Manual dispatch
+### 1. CircleCI (`.circleci/config.yml`) — primary CI/CD
 
 **Jobs:**
 
 - **docs-mirror**: fails if `CLAUDE.md` and `AGENTS.md` are not
   byte-for-byte identical.
-- **python**: matrix over Python 3.11 / 3.12 / 3.13 —
+- **python-checks**: matrix over Python 3.11 / 3.12 / 3.13 —
     - installs `requirements.txt` + `requirements-dev.txt`,
     - validates every `config/environments/*.yaml` via
       `src.utils.environments.load_environment`,
     - runs `python -m pytest src/tests`.
+- **typescript-api**: Node 24 typecheck/tests for the Express API.
+- **secrets-check**: secret-scanning gate.
+- **deploy**: per-environment deploy job used by the `dev` / `staging` /
+  `prod` workflows, guarded by approval gates.
+
+Workflows: `dev`, `staging`, and `prod` (branch-filtered, with hold /
+approval steps before deploy) plus `pr-checks` for pull requests.
 
 ### 2. Promote Workflow (`.github/workflows/promote.yml`)
 
-The promotion cascade. See `docs/ENVIRONMENTS.md` for the full branch
-model.
+The only remaining GitHub Actions workflow — the promotion cascade. See
+`docs/ENVIRONMENTS.md` for the full branch model.
 
 **Triggers:**
 
@@ -73,50 +71,15 @@ model.
 
 **Jobs (sequential):**
 
-1. **test** — test gate (same checks as CI). Nothing promotes unless this
-   is green.
-2. **promote-staging** — fast-forwards `staging` to the tested commit with
+1. **resolve** — pins the exact `dev` commit being promoted.
+2. **docs-mirror** / **test** — gates. Nothing promotes unless these are
+   green.
+3. **promote-staging** — fast-forwards `staging` to the tested commit with
    `git push` (no PR, no branch deletion).
-3. **deploy-staging** — calls `deploy.yml` (reusable) for the `staging`
-   Environment.
 4. **promote-prod** — fast-forwards `prod` to the same commit.
-5. **deploy-prod** — calls `deploy.yml` for the `prod` Environment.
 
-Approvals are enforced by required reviewers on the `staging` / `prod`
-GitHub Environments, so the cascade pauses for sign-off where configured
-and flows straight through where not.
-
-### 3. Deploy Workflow (`.github/workflows/deploy.yml`)
-
-**Triggers:**
-
-- Push to `dev`, `staging`, or `prod`
-- Manual dispatch (pick the environment)
-- `workflow_call` — reusable entry point used by the Promote cascade
-
-**Jobs:**
-
-- **resolve**: picks the target environment from the `environment` input
-  (dispatch/call) or the branch name (push).
-- **deploy**: binds to the matching GitHub Environment, loads its
-  `config/environments/<env>.yaml`, then runs the provider-agnostic
-  build + deploy placeholder steps.
-
-### 4. Dependency Submission (`.github/workflows/dependency-submission.yml`)
-
-**Triggers:**
-
-- Push / PR to `dev`, `staging`, `prod`
-- Manual dispatch
-
-Submits a best-effort dependency-graph snapshot for `pyproject.toml`. The
-job is `continue-on-error`, so it never blocks the pipeline.
-
-### CircleCI mirror (`.circleci/config.yml`)
-
-A single `build-and-test` job on `cimg/python:3.12` that installs the
-requirements, validates the environment configs, and runs
-`pytest src/tests` — a provider-independent copy of the GitHub CI signal.
+Deploys themselves happen in CircleCI: the branch advance triggers the
+matching CircleCI workflow, whose approval gates guard the rollout.
 
 ## Pipeline Stages
 
