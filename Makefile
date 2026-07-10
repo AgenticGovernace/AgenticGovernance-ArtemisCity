@@ -4,7 +4,7 @@
 # Convenient commands for development tasks
 # Usage: make <target>
 
-.PHONY: help install install-dev setup-hooks lint lint-fix format check security secrets \
+.PHONY: help venv install install-dev setup-hooks lint lint-fix format check security secrets \
         test test-cov pre-commit pre-commit-update clean clean-env run cli demo server \
         frontend build docs docs-serve all ci
 
@@ -15,8 +15,11 @@
 # the Python core's MCP_API_KEY/MCP_BASE_URL there, but make does not export
 # .env files automatically.
 LOAD_ENV = set -a; [ ! -f .env ] || . ./.env; set +a;
-PYTHON ?= python3
-PIP ?= $(PYTHON) -m pip
+PYTHON_VERSION ?= 3.12
+VENV ?= .venv
+PYTHON ?= $(VENV)/bin/python
+UV ?= uv
+ROOT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
 # ============================================
 # HELP
@@ -34,20 +37,23 @@ help: ## Show this help message
 # INSTALLATION
 # ============================================
 
-install: ## Install all dependencies
+venv: ## Create the Python 3.12 virtual environment with uv
+	$(UV) venv --python $(PYTHON_VERSION) $(VENV)
+
+install: venv ## Install runtime dependencies with uv
 	echo "Installing Python dependencies..."
-	$(PIP) install -r ./requirements.txt
+	$(UV) pip install --python $(PYTHON) -r ./requirements.txt
 	echo "Installation complete!"
 
-install-dev: ## Install development dependencies
+install-dev: venv ## Install runtime and development dependencies with uv
 	echo "Installing development dependencies..."
-	$(PIP) install -r requirements-dev.txt
+	$(UV) pip install --python $(PYTHON) -r requirements.txt -r requirements-dev.txt
 	@echo "Development dependencies installed!"
 
-setup-hooks: ## Install pre-commit hooks
+setup-hooks: venv ## Install pre-commit hooks into the uv-managed virtual environment
 	@echo "Installing pre-commit hooks..."
-	$(PIP) install pre-commit
-	pre-commit install
+	$(UV) pip install --python $(PYTHON) pre-commit
+	$(PYTHON) -m pre_commit install
 	@echo "Pre-commit hooks installed!"
 
 # ============================================
@@ -92,7 +98,7 @@ check: ## Run all checks (format, lint, type)
 security: ## Run security checks
 	@echo "Running security checks..."
 	@echo "\n--- Bandit (security scanner) ---"
-	bandit -r . -c pyproject.toml || true
+	cd "$(ROOT_DIR)" && bandit -r . -c pyproject.toml || true
 	@echo "\n--- Safety (dependency vulnerabilities) ---"
 	safety check || true
 	@echo "\nSecurity checks complete!"
@@ -170,11 +176,11 @@ cli: ## Run the legacy Artemis CLI
 demo: ## Run all demos
 	@echo "Running demos..."
 	@echo "\n--- Artemis Features Demo ---"
-	@$(LOAD_ENV) $(PYTHON) Concept_Demos/demo_artemis.py
+	@$(LOAD_ENV) $(PYTHON) src/launch/demo_artemis.py
 	@echo "\n--- Memory Integration Demo ---"
-	@$(LOAD_ENV) $(PYTHON) Concept_Demos/demo_memory_integration.py
+	@$(LOAD_ENV) $(PYTHON) src/launch/demo_memory_integration.py
 	@echo "\n--- City Postal Demo ---"
-	@$(LOAD_ENV) $(PYTHON) Concept_Demos/demo_city_postal.py
+	@$(LOAD_ENV) $(PYTHON) src/launch/demo_city_postal.py
 	@echo "\nDemos complete!"
 
 server: ## Start MCP server (Memory Layer)

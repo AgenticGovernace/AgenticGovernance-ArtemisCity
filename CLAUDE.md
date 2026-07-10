@@ -69,7 +69,7 @@ Keywords: keyword1, keyword2
 ```bash
 # Install dependencies
 # DEPRECATED — use `make install` in the active section below.
-pip install -r requirements.txt
+make install
 
 # Configure Obsidian vault path in .env
 # DEPRECATED — use `./setup_secrets.sh` in the active section below.
@@ -672,7 +672,7 @@ authoritative, what is in transition, and what is deliberately frozen.
 | Concept demos | `Concept_Demos/` | Prototype ground for agents and flows | Older but supported. Per the Agent Implementation Guide, work prototyped here graduates to `src/`. |
 
 The Hatch wheel ships **only `src/` and `app/kernel/`** (see
-`pyproject.toml` — `app/api`, `app/web`, `app/scripts` are explicitly
+root `pyproject.toml` — `app/api`, `app/web`, `app/scripts` are explicitly
 excluded so the wheel does not pull `fastapi`/`express` into consumers that
 do not declare them).
 
@@ -878,7 +878,7 @@ already used there.
 `docs/TEST_PLAN.md` is the canonical test plan (pyramid, coverage targets,
 naming, marker conventions). Don't restate it here. To run the suite
 locally: `make test` (calls `pytest src/tests/`). CI runs the same on
-Python 3.10 / 3.11 / 3.12 plus a config-validation step.
+Python 3.12 plus a config-validation step.
 
 ### Environment variables and secrets
 
@@ -926,7 +926,7 @@ duplicate `app/web/frontend/.env` required.
   `app/web/frontend/`. Anything referencing `web/api/main.py` or
   `web/frontend/` is stale.
 - **Do not add `fastapi` / `express` to runtime dependencies in the
-  wheel.** `pyproject.toml` excludes `app/api`, `app/web`, `app/scripts`
+  wheel.** Root `pyproject.toml` excludes `app/api`, `app/web`, `app/scripts`
   from the wheel for exactly this reason.
 - **Do not call Python from TypeScript outside the bridge.** Every
   registry / governance call goes through `pythonBridge.ts`. Adding a

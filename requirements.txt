@@ -38,7 +38,7 @@ coverage-badge==1.1.2
 cryptography==48.0.1
 # cuda-bindings==13.3.1
 cuda-pathfinder==1.5.5
-cuda-toolkit==13.0.2
+cuda-toolkit==13.0.3
 cyclopts==4.16.1
 datasets==5.0.0
 decopatch==1.4.10
@@ -258,7 +258,7 @@ torch==2.13.0
 tornado==6.5.7
 tqdm==4.68.1
 traitlets==5.15.1
-triton==3.7.0
+triton==3.7.1
 truststore==0.10.4
 twine==6.2.0
 ty==0.0.44

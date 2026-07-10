@@ -1,0 +1,10 @@
+# This file is intentionally not a Python package manifest.
+#
+# The canonical project metadata and build configuration live at the repository
+# root in ../pyproject.toml. Keeping this pointer avoids two competing Python
+# package definitions while preserving a breadcrumb for older scripts and docs
+# that still look for src/pyproject.toml.
+
+[tool.artemis-city]
+canonical-pyproject = "../pyproject.toml"
+status = "pointer-only"

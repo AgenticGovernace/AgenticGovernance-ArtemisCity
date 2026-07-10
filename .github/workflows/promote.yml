@@ -4,6 +4,7 @@ name: Promote
 # without anyone touching the staging/prod branches by hand.
 #
 #   push dev --> CI gate (matrix + docs mirror) --> ff staging --> ff prod
+
 #
 # Promotion advances the environment branches with a plain `git push` of the
 # tested commit. There is no promotion *pull request*, so `dev` is never
@@ -29,7 +30,7 @@ permissions:
 
 concurrency:
   group: promote-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   # Resolve the exact commit to promote ONCE, so the gate tests and the branch
@@ -40,7 +41,7 @@ jobs:
   #                       the default branch — promoting that would be wrong).
   resolve:
     name: Resolve dev commit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       sha: ${{ steps.pick.outputs.sha }}
     steps:
@@ -64,7 +65,7 @@ jobs:
   docs-mirror:
     name: Docs mirror gate
     needs: resolve
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -81,29 +82,26 @@ jobs:
   test:
     name: Test gate
     needs: resolve
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # Mirror ci.yml's matrix exactly.
-        python-version: ["3.11", "3.12", "3.13"]
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: ${{ needs.resolve.outputs.sha }}
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
+          # Pin the supported minor line while still receiving 3.12.x patch updates.
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
       - name: Install deps
         run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
-          pip install pyyaml pytest
+          uv venv --python 3.12 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt -r requirements-dev.txt
+          uv pip install --python .venv/bin/python pyyaml pytest
       - name: Validate environment configs
         run: |
-          python - <<'PY'
+          .venv/bin/python - <<'PY'
           from src.utils.environments import load_environment, VALID_ENVIRONMENTS
           for env in VALID_ENVIRONMENTS:
               cfg = load_environment(env)
@@ -112,12 +110,12 @@ jobs:
           print("env configs OK")
           PY
       - name: Run tests
-        run: python -m pytest src/tests
+        run: .venv/bin/python -m pytest src/tests
 
   promote-staging:
     name: Promote dev -> staging
     needs: [resolve, docs-mirror, test]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -134,6 +132,7 @@ jobs:
     name: Promote staging -> prod
     needs: [resolve, promote-staging]
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
