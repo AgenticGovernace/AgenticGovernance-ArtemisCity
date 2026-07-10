@@ -22,9 +22,9 @@ breaking the Artemis City core.
 | Surface | Current path | Evidence | Recommended action |
 |---|---|---|---|
 | Obsidian MCP server shell | `src/Artemis Agentic Memory Layer/` | README and Makefile describe a standalone TS service, but the tree currently contains only `src/utils/logger.ts` and no `package.json`, Dockerfile, or README | Recreate the missing service files or mark the directory archived before treating it as runnable |
-| Legacy web API copy | `app/web/api/` | Contains `main.py` and `main (1).py`, while active docs say API code lives in `app/api/` | Move to `archive/legacy-web-api/` after comparing with `app/api/main.py` |
+| Legacy web API copy | `archive/legacy-web-api/` | Old `app/web/api/` FastAPI copies; active dashboard API is `app/api/main.py` | Archived for reference |
 | Duplicate memory integration package | `memory/` | Mirrors `src/memory/` names outside the package root | Verify imports, then remove or convert to compatibility shims |
-| Duplicate root tests | `tests/` | Substantially overlaps `src/tests/` | Keep `src/tests/` canonical; quarantine or migrate root tests one module at a time |
+| Duplicate root tests | `tests/` | Substantially overlaps `src/tests/`, but is not byte-identical | Keep `src/tests/` canonical; root `tests/` is migration-only and documented by `tests/README.md` |
 | Historical kernel placeholder | `src/Kernel/` | Only `__init__.py`; maintained kernel is `app/kernel/` | Remove once import search confirms it is unused |
 | Local GitHub Actions runner | `actions-runner/` | Runtime tool directory, not source code | Move outside the repository or add to ignore rules after confirming it is not intentionally vendored |
 | Marketplace prototype | `quantum-harmony-marketplace/` | Separate top-level product-like directory | Inspect manifest/docs, then split or archive independently |
@@ -82,3 +82,5 @@ These must be resolved before broad file moves or package extraction:
   made `src/pyproject.toml` pointer-only.
 - Verified the Python wheel build from the root manifest with
   `uv run --with build --with hatchling python -m build --wheel --no-isolation`.
+- Moved the obsolete `app/web/api/` FastAPI copy into
+  `archive/legacy-web-api/`.

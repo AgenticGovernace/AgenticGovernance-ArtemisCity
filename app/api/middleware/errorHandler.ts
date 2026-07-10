@@ -7,11 +7,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { sanitizeForLog } from './logger';
 
-const sanitizeForLog = (value: unknown): string => {
-  if (value === null || value === undefined) return '';
-  return String(value).replace(/[\r\n]+/g, ' ').replace(/[\x00-\x1F\x7F]/g, '');
-};
-
 /**
  * Custom API Error class
  */
