@@ -240,7 +240,7 @@ Then open `http://localhost:8080`.
 │   ├── api_bridge.py               # JSON bridge for TS-to-Python calls
 │   └── Artemis Agentic Memory Layer/  # Standalone TypeScript MCP server
 ├── .env.example
-├── src/pyproject.toml
+├── pyproject.toml
 ├── requirements.txt
 └── requirements-dev.txt
 ```
@@ -260,7 +260,7 @@ When the Python core starts, the orchestrator:
 - The React client consumes `/api`  endpoints and is configured to proxy those requests to the FastAPI backend during development.
 - The standalone Obsidian MCP server exposes vault operations over HTTP using bearer-style authentication.
 ### Package boundary
-The wheel is scoped to the Python core packages (`src/`) and the kernel package (`app/kernel/`). Dashboard/API directories such as `app/api`, `app/web`, and `app/scripts` stay outside the wheel. The current `src/pyproject.toml` dependency list is still lock-style and includes dashboard/dev transitive packages; splitting that list into lean optional extras is tracked as follow-up packaging work.
+The root `pyproject.toml` is the canonical Python package manifest. The wheel is scoped to the Python core packages (`src/`) and the kernel package (`app/kernel/`). Dashboard/API directories such as `app/api`, `app/web`, and `app/scripts` stay outside the wheel, and dashboard/data/development dependencies live in optional extras instead of the base runtime dependency list. `src/pyproject.toml` is pointer-only for compatibility with stale references.
 ### Error handling and governance
 - trust and governance metadata are stored alongside agent registry data
 - repeated violations can quarantine an agent
@@ -1020,7 +1020,7 @@ artemis_agent_success_rate
 │   ├── obsidian_integration/   # Vault I/O
 │   ├── tests/                  # Test suite
 │   └── api_bridge.py           # TS-Python bridge
-├── src/pyproject.toml
+├── pyproject.toml
 └── requirements.txt
 ```
 ### 9.2 Key Dependencies
