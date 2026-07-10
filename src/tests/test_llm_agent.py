@@ -7,6 +7,12 @@ from unittest.mock import Mock, patch
 from src.agents.llm_agent import LLMAgent
 
 
+def _http_error(status_code: int, message: str = "endpoint failed") -> Exception:
+    exc = Exception(message)
+    exc.response = Mock(status_code=status_code)  # type: ignore[attr-defined]
+    return exc
+
+
 class TestLLMAgent:
     """Provide the TestLLMAgent abstraction used by this module."""
 
@@ -26,15 +32,16 @@ class TestLLMAgent:
         ) as post:
             result = agent.perform_task({"prompt": "hello"})
 
+        assert agent.base_url == "http://localhost:52415/v1"
         assert result["status"] == "success"
         assert result["summary"] == "hello from exo"
         assert result["provider"] == "exo"
         assert result["model"] == "test-model"
-        assert result["model_url"] == "http://localhost:52415/v1/chat/completions"
+        assert result["model_url"] == "http://localhost:52415/v1"
         assert post.call_args.args[0] == "http://localhost:52415/v1/chat/completions"
 
-    def test_perform_task_appends_full_chat_completions_path_to_task_model_url(self):
-        """A task-level model URL still gets the full /v1/chat/completions suffix."""
+    def test_perform_task_appends_v1_to_task_model_url(self):
+        """A task-level model URL is exposed as a /v1 API base."""
         agent = LLMAgent(base_url="http://localhost:52415", model_id="test-model")
         mocked_response = Mock()
         mocked_response.raise_for_status.return_value = None
@@ -55,17 +62,14 @@ class TestLLMAgent:
 
         assert result["status"] == "success"
         assert result["summary"] == "custom endpoint response"
-        assert (
-            result["model_url"]
-            == "http://localhost:52415/models/test-model/v1/chat/completions"
-        )
+        assert result["model_url"] == "http://localhost:52415/models/test-model/v1"
         assert (
             post.call_args.args[0]
             == "http://localhost:52415/models/test-model/v1/chat/completions"
         )
 
-    def test_perform_task_does_not_duplicate_chat_completions_suffix(self):
-        """A pre-suffixed v1/chat/completions endpoint should be passed through unchanged."""
+    def test_perform_task_trims_chat_completions_suffix_from_public_url(self):
+        """A pre-suffixed chat endpoint should be exposed as its /v1 API base."""
         agent = LLMAgent(
             model_url="http://localhost:52415/v1/chat/completions",
             model_id="test-model",
@@ -82,11 +86,11 @@ class TestLLMAgent:
             result = agent.perform_task({"prompt": "hello"})
 
         assert result["status"] == "success"
-        assert result["model_url"] == "http://localhost:52415/v1/chat/completions"
+        assert result["model_url"] == "http://localhost:52415/v1"
         assert post.call_args.args[0] == "http://localhost:52415/v1/chat/completions"
 
-    def test_perform_task_promotes_v1_only_url_to_chat_completions(self):
-        """A URL ending in /v1 (the old shape) should now get /chat/completions appended."""
+    def test_perform_task_keeps_v1_only_url_as_public_url(self):
+        """A URL ending in /v1 remains the public URL."""
         agent = LLMAgent(
             model_url="http://localhost:52415/v1",
             model_id="test-model",
@@ -99,8 +103,55 @@ class TestLLMAgent:
         with patch(
             "src.agents.llm_agent.requests.post", return_value=mocked_response
         ) as post:
-            agent.perform_task({"prompt": "hello"})
+            result = agent.perform_task({"prompt": "hello"})
+        assert result["model_url"] == "http://localhost:52415/v1"
         assert post.call_args.args[0] == "http://localhost:52415/v1/chat/completions"
+
+    def test_perform_task_trims_any_path_after_v1_from_public_url(self):
+        """A URL under /v1 is exposed as the /v1 API base link."""
+        agent = LLMAgent(
+            model_url="http://localhost:52415/v1/models",
+            model_id="test-model",
+        )
+        mocked_response = Mock()
+        mocked_response.raise_for_status.return_value = None
+        mocked_response.json.return_value = {
+            "choices": [{"message": {"content": "trimmed"}}],
+        }
+
+        with patch(
+            "src.agents.llm_agent.requests.post", return_value=mocked_response
+        ) as post:
+            result = agent.perform_task({"prompt": "hello"})
+
+        assert result["model_url"] == "http://localhost:52415/v1"
+        assert post.call_args.args[0] == "http://localhost:52415/v1/chat/completions"
+
+    def test_perform_task_falls_back_to_text_completions_endpoint(self):
+        """A 404/405-style endpoint miss should retry /v1/completions."""
+        agent = LLMAgent(base_url="http://localhost:52415", model_id="test-model")
+        missing_endpoint = Mock()
+        missing_endpoint.raise_for_status.side_effect = _http_error(404, "not found")
+        completion_response = Mock()
+        completion_response.raise_for_status.return_value = None
+        completion_response.json.return_value = {
+            "choices": [{"text": "hello from completions"}],
+        }
+
+        with patch(
+            "src.agents.llm_agent.requests.post",
+            side_effect=[missing_endpoint, completion_response],
+        ) as post:
+            result = agent.perform_task({"prompt": "hello"})
+
+        assert result["status"] == "success"
+        assert result["summary"] == "hello from completions"
+        assert result["model_url"] == "http://localhost:52415/v1"
+        assert post.call_args_list[0].args[0] == (
+            "http://localhost:52415/v1/chat/completions"
+        )
+        assert post.call_args_list[1].args[0] == "http://localhost:52415/v1/completions"
+        assert post.call_args_list[1].kwargs["json"]["prompt"] == "user: hello"
 
     def test_perform_task_fallback_when_endpoint_unavailable(self):
         """The agent should return a fallback response when Exo calls fail."""
@@ -140,7 +191,9 @@ class TestLLMAgent:
         mocked_response.iter_lines.return_value = iter(sse_lines)
         mocked_response.close.return_value = None
 
-        with patch("src.agents.llm_agent.requests.post", return_value=mocked_response):
+        with patch(
+            "src.agents.llm_agent.requests.post", return_value=mocked_response
+        ) as post:
             events = list(agent.stream_task({"prompt": "hi"}))
 
         tokens = [e["text"] for e in events if e["type"] == "token"]
@@ -150,6 +203,8 @@ class TestLLMAgent:
         assert finals[0]["result"]["status"] == "success"
         assert finals[0]["result"]["summary"] == "Hello, world!"
         assert finals[0]["result"]["provider"] == "exo"
+        assert finals[0]["result"]["model_url"] == "http://localhost:52415/v1"
+        assert post.call_args.args[0] == "http://localhost:52415/v1/chat/completions"
 
     def test_stream_task_falls_back_when_exo_errors(self):
         """When Exo raises mid-stream, a fallback token + final event are emitted."""

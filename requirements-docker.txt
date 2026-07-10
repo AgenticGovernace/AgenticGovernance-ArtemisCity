@@ -3,7 +3,7 @@ mcp>=1.26.0
 pytest>=9.0.3
 python-dotenv>=1.2.2
 
-# FastAPI stack (from Pipfile)
+# FastAPI stack
 fastapi>=0.109.1
 uvicorn[standard]>=0.15.0
 python-multipart>=0.0.27

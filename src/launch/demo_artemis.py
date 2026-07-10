@@ -19,11 +19,11 @@ def _configure_import_path() -> None:
     """Ensure imports resolve to this repository, not an unrelated installed checkout.
 
     We add:
-      - repo root (parent of /Concept_Demos)
+      - repo root
       - repo_root/app (if present) for layouts where packages live under app/
     """
     this_file = Path(__file__).resolve()
-    repo_root = this_file.parent.parent
+    repo_root = this_file.parents[2]
 
     candidates = [repo_root, repo_root / "app"]
     for p in candidates:

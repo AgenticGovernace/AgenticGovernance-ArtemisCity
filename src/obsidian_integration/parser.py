@@ -64,11 +64,11 @@ class ObsidianParser:
 
             # Checkbox lists (useful for subtasks)
             if line.startswith("- [ ] ") or line.startswith("- [x] "):
-                if "subtasks" not in task_data:
-                    task_data["subtasks"] = []
-                task_data["subtasks"].append(
-                    {"text": line[6:].strip(), "completed": line[3] == "x"}
-                )
+                subtasks = task_data.get("subtasks")
+                if not isinstance(subtasks, list):
+                    subtasks = []
+                    task_data["subtasks"] = subtasks
+                subtasks.append({"text": line[6:].strip(), "completed": line[3] == "x"})
 
         if not task_data:
             logger.warning("No structured task data found in note.")

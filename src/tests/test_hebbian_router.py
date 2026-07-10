@@ -219,7 +219,9 @@ def test_hebbian_router_beta_one_prefers_highest_trust():
     """At beta=1 (alpha=0) the trust signal alone decides — highest trust wins."""
     reg = _two_research_agents({"A": 0.9, "B": 0.6})  # A wins on composite
     trust = FakeTrust({"A": 0.2, "B": 0.95})  # but B is more trusted
-    router = HebbianRouter(reg, FakeHebbian(), alpha=0.0, beta=1.0, trust_interface=trust)
+    router = HebbianRouter(
+        reg, FakeHebbian(), alpha=0.0, beta=1.0, trust_interface=trust
+    )
     assert router.route_name({"required_capability": "research"}) == "B"
 
 
@@ -283,9 +285,7 @@ def test_hebbian_router_trust_floor_with_no_survivors_raises():
     """If the trust floor excludes every candidate, routing raises a trust-specific error."""
     reg = _two_research_agents({"A": 0.9, "B": 0.6})
     trust = FakeTrust({"A": 0.1, "B": 0.1})
-    router = HebbianRouter(
-        reg, FakeHebbian(), trust_interface=trust, trust_floor=0.5
-    )
+    router = HebbianRouter(reg, FakeHebbian(), trust_interface=trust, trust_floor=0.5)
     # Trust-floor exclusion has its own diagnostic so the operator can
     # tell "no agent below floor" apart from "no agent advertised the
     # capability" -- the two failure modes need different fixes.

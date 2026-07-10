@@ -26,6 +26,7 @@ export default defineConfig({
         target: 'http://localhost:8000', // FastAPI backend
         changeOrigin: true,
         // No rewrite needed: the /api prefix is forwarded as-is.
+
       },
       // /health is unauthenticated on the FastAPI side and used by the
       // sidebar's live session card. Forward it without rewriting.

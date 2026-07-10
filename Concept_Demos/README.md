@@ -1,7 +1,11 @@
 <p><a target="_blank" href="https://app.eraser.io/workspace/RVDoAByzCOIrkkYGNG0g" id="edit-in-eraser-github-link"><img alt="Edit in Eraser" src="https://firebasestorage.googleapis.com/v0/b/second-petal-295822.appspot.com/o/images%2Fgithub%2FOpen%20in%20Eraser.svg?alt=media&amp;token=968381c8-a7e7-472a-8ed6-4a6626da5501"></a></p>
 
 # Concept Demos
-Interactive browser prototypes and CLI walkthrough for the Agentic platform. The browser demos are self-contained and deploy to Vercel as a static site. Python demos run from the repo root.
+Interactive browser prototypes for Artemis City. This directory is kept as a
+static demo gallery plus compatibility shims for older CLI commands.
+
+Maintained Python walkthroughs now live under `src/launch/`, and the production
+runtime lives under `src/`. Do not add new Python implementation modules here.
 
 ## Contents
 | File | Type | Description |
@@ -9,9 +13,9 @@ Interactive browser prototypes and CLI walkthrough for the Agentic platform. The
 | `index.html`  | Landing page | Card-based hub linking to all demos with run instructions |
 | `atp_prototype.html`  | Browser (React) | ATP message builder, keyword-based agent routing sim, trust decay chart with 4 scenarios |
 | `Hebbian_Proto.html`  | Browser (React) | Hebbian learning network — agent weight evolution, reinforcement dynamics, live sim |
-| `demo_artemis.py`  | CLI | ATP parsing, instruction hierarchy loading, persona response modes, reflection engine, semantic tagging with citations |
-| `demo_city_postal.py`  | CLI | Inter-agent mail delivery, mailbox checks, City Archives filing, trust clearance matrix (works offline via mocks) |
-| `demo_memory_integration.py`  | CLI | MCP server health check, trust interface with permission matrix, Obsidian context loading, integrated agent-vault workflow, trust decay model |
+| `demo_artemis.py`  | CLI shim | Forwards to `src/launch/demo_artemis.py` |
+| `demo_city_postal.py`  | CLI shim | Forwards to `src/launch/demo_city_postal.py` |
+| `demo_memory_integration.py`  | CLI shim | Forwards to `src/launch/demo_memory_integration.py` |
 ## Browser Demos
 ### ATP Prototype (`atp_prototype.html`)
 Four interactive tabs:
@@ -34,19 +38,22 @@ cd Concept_Demos && python -m http.server 8080
 #   http://localhost:8080/atp_prototype.html ATP prototype
 #   http://localhost:8080/Hebbian_Proto.html Hebbian network
 ```
-### CLI demos
-Run from the repo root so imports resolve:
+### CLI walkthroughs
+Run the maintained entry points from the repo root:
 
 ```bash
 # Artemis persona + ATP + reflection (interactive, step-through with Enter prompts)
-python Concept_Demos/demo_artemis.py
+python src/launch/demo_artemis.py
 
 # City postal service (works offline with mock post office and trust interface)
-python Concept_Demos/demo_city_postal.py
+python src/launch/demo_city_postal.py
 
 # Memory integration (skips MCP-only flows gracefully if server is unavailable)
-python Concept_Demos/demo_memory_integration.py
+python src/launch/demo_memory_integration.py
 ```
+
+The historical `python Concept_Demos/demo_*.py` commands still work through
+compatibility shims, but they are not the source of truth.
 
 
 

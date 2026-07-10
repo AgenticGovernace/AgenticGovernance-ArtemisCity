@@ -15,7 +15,7 @@ import argparse
 import json
 import random
 import textwrap
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 
@@ -582,10 +582,14 @@ class CitySimulation:
             location = f" @ {action['zone']}" if action["zone"] else ""
             print(f"• {action['actor']} {action['summary']}{location}")
 
-        print(textwrap.dedent(f"""
+        print(
+            textwrap.dedent(
+                f"""
                 Scores: service_health={scores['service_health']:.3f} | stability={scores['stability']:.2f} | load={scores['load']:.2f} | risk={scores['risk']:.2f}
                         morale={scores['morale']:.2f} | trust={scores['trust']:.2f} | energy={scores['energy']:.2f}
-                """).strip())
+                """
+            ).strip()
+        )
 
 
 def _parse_args() -> argparse.Namespace:

@@ -91,6 +91,7 @@ def _sanitize_for_log(value: Any) -> str:
     return sanitize_for_log(value)
 
 
+
 class Orchestrator:
     """
     Central coordination layer for agent task execution.
@@ -663,10 +664,9 @@ class Orchestrator:
         try:
             enriched_context = self._enrich_task_with_memory(task_context)
 
-            if getattr(agent, "supports_streaming", False) and hasattr(
-                agent, "stream_task"
-            ):
-                for event in agent.stream_task(enriched_context):
+            stream_task = getattr(agent, "stream_task", None)
+            if getattr(agent, "supports_streaming", False) and callable(stream_task):
+                for event in stream_task(enriched_context):
                     etype = event.get("type")
                     if etype == "token":
                         yield {"type": "token", "text": event.get("text", "")}
@@ -750,9 +750,7 @@ class Orchestrator:
             else:
                 self.hebbian.weaken_connection(agent_name, task_id)
         except Exception:
-            logger.error(
-                "Hebbian update failed in streaming executor.", exc_info=True
-            )
+            logger.error("Hebbian update failed in streaming executor.", exc_info=True)
             # Surface the failure to the client. The non-streaming
             # assign_and_execute_task path lets the exception propagate
             # and returns HTTP 500; in a streaming connection that would

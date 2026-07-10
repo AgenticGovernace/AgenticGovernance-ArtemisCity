@@ -20,6 +20,7 @@ from src.integration.sandbox import (
     CheckResult,
     VIOLATION_UNAUTHORIZED_TOOL,
     VIOLATION_UNAUTHORIZED_PATH,
+    VIOLATION_UNAUTHORIZED_OPERATION,
 )
 
 
@@ -110,7 +111,7 @@ class TestAgentSandbox:
         """Operations not in the policy's list are denied."""
         result = sandbox.check_action("memory_write", operation="delete")
         assert result.allowed is False
-        assert result.violation_type == VIOLATION_UNAUTHORIZED_PATH
+        assert result.violation_type == VIOLATION_UNAUTHORIZED_OPERATION
 
     def test_allowed_operation(self, sandbox):
         """Operations matching the policy are allowed."""

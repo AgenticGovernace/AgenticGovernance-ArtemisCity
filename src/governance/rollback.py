@@ -16,7 +16,7 @@ import re
 import shutil
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -117,7 +117,7 @@ class RollbackManager:
             "id": checkpoint_id,
             "label": label,
             "timestamp": time.time(),
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "metadata": metadata,
             "state": {
                 "agent_registry": state.get("agent_registry", {}),
@@ -174,7 +174,7 @@ class RollbackManager:
             "checkpoint_id": checkpoint_id,
             "checkpoint_label": checkpoint_data.get("label"),
             "checkpoint_timestamp": checkpoint_data.get("timestamp"),
-            "rollback_timestamp": datetime.utcnow().isoformat(),
+            "rollback_timestamp": datetime.now(timezone.utc).isoformat(),
             "state_keys_restored": list(state.keys()),
         }
         self._rollback_log.append(rollback_event)

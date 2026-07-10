@@ -1,14 +1,16 @@
 import pathlib
 import sys
 
-# Add project root to path so integration/ is importable
+# Add project root to path so src.integration is importable.
 _script_file = globals().get("__file__")
-_base_dir = (
-    pathlib.Path(_script_file).resolve().parents[1]
+_repo_root = (
+    pathlib.Path(_script_file).resolve().parents[2]
     if _script_file
     else pathlib.Path.cwd()
 )
-sys.path.insert(0, str(_base_dir))
+_repo_root_str = str(_repo_root)
+if _repo_root_str not in sys.path:
+    sys.path.insert(0, _repo_root_str)
 
 from src.integration import (
     ContextLoader,

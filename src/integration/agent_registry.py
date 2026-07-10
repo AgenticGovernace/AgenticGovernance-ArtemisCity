@@ -18,6 +18,7 @@ AGENT_STATUSES = ("active", "suspended", "quarantined")
 VIOLATION_TYPES = (
     "unauthorized_tool",
     "unauthorized_path",
+    "unauthorized_operation",
     "rate_limit",
     "missing_capability",
     "unsafe_network",
@@ -74,7 +75,8 @@ class AgentRegistryStore:
     def _initialize_database(self):
         """Create the agents and violations tables; apply governance migrations."""
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS agents (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE NOT NULL,
@@ -86,8 +88,10 @@ class AgentRegistryStore:
                     created_at TEXT,
                     updated_at TEXT
                 )
-                """)
-            conn.execute("""
+                """
+            )
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS violations (
                     violation_id TEXT PRIMARY KEY,
                     agent_name TEXT NOT NULL,
@@ -98,7 +102,8 @@ class AgentRegistryStore:
                     cleared INTEGER NOT NULL DEFAULT 0,
                     FOREIGN KEY (agent_name) REFERENCES agents(name)
                 )
-                """)
+                """
+            )
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_violations_agent "
                 "ON violations(agent_name, cleared)"
@@ -127,10 +132,12 @@ class AgentRegistryStore:
             Dict[str, AgentScore]: Dictionary containing the resulting data.
         """
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute("""
+            cursor = conn.execute(
+                """
                 SELECT name, alignment, accuracy, efficiency
                 FROM agents
-                """)
+                """
+            )
             scores = {}
             for name, alignment, accuracy, efficiency in cursor.fetchall():
                 if alignment is None or accuracy is None or efficiency is None:

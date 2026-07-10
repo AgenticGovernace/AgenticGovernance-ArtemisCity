@@ -60,7 +60,8 @@ class RunLogger:
         """Create logging tables if they don't exist."""
         with sqlite3.connect(self.db_path) as conn:
             # Event log table - tracks all operations
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS event_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id TEXT NOT NULL,
@@ -72,10 +73,12 @@ class RunLogger:
                     duration_ms REAL,
                     created_at REAL NOT NULL
                 )
-            """)
+            """
+            )
 
             # Vector log table - tracks all semantic embeddings
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS vector_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id TEXT NOT NULL,
@@ -89,10 +92,12 @@ class RunLogger:
                     latency_ms REAL,
                     created_at REAL NOT NULL
                 )
-            """)
+            """
+            )
 
             # Database write log - tracks all DB operations
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS db_write_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id TEXT NOT NULL,
@@ -106,7 +111,8 @@ class RunLogger:
                     latency_ms REAL,
                     created_at REAL NOT NULL
                 )
-            """)
+            """
+            )
 
             # Create indexes for efficient querying
             conn.execute(
@@ -511,21 +517,26 @@ class RunLogger:
             None: This function does not return a value.
         """
         start = time.perf_counter()
-        context = {"metadata": metadata or {}}
+        context: Dict[str, Any] = {"metadata": metadata or {}}
         try:
             yield context
-            status = context.get("status", "success")
+            status = str(context.get("status", "success"))
         except Exception as e:
             status = "error"
             context["error"] = str(e)
             raise
         finally:
             duration_ms = (time.perf_counter() - start) * 1000
+            context_metadata = context.get("metadata", {})
+            if not isinstance(context_metadata, dict):
+                context_metadata = {}
+            context_message = context.get("message")
+            message = context_message if isinstance(context_message, str) else None
             self.log_event(
                 event_type,
                 component,
-                {**context.get("metadata", {}), "status": status},
-                context.get("message"),
+                {**context_metadata, "status": status},
+                message,
                 duration_ms,
             )
 

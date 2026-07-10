@@ -154,7 +154,9 @@ def _safe_note_path(path: str, allow_empty: bool = False) -> str:
     if requested.is_absolute():
         raise BridgeError("path must be relative to the vault", code="INVALID_REQUEST")
     if ".." in requested.parts:
-        raise BridgeError("path must not contain '..' traversal", code="INVALID_REQUEST")
+        raise BridgeError(
+            "path must not contain '..' traversal", code="INVALID_REQUEST"
+        )
     return requested.as_posix()
 
 
@@ -316,10 +318,14 @@ def _register_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
     efficiency = _optional_float(payload, "efficiency", 0.5, 0.0, 1.0)
     trust_tier = payload.get("trust_tier", "monitored")
     if trust_tier not in ("auto", "monitored", "human"):
-        raise BridgeError("trust_tier must be auto, monitored, or human", "INVALID_REQUEST")
+        raise BridgeError(
+            "trust_tier must be auto, monitored, or human", "INVALID_REQUEST"
+        )
     status = payload.get("status", "active")
     if status not in ("active", "suspended", "quarantined"):
-        raise BridgeError("status must be active, suspended, or quarantined", "INVALID_REQUEST")
+        raise BridgeError(
+            "status must be active, suspended, or quarantined", "INVALID_REQUEST"
+        )
     trust_score = _optional_float(payload, "trust_score", None, 0.0, 1.0)
     if trust_score is None and "trustLevel" in payload:
         trust_score = _optional_float(payload, "trustLevel", None, 0.0, 1.0)
@@ -393,13 +399,17 @@ def _update_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
     if "trust_tier" in updates:
         tier = updates["trust_tier"]
         if tier not in ("auto", "monitored", "human"):
-            raise BridgeError("trust_tier must be auto, monitored, or human", "INVALID_REQUEST")
+            raise BridgeError(
+                "trust_tier must be auto, monitored, or human", "INVALID_REQUEST"
+            )
         set_parts.append("trust_tier = ?")
         params.append(tier)
     if "status" in updates:
         status = updates["status"]
         if status not in ("active", "suspended", "quarantined"):
-            raise BridgeError("status must be active, suspended, or quarantined", "INVALID_REQUEST")
+            raise BridgeError(
+                "status must be active, suspended, or quarantined", "INVALID_REQUEST"
+            )
         set_parts.append("status = ?")
         params.append(status)
 
@@ -426,7 +436,9 @@ def _set_agent_status(payload: Dict[str, Any]) -> Dict[str, Any]:
     name = _require_str(payload, "name")
     status = _require_str(payload, "status")
     if status not in ("active", "suspended", "quarantined"):
-        raise BridgeError("status must be active, suspended, or quarantined", "INVALID_REQUEST")
+        raise BridgeError(
+            "status must be active, suspended, or quarantined", "INVALID_REQUEST"
+        )
     store = _store(payload)
     if store.get_agent_record(name) is None:
         raise BridgeError(f"agent not found: {name}", code="NOT_FOUND")
@@ -606,7 +618,9 @@ def _validate_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _send_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
-    raw_input = payload.get("message") or payload.get("text") or payload.get("atpMessage")
+    raw_input = (
+        payload.get("message") or payload.get("text") or payload.get("atpMessage")
+    )
     if not isinstance(raw_input, str) or not raw_input.strip():
         raise BridgeError("missing required field: message", code="INVALID_REQUEST")
     strict = bool(payload.get("strict", False))
@@ -663,7 +677,9 @@ def _infer_route_capability(message: Dict[str, Any], payload: Dict[str, Any]) ->
 def _route_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
     message_id = payload.get("message_id") or payload.get("id")
     db_path = _ensure_atp_store(payload)
-    raw_input = payload.get("message") or payload.get("text") or payload.get("atpMessage")
+    raw_input = (
+        payload.get("message") or payload.get("text") or payload.get("atpMessage")
+    )
     stored: Dict[str, Any] | None = None
     if message_id:
         if not isinstance(message_id, str):
@@ -715,7 +731,11 @@ def _route_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
                 ("routed", json.dumps(route), now, message_id),
             )
             conn.commit()
-    return {"message": parsed["message"], "validation": parsed["validation"], "route": route}
+    return {
+        "message": parsed["message"],
+        "validation": parsed["validation"],
+        "route": route,
+    }
 
 
 def _atp_modes(_: Dict[str, Any]) -> Dict[str, Any]:
@@ -725,7 +745,9 @@ def _atp_modes(_: Dict[str, Any]) -> Dict[str, Any]:
 def _atp_priorities(_: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "priorities": [
-            priority.value for priority in ATPPriority if priority != ATPPriority.UNKNOWN
+            priority.value
+            for priority in ATPPriority
+            if priority != ATPPriority.UNKNOWN
         ]
     }
 
@@ -973,7 +995,7 @@ def _trust_set_score(payload: Dict[str, Any]) -> Dict[str, Any]:
 def _trust_record_success(payload: Dict[str, Any]) -> Dict[str, Any]:
     entity_id = _require_str(payload, "entity_id")
     entity_type = payload.get("entity_type", "agent")
-    amount = _optional_float(payload, "amount", 0.02, 0.0, 1.0) or 0.02
+    amount = _optional_float(payload, "amount", 0.02, 0.0, 1.0)
     interface = _trust_interface(payload)
     score = interface.record_success(entity_id, str(entity_type), amount)
     return interface.get_trust_score(entity_id, str(entity_type)).to_dict() | {
@@ -985,7 +1007,7 @@ def _trust_record_success(payload: Dict[str, Any]) -> Dict[str, Any]:
 def _trust_record_failure(payload: Dict[str, Any]) -> Dict[str, Any]:
     entity_id = _require_str(payload, "entity_id")
     entity_type = payload.get("entity_type", "agent")
-    amount = _optional_float(payload, "amount", 0.05, 0.0, 1.0) or 0.05
+    amount = _optional_float(payload, "amount", 0.05, 0.0, 1.0)
     interface = _trust_interface(payload)
     score = interface.record_failure(entity_id, str(entity_type), amount)
     return interface.get_trust_score(entity_id, str(entity_type)).to_dict() | {

@@ -12,7 +12,7 @@ services:
   kernel:
     build:
       context: .
-      dockerfile: Dockerfile-python
+      dockerfile: src/Dockerfile-python
     pull_policy: build
     ports:
       - "8000:8000"
@@ -47,7 +47,7 @@ services:
   express-api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: src/Dockerfile
     pull_policy: build
     ports:
       - "4000:4000"

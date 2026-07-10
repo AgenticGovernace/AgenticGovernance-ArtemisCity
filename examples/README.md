@@ -24,7 +24,7 @@ Install the runtime dependencies first (the examples import the `src` package,
 which pulls in the agent and memory layers):
 
 ```bash
-make install        # or: pip install -r requirements.txt
+make install
 ```
 
 ## Notes

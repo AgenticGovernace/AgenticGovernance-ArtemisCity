@@ -1,0 +1,92 @@
+name: Deploy
+
+on:
+  # Direct deploy when someone (or the promotion cascade's git push) lands a
+  # commit on an environment branch. Note: pushes made by GITHUB_TOKEN do not
+  # re-trigger workflows, which is why the Promote cascade calls this workflow
+  # directly via workflow_call rather than relying on these push triggers.
+  push:
+    branches: [dev, staging, prod]
+  # Manual one-off deploy from the Actions tab.
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        default: dev
+        type: choice
+        options: [dev, staging, prod]
+  # Reusable entry point used by the Promote cascade (promote.yml).
+  workflow_call:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ inputs.environment || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-22.04
+    outputs:
+      environment: ${{ steps.pick.outputs.environment }}
+    steps:
+      - id: pick
+        env:
+          # Populated for both workflow_dispatch and workflow_call; empty on push.
+          INPUT_ENV: ${{ inputs.environment }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ -n "$INPUT_ENV" ]; then
+            echo "environment=$INPUT_ENV" >> "$GITHUB_OUTPUT"
+          else
+            case "$REF_NAME" in
+              dev|staging|prod) echo "environment=$REF_NAME" >> "$GITHUB_OUTPUT" ;;
+              *) echo "Unsupported branch: $REF_NAME" >&2; exit 1 ;;
+            esac
+          fi
+
+  deploy:
+    needs: resolve
+    runs-on: ubuntu-22.04
+    # Binds to the matching GitHub Environment so per-env required reviewers and
+    # secrets apply. This is where staging (1) / prod (2) approval gates live.
+    environment: ${{ needs.resolve.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          # Pin the supported minor line while still receiving 3.12.x patch updates.
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Load environment config
+        env:
+          ARTEMIS_ENV: ${{ needs.resolve.outputs.environment }}
+        run: |
+          uv venv --python 3.12 .venv
+          uv pip install --python .venv/bin/python pyyaml
+          .venv/bin/python - <<'PY'
+          import os, json
+          from src.utils.environments import load_environment
+          cfg = load_environment(os.environ["ARTEMIS_ENV"])
+          print(json.dumps(cfg, indent=2))
+          PY
+      - name: Build artifacts
+        run: |
+          echo "Build step (provider-agnostic placeholder)."
+          echo "Wire your container build or package step here."
+      - name: Deploy
+        env:
+          ARTEMIS_ENV: ${{ needs.resolve.outputs.environment }}
+        run: |
+          echo "Deploying to $ARTEMIS_ENV"
+          echo "Replace this step with your target provider's deploy action."
+          echo "Secrets are scoped per GitHub Environment ($ARTEMIS_ENV)."

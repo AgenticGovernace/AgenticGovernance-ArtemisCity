@@ -28,7 +28,7 @@ try:  # repo root on path (tests / app): `src` is a package
     from src.utils.helpers import logger
 except ImportError:  # pragma: no cover - exercised under benchmark/bare layouts
     try:  # src/ itself on path (benchmark): `utils` is top-level
-        from utils.helpers import logger  # type: ignore
+        from utils.helpers import logger
     except ImportError:  # last resort: never fail to import over logging
         import logging
 

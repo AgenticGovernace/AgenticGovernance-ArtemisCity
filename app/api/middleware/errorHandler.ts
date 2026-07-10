@@ -7,6 +7,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { sanitizeForLog } from './logger';
 
+const sanitizeForLog = (value: unknown): string => {
+  if (value === null || value === undefined) return '';
+  return String(value).replace(/[\r\n]+/g, ' ').replace(/[\x00-\x1F\x7F]/g, '');
+};
+
 /**
  * Custom API Error class
  */
@@ -88,7 +93,8 @@ export const errorHandler = (
   console.error(
     `[ERROR] ${new Date().toISOString()} - ${sanitizeForLog(req.method)} ${sanitizeForLog(req.path)}`
   );
-  console.error(sanitizeForLog(err.stack || err.message));
+  console.error(sanitizeForLog(process.env.NODE_ENV === 'development' ? (err.stack || err.message) : err.message));
+
 
   // Determine status code and error details
   let statusCode = 500;

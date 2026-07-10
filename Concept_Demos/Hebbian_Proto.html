@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js" integrity="sha384-bm7MnzvK++ykSwVJ2tynSE5TRdN+xL418osEVF2DE/L/gfWHj91J2Sphe582B1Bh" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.23.5/babel.min.js" integrity="sha384-1qlE7MZPM2pHD/pBZCU/yB8UCP52RYL8bge/qNdfNBCWToySp8/M+JL2waXU4hjJ" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.2/dist/index.global.js" integrity="sha384-yzJGD2ZXURu6RaDFjaXOC6IrnZq1aEeldwvXw7Pec43Q2BnmHkys/fGPzvwEtojO" crossorigin="anonymous"></script>
+
     <style>
       @keyframes pulse-glow {
         0%,
@@ -7646,7 +7647,7 @@ ${currentEndpoint.params.map((p) => `      "${p}": { "type": "string", "descript
                   <div style={{ display: 'grid', gap: '0.625rem' }}>
                     {[
                       {
-                        name: 'Python 3.10+',
+                        name: 'Python 3.12',
                         desc: 'Core runtime for Artemis agents',
                         cmd: 'python3 --version',
                       },
@@ -7743,7 +7744,7 @@ ${currentEndpoint.params.map((p) => `      "${p}": { "type": "string", "descript
 ├── .env                    # Root environment (generated)
 ├── setup_secrets.sh        # Security setup script
 ├── verify_setup.sh         # Verification script
-├── pyproject.toml          # Python project config
+├── src/pyproject.toml      # Python project config
 │
 ├── MCP/
 │   └── src/
@@ -8088,7 +8089,7 @@ bash verify_setup.sh`}
                       {
                         key: 'python',
                         label: 'Python Environment',
-                        desc: 'Python 3.10+ with required packages',
+                        desc: 'Python 3.12 with required packages',
                       },
                       { key: 'mcp', label: 'MCP Server', desc: 'Server running on localhost:3000' },
                       { key: 'vault', label: 'Obsidian Vault', desc: 'Local REST API accessible' },
@@ -8198,7 +8199,7 @@ bash verify_setup.sh`}
                       },
                       {
                         step: '2. Install Dependencies',
-                        cmd: 'pip install -e . && cd "app/Artemis Agentic Memory Layer" && npm install',
+                        cmd: 'make install-dev && cd "src/Artemis Agentic Memory Layer" && npm install',
                       },
                       {
                         step: '3. Configure Obsidian',
@@ -8328,7 +8329,7 @@ print(f'Agents: {report[\"total_entities\"]}')
                           fix: 'Open Obsidian, enable Local REST API plugin',
                         },
                         { issue: 'Permission denied', fix: 'Run: chmod +x setup_secrets.sh' },
-                        { issue: 'Module not found', fix: 'Run: pip install -e .' },
+                        { issue: 'Module not found', fix: 'Run: make install-dev' },
                       ].map((item, i) => (
                         <div
                           key={i}

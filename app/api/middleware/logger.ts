@@ -164,14 +164,14 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level: res.statusCode >= 400 ? (res.statusCode >= 500 ? 'ERROR' : 'WARN') : 'INFO',
-      method: req.method,
-      path: req.path,
+      method: sanitizeForLog(req.method),
+      path: sanitizeForLog(req.path),
       statusCode: res.statusCode,
       duration,
-      ip: req.ip || req.socket.remoteAddress,
-      userAgent: req.headers['user-agent'],
-      userId: (req as any).user?.id,
-      requestId
+      ip: sanitizeForLog(req.ip || req.socket.remoteAddress) || undefined,
+      userAgent: sanitizeForLog(req.headers['user-agent']) || undefined,
+      userId: sanitizeForLog((req as any).user?.id) || undefined,
+      requestId: sanitizeForLog(requestId)
     };
 
     // Log to console
@@ -238,10 +238,16 @@ export const log = (level: LogLevel, message: string, context?: Partial<LogEntry
   const entry: LogEntry = {
     timestamp: new Date().toISOString(),
     level,
-    method: context?.method || '-',
-    path: context?.path || '-',
-    message,
-    ...context
+    method: sanitizeForLog(context?.method || '-'),
+    path: sanitizeForLog(context?.path || '-'),
+    statusCode: context?.statusCode,
+    duration: context?.duration,
+    ip: context?.ip ? sanitizeForLog(context.ip) : undefined,
+    userAgent: context?.userAgent ? sanitizeForLog(context.userAgent) : undefined,
+    userId: context?.userId ? sanitizeForLog(context.userId) : undefined,
+    requestId: context?.requestId ? sanitizeForLog(context.requestId) : undefined,
+    message: sanitizeForLog(message),
+    error: context?.error ? sanitizeForLog(context.error) : undefined
   };
 
   console.log(formatLogEntry(entry));

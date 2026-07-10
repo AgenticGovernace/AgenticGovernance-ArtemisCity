@@ -696,7 +696,8 @@ accuracy_gap_atp = mae_atp - mae_knn
 gap_closed_pct = (1 - accuracy_gap_atp / accuracy_gap_cold) * 100
 cost_ratio = cost_knn / cost_heb
 
-print(f"""
+print(
+    f"""
 THE TRADE-OFF EQUATION:
 
   k-NN Inference:
@@ -726,7 +727,8 @@ THE TRADE-OFF EQUATION:
     This prevents runaway accumulation (the root cause of winner-take-all
     in the binary +1/-1 system). The tanh saturation creates natural
     equilibrium points where specialists can coexist.
-""")
+"""
+)
 
 print("=" * 70)
 print("TEST COMPLETE — All 5 claims evaluated")

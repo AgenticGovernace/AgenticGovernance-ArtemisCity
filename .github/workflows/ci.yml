@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [dev, staging, prod]
+  pull_request:
+    branches: [dev, staging, prod]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs-mirror:
+runs-on: self-hosted
+steps:
+      - uses: actions/checkout@v4
+      - name: CLAUDE.md and AGENTS.md must stay byte-for-byte mirrors
+        run: |
+          if ! diff -q CLAUDE.md AGENTS.md >/dev/null; then
+            echo "::error::CLAUDE.md and AGENTS.md have drifted — they must be byte-for-byte identical. Edit both in the same commit." >&2
+            diff CLAUDE.md AGENTS.md || true
+            exit 1
+          fi
+          echo "CLAUDE.md and AGENTS.md are in sync."
+
+  python:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          # Pin the supported minor line while still receiving 3.12.x patch updates.
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install deps
+        run: |
+          uv venv --python 3.12 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt -r requirements-dev.txt
+          uv pip install --python .venv/bin/python pyyaml pytest
+      - name: Validate environment configs
+        run: |
+          .venv/bin/python - <<'PY'
+          from src.utils.environments import load_environment, VALID_ENVIRONMENTS
+          for env in VALID_ENVIRONMENTS:
+              cfg = load_environment(env)
+              assert cfg["name"] == env, (env, cfg)
+              assert cfg["deploy"]["branch"] == env
+          print("env configs OK")
+          PY
+      - name: Run tests
+        run: .venv/bin/python -m pytest src/tests

@@ -35,7 +35,7 @@ GitHub Actions retains a single workflow:
 
 - **CI Platform**: CircleCI (primary), GitHub Actions (promotion cascade only)
 - **Python Testing**: pytest (`src/tests`)
-- **Supported Python**: 3.11, 3.12, 3.13 (`requires-python = ">=3.11,<3.15"`)
+- **Supported Python**: 3.12 (`requires-python = ">=3.12,<3.13"`)
 - **Environment model**: `dev -> staging -> prod` (see `docs/ENVIRONMENTS.md`)
 
 ## Workflows
@@ -48,6 +48,7 @@ GitHub Actions retains a single workflow:
   byte-for-byte identical.
 - **python-checks**: matrix over Python 3.11 / 3.12 / 3.13 —
     - installs `requirements.txt` + `requirements-dev.txt`,
+
     - validates every `config/environments/*.yaml` via
       `src.utils.environments.load_environment`,
     - runs `python -m pytest src/tests`.
@@ -80,6 +81,7 @@ The only remaining GitHub Actions workflow — the promotion cascade. See
 
 Deploys themselves happen in CircleCI: the branch advance triggers the
 matching CircleCI workflow, whose approval gates guard the rollout.
+
 
 ## Pipeline Stages
 
@@ -141,28 +143,28 @@ Set in workflow files:
 
 ```yaml
 env:
-  PYTHON_VERSION: '3.13'
-  NODE_VERSION: '18'
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: '24'
 ```
 
-### Matrix Testing
+### Python Version
 
-Python version matrix:
+Python is pinned to one supported minor line. CI uses `3.12` instead of a
+specific patch version so the project stays on Python 3.12 while still receiving
+3.12.x patch updates from the CI images/actions:
 
 ```yaml
-strategy:
-  matrix:
-    python-version: ['3.11', '3.12', '3.13']
+python-version: '3.12'
 ```
 
 ### Caching
 
-Dependency caching enabled:
+Dependency caching uses uv:
 
 ```yaml
-- uses: actions/setup-python@v5
+- uses: astral-sh/setup-uv@v5
   with:
-    cache: 'pip'
+    enable-cache: true
 
 - uses: actions/setup-node@v4
   with:
@@ -209,7 +211,7 @@ gh secret set DOCKER_PASSWORD --body "your-token"
 
 ### Creating a Release
 
-**1. Update version in `pyproject.toml`:**
+**1. Update version in `src/pyproject.toml`:**
 
 ```toml
 [project]
@@ -229,7 +231,7 @@ version = "1.0.0"
 **3. Commit changes:**
 
 ```bash
-git add pyproject.toml CHANGELOG.md
+git add src/pyproject.toml CHANGELOG.md
 git commit -m "Release v1.0.0"
 git push origin prod
 ```
@@ -318,14 +320,11 @@ make check
 **Solution**:
 
 ```bash
-# Test with specific Python version
-python3.8 -m pytest
-
 # Run in clean environment
-python -m venv clean_env
+uv venv --python 3.12 clean_env
 source clean_env/bin/activate
-pip install -r requirements.txt
-pytest
+uv pip install -r requirements.txt -r requirements-dev.txt
+python -m pytest src/tests
 ```
 
 #### 3. Build Failures
@@ -334,7 +333,7 @@ pytest
 
 **Check**:
 
-- `pyproject.toml` syntax
+- `src/pyproject.toml` syntax
 - Missing files in MANIFEST.in
 - Build dependencies
 
@@ -364,20 +363,13 @@ paths = [
 
 #### 5. Dependency Conflicts
 
-**Problem**: pip install fails in CI
+**Problem**: uv dependency installation fails in CI
 
 **Solution**:
 
 ```bash
 # Update dependencies
-pip install --upgrade -r requirements.txt
-
-# Create fresh requirements
-pip freeze > requirements.txt
-
-# Use pip-tools for better management
-pip install pip-tools
-pip-compile requirements.in
+uv pip install --python .venv/bin/python -r requirements.txt -r requirements-dev.txt --upgrade
 ```
 
 ### Workflow Debugging
