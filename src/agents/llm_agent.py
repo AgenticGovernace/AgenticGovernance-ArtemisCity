@@ -4,20 +4,22 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, Iterator, List, Optional
+import typing
+
+from . import base_agent
 
 
 class _MissingRequests:
     """Stand in for requests when dependencies have not been installed."""
 
-    def post(self, *_args: Any, **_kwargs: Any) -> Any:
+    def post(self, *_args: typing.Any, **_kwargs: typing.Any) -> typing.Any:
         raise RuntimeError(
             "The 'requests' package is not installed. Run `make install` "
             "from the repository root to enable Exo HTTP calls."
         )
 
 
-requests: Any
+requests: typing.Any
 try:
     import requests as _requests
 except ModuleNotFoundError:
@@ -25,18 +27,16 @@ except ModuleNotFoundError:
 else:
     requests = _requests
 
-from .base_agent import BaseAgent
 
-
-class LLMAgent(BaseAgent):
+class LLMAgent(base_agent.BaseAgent):
     """Route prompt-style tasks to the configured Exo model endpoint."""
 
     def __init__(
         self,
         name: str = "LLM Agent",
-        base_url: Optional[str] = None,
-        model_url: Optional[str] = None,
-        model_id: Optional[str] = None,
+        base_url: typing.Optional[str] = None,
+        model_url: typing.Optional[str] = None,
+        model_id: typing.Optional[str] = None,
         timeout_seconds: float = 60.0,
     ) -> None:
         super().__init__(
@@ -115,10 +115,10 @@ class LLMAgent(BaseAgent):
                 "llm_error": str(exc),
             }
 
-    def _build_messages(self, task_context: dict) -> List[Dict[str, str]]:
+    def _build_messages(self, task_context: dict) -> typing.List[typing.Dict[str, str]]:
         raw_messages = task_context.get("messages")
         if isinstance(raw_messages, list) and raw_messages:
-            messages: List[Dict[str, str]] = []
+            messages: typing.List[typing.Dict[str, str]] = []
             for item in raw_messages:
                 if not isinstance(item, dict):
                     continue
@@ -148,12 +148,12 @@ class LLMAgent(BaseAgent):
 
     def _call_exo(
         self,
-        messages: List[Dict[str, str]],
+        messages: typing.List[typing.Dict[str, str]],
         model: str,
         temperature: float,
         max_tokens: int,
         model_url: str,
-    ) -> Dict[str, Any]:
+    ) -> typing.Dict[str, typing.Any]:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -185,13 +185,13 @@ class LLMAgent(BaseAgent):
 
     def _completion_request_candidates(
         self,
-        messages: List[Dict[str, str]],
+        messages: typing.List[typing.Dict[str, str]],
         model: str,
         temperature: float,
         max_tokens: int,
         model_url: str,
         stream: bool,
-    ) -> List[tuple[str, Dict[str, Any]]]:
+    ) -> typing.List[tuple[str, typing.Dict[str, typing.Any]]]:
         """Return concrete Exo endpoints to try for one completion request."""
         base = self._with_v1_path(model_url)
         chat_payload = {
@@ -213,7 +213,7 @@ class LLMAgent(BaseAgent):
             (f"{base}/completions", completion_payload),
         ]
 
-    def _messages_to_prompt(self, messages: List[Dict[str, str]]) -> str:
+    def _messages_to_prompt(self, messages: typing.List[typing.Dict[str, str]]) -> str:
         """Flatten chat messages for text-completions style endpoints."""
         parts = []
         for message in messages:
@@ -252,7 +252,7 @@ class LLMAgent(BaseAgent):
             return endpoint[: endpoint.index(marker) + len("/v1")]
         return f"{endpoint}/v1"
 
-    def _extract_message_content(self, body: Dict[str, Any]) -> str:
+    def _extract_message_content(self, body: typing.Dict[str, typing.Any]) -> str:
         choices = body.get("choices")
         if not isinstance(choices, list) or not choices:
             raise ValueError("No choices returned from Exo response.")
@@ -302,7 +302,9 @@ class LLMAgent(BaseAgent):
 
     supports_streaming = True
 
-    def stream_task(self, task_context: dict) -> Iterator[Dict[str, Any]]:
+    def stream_task(
+        self, task_context: dict
+    ) -> typing.Iterator[typing.Dict[str, typing.Any]]:
         """Execute an LLM task as a stream of events.
 
         Yields one event per step::
@@ -340,7 +342,7 @@ class LLMAgent(BaseAgent):
             f"Streaming {len(messages)} message(s) to Exo model '{model}'."
         )
 
-        chunks: List[str] = []
+        chunks: typing.List[str] = []
         try:
             for piece in self._stream_exo(
                 messages, model, temperature, max_tokens, model_url
@@ -383,12 +385,12 @@ class LLMAgent(BaseAgent):
 
     def _stream_exo(
         self,
-        messages: List[Dict[str, str]],
+        messages: typing.List[typing.Dict[str, str]],
         model: str,
         temperature: float,
         max_tokens: int,
         model_url: str,
-    ) -> Iterator[str]:
+    ) -> typing.Iterator[str]:
         """Yield content deltas from an Exo SSE response.
 
         Exo follows the OpenAI chat-completions SSE format: lines beginning
@@ -444,7 +446,7 @@ class LLMAgent(BaseAgent):
         finally:
             response.close()
 
-    def _extract_delta_content(self, chunk: Dict[str, Any]) -> str:
+    def _extract_delta_content(self, chunk: typing.Dict[str, typing.Any]) -> str:
         """Pull the incremental content out of one Exo SSE JSON chunk."""
         choices = chunk.get("choices")
         if not isinstance(choices, list) or not choices:
@@ -469,7 +471,9 @@ class LLMAgent(BaseAgent):
                 return content
         return ""
 
-    def _build_fallback_summary(self, messages: List[Dict[str, str]]) -> str:
+    def _build_fallback_summary(
+        self, messages: typing.List[typing.Dict[str, str]]
+    ) -> str:
         user_messages = [m["content"] for m in messages if m.get("role") == "user"]
         prompt = user_messages[-1] if user_messages else messages[-1]["content"]
         snippet = prompt[:220].replace("\n", " ").strip()

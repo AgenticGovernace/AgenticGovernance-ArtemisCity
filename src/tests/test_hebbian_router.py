@@ -46,14 +46,23 @@ class FakeRegistry:
 
 
 class FakeHebbian:
-    def __init__(self, weights=None, raise_on=None):
+    def __init__(self, weights=None, raise_on=None, scoped_weights=None):
         self._weights = weights or {}
         self._raise_on = set(raise_on or ())
+        self._scoped_weights = scoped_weights or {}
 
     def get_agent_average_weight(self, name):
         if name in self._raise_on:
             raise RuntimeError("simulated hebbian failure")
         return self._weights.get(name, 0.0)
+
+    def get_task_type_weight(self, name, task_type):
+        if name in self._raise_on:
+            raise RuntimeError("simulated hebbian failure")
+        return self._scoped_weights.get((name, task_type))
+
+    def has_task_type_history(self, name):
+        return any(agent_name == name for agent_name, _ in self._scoped_weights)
 
 
 class _TrustScore:
@@ -107,6 +116,45 @@ def test_hebbian_router_alpha_zero_equals_composite():
     heb = FakeHebbian({"A": 100.0, "B": 0.0})  # A has huge weight, ignored
     router = HebbianRouter(reg, heb, alpha=0.0)
     assert router.route_name({"required_capability": "research"}) == "B"
+
+
+@pytest.mark.unit
+def test_hebbian_router_prefers_task_type_history_over_global_average():
+    """Routing uses scoped performance instead of unrelated task history."""
+    reg = _two_research_agents({"A": 0.6, "B": 0.6})
+    heb = FakeHebbian(
+        weights={"A": 100.0, "B": 1.0},
+        scoped_weights={("A", "research"): 1.0, ("B", "research"): 10.0},
+    )
+    router = HebbianRouter(reg, heb, alpha=1.0)
+    assert router.route_name({"required_capability": "research"}) == "B"
+
+
+@pytest.mark.unit
+def test_hebbian_router_legacy_history_fallback_when_scope_is_cold():
+    """Existing databases retain their agent-average routing signal."""
+    reg = _two_research_agents({"A": 0.6, "B": 0.6})
+    heb = FakeHebbian(weights={"A": 1.0, "B": 10.0})
+    router = HebbianRouter(reg, heb, alpha=1.0)
+    assert router.route_name({"required_capability": "research"}) == "B"
+
+
+@pytest.mark.unit
+def test_hebbian_router_new_scope_does_not_inherit_unrelated_history():
+    """A migrated agent receives the neutral prior for an unseen task type."""
+    reg = _two_research_agents({"A": 0.9, "B": 0.6})
+    heb = FakeHebbian(
+        weights={"A": 100.0, "B": 0.0},
+        scoped_weights={("A", "summarization"): 100.0},
+    )
+    router = HebbianRouter(reg, heb, alpha=0.5)
+
+    decision = router.route({"required_capability": "research"})
+
+    assert decision.agent_name == "A"
+    candidate_a = next(c for c in decision.candidates if c.name == "A")
+    assert candidate_a.hebbian_weight == 0.0
+    assert candidate_a.hebbian_norm == 0.5
 
 
 @pytest.mark.unit

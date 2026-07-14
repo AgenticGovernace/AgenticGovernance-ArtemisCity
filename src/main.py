@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse
 import os
 from datetime import datetime
@@ -72,14 +73,17 @@ def setup_example_task_note(obs_manager: Any, memory_bus: Optional[Any] = None) 
 
     if not full_path.is_file():
         logger.info("Creating example task note at %s", sanitize_for_log(relative_path))
-        content = f"""---\ntask_id: {datetime.now().strftime('%Y%m%d%H%M%S')}\nrequired_capability: web_search\nstatus: pending\ntags: ["example", "research"]\n---\n\n# Research Task: Artificial Intelligence Ethics\n\n## Context\n\nProvide an overview of the current ethical considerations surrounding the development and deployment of Artificial Intelligence. Focus on privacy, bias, and accountability.\n\nKeywords: AI ethics, privacy, bias, accountability, machine learning\nTarget: [[AI Concepts]]\nSource: Internet\n\n## Subtasks\n\n- [ ]  Research current debates on AI ethics\n- [ ]  Find examples of AI bias in real-world applications\n- [ ]  Summarize key regulations or frameworks proposed for AI accountability\n"""
+        content = f"""---\ntask_id: {datetime.now().strftime("%Y%m%d%H%M%S")}\nrequired_capability: web_search\nstatus: pending\ntags: ["example", "research"]\n---\n\n# Research Task: Artificial Intelligence Ethics\n\n## Context\n\nProvide an overview of the current ethical considerations surrounding the development and deployment of Artificial Intelligence. Focus on privacy, bias, and accountability.\n\nKeywords: AI ethics, privacy, bias, accountability, machine learning\nTarget: [[AI Concepts]]\nSource: Internet\n\n## Subtasks\n\n- [ ]  Research current debates on AI ethics\n- [ ]  Find examples of AI bias in real-world applications\n- [ ]  Summarize key regulations or frameworks proposed for AI accountability\n"""
         if memory_bus:
             try:
                 memory_bus.write_note_with_embedding(
                     relative_path, content, metadata={"demo": True}, embed=True
                 )
             except Exception as exc:
-                logger.error("Failed to write example note via memory bus: %s", sanitize_for_log(exc))
+                logger.error(
+                    "Failed to write example note via memory bus: %s",
+                    sanitize_for_log(exc),
+                )
                 obs_manager.write_note(relative_path, content, overwrite=False)
         else:
             obs_manager.write_note(relative_path, content, overwrite=False)
@@ -88,7 +92,9 @@ def setup_example_task_note(obs_manager: Any, memory_bus: Optional[Any] = None) 
             sanitize_for_log(example_filename),
         )
     else:
-        logger.info("Example task note '%s' already exists.", sanitize_for_log(example_filename))
+        logger.info(
+            "Example task note '%s' already exists.", sanitize_for_log(example_filename)
+        )
 
 
 def handle_user_instruction(
@@ -186,7 +192,10 @@ def handle_user_instruction(
             orchestrator.assign_and_execute_task(
                 agent_for_dispatch.name, task_data, note_path
             )
-            logger.info("Instruction processed by agent '%s'.", sanitize_for_log(agent_for_dispatch.name))
+            logger.info(
+                "Instruction processed by agent '%s'.",
+                sanitize_for_log(agent_for_dispatch.name),
+            )
         else:
             orchestrator.route_and_execute_task(task_data, note_path)
             logger.info(
@@ -291,7 +300,9 @@ def main() -> None:
             orchestrator.route_and_execute_task(direct_task_context)
             logger.info("Direct summary task completed. Report written to Obsidian.")
         except ValueError as ve:
-            logger.error("Value error during direct task assignment: %s", sanitize_for_log(ve))
+            logger.error(
+                "Value error during direct task assignment: %s", sanitize_for_log(ve)
+            )
         except Exception as e:
             logger.error("Failed to assign direct task: %s", sanitize_for_log(e))
     else:
@@ -331,7 +342,11 @@ def main() -> None:
                     orchestrator.route_and_execute_task(task_data, original_note_path)
                     logger.info("Task '%s' completed.", sanitize_for_log(task_title))
                 except Exception as e:
-                    logger.error("Error processing task '%s': %s", sanitize_for_log(task_title), sanitize_for_log(e))
+                    logger.error(
+                        "Error processing task '%s': %s",
+                        sanitize_for_log(task_title),
+                        sanitize_for_log(e),
+                    )
                     orchestrator.update_task_status_in_obsidian(
                         original_note_path, "failed", task_data["task_id"]
                     )

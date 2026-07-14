@@ -276,7 +276,6 @@ class TestOrchestratorRouting:
                 patch("src.mcp.orchestrator.LocalVectorStore") as MockVectorStore,
                 patch("src.mcp.orchestrator.MemoryBus") as MockMemoryBus,
             ):
-
                 mock_vector_store_instance = MockVectorStore.return_value
                 mock_vector_store_instance.count.return_value = 0
 

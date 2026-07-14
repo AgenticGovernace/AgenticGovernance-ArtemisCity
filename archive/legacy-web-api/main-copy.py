@@ -64,7 +64,7 @@ app.add_middleware(
 
 # --- Orchestrator Instance ---
 try:
-    orchestrator = Orchestrator()
+    orchestrator = Orchestrator
     logger.info("Orchestrator initialized for FastAPI.")
 except Exception as e:
     logger.error("Failed to initialize Orchestrator: %s", _sanitize_for_log(e))

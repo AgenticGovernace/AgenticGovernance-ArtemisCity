@@ -209,6 +209,27 @@ class TestHebbianWeightManager:
         avg_weight = hebbian_manager.get_agent_average_weight("agent_a")
         assert avg_weight == 1.5  # (2.0 + 1.0) / 2
 
+    def test_task_type_weight_distinguishes_cold_start_from_zero(self, hebbian_manager):
+        """A missing scope is None while a learned failure remains 0.0."""
+        assert hebbian_manager.get_task_type_weight("agent_a", "research") is None
+
+        hebbian_manager.weaken_task_type("agent_a", "research")
+
+        assert hebbian_manager.get_task_type_weight("agent_a", "research") == 0.0
+
+    def test_task_type_weight_learns_independently_per_capability(
+        self, hebbian_manager
+    ):
+        """Success in one capability does not inflate another capability."""
+        hebbian_manager.strengthen_task_type("agent_a", "research")
+        hebbian_manager.strengthen_task_type("agent_a", "research")
+        hebbian_manager.strengthen_task_type("agent_a", "summarization")
+
+        assert hebbian_manager.get_task_type_weight("agent_a", "research") == 2.0
+        assert hebbian_manager.get_task_type_weight("agent_a", "summarization") == 1.0
+        assert hebbian_manager.has_task_type_history("agent_a") is True
+        assert hebbian_manager.has_task_type_history("agent_b") is False
+
     def test_get_agent_success_rate(self, hebbian_manager):
         """Test calculating agent success rate.
 

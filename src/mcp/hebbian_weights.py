@@ -317,6 +317,45 @@ class HebbianWeightManager:
             result = cursor.fetchone()
             return result[0] if result[0] is not None else 0.0
 
+    @staticmethod
+    def task_type_target(task_type: str) -> str:
+        """Return the persistent node key for a routable task type."""
+        normalized = str(task_type).strip()
+        if not normalized:
+            raise ValueError("task_type must be a non-empty string")
+        return f"task_type:{normalized}"
+
+    def get_task_type_weight(self, agent_name: str, task_type: str) -> Optional[float]:
+        """Return an agent's learned weight for one task type.
+
+        ``None`` means that the agent has no scoped history yet. This is
+        intentionally different from ``0.0``, which is a real learned weight
+        after one or more failed activations.
+        """
+        stats = self.get_connection_stats(agent_name, self.task_type_target(task_type))
+        return float(stats["weight"]) if stats is not None else None
+
+    def has_task_type_history(self, agent_name: str) -> bool:
+        """Return whether an agent has any capability-scoped connections."""
+        with sqlite3.connect(self.db_path) as conn:
+            row = conn.execute(
+                """
+                SELECT 1 FROM node_connections
+                WHERE origin_node = ? AND target_node LIKE 'task_type:%'
+                LIMIT 1
+                """,
+                (agent_name,),
+            ).fetchone()
+            return row is not None
+
+    def strengthen_task_type(self, agent_name: str, task_type: str) -> float:
+        """Strengthen an agent-to-task-type connection after success."""
+        return self.strengthen_connection(agent_name, self.task_type_target(task_type))
+
+    def weaken_task_type(self, agent_name: str, task_type: str) -> float:
+        """Weaken an agent-to-task-type connection after failure."""
+        return self.weaken_connection(agent_name, self.task_type_target(task_type))
+
     def get_agent_success_rate(self, agent_name: str) -> float:
         """
         Calculate success rate for an agent.

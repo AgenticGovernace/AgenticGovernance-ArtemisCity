@@ -733,13 +733,17 @@ async def execute_pending_task(
         return {"message": "Task executed successfully", "results": results}
     except ValueError as ve:
         logger.error("Validation error executing task: %s", _sanitize_for_log(ve))
-        orchestrator.update_task_status_in_obsidian(relative_note_path, "failed", task_data.get("task_id"))  # type: ignore
+        orchestrator.update_task_status_in_obsidian(
+            relative_note_path, "failed", task_data.get("task_id")
+        )  # type: ignore
         raise HTTPException(status_code=400, detail="Invalid task data.")
     except HTTPException:
         raise
     except Exception as e:
         if "task_data" in locals() and "relative_note_path" in locals():
-            orchestrator.update_task_status_in_obsidian(relative_note_path, "failed", task_data.get("task_id"))  # type: ignore
+            orchestrator.update_task_status_in_obsidian(
+                relative_note_path, "failed", task_data.get("task_id")
+            )  # type: ignore
         logger.error(
             "Error executing task from %s: %s",
             _sanitize_for_log(relative_note_path),
@@ -1196,7 +1200,6 @@ async def execute_instruction(
         raise HTTPException(status_code=400, detail="Instruction cannot be empty.")
 
     try:
-        import time
         from datetime import datetime
 
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -1254,9 +1257,14 @@ async def execute_instruction(
                 result = orchestrator.assign_and_execute_task(
                     chosen_agent_name, task_data, note_path
                 )
-            else:
+            elif orchestrator.hebbian_routing_enabled:
                 routing_decision = orchestrator.hebbian_router.route(task_data)
                 chosen_agent_name = routing_decision.agent_name
+                result = orchestrator.assign_and_execute_task(
+                    chosen_agent_name, task_data, note_path
+                )
+            else:
+                chosen_agent_name = orchestrator.agent_registry.route_task(task_data)
                 result = orchestrator.assign_and_execute_task(
                     chosen_agent_name, task_data, note_path
                 )

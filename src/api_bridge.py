@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """JSON command bridge between the TypeScript API and the Python core.
 
 The TypeScript Express layer (``app/api``) is the public HTTP boundary; it

@@ -3,12 +3,13 @@ import os
 import re
 from typing import Any, Dict, List, Optional
 
+from fastmcp.tools.function_tool import tool
 import yaml
 
 # Type alias for agent router configuration (JSF AV Rule 209)
 AgentRouterConfig = Dict[str, Any]
 
-
+@tool
 def normalize_agent_router_config(
     config: Optional[AgentRouterConfig],
 ) -> AgentRouterConfig:

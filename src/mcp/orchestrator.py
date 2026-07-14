@@ -1,48 +1,7 @@
-"""
-MCP Orchestrator - Central coordination layer for agent task execution.
-
-This module provides the Orchestrator class which serves as the central hub
-for coordinating agent task execution within the Artemis-City framework.
-It follows JSF AV Rules 1-3 for code complexity and AV Rules 70, 127, 185
-for defensive programming.
-
-Module Dependencies:
-    - obsidian_integration: Vault management, parsing, generation
-    - agents: Agent implementations (ArtemisAgent, ResearchAgent, etc.)
-    - integration: Agent registry, governance, memory bus
-    - mcp: Configuration, Hebbian learning, vector store
-
-Thread Safety:
-    The Orchestrator is NOT thread-safe. Concurrent task execution
-    requires external synchronization.
-
-Key Responsibilities:
-    1. Agent registration and lifecycle management
-    2. Task routing based on required capabilities
-    3. Task execution with memory enrichment
-    4. Hebbian learning for agent-task associations
-    5. Obsidian vault integration for task persistence
-
-Author: Artemis-City Contributors
-Date: 2024
-
-Example:
-    >>> orchestrator = Orchestrator()
-    >>> result = orchestrator.route_and_execute_task({
-    ...     "task_id": "task_001",
-    ...     "title": "Analyze codebase",
-    ...     "required_capability": "system_management",
-    ... })
-    >>> print(result["status"])
-    success
-"""
-
-from __future__ import annotations
-
 import os
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.agents import SummarizerAgent
 from src.agents.artemis_agent import ArtemisAgent
@@ -59,8 +18,6 @@ from ..mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
 from ..mcp.hebbian_weights import HebbianWeightManager
 from ..mcp.vector_store import LocalVectorStore
 
-if TYPE_CHECKING:
-    pass
 
 # Lazy import to avoid circular dependency
 _run_logger = None
@@ -89,7 +46,6 @@ def _sanitize_for_log(value: Any) -> str:
     call sites in this module.
     """
     return sanitize_for_log(value)
-
 
 
 class Orchestrator:
@@ -550,7 +506,12 @@ class Orchestrator:
                 )
 
         # Hebbian learning: Update connection weights based on success/failure
-        self._update_hebbian_weights(agent_name, task_id, task_success)
+        self._update_hebbian_weights(
+            agent_name,
+            task_id,
+            task_success,
+            task_type=task_context.get("required_capability"),
+        )
 
         # Log task completion
         task_duration_ms = (time.perf_counter() - task_start_time) * 1000
@@ -747,8 +708,16 @@ class Orchestrator:
         try:
             if task_success:
                 self.hebbian.strengthen_connection(agent_name, task_id)
+                if task_context.get("required_capability"):
+                    self.hebbian.strengthen_task_type(
+                        agent_name, task_context["required_capability"]
+                    )
             else:
                 self.hebbian.weaken_connection(agent_name, task_id)
+                if task_context.get("required_capability"):
+                    self.hebbian.weaken_task_type(
+                        agent_name, task_context["required_capability"]
+                    )
         except Exception:
             logger.error("Hebbian update failed in streaming executor.", exc_info=True)
             # Surface the failure to the client. The non-streaming
@@ -773,7 +742,13 @@ class Orchestrator:
             "error": complete_error,
         }
 
-    def _update_hebbian_weights(self, agent_name: str, task_id: str, success: bool):
+    def _update_hebbian_weights(
+        self,
+        agent_name: str,
+        task_id: str,
+        success: bool,
+        task_type: Optional[str] = None,
+    ):
         """
         Update Hebbian connection weights based on task outcome.
 
@@ -781,9 +756,12 @@ class Orchestrator:
             agent_name: Name of the agent that executed the task
             task_id: ID of the task
             success: Whether the task succeeded
+            task_type: Capability/task type used for future scoped routing
         """
         if success:
             new_weight = self.hebbian.strengthen_connection(agent_name, task_id)
+            if task_type:
+                self.hebbian.strengthen_task_type(agent_name, task_type)
             logger.info(
                 "🧠 Hebbian: %s → %s strengthened (weight: %s)",
                 _sanitize_for_log(agent_name),
@@ -792,6 +770,8 @@ class Orchestrator:
             )
         else:
             new_weight = self.hebbian.weaken_connection(agent_name, task_id)
+            if task_type:
+                self.hebbian.weaken_task_type(agent_name, task_type)
             logger.info(
                 "🧠 Hebbian: %s → %s weakened (weight: %s)",
                 _sanitize_for_log(agent_name),

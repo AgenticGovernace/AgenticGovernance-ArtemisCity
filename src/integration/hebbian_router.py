@@ -3,19 +3,20 @@
 Biases agent selection by *learned* success, not just the static composite
 score. Among the agents capable of a task (and not quarantined/suspended, and
 above the trust floor when one is configured), the router blends each agent's
-static composite score with its Hebbian average connection weight and its
+static composite score with its Hebbian task-type connection weight and its
 current trust score::
 
     score(agent) = (1 - alpha - beta) * composite(agent)
                  + alpha * hebbian_norm(agent)
                  + beta  * trust_score(agent)
 
-``hebbian_norm`` is the agent's average Hebbian weight normalised across the
-current candidates to ``[0, 1]``. With no Hebbian history (cold start) every
-candidate gets a neutral prior, so routing reduces to the composite-score
-ranking the registry already uses. Then, as the orchestrator strengthens (+1) /
-weakens (-1) agent->task connections after each run, proven performers are
-increasingly preferred. This is the production wiring of the adaptive
+``hebbian_norm`` is the agent's weight for the requested task type, normalised
+across the current candidates to ``[0, 1]``. Legacy databases without scoped
+connections fall back to the agent-wide average. With no Hebbian history (cold
+start) every candidate gets a neutral prior, so routing reduces to the
+composite-score ranking the registry already uses. Then, as the orchestrator
+strengthens (+1) / weakens (-1) agent-to-task-type connections after each run,
+proven specialists are increasingly preferred. This is the production wiring of the adaptive
 agent-selection rule prototyped in the ML notebooks (the highest-weight agent
 wins, weights move by +/-1 on success/failure).
 
@@ -244,18 +245,23 @@ class HebbianRouter:
             return None
 
         raw = {
-            name: (self._composite(name), self._hebbian_weight(name))
+            name: (self._composite(name), self._hebbian_weight(name, capability))
             for name in candidates
         }
-        max_heb = max((heb for _, heb in raw.values()), default=0.0)
+        max_heb = max((heb for _, heb in raw.values() if heb is not None), default=0.0)
         composite_weight = max(0.0, 1.0 - self.alpha - self.beta)
 
         scored: List[CandidateScore] = []
         for name in candidates:
-            composite, heb_raw = raw[name]
+            composite, scoped_heb = raw[name]
             # Cold start (no weights anywhere) -> neutral prior for everyone, so
             # ranking collapses to the composite + trust portion.
-            heb_norm = (heb_raw / max_heb) if max_heb > 0 else self.neutral_prior
+            if scoped_heb is None:
+                heb_raw = 0.0
+                heb_norm = self.neutral_prior
+            else:
+                heb_raw = scoped_heb
+                heb_norm = heb_raw / max_heb if max_heb > 0 else self.neutral_prior
             trust = trusts[name]
             blended = (
                 composite_weight * composite + self.alpha * heb_norm + self.beta * trust
@@ -326,9 +332,20 @@ class HebbianRouter:
         except Exception:  # pragma: no cover - defensive
             return self.neutral_prior
 
-    def _hebbian_weight(self, name: str) -> float:
-        """Average Hebbian weight for an agent; 0.0 if unavailable (cold start)."""
+    def _hebbian_weight(self, name: str, task_type: str) -> Optional[float]:
+        """Task-type weight, falling back to legacy agent-wide history."""
         try:
+            get_scoped = getattr(self.hebbian, "get_task_type_weight", None)
+            if callable(get_scoped):
+                scoped_weight = get_scoped(name, task_type)
+                if scoped_weight is not None:
+                    return max(0.0, float(scoped_weight))
+                has_scoped = getattr(self.hebbian, "has_task_type_history", None)
+                if callable(has_scoped) and has_scoped(name):
+                    # This agent has migrated to scoped learning, but this task
+                    # type is new. Keep it at the neutral prior rather than
+                    # leaking performance from an unrelated capability.
+                    return None
             return max(0.0, float(self.hebbian.get_agent_average_weight(name)))
         except Exception:  # mocked/missing source -> treat as no history
             return 0.0
