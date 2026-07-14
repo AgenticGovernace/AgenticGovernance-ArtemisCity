@@ -195,8 +195,8 @@ ack/decline, fault-awareness), use the **artemis-transmission-protocol** skill.
 - **Keep the wheel lean** — do not add `fastapi`/`express` to wheel runtime deps;
   root `pyproject.toml` excludes `app/api`, `app/web`, `app/scripts`.
 - **Branch off `prod`** (the default branch); do not assume `dev` exists from
-  history. `prod` is protected — changes reach it only via a `staging → prod`
-  promotion PR with the required approvals.
+  history. `prod` is protected — changes reach it only via the `staging → prod`
+  promotion cascade with the required approvals.
 - **Sign your commits** — the repo enforces verified signatures.
 - **Observe governance on every dispatch** — exclude quarantined/suspended/
   below-trust-floor agents; route self-modifications through the approval tiers;
@@ -211,15 +211,16 @@ Three long-lived branches map 1:1 to GitHub Environments and the files under
 across branch, environment, and config so there is no mapping layer to forget.
 
 ```
-feature/* --PR--> dev --PR--> staging --PR--> prod
+feature/* --PR--> dev --push--> [Promote cascade] --ff--> staging --ff--> prod
 ```
 
-- Feature branches target `dev`; promote `dev → staging` then `staging → prod`
-  via PR or the `Promote` workflow. `prod` is protected (staging-only).
+- Feature branches target `dev`. A push to `dev` triggers the `Promote` cascade,
+  which fast-forwards `staging` then `prod` to the tested commit — no promotion PR.
 - Pick the active env with `ARTEMIS_ENV`; `src/utils/environments.py`
   `load_environment()` respects it (defaults to `dev`).
-- Workflows: `ci.yml` (push/PR to dev/staging/prod), `deploy.yml` (push to an env
-  branch → matching GitHub Environment), `promote.yml` (draft promotion PR).
+- CI/CD: CircleCI (`.circleci/config.yml`) is primary — it runs the checks and the
+  per-environment deploys, with the approval gates on the `staging`/`prod` deploy
+  stages. GitHub Actions retains only `promote.yml` (the branch-advance cascade).
 - Secrets are scoped per GitHub Environment, so prod credentials are unreachable
   from dev/staging.
 

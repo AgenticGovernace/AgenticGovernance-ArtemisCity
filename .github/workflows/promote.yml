@@ -30,7 +30,10 @@ permissions:
 
 concurrency:
   group: promote-${{ github.ref }}
-  cancel-in-progress: true
+  # Never cancel a promotion mid-flight: a cancelled run could leave staging
+  # fast-forwarded but prod not, splitting the environments. Let an in-progress
+  # cascade finish; a newer dev commit promotes on the next run.
+  cancel-in-progress: false
 
 jobs:
   # Resolve the exact commit to promote ONCE, so the gate tests and the branch
@@ -59,8 +62,11 @@ jobs:
           echo "Promoting dev commit: $sha"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
-  # --- CI gate: must mirror ci.yml's required checks so a version-specific or
-  # docs-mirror failure cannot slip a commit through to staging/prod. ---
+  # --- CI gate: mirrors the CircleCI required checks (docs-mirror + tests) so a
+  # docs-mirror or test failure cannot slip a commit through to staging/prod.
+  # This is defense-in-depth on the GitHub side; CircleCI runs the fuller check
+  # set (lint, typescript-api, secrets-check) on the dev branch before promotion
+  # is triggered. ---
 
   docs-mirror:
     name: Docs mirror gate
@@ -91,7 +97,7 @@ jobs:
         with:
           # Pin the supported minor line while still receiving 3.12.x patch updates.
           python-version: "3.12"
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
         with:
           enable-cache: true
       - name: Install deps
@@ -131,7 +137,7 @@ jobs:
   promote-prod:
     name: Promote staging -> prod
     needs: [resolve, promote-staging]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1

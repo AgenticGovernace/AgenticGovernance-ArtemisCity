@@ -267,13 +267,20 @@ The root `pyproject.toml` is the canonical Python package manifest. The wheel is
 - memory writes are designed to avoid divergence between semantic and explicit storage
 - fallback behavior exists in the FastAPI layer when orchestration dependencies are unavailable
 ## CI and branch model
-GitHub Actions CI runs on the `dev`, `staging`, and `prod` branches.
+CircleCI (`.circleci/config.yml`) is the primary CI/CD system. On every branch it
+runs four checks in parallel:
 
-The current workflow validates:
+- `docs-mirror` — `CLAUDE.md` and `AGENTS.md` must stay byte-for-byte identical
+- `python-3.12` — environment-config validation, dependency install, and the
+  `src/tests` suite with coverage (single Python 3.12)
+- `typescript-api` — `tsc --noEmit` type-check and the Jest suite for the Express API
+- `secrets-check` — `detect-secrets` diff against `.secrets.baseline`
 
-- environment configuration files
-- Python dependency installation
-- the Python test suite in `src/tests` 
+Branch-gated deploy stages follow: `dev` auto-deploys on green, while `staging` and
+`prod` sit behind manual approval holds. GitHub Actions retains only the promotion
+cascade (`.github/workflows/promote.yml`), which fast-forwards
+`dev → staging → prod`. See `docs/CICD.md` and `docs/ENVIRONMENTS.md` for the full
+model.
 ## Suggested entry points for new contributors
 If you are new to the repo, start in this order:
 
@@ -927,13 +934,16 @@ pytest -m integration
 pytest -m e2e
 ```
 ### 7.5 CI Pipeline
-GitHub Actions runs on `dev`, `staging`, `prod` branches:
+CircleCI (`.circleci/config.yml`) runs on every branch:
 
 - Environment configuration validation
 - Python dependency installation
-- Test suite execution (Python 3.12)
-- Lint checks (ruff, flake8, mypy)
-- Security scans (bandit, safety)
+- Test suite execution with coverage (single Python 3.12)
+- TypeScript type-check and Jest tests for the Express API
+- Advisory lint (black, isort, flake8) and security (bandit) checks
+- `detect-secrets` gate against `.secrets.baseline`
+
+GitHub Actions retains only the promotion cascade (`promote.yml`).
 ---
 
 ## 8. Rollout Plan
@@ -946,8 +956,13 @@ GitHub Actions runs on `dev`, `staging`, `prod` branches:
 **Promotion Flow**:
 
 ```
-feature/* --PR--> dev --PR--> staging --PR--> prod
+feature/* --PR--> dev --push--> [Promote cascade] --ff--> staging --ff--> prod
 ```
+
+Feature branches target `dev` via PR. A push to `dev` triggers the promotion cascade
+(`promote.yml`), which runs the gate then fast-forwards `staging` and `prod` to the
+tested commit — no promotion PR. Approval gates live on the CircleCI deploy stages, not
+on branch PRs. See `docs/ENVIRONMENTS.md`.
 ### 8.2 Configuration Management
 Environment profiles in `config/environments/`:
 

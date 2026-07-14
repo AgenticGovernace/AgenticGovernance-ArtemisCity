@@ -22,7 +22,7 @@ version: 2.1
 # direct push or via the GitHub promote.yml cascade fast-forwarding it.
 #
 # Stage 1 (checks) runs in parallel on every branch:
-#   docs-mirror · python (3.11/3.12/3.13 matrix) · typescript-api · secrets-check
+#   docs-mirror · python-checks (single Python 3.12) · typescript-api · secrets-check
 # Stage 2 (deploy) is branch-gated and, for staging/prod, approval-gated.
 # =============================================================================
 

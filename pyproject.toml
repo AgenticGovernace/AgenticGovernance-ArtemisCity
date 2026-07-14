@@ -168,3 +168,24 @@ target-version = "py312"
 python_version = "3.12"
 ignore_missing_imports = true
 warn_unused_configs = true
+
+# Consumed by `bandit -c pyproject.toml` (Makefile `security` target and the
+# pre-commit bandit hook). Without this table those invocations run with no
+# project configuration.
+[tool.bandit]
+exclude_dirs = [
+    "src/tests",
+    ".venv",
+    "app/web/frontend",
+    "Concept_Demos",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "src/tests/*",
+    "*/__init__.py",
+]
+
+[tool.coverage.report]
+show_missing = true

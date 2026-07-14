@@ -98,13 +98,13 @@ repos:
     hooks:
       - id: black
         language_version: python3
-        args: [ --line-length=100 ]
+        args: [ --line-length=88 ]
 
   - repo: https://github.com/pycqa/isort
     rev: 5.13.2
     hooks:
       - id: isort
-        args: [ --profile=black, --line-length=100 ]
+        args: [ --profile=black, --line-length=88 ]
 
   # ==========================================
   # PYTHON LINTING

@@ -20,9 +20,9 @@ Artemis City deploys across three long-lived environment branches —
 pipeline that drives it.
 
 CircleCI (`.circleci/config.yml`) is the **primary CI/CD system**: it
-runs the docs-mirror check, the Python test matrix, the TypeScript API
-checks, secret scanning, and the per-environment deploy workflows with
-their approval gates.
+runs the docs-mirror check, the Python checks (single Python 3.12), the
+TypeScript API checks, secret scanning, and the per-environment deploy
+workflows with their approval gates.
 
 GitHub Actions retains a single workflow:
 
@@ -46,7 +46,7 @@ GitHub Actions retains a single workflow:
 
 - **docs-mirror**: fails if `CLAUDE.md` and `AGENTS.md` are not
   byte-for-byte identical.
-- **python-checks**: matrix over Python 3.11 / 3.12 / 3.13 —
+- **python-checks**: single supported interpreter, Python 3.12 —
     - installs `requirements.txt` + `requirements-dev.txt`,
 
     - validates every `config/environments/*.yaml` via
