@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from src.agents.base_agent import BaseAgent
+from src.governance.trust import TrustMetrics, compute_trust_score, trust_breakdown
 from src.runtime_paths import data_path
 from src.utils.helpers import logger
 
@@ -78,8 +79,7 @@ class AgentRegistryStore:
     def _initialize_database(self):
         """Create the agents and violations tables; apply governance migrations."""
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS agents (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE NOT NULL,
@@ -91,10 +91,8 @@ class AgentRegistryStore:
                     created_at TEXT,
                     updated_at TEXT
                 )
-                """
-            )
-            conn.execute(
-                """
+                """)
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS violations (
                     violation_id TEXT PRIMARY KEY,
                     agent_name TEXT NOT NULL,
@@ -105,8 +103,7 @@ class AgentRegistryStore:
                     cleared INTEGER NOT NULL DEFAULT 0,
                     FOREIGN KEY (agent_name) REFERENCES agents(name)
                 )
-                """
-            )
+                """)
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_violations_agent "
                 "ON violations(agent_name, cleared)"
@@ -123,6 +120,18 @@ class AgentRegistryStore:
             ("violation_count", "INTEGER NOT NULL DEFAULT 0"),
             ("quarantined_at", "TEXT"),
             ("trust_score", "REAL"),
+            ("execution_count", "INTEGER NOT NULL DEFAULT 0"),
+            ("successful_executions", "INTEGER NOT NULL DEFAULT 0"),
+            ("failed_executions", "INTEGER NOT NULL DEFAULT 0"),
+            ("hebbian_weight", "REAL"),
+            ("hebbian_delta", "REAL NOT NULL DEFAULT 0.0"),
+            ("hebbian_activations", "INTEGER NOT NULL DEFAULT 0"),
+            ("hebbian_success_rate", "REAL NOT NULL DEFAULT 0.0"),
+            ("hebbian_task_type", "TEXT"),
+            ("hebbian_pair_bonus", "REAL NOT NULL DEFAULT 0.0"),
+            ("hebbian_timing_score", "REAL"),
+            ("routing_intelligence", "REAL NOT NULL DEFAULT 0.0"),
+            ("learning_updated_at", "TEXT"),
         ]
         for column, spec in migrations:
             if column not in existing:
@@ -135,12 +144,10 @@ class AgentRegistryStore:
             Dict[str, AgentScore]: Dictionary containing the resulting data.
         """
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute(
-                """
+            cursor = conn.execute("""
                 SELECT name, alignment, accuracy, efficiency
                 FROM agents
-                """
-            )
+                """)
             scores = {}
             for name, alignment, accuracy, efficiency in cursor.fetchall():
                 if alignment is None or accuracy is None or efficiency is None:
@@ -195,6 +202,18 @@ class AgentRegistryStore:
             violation_count,
             quarantined_at,
             trust_score,
+            execution_count,
+            successful_executions,
+            failed_executions,
+            hebbian_weight,
+            hebbian_delta,
+            hebbian_activations,
+            hebbian_success_rate,
+            hebbian_task_type,
+            hebbian_pair_bonus,
+            hebbian_timing_score,
+            routing_intelligence,
+            learning_updated_at,
         ) = row
         try:
             caps = json.loads(capabilities) if capabilities else []
@@ -218,11 +237,27 @@ class AgentRegistryStore:
             "violation_count": violation_count,
             "quarantined_at": quarantined_at,
             "trust_score": trust_score,
+            "execution_count": execution_count,
+            "successful_executions": successful_executions,
+            "failed_executions": failed_executions,
+            "hebbian_weight": hebbian_weight,
+            "hebbian_delta": hebbian_delta,
+            "hebbian_activations": hebbian_activations,
+            "hebbian_success_rate": hebbian_success_rate,
+            "hebbian_task_type": hebbian_task_type,
+            "hebbian_pair_bonus": hebbian_pair_bonus,
+            "hebbian_timing_score": hebbian_timing_score,
+            "routing_intelligence": routing_intelligence,
+            "learning_updated_at": learning_updated_at,
         }
 
     _RECORD_COLUMNS = (
         "name, capabilities, description, alignment, accuracy, efficiency, "
-        "trust_tier, status, violation_count, quarantined_at, trust_score"
+        "trust_tier, status, violation_count, quarantined_at, trust_score, "
+        "execution_count, successful_executions, failed_executions, "
+        "hebbian_weight, hebbian_delta, hebbian_activations, "
+        "hebbian_success_rate, hebbian_task_type, hebbian_pair_bonus, "
+        "hebbian_timing_score, routing_intelligence, learning_updated_at"
     )
 
     def list_agent_records(self) -> List[dict]:
@@ -342,6 +377,123 @@ class AgentRegistryStore:
             )
             conn.commit()
 
+    def record_learning_outcome(
+        self,
+        agent_name: str,
+        *,
+        success: bool,
+        learning: dict,
+    ) -> dict:
+        """Atomically mirror execution, Hebbian, and computed trust metrics.
+
+        The trust score uses the authoritative governance formula. Execution
+        history and the current violation count are real persisted inputs;
+        code-quality, audit, and uptime inputs retain their documented clean
+        defaults until those subsystems publish measurements.
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            row = conn.execute(
+                "SELECT execution_count, successful_executions, "
+                "failed_executions, violation_count FROM agents WHERE name = ?",
+                (agent_name,),
+            ).fetchone()
+            if row is None:
+                raise ValueError(f"Unknown agent: {agent_name!r}")
+
+            executions = int(row[0] or 0) + 1
+            successful = int(row[1] or 0) + (1 if success else 0)
+            failed = int(row[2] or 0) + (0 if success else 1)
+            metrics = TrustMetrics(
+                successful_executions=successful,
+                total_executions=executions,
+                recent_violation_count=int(row[3] or 0),
+            )
+            trust_score = compute_trust_score(metrics)
+            breakdown = trust_breakdown(metrics)
+            updated_at = _now_iso()
+            conn.execute(
+                """
+                UPDATE agents SET
+                    execution_count = ?,
+                    successful_executions = ?,
+                    failed_executions = ?,
+                    trust_score = ?,
+                    hebbian_weight = ?,
+                    hebbian_delta = ?,
+                    hebbian_activations = ?,
+                    hebbian_success_rate = ?,
+                    hebbian_task_type = ?,
+                    hebbian_pair_bonus = ?,
+                    hebbian_timing_score = ?,
+                    routing_intelligence = ?,
+                    learning_updated_at = ?,
+                    updated_at = ?
+                WHERE name = ?
+                """,
+                (
+                    executions,
+                    successful,
+                    failed,
+                    trust_score,
+                    learning.get("weight"),
+                    learning.get("delta", 0.0),
+                    learning.get("activation_count", 0),
+                    learning.get("success_rate", 0.0),
+                    learning.get("task_type"),
+                    learning.get("pair_bonus", 0.0),
+                    learning.get("timing_score"),
+                    learning.get("routing_intelligence", 0.0),
+                    updated_at,
+                    time.time(),
+                    agent_name,
+                ),
+            )
+            conn.commit()
+
+        return {
+            "trust_score": trust_score,
+            "trust_breakdown": breakdown,
+            "execution_count": executions,
+            "successful_executions": successful,
+            "failed_executions": failed,
+        }
+
+    def update_learning_snapshot(self, agent_name: str, learning: dict) -> None:
+        """Refresh mirrored Hebbian fields without recording an execution."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                """
+                UPDATE agents SET
+                    hebbian_weight = ?,
+                    hebbian_delta = ?,
+                    hebbian_activations = ?,
+                    hebbian_success_rate = ?,
+                    hebbian_task_type = ?,
+                    hebbian_pair_bonus = ?,
+                    hebbian_timing_score = ?,
+                    routing_intelligence = ?,
+                    learning_updated_at = ?,
+                    updated_at = ?
+                WHERE name = ?
+                """,
+                (
+                    learning.get("weight"),
+                    learning.get("delta", 0.0),
+                    learning.get("activation_count", 0),
+                    learning.get("success_rate", 0.0),
+                    learning.get("task_type"),
+                    learning.get("pair_bonus", 0.0),
+                    learning.get("timing_score"),
+                    learning.get("routing_intelligence", 0.0),
+                    _now_iso(),
+                    time.time(),
+                    agent_name,
+                ),
+            )
+            if cursor.rowcount == 0:
+                raise ValueError(f"Unknown agent: {agent_name!r}")
+            conn.commit()
+
     # ------------------------------------------------------------------
     # Governance — violations, quarantine, trust tier
     # ------------------------------------------------------------------
@@ -374,13 +526,21 @@ class AgentRegistryStore:
 
         with sqlite3.connect(self.db_path) as conn:
             row = conn.execute(
-                "SELECT violation_count, status FROM agents WHERE name = ?",
+                "SELECT violation_count, status, execution_count, "
+                "successful_executions FROM agents WHERE name = ?",
                 (agent_name,),
             ).fetchone()
             if row is None:
                 raise ValueError(f"Unknown agent: {agent_name!r}")
-            current_count, current_status = row
+            current_count, current_status, executions, successful = row
             new_count = (current_count or 0) + 1
+            trust_score = compute_trust_score(
+                TrustMetrics(
+                    successful_executions=int(successful or 0),
+                    total_executions=int(executions or 0),
+                    recent_violation_count=new_count,
+                )
+            )
 
             if new_count >= QUARANTINE_THRESHOLD and current_status != "quarantined":
                 action = "quarantine"
@@ -407,14 +567,22 @@ class AgentRegistryStore:
             if quarantined_at is not None:
                 conn.execute(
                     "UPDATE agents SET violation_count = ?, status = ?, "
-                    "quarantined_at = ?, updated_at = ? WHERE name = ?",
-                    (new_count, new_status, quarantined_at, time.time(), agent_name),
+                    "quarantined_at = ?, trust_score = ?, updated_at = ? "
+                    "WHERE name = ?",
+                    (
+                        new_count,
+                        new_status,
+                        quarantined_at,
+                        trust_score,
+                        time.time(),
+                        agent_name,
+                    ),
                 )
             else:
                 conn.execute(
-                    "UPDATE agents SET violation_count = ?, updated_at = ? "
+                    "UPDATE agents SET violation_count = ?, trust_score = ?, updated_at = ? "
                     "WHERE name = ?",
-                    (new_count, time.time(), agent_name),
+                    (new_count, trust_score, time.time(), agent_name),
                 )
             conn.commit()
 
@@ -434,6 +602,7 @@ class AgentRegistryStore:
             "details": details,
             "action_taken": action,
             "violation_count": new_count,
+            "trust_score": trust_score,
         }
 
     def get_violations(
@@ -493,8 +662,7 @@ class AgentRegistryStore:
         """
         if override_tier is not None and override_tier not in TRUST_TIERS:
             raise ValueError(
-                f"Invalid trust_tier {override_tier!r}; "
-                f"expected one of {TRUST_TIERS}"
+                f"Invalid trust_tier {override_tier!r}; expected one of {TRUST_TIERS}"
             )
 
         with sqlite3.connect(self.db_path) as conn:
@@ -504,17 +672,32 @@ class AgentRegistryStore:
                 (agent_name,),
             )
             cleared_count = cursor.rowcount
+            execution_row = conn.execute(
+                "SELECT execution_count, successful_executions FROM agents "
+                "WHERE name = ?",
+                (agent_name,),
+            ).fetchone()
+            cleared_trust = compute_trust_score(
+                TrustMetrics(
+                    total_executions=int(execution_row[0] or 0) if execution_row else 0,
+                    successful_executions=(
+                        int(execution_row[1] or 0) if execution_row else 0
+                    ),
+                    recent_violation_count=0,
+                )
+            )
 
             # Only release quarantine; a 'suspended' status was set for
             # reasons unrelated to violations and must not be cleared here.
             update_fields = [
                 "violation_count = 0",
+                "trust_score = ?",
                 "status = CASE WHEN status = 'quarantined' THEN 'active' "
                 "ELSE status END",
                 "quarantined_at = NULL",
                 "updated_at = ?",
             ]
-            params: list = [time.time()]
+            params: list = [cleared_trust, time.time()]
             if override_tier is not None:
                 update_fields.insert(-1, "trust_tier = ?")
                 params.insert(-1, override_tier)
@@ -599,6 +782,65 @@ class AgentRegistryStore:
             )
             conn.commit()
 
+    def export_snapshot(self) -> dict:
+        """Return a complete, JSON-serializable registry/governance snapshot."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            agents = [dict(row) for row in conn.execute("SELECT * FROM agents")]
+            violations = [dict(row) for row in conn.execute("SELECT * FROM violations")]
+        return {
+            "schema_version": 1,
+            "agents": agents,
+            "violations": violations,
+        }
+
+    def restore_snapshot(self, snapshot: dict) -> dict:
+        """Atomically restore a snapshot created by :meth:`export_snapshot`."""
+        if not isinstance(snapshot, dict):
+            raise ValueError("registry snapshot must be an object")
+        agents = snapshot.get("agents")
+        violations = snapshot.get("violations")
+        if not isinstance(agents, list) or not isinstance(violations, list):
+            raise ValueError(
+                "registry snapshot must contain agents and violations lists"
+            )
+
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            agent_columns = [
+                row[1] for row in conn.execute("PRAGMA table_info(agents)")
+            ]
+            violation_columns = [
+                row[1] for row in conn.execute("PRAGMA table_info(violations)")
+            ]
+
+            def _restore_rows(table: str, columns: list[str], rows: list[dict]) -> None:
+                for row in rows:
+                    if not isinstance(row, dict):
+                        raise ValueError(f"{table} snapshot rows must be objects")
+                    unknown = set(row) - set(columns)
+                    if unknown:
+                        raise ValueError(
+                            f"{table} snapshot contains unknown columns: {sorted(unknown)}"
+                        )
+                    selected = [column for column in columns if column in row]
+                    if not selected:
+                        raise ValueError(f"{table} snapshot row is empty")
+                    placeholders = ", ".join("?" for _ in selected)
+                    conn.execute(
+                        f"INSERT INTO {table} ({', '.join(selected)}) "
+                        f"VALUES ({placeholders})",
+                        [row[column] for column in selected],
+                    )
+
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute("DELETE FROM violations")
+            conn.execute("DELETE FROM agents")
+            _restore_rows("agents", agent_columns, agents)
+            _restore_rows("violations", violation_columns, violations)
+            conn.commit()
+        return {"agents": len(agents), "violations": len(violations)}
+
 
 class AgentRegistry:
     """Coordinate agent registration, routing, and governance state backed by SQLite."""
@@ -671,6 +913,22 @@ class AgentRegistry:
         self.governance[agent_name] = self.store.get_governance_state(agent_name) or {}
         return result
 
+    def record_learning_outcome(
+        self, agent_name: str, *, success: bool, learning: dict
+    ) -> dict:
+        """Write through one execution's learning and governance metrics."""
+        result = self.store.record_learning_outcome(
+            agent_name,
+            success=success,
+            learning=learning,
+        )
+        self.governance[agent_name] = self.store.get_governance_state(agent_name) or {}
+        return result
+
+    def update_learning_snapshot(self, agent_name: str, learning: dict) -> None:
+        """Refresh cached/persisted learning fields without execution counts."""
+        self.store.update_learning_snapshot(agent_name, learning)
+
     def get_violations(
         self, agent_name: str, include_cleared: bool = False, limit: int = 100
     ) -> List[dict]:
@@ -740,6 +998,17 @@ class AgentRegistry:
             Optional[dict]: Cached governance metadata when available; otherwise None.
         """
         return self.governance.get(agent_name)
+
+    def export_snapshot(self) -> dict:
+        """Return the durable registry snapshot used by governance checkpoints."""
+        return self.store.export_snapshot()
+
+    def restore_snapshot(self, snapshot: dict) -> dict:
+        """Restore durable state and refresh in-process score/governance caches."""
+        result = self.store.restore_snapshot(snapshot)
+        self.scores = self.store.load_scores()
+        self.governance = self.store.load_governance_states()
+        return result
 
     def is_quarantined(self, agent_name: str) -> bool:
         """Convenience predicate for quarantine status.
@@ -845,6 +1114,7 @@ class AgentRegistry:
         result = []
         for agent in self.agents.values():
             score = self.scores.get(agent.name, AgentScore(0.5, 0.5, 0.5))
+            persisted = self.store.get_agent_record(agent.name) or {}
             result.append(
                 {
                     "name": agent.name,
@@ -853,6 +1123,18 @@ class AgentRegistry:
                     "accuracy": score.accuracy,
                     "efficiency": score.efficiency,
                     "composite_score": score.composite_score,
+                    "trust_score": persisted.get("trust_score"),
+                    "execution_count": persisted.get("execution_count", 0),
+                    "successful_executions": persisted.get("successful_executions", 0),
+                    "failed_executions": persisted.get("failed_executions", 0),
+                    "hebbian_weight": persisted.get("hebbian_weight"),
+                    "hebbian_delta": persisted.get("hebbian_delta", 0.0),
+                    "hebbian_activations": persisted.get("hebbian_activations", 0),
+                    "hebbian_success_rate": persisted.get("hebbian_success_rate", 0.0),
+                    "hebbian_task_type": persisted.get("hebbian_task_type"),
+                    "hebbian_pair_bonus": persisted.get("hebbian_pair_bonus", 0.0),
+                    "hebbian_timing_score": persisted.get("hebbian_timing_score"),
+                    "routing_intelligence": persisted.get("routing_intelligence", 0.0),
                 }
             )
         return sorted(result, key=lambda x: x["composite_score"], reverse=True)

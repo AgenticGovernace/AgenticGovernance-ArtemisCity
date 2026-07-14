@@ -70,19 +70,20 @@ Adaptive connection strength between agents and task types through Hebbian weigh
 **Mechanism:**
 
 - Weight matrix: Agent × Task Type
-- Initial weight: 0.5 (neutral)
-- Increment: +1 for successful completion
-- Decrement: -1 for failure
-- Decay: 5% every 30 days
+- Initial weight: 1.0
+- Success: `ΔW = tanh(learning_rate × normalized_performance)`
+- Failure: anti-Hebbian `ΔW = -learning_rate`
+- Per-outcome decay: `W = max(0.01, (W + ΔW) × 0.99)`
+- Sequential pair weights capture agent hand-off synergy
+- Rolling 30-run timing/performance signals warm up after 5 samples
+- Routing intelligence compounds individual entropy, positive pair value,
+  and timing-score diversity
 **Storage Backend:**
-- SQLite-backed persistence
+- SQLite-backed persistence in `data/hebbian_weights.db`
 - Atomic updates via transactions
-- Automatic archival at 180 days
-- Deletion threshold: weights < 0.01
-**Propagation:**
-- Batched updates every 60 seconds
-- Synced to Obsidian frontmatter (metadata)
-- Indexed in vector store for semantic correlation
+- A learning-event row is written for every completed execution
+- Current Hebbian, execution, timing, and trust summaries are mirrored into
+  `data/agent_registry.db`
 ### 4. Agent Registry
 Central inventory of all agents and their capabilities.
 
@@ -170,8 +171,9 @@ Multi-tier approval workflow for self-updates and policy changes.
          │
     ┌────▼──────────────────┐
     │  Hebbian Update       │
-    │  - +1/-1 weight       │
-    │  - Batched sync       │
+    │  - tanh/anti-Hebbian  │
+    │  - decay + pair/time  │
+    │  - registry + trust   │
     └────┬──────────────────┘
          │
     ┌────▼──────────────────┐
@@ -194,7 +196,8 @@ is captured by the FastAPI executor (`POST /api/cli/execute`) and
 returned to the caller as the `agent_name` and `routing` fields on
 `ExecuteInstructionResponse`. The dashboard Executor page renders the
 per-candidate blended-score breakdown so operators can observe how the
-router weighted composite score, Hebbian history, and trust for each
+router weighted composite score, scoped Hebbian history, pair/timing signals,
+and trust for each
 capability match. The blend is
 `(1 - α - β)·composite + α·hebbian_norm + β·trust`; agents below
 `trust_floor` are excluded before scoring. See the "Dashboard executor

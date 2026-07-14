@@ -724,6 +724,70 @@ class TestGovernanceCommands:
         # Alpha has no persisted trust_score yet.
         assert exc.value.code == "INVALID_REQUEST"
 
+    def test_checkpoint_round_trip_restores_registry_and_hebbian(self, db, tmp_path):
+        checkpoint_dir = str(tmp_path / "checkpoints")
+        hebbian_db = str(tmp_path / "hebbian_weights.db")
+        trust_db = str(tmp_path / "trust_scores.db")
+        payload = {
+            "db_path": db,
+            "hebbian_db_path": hebbian_db,
+            "trust_db_path": trust_db,
+            "checkpoint_dir": checkpoint_dir,
+        }
+        created = dispatch(
+            "governance.checkpoints.create",
+            {**payload, "metadata": {"reason": "test"}},
+        )
+
+        dispatch(
+            "registry.record_violation",
+            {**payload, "name": "Alpha", "violation_type": "rate_limit"},
+        )
+        dispatch(
+            "hebbian.update",
+            {
+                **payload,
+                "origin": "Alpha",
+                "target": "task_type:research",
+                "delta": 2.0,
+            },
+        )
+
+        restored = dispatch(
+            "governance.checkpoints.rollback",
+            {
+                **payload,
+                "checkpoint_id": created["checkpoint_id"],
+                "initiated_by": "test_operator",
+                "confirmed": True,
+            },
+        )
+
+        assert restored["status"] == "restored"
+        agent = dispatch("registry.get_agent", {**payload, "name": "Alpha"})
+        assert agent["violation_count"] == 0
+        weights = dispatch("hebbian.weights", payload)
+        assert weights["summary"]["total_connections"] == 0
+        trust = dispatch("trust.get_score", {**payload, "entity_id": "Alpha"})
+        assert trust["score"] == pytest.approx(agent["trust_score"])
+
+    def test_rollback_requires_explicit_confirmation(self, db, tmp_path):
+        payload = {
+            "db_path": db,
+            "checkpoint_dir": str(tmp_path / "checkpoints"),
+        }
+        created = dispatch("governance.checkpoints.create", payload)
+        with pytest.raises(BridgeError) as exc:
+            dispatch(
+                "governance.checkpoints.rollback",
+                {
+                    **payload,
+                    "checkpoint_id": created["checkpoint_id"],
+                    "initiated_by": "test_operator",
+                },
+            )
+        assert exc.value.code == "INVALID_REQUEST"
+
 
 # ---------------------------------------------------------------------------
 # CLI round-trip — exercises the stdin/stdout envelope the TS layer uses

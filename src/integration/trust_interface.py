@@ -323,6 +323,10 @@ class TrustInterface:
     def _persist(self, score: TrustScore) -> None:
         self._store.upsert(score)
 
+    def persist(self, score: TrustScore) -> None:
+        """Persist a score through the public coordination surface."""
+        self._persist(score)
+
     def _initialize_default_agents(self) -> None:
         core_agents = {
             "artemis": 0.95,
@@ -404,6 +408,56 @@ class TrustInterface:
         new_score = trust_score.penalize(amount)
         self._persist(trust_score)
         return new_score
+
+    def record_computed_outcome(
+        self,
+        entity_id: str,
+        score: float,
+        *,
+        success: bool,
+        entity_type: str = "agent",
+    ) -> float:
+        """Persist an externally computed authoritative outcome score.
+
+        The governance engine owns the weighted formula; this method keeps the
+        shared trust database, level, and event counters synchronized without
+        applying a second independent +/- adjustment.
+        """
+        trust_score = self.get_trust_score(entity_id, entity_type)
+        trust_score.score = max(0.0, min(1.0, float(score)))
+        if success:
+            trust_score.reinforcement_events += 1
+        else:
+            trust_score.penalty_events += 1
+        trust_score.last_updated = _utcnow()
+        trust_score._update_level()
+        self._persist(trust_score)
+        return trust_score.score
+
+    def set_authoritative_score(
+        self,
+        entity_id: str,
+        score: float,
+        *,
+        entity_type: str = "agent",
+        success: Optional[bool] = None,
+    ) -> TrustScore:
+        """Persist an externally computed score without a second adjustment.
+
+        ``success`` is optional because governance recalculations such as a
+        violation or manual review are not execution outcomes.  When supplied,
+        the matching event counter is incremented exactly once.
+        """
+        trust_score = self.get_trust_score(entity_id, entity_type)
+        trust_score.score = max(0.0, min(1.0, float(score)))
+        if success is True:
+            trust_score.reinforcement_events += 1
+        elif success is False:
+            trust_score.penalty_events += 1
+        trust_score.last_updated = _utcnow()
+        trust_score._update_level()
+        self._persist(trust_score)
+        return trust_score
 
     def get_trust_report(self) -> Dict:
         by_level: Dict[str, List[Dict]] = {}

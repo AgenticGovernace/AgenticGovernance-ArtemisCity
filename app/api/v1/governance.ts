@@ -13,6 +13,42 @@ import { asyncHandler, Errors } from '../middleware/errorHandler';
 const router = Router();
 const controller = new GovernanceController();
 
+router.get(
+  '/checkpoints',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const data = await controller.listCheckpoints();
+    res.json({ success: true, data });
+  })
+);
+
+router.get(
+  '/checkpoints/:checkpointId',
+  asyncHandler(async (req: Request, res: Response) => {
+    const data = await controller.getCheckpoint(req.params.checkpointId);
+    res.json({ success: true, data });
+  })
+);
+
+router.post(
+  '/checkpoints',
+  asyncHandler(async (req: Request, res: Response) => {
+    const data = await controller.createCheckpoint(req.body ?? {});
+    res.status(201).json({ success: true, data });
+  })
+);
+
+router.post(
+  '/checkpoints/:checkpointId/rollback',
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = req.body ?? {};
+    if (body.confirmed !== true || typeof body.initiated_by !== 'string') {
+      throw Errors.BadRequest('confirmed=true and initiated_by are required');
+    }
+    const data = await controller.rollbackCheckpoint(req.params.checkpointId, body);
+    res.json({ success: true, data });
+  })
+);
+
 /**
  * POST /api/v1/governance/agents/:agentId/trust
  * Compute (and persist unless persist=false) an agent's trust score.

@@ -13,6 +13,7 @@ import os
 import sqlite3
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from src.runtime_paths import data_path
@@ -72,6 +73,10 @@ class VectorRecord:
     embedding: List[float]
     metadata: Dict
     content: str
+    weight: float = 1.0
+    last_access: Optional[str] = None
+    archived: bool = False
+    created_at: Optional[str] = None
 
 
 class LocalVectorStore:
@@ -102,15 +107,32 @@ class LocalVectorStore:
 
     def _initialize(self):
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS vectors (
                     doc_id TEXT PRIMARY KEY,
                     embedding TEXT NOT NULL,
                     metadata TEXT,
-                    content TEXT
+                    content TEXT,
+                    weight REAL NOT NULL DEFAULT 1.0,
+                    last_access TEXT,
+                    archived INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT
                 )
-                """
+                """)
+            existing = {row[1] for row in conn.execute("PRAGMA table_info(vectors)")}
+            for column, spec in (
+                ("weight", "REAL NOT NULL DEFAULT 1.0"),
+                ("last_access", "TEXT"),
+                ("archived", "INTEGER NOT NULL DEFAULT 0"),
+                ("created_at", "TEXT"),
+            ):
+                if column not in existing:
+                    conn.execute(f"ALTER TABLE vectors ADD COLUMN {column} {spec}")
+            now = datetime.now(timezone.utc).isoformat()
+            conn.execute(
+                "UPDATE vectors SET last_access = COALESCE(last_access, ?), "
+                "created_at = COALESCE(created_at, ?)",
+                (now, now),
             )
             conn.commit()
 
@@ -130,18 +152,25 @@ class LocalVectorStore:
         embedding = self.embedding_fn(content)
         metadata_json = json.dumps(metadata or {})
         embedding_json = json.dumps(embedding)
+        now = datetime.now(timezone.utc).isoformat()
+        weight = max(0.0, float((metadata or {}).get("decay_score", 1.0)))
 
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 """
-                INSERT INTO vectors (doc_id, embedding, metadata, content)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO vectors (
+                    doc_id, embedding, metadata, content, weight,
+                    last_access, archived, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, 0, ?)
                 ON CONFLICT(doc_id) DO UPDATE SET
                     embedding = excluded.embedding,
                     metadata = excluded.metadata,
-                    content = excluded.content
+                    content = excluded.content,
+                    weight = excluded.weight,
+                    last_access = excluded.last_access,
+                    archived = 0
                 """,
-                (doc_id, embedding_json, metadata_json, content),
+                (doc_id, embedding_json, metadata_json, content, weight, now, now),
             )
             conn.commit()
 
@@ -220,15 +249,69 @@ class LocalVectorStore:
         """
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
-                "SELECT doc_id, embedding, metadata, content FROM vectors"
+                "SELECT doc_id, embedding, metadata, content, weight, "
+                "last_access, archived, created_at FROM vectors"
             )
-            for doc_id, embedding_json, metadata_json, content in cursor.fetchall():
+            for (
+                doc_id,
+                embedding_json,
+                metadata_json,
+                content,
+                weight,
+                last_access,
+                archived,
+                created_at,
+            ) in cursor.fetchall():
+                metadata = json.loads(metadata_json or "{}")
+                metadata.update(
+                    {
+                        "decay_score": float(weight),
+                        "last_access": last_access,
+                        "archived": bool(archived),
+                    }
+                )
                 yield VectorRecord(
                     doc_id=doc_id,
                     embedding=json.loads(embedding_json),
-                    metadata=json.loads(metadata_json or "{}"),
+                    metadata=metadata,
                     content=content,
+                    weight=float(weight),
+                    last_access=last_access,
+                    archived=bool(archived),
+                    created_at=created_at,
                 )
+
+    def update_decay_state(
+        self,
+        doc_id: str,
+        *,
+        weight: float,
+        last_access: str,
+        archived: bool,
+    ) -> bool:
+        """Persist saliency, access time, and archival state for one record."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                "UPDATE vectors SET weight = ?, last_access = ?, archived = ? "
+                "WHERE doc_id = ?",
+                (max(0.0, float(weight)), last_access, int(archived), doc_id),
+            )
+            conn.commit()
+        return cursor.rowcount > 0
+
+    def get_decay_records(self) -> List[dict]:
+        """Return the persisted fields required by ``MemoryDecayService``."""
+        return [
+            {
+                "node_id": record.doc_id,
+                "content": record.content,
+                "weight": record.weight,
+                "last_access": record.last_access,
+                "archived": record.archived,
+                "created_at": record.created_at,
+            }
+            for record in self.fetch_all()
+        ]
 
     def query(
         self, text: str, top_k: int = 5, include_content: bool = False

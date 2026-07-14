@@ -131,6 +131,22 @@ class AgentScore(BaseModel):
     accuracy: float
     efficiency: float
     composite_score: float
+    trust_tier: str = "monitored"
+    status: str = "active"
+    violation_count: int = 0
+    trust_score: float | None = None
+    execution_count: int = 0
+    successful_executions: int = 0
+    failed_executions: int = 0
+    hebbian_weight: float | None = None
+    hebbian_delta: float = 0.0
+    hebbian_activations: int = 0
+    hebbian_success_rate: float = 0.0
+    hebbian_task_type: str | None = None
+    hebbian_pair_bonus: float = 0.0
+    hebbian_timing_score: float | None = None
+    routing_intelligence: float = 0.0
+    learning_updated_at: str | None = None
 
 
 class HebbianConnection(BaseModel):
@@ -256,9 +272,7 @@ class ExecuteInstructionResponse(BaseModel):
 # override (useful for Docker), and the existing per-DB env names that
 # api_bridge already documents.
 DB_DIR = data_dir()
-AGENT_REGISTRY_DB = Path(
-    data_path("agent_registry.db", env_var="ARTEMIS_REGISTRY_DB")
-)
+AGENT_REGISTRY_DB = Path(data_path("agent_registry.db", env_var="ARTEMIS_REGISTRY_DB"))
 HEBBIAN_DB = Path(data_path("hebbian_weights.db", env_var="ARTEMIS_HEBBIAN_DB"))
 VECTOR_DB = Path(data_path("vector_store.db", env_var="ARTEMIS_VECTOR_DB"))
 RUN_LOG_DB = Path(data_path("run_logs.db", env_var="ARTEMIS_RUN_LOG_DB"))
@@ -468,13 +482,11 @@ async def get_agents(_key: None = Depends(_require_api_key)):
 
     conn = _connect_db(AGENT_REGISTRY_DB)
     try:
-        rows = conn.execute(
-            """
+        rows = conn.execute("""
             SELECT name, capabilities
             FROM agents
             ORDER BY name ASC
-            """
-        ).fetchall()
+            """).fetchall()
         agents: List[AgentResponse] = []
         for row in rows:
             capabilities = _parse_json(row["capabilities"], [])
@@ -785,18 +797,32 @@ async def get_agent_scores(_key: None = Depends(_require_api_key)):
     """
     conn = _connect_db(AGENT_REGISTRY_DB)
     try:
-        rows = conn.execute(
-            """
+        rows = conn.execute("""
             SELECT
               name,
               capabilities,
               COALESCE(alignment, 0.0) AS alignment,
               COALESCE(accuracy, 0.0) AS accuracy,
-              COALESCE(efficiency, 0.0) AS efficiency
+              COALESCE(efficiency, 0.0) AS efficiency,
+              trust_tier,
+              status,
+              COALESCE(violation_count, 0) AS violation_count,
+              trust_score,
+              COALESCE(execution_count, 0) AS execution_count,
+              COALESCE(successful_executions, 0) AS successful_executions,
+              COALESCE(failed_executions, 0) AS failed_executions,
+              hebbian_weight,
+              COALESCE(hebbian_delta, 0.0) AS hebbian_delta,
+              COALESCE(hebbian_activations, 0) AS hebbian_activations,
+              COALESCE(hebbian_success_rate, 0.0) AS hebbian_success_rate,
+              hebbian_task_type,
+              COALESCE(hebbian_pair_bonus, 0.0) AS hebbian_pair_bonus,
+              hebbian_timing_score,
+              COALESCE(routing_intelligence, 0.0) AS routing_intelligence,
+              learning_updated_at
             FROM agents
             ORDER BY name ASC
-            """
-        ).fetchall()
+            """).fetchall()
 
         agents: List[AgentScore] = []
         for row in rows:
@@ -806,7 +832,7 @@ async def get_agent_scores(_key: None = Depends(_require_api_key)):
             alignment = float(row["alignment"])
             accuracy = float(row["accuracy"])
             efficiency = float(row["efficiency"])
-            composite = (alignment + accuracy + efficiency) / 3.0
+            composite = alignment * 0.4 + accuracy * 0.4 + efficiency * 0.2
             agents.append(
                 AgentScore(
                     name=row["name"],
@@ -815,6 +841,34 @@ async def get_agent_scores(_key: None = Depends(_require_api_key)):
                     accuracy=accuracy,
                     efficiency=efficiency,
                     composite_score=composite,
+                    trust_tier=row["trust_tier"] or "monitored",
+                    status=row["status"] or "active",
+                    violation_count=int(row["violation_count"]),
+                    trust_score=(
+                        float(row["trust_score"])
+                        if row["trust_score"] is not None
+                        else None
+                    ),
+                    execution_count=int(row["execution_count"]),
+                    successful_executions=int(row["successful_executions"]),
+                    failed_executions=int(row["failed_executions"]),
+                    hebbian_weight=(
+                        float(row["hebbian_weight"])
+                        if row["hebbian_weight"] is not None
+                        else None
+                    ),
+                    hebbian_delta=float(row["hebbian_delta"]),
+                    hebbian_activations=int(row["hebbian_activations"]),
+                    hebbian_success_rate=float(row["hebbian_success_rate"]),
+                    hebbian_task_type=row["hebbian_task_type"],
+                    hebbian_pair_bonus=float(row["hebbian_pair_bonus"]),
+                    hebbian_timing_score=(
+                        float(row["hebbian_timing_score"])
+                        if row["hebbian_timing_score"] is not None
+                        else None
+                    ),
+                    routing_intelligence=float(row["routing_intelligence"]),
+                    learning_updated_at=row["learning_updated_at"],
                 )
             )
         return agents
@@ -837,8 +891,7 @@ async def get_hebbian_stats(_key: None = Depends(_require_api_key)):
     """
     conn = _connect_db(HEBBIAN_DB)
     try:
-        row = conn.execute(
-            """
+        row = conn.execute("""
             SELECT
               COUNT(*) AS total_connections,
               COALESCE(AVG(weight), 0.0) AS avg_weight,
@@ -846,8 +899,7 @@ async def get_hebbian_stats(_key: None = Depends(_require_api_key)):
               COALESCE(SUM(activation_count), 0) AS total_activations,
               COALESCE(SUM(success_count), 0) AS total_successes
             FROM node_connections
-            """
-        ).fetchone()
+            """).fetchone()
         if row is None:
             row = {
                 "total_connections": 0,
@@ -1004,14 +1056,12 @@ async def get_vector_stats(_key: None = Depends(_require_api_key)):
     """
     conn = _connect_db(VECTOR_DB)
     try:
-        row = conn.execute(
-            """
+        row = conn.execute("""
             SELECT
               COUNT(*) AS total_docs,
               COALESCE(AVG(LENGTH(COALESCE(content, ''))), 0.0) AS avg_content_length
             FROM vectors
-            """
-        ).fetchone()
+            """).fetchone()
         if row is None:
             return VectorStoreStats(total_docs=0, avg_content_length=0.0)
         return VectorStoreStats(
@@ -1251,17 +1301,34 @@ async def execute_instruction(
             if agent_for_dispatch:
                 # User picked an agent explicitly; no Hebbian routing.
                 chosen_agent_name = agent_for_dispatch.name
+                orchestrator.log_routing_decision(
+                    task_data,
+                    chosen_agent_name,
+                    source="fastapi.execute",
+                    pinned=True,
+                )
                 result = orchestrator.assign_and_execute_task(
                     chosen_agent_name, task_data, note_path
                 )
             elif orchestrator.hebbian_routing_enabled:
                 routing_decision = orchestrator.hebbian_router.route(task_data)
                 chosen_agent_name = routing_decision.agent_name
+                orchestrator.log_routing_decision(
+                    task_data,
+                    chosen_agent_name,
+                    decision=routing_decision,
+                    source="fastapi.execute",
+                )
                 result = orchestrator.assign_and_execute_task(
                     chosen_agent_name, task_data, note_path
                 )
             else:
                 chosen_agent_name = orchestrator.agent_registry.route_task(task_data)
+                orchestrator.log_routing_decision(
+                    task_data,
+                    chosen_agent_name,
+                    source="fastapi.execute",
+                )
                 result = orchestrator.assign_and_execute_task(
                     chosen_agent_name, task_data, note_path
                 )

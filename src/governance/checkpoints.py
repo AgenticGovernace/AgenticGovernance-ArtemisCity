@@ -283,4 +283,5 @@ class RollbackManager:
             "timestamp": _iso(_now()),
             "status": "verified",
             "restored_state": record["state"]["registry_snapshot"],
+            "restored_config": record["state"].get("config_snapshot", {}),
         }

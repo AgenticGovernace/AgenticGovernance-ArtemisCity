@@ -86,4 +86,28 @@ export class GovernanceController {
       tier,
     });
   }
+
+  async createCheckpoint(payload: Record<string, unknown> = {}): Promise<any> {
+    return callBridge('governance.checkpoints.create', payload);
+  }
+
+  async listCheckpoints(): Promise<any> {
+    return callBridge('governance.checkpoints.list');
+  }
+
+  async getCheckpoint(checkpointId: string): Promise<any> {
+    return callBridge('governance.checkpoints.get', {
+      checkpoint_id: checkpointId,
+    });
+  }
+
+  async rollbackCheckpoint(
+    checkpointId: string,
+    payload: Record<string, unknown>
+  ): Promise<any> {
+    return callBridge('governance.checkpoints.rollback', {
+      checkpoint_id: checkpointId,
+      ...payload,
+    });
+  }
 }

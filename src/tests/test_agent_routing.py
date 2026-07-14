@@ -1,11 +1,10 @@
 import os
-import shutil
-import tempfile
 from unittest.mock import Mock, patch
 
 import pytest
 
 import src.mcp.config as config  # Import config to patch OBSIDIAN_VAULT_PATH
+import src.mcp.orchestrator as orchestrator_module
 from src.agents.base_agent import BaseAgent
 from src.integration.agent_registry import AgentRegistry, AgentScore
 from src.mcp.orchestrator import Orchestrator
@@ -236,13 +235,43 @@ class TestAgentRegistry:
         )  # Should cap at 0.0
         assert agent_registry.scores[mock_agent_a.name].efficiency == 0.0
 
+    def test_learning_outcome_updates_registry_hebbian_and_governance_fields(
+        self, agent_registry, mock_agent_a
+    ):
+        """The registry mirrors learning values and computes trust from history."""
+        agent_registry.register_agent(mock_agent_a)
+        learning = {
+            "weight": 1.08,
+            "delta": 0.08,
+            "activation_count": 1,
+            "success_rate": 1.0,
+            "task_type": "research",
+            "pair_bonus": 0.02,
+            "timing_score": 0.5,
+            "routing_intelligence": 0.4,
+        }
+        agent_registry.record_learning_outcome(
+            mock_agent_a.name, success=True, learning=learning
+        )
+        agent_registry.record_learning_outcome(
+            mock_agent_a.name, success=False, learning=learning
+        )
+
+        record = agent_registry.store.get_agent_record(mock_agent_a.name)
+        assert record["execution_count"] == 2
+        assert record["successful_executions"] == 1
+        assert record["failed_executions"] == 1
+        assert record["trust_score"] == pytest.approx(0.825)
+        assert record["hebbian_weight"] == pytest.approx(1.08)
+        assert record["hebbian_task_type"] == "research"
+
 
 @pytest.mark.integration
 class TestOrchestratorRouting:
     """Provide the TestOrchestratorRouting abstraction used by this module."""
 
     @pytest.fixture(autouse=True)
-    def setup_orchestrator(self, monkeypatch):
+    def setup_orchestrator(self, monkeypatch, tmp_path):
         # Create a temporary directory for the mocked Obsidian vault
         """Setup orchestrator.
 
@@ -252,7 +281,10 @@ class TestOrchestratorRouting:
         Returns:
             None: This function does not return a value.
         """
-        self._temp_obsidian_vault = tempfile.mkdtemp()
+        self._temp_obsidian_vault = str(tmp_path / "obsidian_vault")
+        os.makedirs(self._temp_obsidian_vault, exist_ok=True)
+        monkeypatch.setenv("ARTEMIS_DATA_DIR", str(tmp_path / "data"))
+        monkeypatch.setenv("ARTEMIS_LOG_DIR", str(tmp_path / "logs"))
 
         # Patch OBSIDIAN_VAULT_PATH to point to the temporary directory
         monkeypatch.setattr(config, "OBSIDIAN_VAULT_PATH", self._temp_obsidian_vault)
@@ -268,11 +300,11 @@ class TestOrchestratorRouting:
             mock_obs_manager_instance.read_note.return_value = None
             mock_obs_manager_instance.write_note.return_value = None
 
-            # Mock ObsidianParser, ObsidianGenerator, and HebbianWeightManager
+            # Mock only vault/vector dependencies. The real learning and
+            # registry stores are exercised inside the isolated temp data dir.
             with (
                 patch("src.mcp.orchestrator.ObsidianParser"),
                 patch("src.mcp.orchestrator.ObsidianGenerator"),
-                patch("src.mcp.orchestrator.HebbianWeightManager"),
                 patch("src.mcp.orchestrator.LocalVectorStore") as MockVectorStore,
                 patch("src.mcp.orchestrator.MemoryBus") as MockMemoryBus,
             ):
@@ -289,8 +321,7 @@ class TestOrchestratorRouting:
 
         yield  # Run the test
 
-        # Clean up the temporary directory after the test
-        shutil.rmtree(self._temp_obsidian_vault)
+        # tmp_path owns cleanup; no live repository database is touched.
 
     def test_route_and_execute_task_success(self, mock_agent_a):
         # Dynamically create and register a mock agent to override the default Orchestrator agents
@@ -334,6 +365,67 @@ class TestOrchestratorRouting:
 
         assert result["status"] == "success"
         mock_orchestrator_agent_a.perform_task.assert_called_once_with(task_context)
+        record = self.orchestrator.agent_registry.store.get_agent_record("Agent A")
+        assert record["execution_count"] == 1
+        assert record["hebbian_weight"] is not None
+        assert record["trust_score"] == pytest.approx(1.0)
+
+    def test_route_persists_full_routing_decision(self, mock_agent_a, monkeypatch):
+        routed_agent = Mock(spec=BaseAgent)
+        routed_agent.name = "Agent A"
+        routed_agent.capabilities = ["research"]
+        routed_agent.perform_task.return_value = {
+            "status": "success",
+            "summary": "done",
+        }
+        self.orchestrator.agent_registry.agents.clear()
+        self.orchestrator.agent_registry.register_agent(routed_agent)
+        run_logger = Mock()
+        monkeypatch.setattr(orchestrator_module, "_run_logger", run_logger)
+
+        result = self.orchestrator.route_and_execute_task(
+            {
+                "task_id": "route_audit",
+                "required_capability": "research",
+                "content": "test",
+            }
+        )
+
+        assert result["status"] == "success"
+        routing_calls = [
+            call
+            for call in run_logger.log_event.call_args_list
+            if call.args and call.args[0] == "routing_decision"
+        ]
+        assert len(routing_calls) == 1
+        metadata = routing_calls[0].args[2]
+        assert metadata["chosen_agent"] == "Agent A"
+        assert metadata["decision"]["candidates"][0]["name"] == "Agent A"
+
+    def test_sandbox_denies_missing_capability_without_hebbian_update(self):
+        agent = Mock(spec=BaseAgent)
+        agent.name = "Capability Limited Agent"
+        agent.capabilities = ["research"]
+        agent.perform_task.return_value = {"status": "success", "summary": "wrong"}
+        self.orchestrator.agent_registry.agents.clear()
+        self.orchestrator.agent_registry.register_agent(agent)
+
+        result = self.orchestrator.assign_and_execute_task(
+            agent.name,
+            {
+                "task_id": "governance_denial",
+                "required_capability": "text_summarization",
+            },
+        )
+
+        assert result["status"] == "failed"
+        assert result["governance"]["violation_type"] == "missing_capability"
+        agent.perform_task.assert_not_called()
+        state = self.orchestrator.agent_registry.get_governance_state(agent.name)
+        assert state["violation_count"] == 1
+        assert self.orchestrator.hebbian.get_agent_average_weight(agent.name) == 0.0
+        trust_score = self.orchestrator.trust_interface.get_trust_score(agent.name)
+        assert trust_score.score == pytest.approx(state["trust_score"])
 
     def test_route_and_execute_task_no_agent_for_capability(self):
         # Clear existing agents from the registry to ensure no agent matches

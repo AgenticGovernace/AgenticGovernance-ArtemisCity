@@ -9,15 +9,18 @@ from src.agents.llm_agent import LLMAgent
 from src.agents.research_agent import ResearchAgent
 from src.obsidian_integration import ObsidianGenerator, ObsidianManager, ObsidianParser
 from src.utils.helpers import logger, sanitize_for_log
+from src.governance.checkpoints import CheckpointStore
 
 from ..integration.agent_registry import AgentRegistry
 from ..integration.governance import GovernanceMonitor
 from ..integration.hebbian_router import HebbianRouter
+from ..integration.learning_governance import LearningGovernanceCoordinator
 from ..integration.memory_bus import MemoryBus
+from ..integration.memory_decay import MemoryDecayService
+from ..integration.sandbox import AgentSandbox
 from ..mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
 from ..mcp.hebbian_weights import HebbianWeightManager
 from ..mcp.vector_store import LocalVectorStore
-
 
 # Lazy import to avoid circular dependency
 _run_logger = None
@@ -109,12 +112,24 @@ class Orchestrator:
         # Initialize hybrid memory layer (vector + explicit Obsidian)
         self.vector_store = LocalVectorStore()
         self.governance_monitor = GovernanceMonitor()
+        memory_decay_enabled = os.getenv(
+            "ARTEMIS_MEMORY_DECAY_ENABLED", "1"
+        ).strip().lower() not in ("0", "false", "no", "off")
+        self.memory_decay_service = (
+            MemoryDecayService() if memory_decay_enabled else None
+        )
         self.memory_bus = MemoryBus(
             self.obs_manager,
             self.vector_store,
             search_dirs=[AGENT_INPUT_DIR, AGENT_OUTPUT_DIR],
             governance_monitor=self.governance_monitor,
+            memory_decay_service=self.memory_decay_service,
         )
+        if self.memory_decay_service is not None:
+            try:
+                self.memory_bus.run_memory_decay_cycle()
+            except Exception:  # noqa: BLE001
+                logger.warning("Memory decay cycle failed during boot.", exc_info=True)
 
         # Initialize Agent Registry
         self.agent_registry = AgentRegistry()
@@ -146,41 +161,39 @@ class Orchestrator:
             os.getenv("ARTEMIS_ROUTING_FALLBACK_CAPABILITY", "llm_chat").strip() or None
         )
 
-        # Trust interface is constructed lazily and tolerated as a soft
-        # dependency: any failure (missing DB, sqlite quirks under tests, etc.)
-        # leaves the trust signal disabled rather than blocking orchestrator
-        # boot. The router itself also defaults trust reads to the neutral
-        # prior on any error, so this is belt-and-braces.
-        _trust_interface = None
-        if _routing_beta > 0.0 or _routing_trust_floor > 0.0:
-            try:
-                from ..integration.trust_interface import TrustInterface
+        # Trust persistence is part of every execution outcome even when beta
+        # is zero and trust does not affect routing. Construction remains a
+        # soft dependency so a damaged optional store cannot block boot.
+        self.trust_interface = None
+        try:
+            from ..integration.trust_interface import TrustInterface
 
-                _trust_interface = TrustInterface()
-            except Exception as exc:  # noqa: BLE001
-                logger.warning(
-                    "Trust-aware routing requested but TrustInterface unavailable "
-                    "(continuing without trust signal): %s",
-                    exc,
-                )
-                # The trust signal is unavailable -- neutralise the trust
-                # weights too. Otherwise a configured trust_floor > 0
-                # would exclude every agent (all reads return the
-                # neutral prior 0.5) and a configured beta would just
-                # add a constant 0.5 * beta to every blended score
-                # without contributing any ranking signal.
-                _routing_beta = 0.0
-                _routing_trust_floor = 0.0
+            self.trust_interface = TrustInterface()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Trust persistence unavailable (continuing without trust signal): %s",
+                exc,
+            )
+            _routing_beta = 0.0
+            _routing_trust_floor = 0.0
 
         self.hebbian_router = HebbianRouter(
             self.agent_registry,
             self.hebbian,
             alpha=_routing_alpha,
             fallback_capability=_fallback_cap,
-            trust_interface=_trust_interface,
+            trust_interface=self.trust_interface,
             beta=_routing_beta,
             trust_floor=_routing_trust_floor,
         )
+        self.learning_governance = LearningGovernanceCoordinator(
+            self.agent_registry,
+            trust_interface=self.trust_interface,
+            hebbian_manager=self.hebbian,
+            checkpoint_store=CheckpointStore(),
+        )
+        for registered_agent in self.agent_registry.get_all_agents():
+            self.learning_governance.reconcile_agent(registered_agent.name)
 
         self._ensure_obsidian_agent_dirs()
         self._validate_kernel_state()
@@ -358,10 +371,18 @@ class Orchestrator:
                 task_context = dict(task_context)
                 task_context["required_capability"] = resolved_capability
 
+            decision = None
             if self.hebbian_routing_enabled:
-                agent_name = self.hebbian_router.route_name(task_context)
+                decision = self.hebbian_router.route(task_context)
+                agent_name = decision.agent_name
             else:
                 agent_name = self.agent_registry.route_task(task_context)
+            self.log_routing_decision(
+                task_context,
+                agent_name,
+                decision=decision,
+                source="route_and_execute_task",
+            )
             logger.info("Task routed to '%s'.", _sanitize_for_log(agent_name))
             return self.assign_and_execute_task(
                 agent_name, task_context, original_task_note_path
@@ -423,6 +444,38 @@ class Orchestrator:
             raise ValueError(
                 f"Agent '{agent_name}' not registered with the orchestrator."
             )
+
+        sandbox_result = self._check_dispatch(agent, task_context)
+        if not sandbox_result.allowed:
+            task_id = task_context.get("task_id", "auto_generated")
+            result = {
+                "status": "failed",
+                "summary": "Task denied by governance policy.",
+                "error": sandbox_result.reason or "sandbox denied dispatch",
+                "governance": {
+                    "allowed": False,
+                    "violation_type": sandbox_result.violation_type,
+                },
+            }
+            if original_task_note_path:
+                self.update_task_status_in_obsidian(
+                    original_task_note_path,
+                    "failed",
+                    task_id,
+                )
+            if run_logger:
+                run_logger.log_event(
+                    "dispatch_denied",
+                    "sandbox",
+                    {
+                        "task_id": task_id,
+                        "agent": agent_name,
+                        "capability": task_context.get("required_capability"),
+                        "violation_type": sandbox_result.violation_type,
+                        "reason": sandbox_result.reason,
+                    },
+                )
+            return result
 
         logger.info(
             "Orchestrator assigning task to %s...", _sanitize_for_log(agent_name)
@@ -507,16 +560,20 @@ class Orchestrator:
                     original_task_note_path, "failed", task_id
                 )
 
-        # Hebbian learning: Update connection weights based on success/failure
+        task_duration_ms = (time.perf_counter() - task_start_time) * 1000
+
+        # Full learning update: nonlinear Hebbian/anti-Hebbian weight,
+        # pair/timing signals, registry mirror, and governance trust score.
         self._update_hebbian_weights(
             agent_name,
             task_id,
             task_success,
             task_type=task_context.get("required_capability"),
+            results=results,
+            duration_ms=task_duration_ms,
         )
 
         # Log task completion
-        task_duration_ms = (time.perf_counter() - task_start_time) * 1000
         if run_logger:
             run_logger.log_task_execution(
                 task_id=task_id,
@@ -577,6 +634,14 @@ class Orchestrator:
             else:
                 agent_name = self.agent_registry.route_task(task_context)
 
+            self.log_routing_decision(
+                task_context,
+                agent_name,
+                decision=decision,
+                source="stream_route_and_execute",
+                pinned=bool(explicit_agent),
+            )
+
             yield {
                 "type": "routing",
                 "decision": decision.to_dict() if decision else None,
@@ -622,8 +687,23 @@ class Orchestrator:
             }
             return
 
+        sandbox_result = self._check_dispatch(agent, task_context)
+        if not sandbox_result.allowed:
+            if original_task_note_path:
+                self.update_task_status_in_obsidian(
+                    original_task_note_path,
+                    "failed",
+                    task_id,
+                )
+            yield {
+                "type": "error",
+                "error": "Task denied by governance policy; see server logs.",
+            }
+            return
+
         task_success = False
         results: Dict[str, Any] = {}
+        task_start_time = time.perf_counter()
         try:
             enriched_context = self._enrich_task_with_memory(task_context)
 
@@ -699,27 +779,18 @@ class Orchestrator:
                     original_task_note_path, "failed", task_id
                 )
 
-        # Hebbian update fires regardless of branch. Inlined here (rather
-        # than delegating to _update_hebbian_weights) because the helper
-        # logs the agent_name/task_id, which would create new flow paths
-        # CodeQL flags as py/log-injection through this streaming entry
-        # point. Persistence still happens; the log line is just dropped
-        # on this path -- the existing per-task lifecycle logger above
-        # already captures success/failure.
+        # Full learning update fires regardless of branch after the stream has
+        # reached a terminal result, matching the JSON executor's trail.
         hebbian_error: Optional[str] = None
         try:
-            if task_success:
-                self.hebbian.strengthen_connection(agent_name, task_id)
-                if task_context.get("required_capability"):
-                    self.hebbian.strengthen_task_type(
-                        agent_name, task_context["required_capability"]
-                    )
-            else:
-                self.hebbian.weaken_connection(agent_name, task_id)
-                if task_context.get("required_capability"):
-                    self.hebbian.weaken_task_type(
-                        agent_name, task_context["required_capability"]
-                    )
+            self._update_hebbian_weights(
+                agent_name,
+                task_id,
+                task_success,
+                task_type=task_context.get("required_capability"),
+                results=results,
+                duration_ms=(time.perf_counter() - task_start_time) * 1000,
+            )
         except Exception:
             logger.error("Hebbian update failed in streaming executor.", exc_info=True)
             # Surface the failure to the client. The non-streaming
@@ -750,7 +821,9 @@ class Orchestrator:
         task_id: str,
         success: bool,
         task_type: Optional[str] = None,
-    ):
+        results: Optional[Dict[str, Any]] = None,
+        duration_ms: Optional[float] = None,
+    ) -> dict:
         """
         Update Hebbian connection weights based on task outcome.
 
@@ -759,27 +832,132 @@ class Orchestrator:
             task_id: ID of the task
             success: Whether the task succeeded
             task_type: Capability/task type used for future scoped routing
+            results: Structured agent result used to extract output quality
+            duration_ms: End-to-end execution duration for timing memory
         """
-        if success:
-            new_weight = self.hebbian.strengthen_connection(agent_name, task_id)
-            if task_type:
-                self.hebbian.strengthen_task_type(agent_name, task_type)
-            logger.info(
-                "🧠 Hebbian: %s → %s strengthened (weight: %s)",
-                _sanitize_for_log(agent_name),
-                _sanitize_for_log(task_id),
-                new_weight,
+        performance = self._outcome_performance(results or {}, success)
+        learning = self.hebbian.record_outcome(
+            agent_name,
+            task_id,
+            success=success,
+            performance=performance,
+            task_type=task_type,
+            duration_ms=duration_ms,
+        )
+        registry_metrics = self.learning_governance.record_execution_outcome(
+            agent_name,
+            success=success,
+            learning=learning,
+        )
+        trust_score = registry_metrics["trust_score"]
+
+        logger.info(
+            "Hebbian outcome %s -> %s (weight=%.4f, delta=%.4f, "
+            "performance=%.3f, trust=%.3f)",
+            _sanitize_for_log(agent_name),
+            _sanitize_for_log(task_id),
+            learning["weight"],
+            learning["delta"],
+            performance,
+            trust_score,
+        )
+        return {**learning, **registry_metrics}
+
+    def _check_dispatch(self, agent, task_context: Dict[str, Any]):
+        """Run the production sandbox preflight for one agent dispatch."""
+        capability = task_context.get("required_capability")
+        declared = list(getattr(agent, "capabilities", []) or [])
+        if (
+            capability
+            and capability not in declared
+            and self.hebbian_router.fallback_capability in declared
+        ):
+            capability = self.hebbian_router.fallback_capability
+        policy_loader = getattr(agent, "get_sandbox_policies", None)
+        policies = policy_loader() if callable(policy_loader) else []
+        if not isinstance(policies, list):
+            policies = []
+        sandbox = AgentSandbox(
+            agent.name,
+            policies=policies,
+            registry=self.agent_registry,
+            violation_recorder=self.learning_governance.record_violation,
+            capabilities=declared,
+        )
+        dispatch_result = sandbox.check_dispatch(capability)
+        if not dispatch_result.allowed:
+            return dispatch_result
+
+        action_loader = getattr(agent, "get_sandbox_actions", None)
+        actions = action_loader(task_context) if callable(action_loader) else []
+        if not isinstance(actions, list):
+            actions = []
+        for action in actions:
+            if not isinstance(action, dict):
+                continue
+            result = sandbox.check_action(
+                str(action.get("tool_name", "")),
+                path=action.get("path"),
+                operation=action.get("operation"),
             )
-        else:
-            new_weight = self.hebbian.weaken_connection(agent_name, task_id)
-            if task_type:
-                self.hebbian.weaken_task_type(agent_name, task_type)
-            logger.info(
-                "🧠 Hebbian: %s → %s weakened (weight: %s)",
-                _sanitize_for_log(agent_name),
-                _sanitize_for_log(task_id),
-                new_weight,
+            if not result.allowed:
+                return result
+        return dispatch_result
+
+    def log_routing_decision(
+        self,
+        task_context: Dict[str, Any],
+        agent_name: str,
+        *,
+        decision=None,
+        source: str = "orchestrator",
+        pinned: bool = False,
+    ) -> None:
+        """Persist the chosen route and full candidate breakdown."""
+        run_logger = _get_run_logger()
+        if not run_logger:
+            return
+        run_logger.log_event(
+            "routing_decision",
+            "hebbian_router" if decision is not None else "agent_registry",
+            {
+                "task_id": task_context.get("task_id"),
+                "required_capability": task_context.get("required_capability"),
+                "chosen_agent": agent_name,
+                "pinned": pinned,
+                "source": source,
+                "decision": decision.to_dict() if decision is not None else None,
+            },
+            f"Routed task to {agent_name}",
+        )
+
+    @staticmethod
+    def _outcome_performance(results: Dict[str, Any], success: bool) -> float:
+        """Resolve a normalized target activation from an agent result."""
+        if not success:
+            return 0.0
+        candidates = [
+            results.get("performance_score"),
+            results.get("quality_score"),
+            results.get("confidence"),
+            results.get("score"),
+        ]
+        nested_metrics = results.get("metrics")
+        if isinstance(nested_metrics, dict):
+            candidates.extend(
+                [
+                    nested_metrics.get("performance"),
+                    nested_metrics.get("quality"),
+                    nested_metrics.get("confidence"),
+                ]
             )
+        for value in candidates:
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                numeric = float(value)
+                if 1.0 < numeric <= 100.0:
+                    numeric /= 100.0
+                return max(0.0, min(1.0, numeric))
+        return 1.0
 
     def check_for_new_tasks_from_obsidian(self) -> List[Tuple[str, Dict[str, Any]]]:
         """

@@ -39,15 +39,15 @@ from src.agents.atp.atp_models import ATPActionType, ATPMode, ATPPriority
 from src.agents.atp.atp_parser import ATPParser
 from src.agents.atp.atp_validator import ATPValidator
 from src.governance.approvals import SelfUpdateGovernor, UpdateProposal
+from src.governance.checkpoints import CheckpointStore, RollbackManager
 from src.governance.trust import TrustMetrics, compute_trust_score, trust_breakdown
 from src.integration.agent_registry import AgentRegistryStore
+from src.integration.learning_governance import LearningGovernanceCoordinator
 from src.integration.memory_bus import MemoryBus
 from src.integration.trust_interface import (
     TRUST_THRESHOLDS,
     TrustInterface,
     TrustLevel,
-    TrustScore,
-    _score_to_level,
 )
 from src.mcp.hebbian_weights import HebbianWeightManager
 from src.mcp.vector_store import LocalVectorStore
@@ -64,9 +64,16 @@ class BridgeError(Exception):
 
 
 def _resolve_db_path(payload: Dict[str, Any]) -> str:
+    configured_path = payload.get("db_path")
+    if configured_path is None:
+        for sibling_key in ("trust_db_path", "hebbian_db_path"):
+            sibling = payload.get(sibling_key)
+            if sibling and sibling != ":memory:":
+                configured_path = str(Path(str(sibling)).with_name("agent_registry.db"))
+                break
     return data_path(
         "agent_registry.db",
-        payload.get("db_path"),
+        configured_path,
         env_var="ARTEMIS_REGISTRY_DB",
     )
 
@@ -213,21 +220,57 @@ def _memory_dependencies(payload: Dict[str, Any]) -> Tuple[ObsidianManager, Memo
 
 
 def _trust_interface(payload: Dict[str, Any]) -> TrustInterface:
+    configured_path = payload.get("trust_db_path")
+    if configured_path is None and payload.get("db_path"):
+        configured_path = str(
+            Path(str(payload["db_path"])).with_name("trust_scores.db")
+        )
     db_path = data_path(
         "trust_scores.db",
-        payload.get("trust_db_path"),
+        configured_path,
         env_var="ARTEMIS_TRUST_DB",
     )
     return TrustInterface(db_path=Path(db_path))
 
 
+def _learning_governance(
+    payload: Dict[str, Any],
+    *,
+    include_hebbian: bool = False,
+    include_trust: bool = True,
+) -> LearningGovernanceCoordinator:
+    """Build the shared write-through coordinator for one bridge request."""
+    return LearningGovernanceCoordinator(
+        _store(payload),
+        trust_interface=_trust_interface(payload) if include_trust else None,
+        hebbian_manager=_hebbian_manager(payload) if include_hebbian else None,
+        checkpoint_store=_checkpoint_store(payload),
+    )
+
+
 def _hebbian_manager(payload: Dict[str, Any]) -> HebbianWeightManager:
+    configured_path = payload.get("hebbian_db_path")
+    if configured_path is None and payload.get("db_path"):
+        configured_path = str(
+            Path(str(payload["db_path"])).with_name("hebbian_weights.db")
+        )
     db_path = data_path(
         "hebbian_weights.db",
-        payload.get("hebbian_db_path"),
+        configured_path,
         env_var="ARTEMIS_HEBBIAN_DB",
     )
     return HebbianWeightManager(db_path=str(db_path))
+
+
+def _checkpoint_store(payload: Dict[str, Any]) -> CheckpointStore:
+    configured_path = payload.get("checkpoint_dir")
+    if configured_path is None:
+        for sibling_key in ("db_path", "trust_db_path", "hebbian_db_path"):
+            sibling = payload.get(sibling_key)
+            if sibling and sibling != ":memory:":
+                configured_path = str(Path(str(sibling)).parent / "checkpoints")
+                break
+    return CheckpointStore(checkpoint_dir=configured_path)
 
 
 def _atp_db_path(payload: Dict[str, Any]) -> str:
@@ -244,8 +287,7 @@ def _ensure_atp_store(payload: Dict[str, Any]) -> str:
     if db_path != ":memory:" and db_dir:
         os.makedirs(db_dir, exist_ok=True)
     with sqlite3.connect(db_path) as conn:
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS atp_messages (
                 message_id TEXT PRIMARY KEY,
                 raw_message TEXT NOT NULL,
@@ -257,8 +299,7 @@ def _ensure_atp_store(payload: Dict[str, Any]) -> str:
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )
-            """
-        )
+            """)
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_atp_status_created "
             "ON atp_messages(status, created_at DESC)"
@@ -493,7 +534,11 @@ def _clear_violations(payload: Dict[str, Any]) -> Dict[str, Any]:
     rationale = payload.get("rationale", "")
     override_tier = payload.get("override_tier")
     try:
-        cleared = store.clear_violations(name, rationale, override_tier)
+        cleared = _learning_governance(payload).clear_violations(
+            name,
+            rationale,
+            override_tier,
+        )
     except ValueError as exc:
         raise BridgeError(str(exc), code="INVALID_REQUEST")
     state = store.get_governance_state(name) or {}
@@ -527,7 +572,7 @@ def _record_violation(payload: Dict[str, Any]) -> Dict[str, Any]:
     if store.get_agent_record(name) is None:
         raise BridgeError(f"agent not found: {name}", code="NOT_FOUND")
     try:
-        return store.record_violation(name, vtype, details)
+        return _learning_governance(payload).record_violation(name, vtype, details)
     except ValueError as exc:
         raise BridgeError(str(exc), code="INVALID_REQUEST")
 
@@ -554,7 +599,7 @@ def _compute_trust(payload: Dict[str, Any]) -> Dict[str, Any]:
     score = compute_trust_score(metrics)
     persist = payload.get("persist", True)
     if persist:
-        store.set_trust_score(name, score)
+        _learning_governance(payload).set_trust_score(name, score)
     return {
         "agent_name": name,
         "trust_score": score,
@@ -604,6 +649,107 @@ def _evaluate_update(payload: Dict[str, Any]) -> Dict[str, Any]:
     result = decision.to_dict()
     result["trust_score"] = trust_score
     return result
+
+
+def _checkpoint_summary(record: dict) -> Dict[str, Any]:
+    state = record.get("state", {})
+    registry = state.get("registry_snapshot", {})
+    hebbian = state.get("config_snapshot", {}).get("hebbian", {})
+    return {
+        "checkpoint_id": record.get("checkpoint_id"),
+        "timestamp": record.get("timestamp"),
+        "type": record.get("type"),
+        "metadata": record.get("metadata", {}),
+        "retention": record.get("retention", {}),
+        "verified": record.get("verified", False),
+        "agent_count": len(registry.get("agents", [])),
+        "violation_count": len(registry.get("violations", [])),
+        "hebbian_tables": sorted((hebbian.get("tables") or {}).keys()),
+    }
+
+
+def _create_checkpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    checkpoint_type = str(payload.get("checkpoint_type", "manual"))
+    metadata = payload.get("metadata") or {}
+    if not isinstance(metadata, dict):
+        raise BridgeError("metadata must be an object", code="INVALID_REQUEST")
+    retention_days = payload.get("retention_days", 60)
+    try:
+        retention_days = int(retention_days)
+    except (TypeError, ValueError):
+        raise BridgeError("retention_days must be an integer", code="INVALID_REQUEST")
+    if retention_days < 1:
+        raise BridgeError("retention_days must be >= 1", code="INVALID_REQUEST")
+    try:
+        record = _checkpoint_store(payload).create_checkpoint(
+            _store(payload).export_snapshot(),
+            checkpoint_type=checkpoint_type,
+            metadata=metadata,
+            retention_days=retention_days,
+            config_snapshot={"hebbian": _hebbian_manager(payload).export_snapshot()},
+        )
+    except ValueError as exc:
+        raise BridgeError(str(exc), code="INVALID_REQUEST")
+    return _checkpoint_summary(record)
+
+
+def _list_checkpoints(payload: Dict[str, Any]) -> Dict[str, Any]:
+    store = _checkpoint_store(payload)
+    records = store.list_checkpoints()
+    return {
+        "checkpoints": [_checkpoint_summary(record) for record in records],
+        "count": len(records),
+    }
+
+
+def _get_checkpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    checkpoint_id = _require_str(payload, "checkpoint_id")
+    store = _checkpoint_store(payload)
+    record = store.get_checkpoint(checkpoint_id)
+    if record is None:
+        raise BridgeError("checkpoint not found", code="NOT_FOUND")
+    return {
+        **_checkpoint_summary(record),
+        "integrity_valid": store.verify_checkpoint(checkpoint_id),
+    }
+
+
+def _rollback_checkpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+    checkpoint_id = _require_str(payload, "checkpoint_id")
+    initiated_by = _require_str(payload, "initiated_by")
+    if payload.get("confirmed") is not True:
+        raise BridgeError(
+            "confirmed=true is required for rollback",
+            code="INVALID_REQUEST",
+        )
+    checkpoint_store = _checkpoint_store(payload)
+    try:
+        rollback = RollbackManager(checkpoint_store).rollback_to(
+            checkpoint_id,
+            initiated_by,
+            reason=str(payload.get("reason", "manual_request")),
+            details=str(payload.get("details", "")),
+        )
+        registry_store = _store(payload)
+        registry_result = registry_store.restore_snapshot(rollback["restored_state"])
+        hebbian_snapshot = rollback.get("restored_config", {}).get("hebbian")
+        hebbian_result = None
+        if hebbian_snapshot:
+            hebbian_result = _hebbian_manager(payload).restore_snapshot(
+                hebbian_snapshot
+            )
+        coordinator = _learning_governance(payload)
+        for agent in registry_store.list_agent_records():
+            coordinator.reconcile_agent(agent["name"])
+    except ValueError as exc:
+        raise BridgeError(str(exc), code="INVALID_REQUEST")
+    return {
+        "rollback_id": rollback["rollback_id"],
+        "checkpoint_id": checkpoint_id,
+        "status": "restored",
+        "registry": registry_result,
+        "hebbian": hebbian_result,
+    }
 
 
 def _parse_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -982,19 +1128,11 @@ def _trust_set_score(payload: Dict[str, Any]) -> Dict[str, Any]:
     score_value = _optional_float(payload, "score", None, 0.0, 1.0)
     if score_value is None:
         raise BridgeError("missing required field: score", code="INVALID_REQUEST")
-    interface = _trust_interface(payload)
-    existing = interface.get_trust_score(entity_id, entity_type)
-    updated = TrustScore(
-        entity_id=entity_id,
+    updated = _learning_governance(payload).set_trust_score(
+        entity_id,
+        score_value,
         entity_type=entity_type,
-        score=score_value,
-        level=_score_to_level(score_value),
-        last_updated=datetime.now(timezone.utc),
-        decay_rate=existing.decay_rate,
-        reinforcement_events=existing.reinforcement_events,
-        penalty_events=existing.penalty_events,
     )
-    interface._persist(updated)
     return updated.to_dict()
 
 
@@ -1002,11 +1140,15 @@ def _trust_record_success(payload: Dict[str, Any]) -> Dict[str, Any]:
     entity_id = _require_str(payload, "entity_id")
     entity_type = payload.get("entity_type", "agent")
     amount = _optional_float(payload, "amount", 0.02, 0.0, 1.0)
-    interface = _trust_interface(payload)
-    score = interface.record_success(entity_id, str(entity_type), amount)
-    return interface.get_trust_score(entity_id, str(entity_type)).to_dict() | {
+    updated = _learning_governance(payload).record_trust_adjustment(
+        entity_id,
+        success=True,
+        amount=amount,
+        entity_type=str(entity_type),
+    )
+    return updated.to_dict() | {
         "recorded": "success",
-        "score": score,
+        "score": updated.score,
     }
 
 
@@ -1014,11 +1156,15 @@ def _trust_record_failure(payload: Dict[str, Any]) -> Dict[str, Any]:
     entity_id = _require_str(payload, "entity_id")
     entity_type = payload.get("entity_type", "agent")
     amount = _optional_float(payload, "amount", 0.05, 0.0, 1.0)
-    interface = _trust_interface(payload)
-    score = interface.record_failure(entity_id, str(entity_type), amount)
-    return interface.get_trust_score(entity_id, str(entity_type)).to_dict() | {
+    updated = _learning_governance(payload).record_trust_adjustment(
+        entity_id,
+        success=False,
+        amount=amount,
+        entity_type=str(entity_type),
+    )
+    return updated.to_dict() | {
         "recorded": "failure",
-        "score": score,
+        "score": updated.score,
     }
 
 
@@ -1068,14 +1214,7 @@ def _trust_report(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 def _trust_apply_decay(payload: Dict[str, Any]) -> Dict[str, Any]:
     decay_rate = _optional_float(payload, "decay_rate", None, 0.0, 1.0)
-    interface = _trust_interface(payload)
-    updated = []
-    for score in list(interface.trust_scores.values()):
-        if decay_rate is not None:
-            score.decay_rate = decay_rate
-        score.apply_decay()
-        interface._persist(score)
-        updated.append(score.to_dict())
+    updated = _learning_governance(payload).apply_trust_decay(decay_rate)
     return {"updated": updated, "count": len(updated)}
 
 
@@ -1097,7 +1236,13 @@ def _hebbian_update(payload: Dict[str, Any]) -> Dict[str, Any]:
     delta = _optional_float(payload, "delta", None)
     if delta is None:
         raise BridgeError("missing required field: delta", code="INVALID_REQUEST")
-    manager = _hebbian_manager(payload)
+    coordinator = _learning_governance(
+        payload,
+        include_hebbian=True,
+        include_trust=False,
+    )
+    coordinator.create_checkpoint(f"before_hebbian_update:{origin}:{target}")
+    manager = coordinator.hebbian_manager
     current = manager.get_weight(origin, target)
     new_weight = max(0.0, current + delta)
     now = datetime.now().isoformat()
@@ -1131,7 +1276,15 @@ def _hebbian_update(payload: Dict[str, Any]) -> Dict[str, Any]:
             ),
         )
         conn.commit()
-    return manager.get_connection_stats(origin, target) or {}
+    result = manager.get_connection_stats(origin, target) or {}
+    task_type = (
+        target.removeprefix("task_type:") if target.startswith("task_type:") else None
+    )
+    coordinator.mirror_hebbian_summary(
+        origin,
+        task_type=task_type,
+    )
+    return result
 
 
 COMMANDS: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
@@ -1165,6 +1318,10 @@ COMMANDS: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
     "registry.record_violation": _record_violation,
     "governance.compute_trust": _compute_trust,
     "governance.evaluate_update": _evaluate_update,
+    "governance.checkpoints.create": _create_checkpoint,
+    "governance.checkpoints.list": _list_checkpoints,
+    "governance.checkpoints.get": _get_checkpoint,
+    "governance.checkpoints.rollback": _rollback_checkpoint,
     "trust.get_score": _trust_get_score,
     "trust.set_score": _trust_set_score,
     "trust.record_success": _trust_record_success,

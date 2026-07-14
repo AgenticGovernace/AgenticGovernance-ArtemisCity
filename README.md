@@ -135,7 +135,10 @@ All Python, bridge, dashboard, kernel, and example-process defaults resolve
 through `src/runtime_paths.py`, so launching from a nested working directory
 does not create a second data source. `ARTEMIS_DATA_DIR` and `ARTEMIS_LOG_DIR`
 can relocate the two roots for containers; per-store absolute overrides remain
-available for tests and specialized deployments.
+available for tests and specialized deployments. Governance events are
+structured runtime data at `data/governance_events.jsonl`; trust, violations,
+checkpoints, and learning metrics also remain under `data/` rather than
+splitting authority with `logs/` or temporary vault paths.
 ### Containerization
 Containerization is currently focused on the standalone Obsidian MCP server:
 
@@ -426,7 +429,11 @@ def __init__(self):
 
 ```
 Score = (Alignment × 0.4) + (Accuracy × 0.4) + (Efficiency × 0.2)
-WeightedScore = Score × HebbianWeight(agent, task_type)
+BlendedScore = (1 - alpha - beta) × Score
+             + alpha × HebbianEffectiveNorm
+             + beta × TrustScore
+
+HebbianEffective = scoped_weight + timing_score + pair_bonus
 ```
 #### 3.2.2 Agent Registry
 **Location**: `src/integration/agent_registry.py` 
@@ -498,15 +505,14 @@ Adaptive connection weights between agents and task types:
 
 ```python
 class HebbianWeightManager:
-def strengthen_connection(self, origin: str, target: str) -> float:
-    """ΔW = +1 for successful completion"""
-    
-def weaken_connection(self, origin: str, target: str) -> float:
-    """ΔW = -1 for failure (minimum 0)"""
+def record_outcome(...):
+    """Success: tanh(rate × performance); failure: anti-Hebbian -rate."""
 ```
 **Storage**: SQLite with atomic transactions
-**Decay**: 5% every 30 days
-**Pruning**: Connections with weight < 0.01 eligible for deletion
+**Decay**: 1% after every runtime outcome
+**Floor**: 0.01
+**Additional signals**: sequential pair synergy, rolling timing/performance,
+and persisted compounding routing intelligence
 
 #### 3.2.5 Governance Framework
 **Locations**:

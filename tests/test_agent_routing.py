@@ -1,6 +1,4 @@
 import os
-import shutil
-import tempfile
 from unittest.mock import Mock, patch
 
 import pytest
@@ -242,7 +240,7 @@ class TestOrchestratorRouting:
     """Provide the TestOrchestratorRouting abstraction used by this module."""
 
     @pytest.fixture(autouse=True)
-    def setup_orchestrator(self, monkeypatch):
+    def setup_orchestrator(self, monkeypatch, tmp_path):
         # Create a temporary directory for the mocked Obsidian vault
         """Setup orchestrator.
 
@@ -252,7 +250,10 @@ class TestOrchestratorRouting:
         Returns:
             None: This function does not return a value.
         """
-        self._temp_obsidian_vault = tempfile.mkdtemp()
+        self._temp_obsidian_vault = str(tmp_path / "obsidian_vault")
+        os.makedirs(self._temp_obsidian_vault, exist_ok=True)
+        monkeypatch.setenv("ARTEMIS_DATA_DIR", str(tmp_path / "data"))
+        monkeypatch.setenv("ARTEMIS_LOG_DIR", str(tmp_path / "logs"))
 
         # Patch OBSIDIAN_VAULT_PATH to point to the temporary directory
         monkeypatch.setattr(config, "OBSIDIAN_VAULT_PATH", self._temp_obsidian_vault)
@@ -268,11 +269,10 @@ class TestOrchestratorRouting:
             mock_obs_manager_instance.read_note.return_value = None
             mock_obs_manager_instance.write_note.return_value = None
 
-            # Mock ObsidianParser, ObsidianGenerator, and HebbianWeightManager
+            # Exercise real persistence inside the isolated temp data dir.
             with (
                 patch("src.mcp.orchestrator.ObsidianParser"),
                 patch("src.mcp.orchestrator.ObsidianGenerator"),
-                patch("src.mcp.orchestrator.HebbianWeightManager"),
                 patch("src.mcp.orchestrator.LocalVectorStore") as MockVectorStore,
                 patch("src.mcp.orchestrator.MemoryBus") as MockMemoryBus,
             ):
@@ -289,8 +289,7 @@ class TestOrchestratorRouting:
 
         yield  # Run the test
 
-        # Clean up the temporary directory after the test
-        shutil.rmtree(self._temp_obsidian_vault)
+        # tmp_path owns cleanup; no live repository database is touched.
 
     def test_route_and_execute_task_success(self, mock_agent_a):
         # Dynamically create and register a mock agent to override the default Orchestrator agents

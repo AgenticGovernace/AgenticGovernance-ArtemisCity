@@ -9,12 +9,14 @@ the architecture described in Agent_Architecture__From_Prototypes_to_Production.
 from __future__ import annotations
 
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from src.obsidian_integration import ObsidianManager
 from src.utils.helpers import logger
 
+from .memory_decay import MemoryDecayService, MemoryNode
 from ..mcp.vector_store import LocalVectorStore
 
 # Lazy import to avoid circular dependency
@@ -94,12 +96,15 @@ class MemoryBus:
         vector_store: LocalVectorStore,
         search_dirs: Optional[List[str]] = None,
         governance_monitor=None,
+        memory_decay_service: Optional[MemoryDecayService] = None,
     ):
         self.obsidian_manager = obsidian_manager
         self.vector_store = vector_store
         self.search_dirs = search_dirs or []
         self._vault_path: Optional[Path] = getattr(obsidian_manager, "vault_path", None)
         self.governance_monitor = governance_monitor
+        self.memory_decay_service = memory_decay_service
+        self._load_decay_records()
 
     def write_note_with_embedding(
         self,
@@ -170,6 +175,8 @@ class MemoryBus:
             SYNC_LAG_GAUGE.set(total_latency_ms)
 
         self._record_governance_success()
+        if embed:
+            self._register_decay_record(doc_id, content)
 
         result = {
             "status": "success",
@@ -272,6 +279,9 @@ class MemoryBus:
         total_latency_ms = (time.perf_counter() - start) * 1000
         for record in results:
             record.setdefault("total_latency_ms", total_latency_ms)
+            path = record.get("path")
+            if isinstance(path, str) and path:
+                self._record_memory_access(self._normalize_doc_id(path))
 
         # Log to run logger
         run_logger = _get_run_logger()
@@ -291,6 +301,78 @@ class MemoryBus:
             )
 
         return results
+
+    def _load_decay_records(self) -> None:
+        """Hydrate the decay service from durable vector-store metadata."""
+        if self.memory_decay_service is None:
+            return
+        loader = getattr(self.vector_store, "get_decay_records", None)
+        if not callable(loader):
+            return
+        nodes = []
+        for record in loader():
+            try:
+                last_access = datetime.fromisoformat(record["last_access"])
+                created_at = datetime.fromisoformat(record["created_at"])
+            except (KeyError, TypeError, ValueError):
+                now = datetime.now(timezone.utc)
+                last_access = now
+                created_at = now
+            nodes.append(
+                MemoryNode(
+                    node_id=record["node_id"],
+                    content=record.get("content") or "",
+                    weight=float(record.get("weight", 1.0)),
+                    last_access=last_access,
+                    archived=bool(record.get("archived", False)),
+                    created_at=created_at,
+                )
+            )
+        self.memory_decay_service.register_nodes(nodes)
+
+    def _register_decay_record(self, doc_id: str, content: str) -> None:
+        if self.memory_decay_service is None:
+            return
+        self.memory_decay_service.register_node(
+            MemoryNode(node_id=doc_id, content=content, weight=1.0)
+        )
+
+    def _persist_decay_node(self, node: MemoryNode) -> None:
+        updater = getattr(self.vector_store, "update_decay_state", None)
+        if callable(updater):
+            updater(
+                node.node_id,
+                weight=node.weight,
+                last_access=node.last_access.isoformat(),
+                archived=node.archived,
+            )
+
+    def _record_memory_access(self, doc_id: str) -> None:
+        """Reset decay state, restoring an archived memory when read."""
+        if self.memory_decay_service is None:
+            return
+        node = self.memory_decay_service.get_node(doc_id)
+        if node is None:
+            return
+        if node.archived:
+            node = self.memory_decay_service.restore_node(doc_id)
+        else:
+            node = self.memory_decay_service.record_access(doc_id)
+        if node is not None:
+            self._persist_decay_node(node)
+
+    def run_memory_decay_cycle(self):
+        """Apply one durable decay pass to all vector-backed memories."""
+        if self.memory_decay_service is None:
+            return None
+        before = set(self.memory_decay_service.nodes)
+        result = self.memory_decay_service.run_decay_cycle()
+        after = set(self.memory_decay_service.nodes)
+        for node in self.memory_decay_service.all_nodes():
+            self._persist_decay_node(node)
+        for node_id in before - after:
+            self.vector_store.delete(node_id)
+        return result
 
     def _record_governance_failure(self, doc_id: str, path: str, error: str):
         """Notify governance monitor about a failed sync attempt."""

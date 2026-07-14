@@ -103,7 +103,7 @@ router.post(
     res.json({
       success: true,
       data,
-      message: 'Failure recorded as a registry violation',
+      message: 'Trust failure recorded and synchronized with the agent registry',
     });
   })
 );

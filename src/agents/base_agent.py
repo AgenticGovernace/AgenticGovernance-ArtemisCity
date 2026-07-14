@@ -212,6 +212,14 @@ class BaseAgent(ABC):
         # Basic validation - subclasses may add stricter checks
         return True
 
+    def get_sandbox_policies(self) -> list:
+        """Return tool policies required by this agent, empty by default."""
+        return []
+
+    def get_sandbox_actions(self, task_context: dict) -> list[dict]:
+        """Declare external/tool actions for dispatch-time governance checks."""
+        return []
+
     def __repr__(self) -> str:
         """Return a string representation of the agent."""
         return f"{self.__class__.__name__}(name={self.name!r}, capabilities={self.capabilities!r})"

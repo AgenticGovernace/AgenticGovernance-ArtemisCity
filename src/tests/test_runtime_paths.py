@@ -68,6 +68,7 @@ def test_core_stores_share_data_and_log_roots(tmp_path, monkeypatch):
         "ARTEMIS_RUN_LOG_DB",
         "ARTEMIS_KERNEL_STATE",
         "ARTEMIS_MEMORY_STORE_DIR",
+        "ARTEMIS_GOVERNANCE_DATA",
     ):
         monkeypatch.delenv(name, raising=False)
     other_cwd = tmp_path / "other"
@@ -76,12 +77,14 @@ def test_core_stores_share_data_and_log_roots(tmp_path, monkeypatch):
 
     from app.kernel.kernel import Kernel
     from src.integration.agent_registry import AgentRegistryStore
+    from src.integration.governance import GovernanceMonitor
     from src.integration.trust_interface import TrustStore
     from src.mcp.hebbian_weights import HebbianWeightManager
     from src.mcp.vector_store import LocalVectorStore
     from src.utils.run_logger import RunLogger
 
     registry = AgentRegistryStore()
+    governance = GovernanceMonitor()
     hebbian = HebbianWeightManager()
     vector = LocalVectorStore()
     trust = TrustStore()
@@ -89,6 +92,7 @@ def test_core_stores_share_data_and_log_roots(tmp_path, monkeypatch):
     kernel = Kernel()
 
     assert Path(registry.db_path) == runtime_data / "agent_registry.db"
+    assert governance.log_path == runtime_data / "governance_events.jsonl"
     assert Path(hebbian.db_path) == runtime_data / "hebbian_weights.db"
     assert Path(vector.db_path) == runtime_data / "vector_store.db"
     assert trust.db_path == runtime_data / "trust_scores.db"

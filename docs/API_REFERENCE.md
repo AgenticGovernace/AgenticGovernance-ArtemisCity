@@ -30,6 +30,10 @@ All routes below require the Express API authentication middleware except health
 | `PATCH /api/v1/registry/agents/:agentId/trust-tier` | Implemented | `registry.set_trust_tier` |
 | `POST /api/v1/governance/agents/:agentId/trust` | Implemented | `governance.compute_trust` |
 | `POST /api/v1/governance/updates` | Implemented | `governance.evaluate_update` |
+| `GET /api/v1/governance/checkpoints` | Implemented | `governance.checkpoints.list` |
+| `GET /api/v1/governance/checkpoints/:checkpointId` | Implemented | `governance.checkpoints.get` |
+| `POST /api/v1/governance/checkpoints` | Implemented | `governance.checkpoints.create` |
+| `POST /api/v1/governance/checkpoints/:checkpointId/rollback` | Implemented | `governance.checkpoints.rollback` |
 | `POST /api/v1/memory/read` | Implemented | `memory.read` |
 | `POST /api/v1/memory/write` | Implemented | `memory.write` |
 | `POST /api/v1/memory/search` | Implemented | `memory.search` |
@@ -58,6 +62,18 @@ All routes below require the Express API authentication middleware except health
 | `POST /api/v1/trust/:entityId/success` | Implemented | `trust.record_success` |
 | `GET /api/v1/trust/:entityId/permissions` | Implemented | `trust.permissions` |
 | `POST /api/v1/trust/:entityId/can-perform` | Implemented | `trust.can_perform` |
+
+Trust mutations are write-through for agent entities: the bridge synchronizes
+the authoritative registry projection and `data/trust_scores.db`. Governance
+violations recalculate trust from execution history plus active violations but
+do not alter capability-scoped Hebbian weights. Manual Hebbian edits refresh
+the corresponding registry learning summary without incrementing execution
+counts.
+
+Checkpoint rollback requires both `confirmed: true` and `initiated_by`. The
+checkpoint integrity hash is verified before atomically restoring registry and
+Hebbian snapshots; restored registry trust is then reconciled into the trust
+projection.
 
 ### Bridge Error Mapping
 

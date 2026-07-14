@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import fnmatch
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Callable, Iterable, List, Optional
 
 from src.utils.helpers import logger
 
@@ -85,10 +85,43 @@ class AgentSandbox:
         registry is required for violations to be persisted / counted.
     """
 
-    def __init__(self, agent_name, policies=None, registry=None):
+    def __init__(
+        self,
+        agent_name,
+        policies=None,
+        registry=None,
+        violation_recorder: Optional[Callable[[str, str, dict], dict]] = None,
+        capabilities: Optional[Iterable[str]] = None,
+    ):
         self.agent_name = agent_name
         self.registry = registry
         self.policies = {p.name: p for p in (policies or [])}
+        self.violation_recorder = violation_recorder
+        self.capabilities = set(capabilities or [])
+
+    def check_dispatch(self, required_capability: Optional[str]) -> CheckResult:
+        """Validate governance state and capability before agent execution.
+
+        Tool calls still use :meth:`check_action`; this preflight closes the
+        production dispatch gap even for agents that do not yet expose an
+        internal tool-call mediation hook.
+        """
+        if self.registry is not None and self.registry.is_quarantined(self.agent_name):
+            return CheckResult(
+                allowed=False,
+                violation_type=None,
+                reason="agent is quarantined",
+            )
+        if required_capability and required_capability not in self.capabilities:
+            return self._deny(
+                VIOLATION_MISSING_CAPABILITY,
+                f"agent does not declare capability {required_capability!r}",
+                {
+                    "required_capability": required_capability,
+                    "declared_capabilities": sorted(self.capabilities),
+                },
+            )
+        return CheckResult(allowed=True)
 
     def check_action(
         self,
@@ -154,6 +187,8 @@ class AgentSandbox:
             violation_type,
             reason,
         )
-        if self.registry is not None:
+        if self.violation_recorder is not None:
+            self.violation_recorder(self.agent_name, violation_type, details)
+        elif self.registry is not None:
             self.registry.record_violation(self.agent_name, violation_type, details)
         return CheckResult(allowed=False, violation_type=violation_type, reason=reason)

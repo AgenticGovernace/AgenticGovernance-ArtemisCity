@@ -95,3 +95,18 @@ def test_query_can_include_content(vector_store):
     assert doc_id == "doc1"
     assert "path" in metadata
     assert "embedded content" in content
+
+
+def test_decay_metadata_is_persisted(vector_store):
+    vector_store.upsert("doc1", "content")
+    assert vector_store.update_decay_state(
+        "doc1",
+        weight=0.75,
+        last_access="2026-01-01T00:00:00+00:00",
+        archived=True,
+    )
+
+    record = vector_store.get_decay_records()[0]
+    assert record["weight"] == pytest.approx(0.75)
+    assert record["archived"] is True
+    assert record["last_access"] == "2026-01-01T00:00:00+00:00"

@@ -11,6 +11,14 @@ class SummarizerAgent(BaseAgent):
         super().__init__(name, capabilities=["text_summarization"])
         self.llm_agent = LLMAgent()
 
+    def get_sandbox_policies(self) -> list:
+        return self.llm_agent.get_sandbox_policies()
+
+    def get_sandbox_actions(self, task_context: dict) -> list[dict]:
+        if task_context.get("disable_llm_delegate") is True:
+            return []
+        return self.llm_agent.get_sandbox_actions(task_context)
+
     def perform_task(self, task_context: dict) -> dict:
         """Perform task.
 

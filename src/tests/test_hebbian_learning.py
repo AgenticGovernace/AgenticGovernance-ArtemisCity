@@ -2,6 +2,7 @@
 Tests for Hebbian learning implementation.
 """
 
+import math
 import os
 import tempfile
 from unittest.mock import MagicMock
@@ -56,6 +57,90 @@ class TestHebbianWeightManager:
         assert hebbian_manager is not None
         summary = hebbian_manager.get_network_summary()
         assert summary["total_connections"] == 0
+
+    def test_record_outcome_uses_nonlinear_simulation_rule(self, hebbian_manager):
+        """Runtime success uses tanh reinforcement, decay, and scoped storage."""
+        update = hebbian_manager.record_outcome(
+            "agent_a",
+            "task_1",
+            success=True,
+            performance=0.8,
+            task_type="research",
+            duration_ms=25.0,
+        )
+
+        expected_delta = math.tanh(0.1 * 0.8)
+        expected_weight = (1.0 + expected_delta) * 0.99
+        assert update["delta"] == pytest.approx(expected_delta)
+        assert update["weight"] == pytest.approx(expected_weight)
+        assert hebbian_manager.get_weight("agent_a", "task_1") == pytest.approx(
+            expected_weight
+        )
+        assert hebbian_manager.get_task_type_weight(
+            "agent_a", "research"
+        ) == pytest.approx(expected_weight)
+
+    def test_record_outcome_applies_anti_hebbian_update_and_global_decay(
+        self, hebbian_manager
+    ):
+        """A failed run penalizes its edge and decays prior connections once."""
+        first = hebbian_manager.record_outcome(
+            "agent_a",
+            "task_1",
+            success=True,
+            performance=1.0,
+            task_type="research",
+        )
+        failed = hebbian_manager.record_outcome(
+            "agent_b",
+            "task_2",
+            success=False,
+            performance=0.0,
+            task_type="research",
+        )
+
+        assert failed["delta"] == pytest.approx(-0.1)
+        assert failed["weight"] == pytest.approx((1.0 - 0.1) * 0.99)
+        assert hebbian_manager.get_weight("agent_a", "task_1") == pytest.approx(
+            first["weight"] * 0.99
+        )
+
+    def test_record_outcome_persists_pair_timing_and_compounding_signals(
+        self, hebbian_manager
+    ):
+        """Sequential and rolling subsystems from the full simulation are live."""
+        hebbian_manager.record_outcome(
+            "agent_a",
+            "task_a",
+            success=True,
+            performance=0.9,
+            task_type="research",
+            duration_ms=100,
+        )
+        update = hebbian_manager.record_outcome(
+            "agent_b",
+            "task_b",
+            success=True,
+            performance=0.8,
+            task_type="research",
+            duration_ms=80,
+        )
+        for index in range(4):
+            update = hebbian_manager.record_outcome(
+                "agent_b",
+                f"task_b_{index}",
+                success=True,
+                performance=0.8,
+                task_type="research",
+                duration_ms=80,
+            )
+
+        assert update["pair_information"] > 0
+        assert hebbian_manager.get_timing_score("agent_b", "research") == pytest.approx(
+            0.8
+        )
+        compounding = hebbian_manager.get_compounding_value()
+        assert compounding["routing_intelligence"] >= compounding["pair_information"]
 
     def test_strengthen_connection_new(self, hebbian_manager):
         """Test strengthening a new connection.
@@ -347,6 +432,8 @@ class TestHebbianIntegration:
         """
         temp_vault = tmp_path / "obsidian_vault"
         temp_vault.mkdir(parents=True, exist_ok=True)
+        monkeypatch.setenv("ARTEMIS_DATA_DIR", str(tmp_path / "data"))
+        monkeypatch.setenv("ARTEMIS_LOG_DIR", str(tmp_path / "logs"))
 
         # Patch both config and orchestrator module constants before instantiation
         import src.mcp.config as config

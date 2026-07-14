@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 
 from src.agents.llm_agent import DEFAULT_EXO_MODEL_ID, LLMAgent
+from src.integration.sandbox import AgentSandbox
 
 
 def _http_error(status_code: int, message: str = "endpoint failed") -> Exception:
@@ -39,6 +40,24 @@ class TestLLMAgent:
         assert result["model"] == "test-model"
         assert result["model_url"] == "http://localhost:52415/v1"
         assert post.call_args.args[0] == "http://localhost:52415/v1/chat/completions"
+
+    def test_sandbox_allows_configured_exo_origin_and_denies_redirect(self):
+        agent = LLMAgent(base_url="http://localhost:52415", model_id="test-model")
+        sandbox = AgentSandbox(
+            agent.name,
+            policies=agent.get_sandbox_policies(),
+            capabilities=agent.capabilities,
+        )
+
+        configured = agent.get_sandbox_actions(
+            {"model_url": "http://localhost:52415/models/test-model"}
+        )[0]
+        redirected = agent.get_sandbox_actions(
+            {"model_url": "https://untrusted.example/v1"}
+        )[0]
+
+        assert sandbox.check_action(**configured).allowed is True
+        assert sandbox.check_action(**redirected).allowed is False
 
     def test_perform_task_appends_v1_to_task_model_url(self):
         """A task-level model URL is exposed as a /v1 API base."""

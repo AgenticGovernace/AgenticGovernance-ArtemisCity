@@ -10,15 +10,12 @@ current trust score::
                  + alpha * hebbian_norm(agent)
                  + beta  * trust_score(agent)
 
-``hebbian_norm`` is the agent's weight for the requested task type, normalised
-across the current candidates to ``[0, 1]``. Legacy databases without scoped
-connections fall back to the agent-wide average. With no Hebbian history (cold
-start) every candidate gets a neutral prior, so routing reduces to the
-composite-score ranking the registry already uses. Then, as the orchestrator
-strengthens (+1) / weakens (-1) agent-to-task-type connections after each run,
-proven specialists are increasingly preferred. This is the production wiring of the adaptive
-agent-selection rule prototyped in the ML notebooks (the highest-weight agent
-wins, weights move by +/-1 on success/failure).
+``hebbian_norm`` is the simulation's effective signal — scoped individual
+weight + rolling timing score + sequential pair bonus — normalized across the
+current candidates to ``[0, 1]``. Legacy databases without scoped connections
+fall back to the agent-wide average. With no learning history (cold start)
+every candidate gets a neutral prior, so routing reduces to the composite-score
+ranking the registry already uses.
 
 ``trust_score`` is the agent's current trust value in ``[0, 1]`` from
 :class:`~src.integration.trust_interface.TrustInterface` (already decayed to
@@ -76,6 +73,9 @@ class CandidateScore:
     hebbian_norm: float  # normalised across candidates, [0, 1]
     trust_score: float  # current trust in [0, 1] (already decay-adjusted)
     blended: float
+    pair_bonus: float = 0.0
+    timing_score: Optional[float] = None
+    hebbian_effective: float = 0.0
 
 
 @dataclass
@@ -244,30 +244,57 @@ class HebbianRouter:
                 )
             return None
 
-        raw = {
-            name: (self._composite(name), self._hebbian_weight(name, capability))
-            for name in candidates
-        }
-        max_heb = max((heb for _, heb in raw.values() if heb is not None), default=0.0)
+        raw = {}
+        for name in candidates:
+            base = self._hebbian_weight(name, capability)
+            pair_bonus = self._pair_bonus(name)
+            timing_score = self._timing_score(name, capability)
+            effective = None
+            if base is not None or timing_score is not None or pair_bonus != 0.0:
+                effective = max(
+                    0.0,
+                    float(base or 0.0) + float(timing_score or 0.0) + pair_bonus,
+                )
+            raw[name] = (
+                self._composite(name),
+                base,
+                pair_bonus,
+                timing_score,
+                effective,
+            )
+        max_heb = max(
+            (values[4] for values in raw.values() if values[4] is not None),
+            default=0.0,
+        )
         composite_weight = max(0.0, 1.0 - self.alpha - self.beta)
 
         scored: List[CandidateScore] = []
         for name in candidates:
-            composite, scoped_heb = raw[name]
+            composite, scoped_heb, pair_bonus, timing_score, effective = raw[name]
             # Cold start (no weights anywhere) -> neutral prior for everyone, so
             # ranking collapses to the composite + trust portion.
-            if scoped_heb is None:
+            if effective is None:
                 heb_raw = 0.0
                 heb_norm = self.neutral_prior
             else:
-                heb_raw = scoped_heb
-                heb_norm = heb_raw / max_heb if max_heb > 0 else self.neutral_prior
+                heb_raw = float(scoped_heb or 0.0)
+                heb_norm = effective / max_heb if max_heb > 0 else self.neutral_prior
             trust = trusts[name]
             blended = (
                 composite_weight * composite + self.alpha * heb_norm + self.beta * trust
             )
             scored.append(
-                CandidateScore(name, composite, heb_raw, heb_norm, trust, blended)
+                CandidateScore(
+                    name=name,
+                    composite=composite,
+                    hebbian_weight=heb_raw,
+                    hebbian_norm=heb_norm,
+                    trust_score=trust,
+                    blended=blended,
+                    pair_bonus=pair_bonus,
+                    timing_score=timing_score,
+                    hebbian_effective=float(effective or 0.0),
+                )
             )
 
         # Deterministic order: highest blended, then composite; name ascending
@@ -358,6 +385,17 @@ class HebbianRouter:
         beta term contributes a constant and ranking collapses to composite
         + Hebbian — the same behavior as ``beta == 0``.
         """
+        # The registry is the execution/governance source of truth and is
+        # updated atomically with Hebbian fields. Prefer it so a newly recorded
+        # violation affects the very next route even before any cross-store
+        # trust synchronization occurs.
+        try:
+            state = self.registry.get_governance_state(name)
+            registry_score = state.get("trust_score") if state else None
+            if registry_score is not None:
+                return max(0.0, min(1.0, float(registry_score)))
+        except Exception:  # pragma: no cover - defensive
+            pass
         if self.trust_interface is None:
             return NEUTRAL_TRUST
         try:
@@ -368,3 +406,26 @@ class HebbianRouter:
             return max(0.0, min(1.0, float(raw)))
         except Exception:  # mocked/missing source -> neutral prior
             return NEUTRAL_TRUST
+
+    def _pair_bonus(self, name: str) -> float:
+        """Sequential hand-off bonus from the last selected agent."""
+        try:
+            getter = getattr(self.hebbian, "get_pair_bonus", None)
+            if not callable(getter):
+                return 0.0
+            return max(-0.5, min(0.5, float(getter(name))))
+        except Exception:  # pragma: no cover - defensive
+            return 0.0
+
+    def _timing_score(self, name: str, task_type: str) -> Optional[float]:
+        """Rolling timing/performance activation, or None on cold start."""
+        try:
+            getter = getattr(self.hebbian, "get_timing_score", None)
+            if not callable(getter):
+                return None
+            score = getter(name, task_type)
+            if score is None:
+                return None
+            return max(0.0, min(1.0, float(score)))
+        except Exception:  # pragma: no cover - defensive
+            return None

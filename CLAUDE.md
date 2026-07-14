@@ -761,7 +761,7 @@ user instructions here. The response is `ExecuteInstructionResponse`:
 | `note_path` | `str \| None` | Vault-relative path to the persisted report. |
 | `error` | `str \| None` | Failure detail when `status == "failed"`. |
 | `agent_name` | `str \| None` | Which agent actually executed — either the request's `agent` (when pinned) or the agent the Hebbian router picked. |
-| `routing` | `dict \| None` | `HebbianRouter.RoutingDecision.to_dict()` shape: `agent_name`, `alpha`, `beta`, `trust_floor`, `fallback_from`, and `candidates[]` (each carrying `name`, `composite`, `hebbian_weight`, `hebbian_norm`, `trust_score`, `blended`). `None` when the caller pinned `agent` explicitly. |
+| `routing` | `dict \| None` | `HebbianRouter.RoutingDecision.to_dict()` shape: `agent_name`, `alpha`, `beta`, `trust_floor`, `fallback_from`, and `candidates[]` (each carrying `name`, `composite`, `hebbian_weight`, `pair_bonus`, `timing_score`, `hebbian_effective`, `hebbian_norm`, `trust_score`, `blended`). `None` when the caller pinned `agent` explicitly. |
 
 Behaviorally: when the request lacks an `agent`, the handler calls
 `orchestrator.hebbian_router.route(task_data)` to capture the decision
@@ -782,11 +782,13 @@ env:
 | `ARTEMIS_ROUTING_TRUST_FLOOR` | `0.0` | Hard cutoff: agents with trust below this are excluded before scoring. `0` disables floor exclusion. |
 | `ARTEMIS_ROUTING_FALLBACK_CAPABILITY` | `llm_chat` | Capability to retry on if no agent advertises the requested one. Empty string disables fallback. |
 
-`TrustInterface` is only instantiated when `beta > 0` or
-`trust_floor > 0`, so the orchestrator pays no trust-DB cost when the
-trust signal is disabled. Any failure constructing the trust source
-logs a warning and leaves the router running in its 2-signal
-configuration — trust-aware routing is best-effort, not load-bearing.
+`TrustInterface` is instantiated for every orchestrator so completed outcomes
+always update `data/trust_scores.db`, even when `beta == 0` and trust is not a
+routing signal. The governance formula is computed from persisted executions
+and violations, mirrored into `data/agent_registry.db`, and synchronized to
+the trust store. Any failure constructing the trust source logs a warning and
+leaves the router running without the trust signal — trust persistence remains
+best-effort, not load-bearing.
 
 ### `GET /api/agents`
 
@@ -840,10 +842,26 @@ introduced in #74 (data model), #75 (HTTP boundary), and #76 (trust engine
 | Concern | File |
 |---|---|
 | Trust tiers, violations, quarantine | `src/integration/agent_registry.py` (extends the `agents` table via idempotent `ALTER TABLE` migration; `violations` table; `record_violation`, `clear_violations`, `set_trust_tier`) |
+| Learning/governance write-through | `src/integration/learning_governance.py` (registry-authoritative trust synchronization, administrative Hebbian mirrors, automatic pre-mutation checkpoints) |
 | Sandbox enforcement | `src/integration/sandbox.py` (`AgentSandbox`, `ToolPolicy`; 3-strike quarantine via the registry) |
 | Checkpoints + rollback | `src/governance/checkpoints.py` (JSON files with SHA-256 integrity hash, retention window, `RollbackManager`) |
 | Trust-score formula | `src/governance/trust.py` (weighted sub-metrics — see the module docstring for the spec-typo note about the security sign) |
 | Approval tiers | `src/governance/approvals.py` (`SelfUpdateGovernor` → `auto | monitored | human`) |
+
+Every dispatch runs a sandbox capability preflight. Agents that perform
+external actions declare them through `get_sandbox_policies()` and
+`get_sandbox_actions()`; the built-in LLM-backed agents whitelist only their
+configured Exo endpoint, so a task cannot redirect inference to an arbitrary
+network target.
+
+Vector-memory decay is live through `MemoryBus`: saliency, last access, and
+archive state are stored in `data/vector_store.db`, reads restore archived
+records, and the orchestrator runs one decay cycle at boot. Disable only for
+diagnostics with `ARTEMIS_MEMORY_DECAY_ENABLED=0`.
+
+The Express governance boundary exposes authenticated checkpoint create/list/
+inspect/rollback routes. Rollback requires explicit confirmation and restores
+both registry and Hebbian snapshots after SHA-256 verification.
 
 For the *why* and the spec these implement, read `docs/ARCHITECTURE.md`
 and `docs/API_REFERENCE.md`.

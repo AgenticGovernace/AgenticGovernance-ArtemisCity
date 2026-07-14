@@ -5,6 +5,9 @@ from __future__ import annotations
 import json
 import os
 import typing
+from urllib.parse import urlsplit
+
+from src.integration.sandbox import ToolPolicy
 
 from . import base_agent
 
@@ -70,6 +73,31 @@ class LLMAgent(base_agent.BaseAgent):
         self.model_id = configured_model or DEFAULT_EXO_MODEL_ID
         self.timeout_seconds = timeout_seconds
         self.api_key = os.getenv("EXO_API_KEY", "").strip()
+
+    def get_sandbox_policies(self) -> list[ToolPolicy]:
+        """Allow chat calls only to the configured Exo endpoint."""
+        parsed = urlsplit(self.model_url)
+        allowed_origin = f"{parsed.scheme}://{parsed.netloc}"
+        return [
+            ToolPolicy(
+                name="exo_http",
+                paths=[f"{allowed_origin}/**"],
+                operations=["chat"],
+            )
+        ]
+
+    def get_sandbox_actions(self, task_context: dict) -> list[dict]:
+        """Declare the endpoint call performed by :meth:`perform_task`."""
+        model_url = self._with_v1_path(
+            str(task_context.get("model_url") or self.model_url)
+        )
+        return [
+            {
+                "tool_name": "exo_http",
+                "path": model_url,
+                "operation": "chat",
+            }
+        ]
 
     def perform_task(self, task_context: dict) -> dict:
         """Execute an LLM task via Exo and return a normalized result payload."""

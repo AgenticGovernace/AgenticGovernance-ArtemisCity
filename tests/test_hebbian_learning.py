@@ -326,6 +326,8 @@ class TestHebbianIntegration:
         """
         temp_vault = tmp_path / "obsidian_vault"
         temp_vault.mkdir(parents=True, exist_ok=True)
+        monkeypatch.setenv("ARTEMIS_DATA_DIR", str(tmp_path / "data"))
+        monkeypatch.setenv("ARTEMIS_LOG_DIR", str(tmp_path / "logs"))
 
         # Patch both config and orchestrator module constants before instantiation
         import src.mcp.config as config
