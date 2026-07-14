@@ -15,7 +15,7 @@ vector_store:
   path: data/vector_store.db
 
 huggingface:
-  api_key: ${HUGGINGFACE_API_KEY}
+  api_key: ${HF_TOKEN}
 
 database:
   url: postgresql://postgres:postgres@localhost:5432/postgres

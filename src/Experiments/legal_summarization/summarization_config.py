@@ -42,8 +42,9 @@ class SummarizationConfig:
     """Immutable run configuration for a summarization batch.
 
     Attributes:
-        dataset_config: Which HF config subset to load
-            (``summary_en``, ``summary_ur``, ``summary_sd``).
+        dataset_config: Historical field name for the optional task-column
+            filter (for example ``summary_en``). The loader separately owns
+            the Hub repository's named dataset configuration.
         mode: Abstractive (LLM) or extractive.
         aggregation: Single-judgment or batch-aggregated summaries.
         audience: Target audience — controls prompt tone and detail.

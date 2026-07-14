@@ -1,262 +1,360 @@
-"""Load Pakistani Legal Judgments dataset from local parquet or HuggingFace Hub.
+"""Dataset loading for the legal summarization evaluation pipeline.
 
-The dataset (amjadali070/legal-judgements-en-ur-sd) is a single ``default``
-config with a ``task`` column that labels each row as one of:
-  repair, summary_en, summary_ur, summary_sd, translation_ur, translation_sd
+The default source is ``amjadali070/legal-judgements-en-ur-sd`` on the
+Hugging Face Hub, but every important loading option is configurable. Local
+Parquet remains supported for offline/reproducible runs.
 
-Each record has: instruction, input, output, task.
-
-For summarization we care about ``summary_en``, ``summary_ur``, ``summary_sd``
-where ``input`` is the full judgment and ``output`` is the reference summary.
+Authentication is intentionally resolved without accepting a token as a CLI
+argument (command-line arguments are visible in process listings). The loader
+uses, in order: an explicitly supplied programmatic token, ``HF_TOKEN``, the
+legacy Artemis ``HUGGINGFACE_API_KEY``, or a hidden runtime prompt when the
+caller explicitly requests one.
 """
 
 from __future__ import annotations
 
+import getpass
 import logging
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Callable, Iterator, Optional
 
 logger = logging.getLogger("legal_summarization.dataset_loader")
 
-# Default local clone of the HF repo inside the Exo Homelab folder.
-_DEFAULT_LOCAL_PATH = os.getenv(
-    "LEGAL_DATASET_PATH",
-    "/Volumes/projects/GitHub/AgenticGovernance-ArtemisCity/src/Experiments/legal_summarization/legal-judgements-en-ur-sd",
-)
-
 HF_REPO_ID = "amjadali070/legal-judgements-en-ur-sd"
+HF_REVISION = "main"
+TOKEN_ENV_VARS = ("HF_TOKEN", "HUGGINGFACE_API_KEY")
 
 
 @dataclass(frozen=True)
 class JudgmentRecord:
-    """Single record from the legal judgments dataset."""
+    """One source/reference pair prepared for evaluation."""
 
     index: int
     instruction: str
     input_text: str
     output_text: str
     task: str
-    config: str  # e.g. "summary_en"
-    split: str  # e.g. "train"
+    config: str
+    split: str
+
+
+def resolve_hf_token(
+    explicit_token: Optional[str] = None,
+    *,
+    prompt: bool = False,
+    prompt_fn: Optional[Callable[[str], str]] = None,
+) -> tuple[Optional[str], str]:
+    """Resolve a Hub token without logging or persisting its value.
+
+    Returns:
+        ``(token, source)`` where source is one of ``explicit``, ``HF_TOKEN``,
+        ``HUGGINGFACE_API_KEY``, ``prompt``, or ``none``.
+    """
+    if explicit_token and explicit_token.strip():
+        return explicit_token.strip(), "explicit"
+
+    for env_name in TOKEN_ENV_VARS:
+        value = os.getenv(env_name, "").strip()
+        if value:
+            return value, env_name
+
+    if not prompt:
+        return None, "none"
+
+    if prompt_fn is None:
+        if not sys.stdin.isatty():
+            raise RuntimeError(
+                "Cannot request a Hugging Face token without an interactive terminal. "
+                "Set HF_TOKEN in the repository .env file instead."
+            )
+        prompt_fn = getpass.getpass
+
+    value = prompt_fn("Hugging Face token (input hidden): ").strip()
+    if not value:
+        raise RuntimeError("No Hugging Face token was provided.")
+    return value, "prompt"
 
 
 class LegalDatasetLoader:
-    """Loads legal judgment data from local parquet files or the HF Hub.
-
-    Strategy:
-        1. Try loading from local parquet files under ``local_path/<config>/<split>-*.parquet``.
-        2. If local files are empty stubs (< 1 KB) or missing, fall back to
-           ``datasets.load_dataset`` from HuggingFace Hub.
-    """
+    """Load configurable source/reference records from local files or the Hub."""
 
     SUMMARIZATION_CONFIGS = ("summary_en", "summary_ur", "summary_sd")
     ALL_CONFIGS = (
         "repair",
+        "repair_en",
         "summary_en",
         "summary_ur",
         "summary_sd",
         "translation_ur",
         "translation_sd",
     )
+    SOURCES = ("auto", "local", "hub")
 
-    def __init__(self, local_path: Optional[str] = None):
-        self.local_path = Path(local_path or _DEFAULT_LOCAL_PATH)
+    def __init__(
+        self,
+        local_path: Optional[str] = None,
+        *,
+        source: str = "auto",
+        dataset_id: Optional[str] = None,
+        dataset_name: Optional[str] = None,
+        revision: Optional[str] = None,
+        cache_dir: Optional[str] = None,
+        data_files: Optional[list[str]] = None,
+        streaming: bool = False,
+        token: Optional[str] = None,
+        prompt_for_token: bool = False,
+        input_column: str = "input",
+        reference_column: str = "output",
+        instruction_column: str = "instruction",
+        task_column: str = "task",
+    ) -> None:
+        normalized_source = source.strip().lower()
+        if normalized_source not in self.SOURCES:
+            raise ValueError(f"source must be one of: {', '.join(self.SOURCES)}")
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
+        configured_local = local_path or os.getenv("LEGAL_DATASET_PATH")
+        self.local_path = (
+            Path(configured_local).expanduser() if configured_local else None
+        )
+        self.source = normalized_source
+        self.dataset_id = (
+            dataset_id or os.getenv("LEGAL_DATASET_ID") or HF_REPO_ID
+        ).strip()
+        self.dataset_name = dataset_name or os.getenv("LEGAL_DATASET_NAME") or None
+        self._resolved_dataset_name = self.dataset_name
+        self.revision = (
+            revision or os.getenv("LEGAL_DATASET_REVISION") or HF_REVISION
+        ).strip()
+        self.cache_dir = cache_dir or os.getenv("HF_DATASETS_CACHE") or None
+        self.data_files = list(data_files or []) or None
+        self.streaming = bool(streaming)
+        self._explicit_token = token
+        self.prompt_for_token = bool(prompt_for_token)
+        self.input_column = input_column
+        self.reference_column = reference_column
+        self.instruction_column = instruction_column
+        self.task_column = task_column
+        self.last_load_info: dict = self._source_info(source_used=None)
 
     def load(
         self,
-        config: str = "summary_en",
+        config: Optional[str] = "summary_en",
         split: str = "train",
         limit: Optional[int] = None,
     ) -> list[JudgmentRecord]:
-        """Load records for a given config and split.
+        """Load one dataset slice and normalize its source/reference columns."""
+        if limit is not None and limit < 1:
+            raise ValueError("limit must be at least 1 when provided")
 
-        Args:
-            config: Dataset configuration name.
-            split: Dataset split (train, validation, test).
-            limit: Maximum records to return. ``None`` returns all.
+        if self.source in {"auto", "local"}:
+            records = list(self._iter_local(config, split, limit))
+            if records:
+                self.last_load_info = self._source_info(
+                    source_used="local", record_count=len(records)
+                )
+                logger.info("Loaded %d records from local Parquet", len(records))
+                return records
+            if self.source == "local":
+                self.last_load_info = self._source_info(
+                    source_used="local", record_count=0
+                )
+                return []
 
-        Returns:
-            List of ``JudgmentRecord``.
-        """
-        if config not in self.ALL_CONFIGS:
-            raise ValueError(
-                f"Unknown config '{config}'. Choose from: {self.ALL_CONFIGS}"
-            )
-
-        records = list(self._iter_local(config, split, limit))
-        if records:
-            logger.info(
-                "Loaded %d records from local parquet (%s/%s)",
-                len(records),
-                config,
-                split,
-            )
-            return records
-
-        logger.info(
-            "Local parquet empty or missing for %s/%s — falling back to HuggingFace Hub",
-            config,
-            split,
-        )
         records = list(self._iter_huggingface(config, split, limit))
+        self.last_load_info = self._source_info(
+            source_used="hub",
+            record_count=len(records),
+            token_source=self.last_load_info.get("token_source", "none"),
+        )
         logger.info(
-            "Loaded %d records from HuggingFace Hub (%s/%s)",
+            "Loaded %d records from Hugging Face dataset %s at %s",
             len(records),
-            config,
-            split,
+            self.dataset_id,
+            self.revision,
         )
         return records
 
     def available_configs(self) -> list[str]:
-        """Return configs that have local data directories.
+        """Return task/config directories available under the local source."""
+        if self.local_path is None or not self.local_path.is_dir():
+            return []
+        return [cfg for cfg in self.ALL_CONFIGS if (self.local_path / cfg).is_dir()]
 
-        Returns:
-            list[str]: Dataset configuration names that are present under the local data path.
-        """
-        found = []
-        for cfg in self.ALL_CONFIGS:
-            cfg_dir = self.local_path / cfg
-            if cfg_dir.is_dir():
-                found.append(cfg)
-        return found
-
-    def describe(self, config: str = "summary_en", split: str = "train") -> dict:
-        """Return quick metadata about a config and split without loading the full dataset.
-
-        Args:
-            config (str): Dataset configuration to inspect.
-            split (str): Dataset split to inspect.
-
-        Returns:
-            dict: Lightweight metadata describing the selected dataset slice.
-        """
+    def describe(
+        self,
+        config: Optional[str] = "summary_en",
+        split: str = "train",
+    ) -> dict:
+        """Load a small sample and return source/schema metadata without secrets."""
         records = self.load(config, split, limit=5)
         return {
-            "config": config,
+            **self.last_load_info,
+            "task_filter": config,
             "split": split,
             "sample_count": len(records),
-            "fields": ["instruction", "input_text", "output_text", "task"],
+            "fields": {
+                "instruction": self.instruction_column,
+                "input": self.input_column,
+                "reference": self.reference_column,
+                "task": self.task_column,
+            },
             "sample_input_length": len(records[0].input_text) if records else 0,
-            "sample_output_length": len(records[0].output_text) if records else 0,
+            "sample_reference_length": len(records[0].output_text) if records else 0,
         }
 
-    # ------------------------------------------------------------------
-    # Local parquet loading
-    # ------------------------------------------------------------------
+    def _source_info(
+        self,
+        *,
+        source_used: Optional[str],
+        record_count: Optional[int] = None,
+        token_source: str = "unresolved",
+    ) -> dict:
+        return {
+            "source": source_used or self.source,
+            "dataset_id": self.dataset_id,
+            "dataset_name": self._resolved_dataset_name,
+            "revision": self.revision,
+            "streaming": self.streaming,
+            "local_path": str(self.local_path) if self.local_path else None,
+            "cache_dir": self.cache_dir,
+            "token_source": token_source,
+            "authenticated": token_source not in {"none", "unresolved"},
+            "record_count": record_count,
+        }
 
     def _iter_local(
-        self, config: str, split: str, limit: Optional[int]
+        self,
+        config: Optional[str],
+        split: str,
+        limit: Optional[int],
     ) -> Iterator[JudgmentRecord]:
-        cfg_dir = self.local_path / config
-        if not cfg_dir.is_dir():
+        if self.local_path is None or not self.local_path.exists():
             return
 
-        parquet_files = sorted(cfg_dir.glob(f"{split}-*.parquet"))
-        if not parquet_files:
-            # Also try without split prefix (some layouts use 0000-of-0001.parquet)
-            parquet_files = sorted(cfg_dir.glob("*.parquet"))
+        base = self.local_path
+        if base.is_file():
+            parquet_files = [base] if base.suffix == ".parquet" else []
+        else:
+            config_dir = base / config if config and (base / config).is_dir() else base
+            parquet_files = sorted(config_dir.glob(f"{split}-*.parquet"))
+            if not parquet_files:
+                parquet_files = sorted(config_dir.glob("*.parquet"))
 
-        if not parquet_files:
-            return
-
-        # Skip stub files (the HF repo sometimes has tiny pointer files)
-        real_files = [f for f in parquet_files if f.stat().st_size > 1024]
+        real_files = [path for path in parquet_files if path.stat().st_size > 1024]
         if not real_files:
             return
 
         try:
             import pyarrow.parquet as pq
         except ImportError:
-            logger.warning("pyarrow not installed — cannot read local parquet files")
+            logger.warning("pyarrow is required to read local Parquet files")
             return
 
         count = 0
-        for pf in real_files:
-            table = pq.read_table(pf)
-            for i in range(table.num_rows):
+        for parquet_file in real_files:
+            table = pq.read_table(parquet_file)
+            for row_index in range(table.num_rows):
+                row = {
+                    column: table.column(column)[row_index].as_py()
+                    for column in table.column_names
+                }
+                record = self._record_from_row(row, count, config, split)
+                if record is None:
+                    continue
+                yield record
+                count += 1
                 if limit is not None and count >= limit:
                     return
-                row = {col: table.column(col)[i].as_py() for col in table.column_names}
-                yield JudgmentRecord(
-                    index=count,
-                    instruction=row.get("instruction", ""),
-                    input_text=row.get("input", ""),
-                    output_text=row.get("output", ""),
-                    task=row.get("task", ""),
-                    config=config,
-                    split=split,
-                )
-                count += 1
-
-    # ------------------------------------------------------------------
-    # HuggingFace Hub fallback
-    # ------------------------------------------------------------------
-
-    # Map our config names to the ``task`` column values in the dataset.
-    # Adjust if the actual task labels differ from the README.
-    _TASK_LABEL_MAP: dict[str, str | None] = {
-        "summary_en": "summary_en",
-        "summary_ur": "summary_ur",
-        "summary_sd": "summary_sd",
-        "repair": "repair",
-        "translation_ur": "translation_ur",
-        "translation_sd": "translation_sd",
-    }
 
     def _iter_huggingface(
-        self, config: str, split: str, limit: Optional[int]
+        self,
+        config: Optional[str],
+        split: str,
+        limit: Optional[int],
     ) -> Iterator[JudgmentRecord]:
         try:
             from datasets import load_dataset
-        except ImportError:
-            logger.error(
-                "Neither local parquet files nor the `datasets` library are available. "
-                "Install with: uv pip install datasets pyarrow"
+        except ImportError as exc:
+            raise RuntimeError(
+                "Hugging Face loading requires `datasets` and `pyarrow`. "
+                "Install the repository dependencies with `make install`."
+            ) from exc
+
+        self._resolved_dataset_name = self.dataset_name
+
+        token, token_source = resolve_hf_token(
+            self._explicit_token,
+            prompt=self.prompt_for_token,
+        )
+        self.last_load_info = self._source_info(
+            source_used="hub", token_source=token_source
+        )
+
+        try:
+            dataset = load_dataset(
+                path=self.dataset_id,
+                name=self._resolved_dataset_name,
+                split=split,
+                revision=self.revision,
+                token=token,
+                streaming=self.streaming,
+                cache_dir=self.cache_dir,
+                data_files=self.data_files,
             )
-            return
-
-        # The repo exposes a single 'default' config; we filter by task column.
-        ds = load_dataset(HF_REPO_ID, split=split, trust_remote_code=True)
-
-        task_label = self._TASK_LABEL_MAP.get(config, config)
-
-        # Discover actual task labels on first load for debugging
-        if hasattr(ds, "unique") and task_label:
-            try:
-                available_tasks = ds.unique("task")
-                logger.info("Available task labels in dataset: %s", available_tasks)
-                # Fuzzy match: if exact label missing, try case-insensitive / partial
-                if task_label not in available_tasks:
-                    for t in available_tasks:
-                        if config.replace("_", " ") in t.lower() or config in t.lower():
-                            logger.info(
-                                "Mapped config '%s' to task label '%s'", config, t
-                            )
-                            task_label = t
-                            break
-            except Exception:
-                pass
+        except Exception as exc:
+            message = str(exc).lower()
+            if any(marker in message for marker in ("401", "403", "gated", "token")):
+                raise RuntimeError(
+                    "Hugging Face authentication failed. Set HF_TOKEN in .env or "
+                    "rerun with --prompt-for-hf-token."
+                ) from exc
+            raise RuntimeError(
+                f"Unable to load Hugging Face dataset '{self.dataset_id}' "
+                f"at revision '{self.revision}': {exc}"
+            ) from exc
 
         count = 0
-        for row in ds:
-            # Filter to matching task
-            if task_label and row.get("task", "") != task_label:
+        for row in dataset:
+            record = self._record_from_row(row, count, config, split)
+            if record is None:
                 continue
+            yield record
+            count += 1
             if limit is not None and count >= limit:
                 return
-            yield JudgmentRecord(
-                index=count,
-                instruction=row.get("instruction", ""),
-                input_text=row.get("input", ""),
-                output_text=row.get("output", ""),
-                task=row.get("task", ""),
-                config=config,
-                split=split,
+
+    def _record_from_row(
+        self,
+        row: dict,
+        index: int,
+        config: Optional[str],
+        split: str,
+    ) -> Optional[JudgmentRecord]:
+        if self.input_column not in row:
+            available = ", ".join(sorted(str(key) for key in row))
+            raise ValueError(
+                f"Input column '{self.input_column}' is absent. Available columns: {available}"
             )
-            count += 1
+
+        task_value = str(row.get(self.task_column) or "")
+        if config:
+            if self.task_column not in row:
+                raise ValueError(
+                    f"Task filter '{config}' was requested but column "
+                    f"'{self.task_column}' is absent. Use --task-filter '' to disable it."
+                )
+            if task_value != config:
+                return None
+
+        return JudgmentRecord(
+            index=index,
+            instruction=str(row.get(self.instruction_column) or ""),
+            input_text=str(row.get(self.input_column) or ""),
+            output_text=str(row.get(self.reference_column) or ""),
+            task=task_value,
+            config=str(config or self.dataset_name or "all"),
+            split=split,
+        )

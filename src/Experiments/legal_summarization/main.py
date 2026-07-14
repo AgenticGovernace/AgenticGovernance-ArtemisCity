@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
-"""CLI entry point for the legal-judgment summarization experiment.
+r"""CLI entry point for the legal-judgment summarization experiment.
 
 Examples:
 
-    # Summarize 10 English judgments with default settings
-    python -m src.Experiments.legal_summarization.main --limit 10
+    # Inspect five streamed records from the default public Hub dataset
+    python -m src.Experiments.legal_summarization.main --describe --streaming
+
+    # Evaluate 10 English judgments with the extractive baseline
+    python -m src.Experiments.legal_summarization.main \
+        --mode extractive --limit 10
 
     # Summarize Urdu judgments for a general audience
     python -m src.Experiments.legal_summarization.main \\
-        --config summary_ur --audience general_public --limit 20
+        --task-filter summary_ur --audience general_public --limit 20
+
+    # Load a gated/private dataset using HF_TOKEN from .env (or prompt hidden)
+    python -m src.Experiments.legal_summarization.main \
+        --dataset-id owner/private-dataset --prompt-for-hf-token --describe
 
     # Aggregated batch summary across 5 judgments
     python -m src.Experiments.legal_summarization.main \\
@@ -39,6 +47,13 @@ from sys import path
 _repo_root = Path(__file__).resolve().parents[3]
 path.insert(0, str(_repo_root))
 
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - dependency is optional for direct use
+    pass
+else:
+    load_dotenv(_repo_root / ".env", override=False)
+
 from src.Experiments.legal_summarization.batch_runner import BatchRunner  # noqa: E402
 from src.Experiments.legal_summarization.dataset_loader import (  # noqa: E402
     LegalDatasetLoader,
@@ -66,7 +81,7 @@ def build_parser() -> argparse.ArgumentParser:
         argparse.ArgumentParser: Resulting argparse.ArgumentParser value produced by the operation.
     """
     p = argparse.ArgumentParser(
-        description="Legal Judgment Summarization — Daemon Experiment",
+        description="Legal Judgment Summarization — Artemis City Evaluation",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
@@ -74,15 +89,18 @@ def build_parser() -> argparse.ArgumentParser:
     run = p.add_argument_group("Summarization run")
     run.add_argument(
         "--config",
+        "--task-filter",
+        dest="task_filter",
         default="summary_en",
-        choices=LegalDatasetLoader.SUMMARIZATION_CONFIGS,
-        help="Dataset config subset (default: summary_en)",
+        help=(
+            "Value required in the task column (default: summary_en). "
+            "Pass an empty string to disable row filtering."
+        ),
     )
     run.add_argument(
         "--split",
         default="train",
-        choices=["train", "validation", "test"],
-        help="Dataset split (default: train)",
+        help="Dataset split or slice expression (default: train)",
     )
     run.add_argument("--limit", type=int, default=None, help="Max records to process")
     run.add_argument(
@@ -123,12 +141,59 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument("--tag", default="", help="Free-form tag for this run")
 
-    # --- Dataset path ---
-    p.add_argument(
+    # --- Dataset source ---
+    dataset = p.add_argument_group("Dataset loading")
+    dataset.add_argument(
+        "--dataset-source",
+        default="auto",
+        choices=LegalDatasetLoader.SOURCES,
+        help="auto tries local then Hub; local/hub force one source",
+    )
+    dataset.add_argument(
         "--dataset-path",
         default=None,
-        help="Override local dataset path (default: $LEGAL_DATASET_PATH or Exo_Homelab location)",
+        help="Local Parquet file/directory (default: $LEGAL_DATASET_PATH)",
     )
+    dataset.add_argument(
+        "--dataset-id",
+        default=None,
+        help="Hugging Face dataset repository (default: $LEGAL_DATASET_ID or built-in legal corpus)",
+    )
+    dataset.add_argument(
+        "--dataset-name",
+        default=None,
+        help="Optional named Hugging Face subset/configuration",
+    )
+    dataset.add_argument(
+        "--revision",
+        default=None,
+        help="Hub branch, tag, or commit SHA (default: $LEGAL_DATASET_REVISION or main)",
+    )
+    dataset.add_argument(
+        "--cache-dir",
+        default=None,
+        help="Hugging Face datasets cache directory",
+    )
+    dataset.add_argument(
+        "--data-file",
+        action="append",
+        default=None,
+        help="Repository data file/glob; repeat for multiple files",
+    )
+    dataset.add_argument(
+        "--streaming",
+        action="store_true",
+        help="Stream Hub rows instead of downloading the complete dataset",
+    )
+    dataset.add_argument(
+        "--prompt-for-hf-token",
+        action="store_true",
+        help="Request a missing Hugging Face token with hidden terminal input",
+    )
+    dataset.add_argument("--input-column", default="input")
+    dataset.add_argument("--reference-column", default="output")
+    dataset.add_argument("--instruction-column", default="instruction")
+    dataset.add_argument("--task-column", default="task")
 
     # --- Inspection commands ---
     info = p.add_argument_group("Inspection")
@@ -169,13 +234,27 @@ def main(argv: list[str] | None = None) -> None:
     """
     args = build_parser().parse_args(argv)
 
-    loader = LegalDatasetLoader(local_path=args.dataset_path)
+    loader = LegalDatasetLoader(
+        local_path=args.dataset_path,
+        source=args.dataset_source,
+        dataset_id=args.dataset_id,
+        dataset_name=args.dataset_name,
+        revision=args.revision,
+        cache_dir=args.cache_dir,
+        data_files=args.data_file,
+        streaming=args.streaming,
+        prompt_for_token=args.prompt_for_hf_token,
+        input_column=args.input_column,
+        reference_column=args.reference_column,
+        instruction_column=args.instruction_column,
+        task_column=args.task_column,
+    )
     store = RunStore()
 
     # --- Inspection commands (no summarization) ---
 
     if args.describe:
-        info = loader.describe(config=args.config, split=args.split)
+        info = loader.describe(config=args.task_filter or None, split=args.split)
         print(json.dumps(info, indent=2))
         return
 
@@ -231,7 +310,7 @@ def main(argv: list[str] | None = None) -> None:
         )
 
     config = SummarizationConfig(
-        dataset_config=args.config,
+        dataset_config=args.task_filter,
         mode=SummarizationMode(args.mode),
         aggregation=AggregationLevel(args.aggregation),
         audience=AudienceLevel(args.audience),
@@ -244,7 +323,16 @@ def main(argv: list[str] | None = None) -> None:
     )
 
     runner = BatchRunner(loader=loader, store=store, run_logger=run_logger)
-    result = runner.run(config)
+    try:
+        result = runner.run(config)
+    except Exception as exc:
+        logger.error("Evaluation failed: %s", exc)
+        if run_logger:
+            run_logger.finalize_run(
+                status="failed",
+                summary={"legal_summarization_error": str(exc)},
+            )
+        raise SystemExit(f"Evaluation failed: {exc}") from exc
 
     print(f"\n{'=' * 60}")
     print(f"Run ID:     {result['run_id']}")
@@ -252,6 +340,10 @@ def main(argv: list[str] | None = None) -> None:
     print(f"Failed:     {result['failed']}")
     print(f"Duration:   {result['duration_ms']:.0f} ms")
     print(f"Report:     {result.get('report_path', 'N/A')}")
+    if result.get("metrics"):
+        print("Metrics:")
+        for name, value in sorted(result["metrics"].items()):
+            print(f"  {name:<22} {value:.4f}")
     print(f"{'=' * 60}")
 
     if run_logger:

@@ -70,7 +70,11 @@ class RunStore:
                     total_records   INTEGER DEFAULT 0,
                     completed       INTEGER DEFAULT 0,
                     failed          INTEGER DEFAULT 0,
-                    duration_ms     REAL
+                    duration_ms     REAL,
+                    dataset_id      TEXT,
+                    dataset_revision TEXT,
+                    dataset_source  TEXT,
+                    metrics_json    TEXT
                 )
             """
             )
@@ -88,6 +92,7 @@ class RunStore:
                     inference_ms    REAL,
                     input_chars     INTEGER,
                     output_chars    INTEGER,
+                    metrics_json    TEXT,
                     created_at      REAL NOT NULL
                 )
             """
@@ -95,7 +100,38 @@ class RunStore:
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_results_run ON results(run_id)"
             )
+            self._ensure_columns(
+                conn,
+                "runs",
+                {
+                    "dataset_id": "TEXT",
+                    "dataset_revision": "TEXT",
+                    "dataset_source": "TEXT",
+                    "metrics_json": "TEXT",
+                },
+            )
+            self._ensure_columns(
+                conn,
+                "results",
+                {"metrics_json": "TEXT"},
+            )
             conn.commit()
+
+    @staticmethod
+    def _ensure_columns(
+        conn: sqlite3.Connection,
+        table: str,
+        columns: dict[str, str],
+    ) -> None:
+        """Apply idempotent additive migrations for existing experiment DBs."""
+        if table not in {"runs", "results"}:
+            raise ValueError(f"Unsupported migration table: {table}")
+        # ``table`` is restricted to the fixed whitelist above; column names and
+        # declarations come only from this module's migration dictionaries.
+        existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+        for name, declaration in columns.items():
+            if name not in existing:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {declaration}")
 
     # ------------------------------------------------------------------
     # Run lifecycle
@@ -108,6 +144,7 @@ class RunStore:
         dataset_config: str,
         split: str,
         total_records: int,
+        dataset_info: Optional[dict] = None,
     ) -> None:
         """Start run.
 
@@ -121,11 +158,14 @@ class RunStore:
         Returns:
             None: This function does not return a value.
         """
+        dataset_info = dataset_info or {}
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 """INSERT INTO runs
-                   (run_id, started_at, status, config_json, dataset_config, split, total_records)
-                   VALUES (?, ?, 'running', ?, ?, ?, ?)""",
+                   (run_id, started_at, status, config_json, dataset_config,
+                    split, total_records, dataset_id, dataset_revision,
+                    dataset_source)
+                   VALUES (?, ?, 'running', ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     run_id,
                     datetime.now().isoformat(),
@@ -133,11 +173,21 @@ class RunStore:
                     dataset_config,
                     split,
                     total_records,
+                    dataset_info.get("dataset_id"),
+                    dataset_info.get("revision"),
+                    dataset_info.get("source"),
                 ),
             )
             conn.commit()
 
-    def finish_run(self, run_id: str, status: str, duration_ms: float) -> None:
+    def finish_run(
+        self,
+        run_id: str,
+        status: str,
+        duration_ms: float,
+        *,
+        metrics: Optional[dict] = None,
+    ) -> None:
         """Finish run.
 
         Args:
@@ -161,7 +211,7 @@ class RunStore:
             conn.execute(
                 """UPDATE runs
                    SET finished_at = ?, status = ?, duration_ms = ?,
-                       completed = ?, failed = ?
+                       completed = ?, failed = ?, metrics_json = ?
                    WHERE run_id = ?""",
                 (
                     datetime.now().isoformat(),
@@ -169,6 +219,7 @@ class RunStore:
                     duration_ms,
                     completed,
                     failed,
+                    json.dumps(metrics or {}, sort_keys=True),
                     run_id,
                 ),
             )
@@ -188,6 +239,7 @@ class RunStore:
         mode: str,
         status: str,
         inference_ms: float,
+        metrics: Optional[dict] = None,
     ) -> None:
         """Store result.
 
@@ -210,8 +262,8 @@ class RunStore:
                 """INSERT INTO results
                    (run_id, record_index, input_preview, reference_summary,
                     generated_summary, mode, status, inference_ms,
-                    input_chars, output_chars, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    input_chars, output_chars, metrics_json, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     run_id,
                     record_index,
@@ -223,6 +275,7 @@ class RunStore:
                     inference_ms,
                     len(input_text),
                     len(generated_summary),
+                    json.dumps(metrics or {}, sort_keys=True),
                     time.time(),
                 ),
             )
@@ -318,6 +371,7 @@ class RunStore:
 
         report_path = self.report_dir / f"run_{run_id}.md"
         config = json.loads(run["config_json"]) if run["config_json"] else {}
+        metrics = json.loads(run.get("metrics_json") or "{}")
 
         lines = [
             f"# Legal Summarization Run: {run_id}",
@@ -327,6 +381,8 @@ class RunStore:
             f"**Finished:** {run.get('finished_at', 'N/A')}  ",
             f"**Duration:** {run.get('duration_ms', 0):.0f} ms  ",
             f"**Dataset:** {run['dataset_config']} / {run['split']}  ",
+            f"**Hub source:** {run.get('dataset_id') or 'local'} @ "
+            f"{run.get('dataset_revision') or 'N/A'}  ",
             f"**Records:** {run['completed']} completed, {run['failed']} failed "
             f"of {run['total_records']} total",
             "",
@@ -336,17 +392,26 @@ class RunStore:
             json.dumps(config, indent=2),
             "```",
             "",
+            "## Aggregate Metrics",
+            "",
+            "```json",
+            json.dumps(metrics, indent=2, sort_keys=True),
+            "```",
+            "",
             "## Results",
             "",
-            "| # | Status | Mode | Input Chars | Output Chars | Inference ms |",
-            "|---|--------|------|-------------|--------------|--------------|",
+            "| # | Status | Mode | Input Chars | Output Chars | Inference ms | ROUGE-1 F1 |",
+            "|---|--------|------|-------------|--------------|--------------|------------|",
         ]
 
         for r in results:
+            row_metrics = json.loads(r.get("metrics_json") or "{}")
+            rouge1 = row_metrics.get("rouge1_f1")
+            rouge1_display = f"{rouge1:.3f}" if rouge1 is not None else "N/A"
             lines.append(
                 f"| {r['record_index']} | {r['status']} | {r['mode']} "
                 f"| {r['input_chars']} | {r['output_chars']} "
-                f"| {r.get('inference_ms', 0):.0f} |"
+                f"| {r.get('inference_ms', 0):.0f} | {rouge1_display} |"
             )
 
         # Sample outputs (first 3)

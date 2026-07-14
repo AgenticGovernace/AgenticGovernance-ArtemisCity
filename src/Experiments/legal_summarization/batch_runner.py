@@ -13,11 +13,13 @@ from typing import Optional
 
 try:
     from .dataset_loader import JudgmentRecord, LegalDatasetLoader
+    from .evaluation import aggregate_metrics, evaluate_summary
     from .legal_summarizer_agent import LegalSummarizerAgent
     from .run_store import RunStore
     from .summarization_config import AggregationLevel, SummarizationConfig
 except ImportError:
     from dataset_loader import JudgmentRecord, LegalDatasetLoader
+    from evaluation import aggregate_metrics, evaluate_summary
     from legal_summarizer_agent import LegalSummarizerAgent
     from run_store import RunStore
     from summarization_config import AggregationLevel, SummarizationConfig
@@ -63,7 +65,7 @@ class BatchRunner:
                 behavior.
         """
         config = config or SummarizationConfig()
-        run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        run_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
         logger.info("=== Starting legal summarization run %s ===", run_id)
         logger.info(
@@ -99,27 +101,35 @@ class BatchRunner:
             dataset_config=config.dataset_config,
             split=config.split,
             total_records=len(records),
+            dataset_info=self.loader.last_load_info,
         )
 
         if self._run_logger:
             self._run_logger.log_event(
                 "legal_summarization_start",
                 "batch_runner",
-                {"run_id": run_id, "total_records": len(records)},
+                {
+                    "run_id": run_id,
+                    "total_records": len(records),
+                    "dataset": self.loader.last_load_info,
+                },
                 f"Legal summarization run {run_id} started with {len(records)} records",
             )
 
         # Dispatch based on aggregation level
         start = time.perf_counter()
         if config.aggregation == AggregationLevel.BATCH:
-            completed, failed = self._run_aggregated(run_id, records, config)
+            completed, failed, metric_items = self._run_aggregated(
+                run_id, records, config
+            )
         else:
-            completed, failed = self._run_single(run_id, records, config)
+            completed, failed, metric_items = self._run_single(run_id, records, config)
         duration_ms = (time.perf_counter() - start) * 1000
+        metrics = aggregate_metrics(metric_items)
 
         # Finalize
         status = "completed" if failed == 0 else "completed_with_errors"
-        self.store.finish_run(run_id, status, duration_ms)
+        self.store.finish_run(run_id, status, duration_ms, metrics=metrics)
 
         if self._run_logger:
             self._run_logger.log_event(
@@ -130,6 +140,7 @@ class BatchRunner:
                     "completed": completed,
                     "failed": failed,
                     "duration_ms": duration_ms,
+                    "metrics": metrics,
                 },
                 f"Run {run_id} finished: {completed} ok, {failed} failed in {duration_ms:.0f}ms",
             )
@@ -146,6 +157,8 @@ class BatchRunner:
             "total": len(records),
             "duration_ms": duration_ms,
             "report_path": str(report_path),
+            "metrics": metrics,
+            "dataset": self.loader.last_load_info,
         }
 
     # ------------------------------------------------------------------
@@ -157,9 +170,10 @@ class BatchRunner:
         run_id: str,
         records: list[JudgmentRecord],
         config: SummarizationConfig,
-    ) -> tuple[int, int]:
+    ) -> tuple[int, int, list[dict[str, float]]]:
         completed = 0
         failed = 0
+        metric_items: list[dict[str, float]] = []
 
         for i, rec in enumerate(records):
             logger.info(
@@ -189,6 +203,11 @@ class BatchRunner:
             status = result.get("status", "failed")
             generated = result.get("summary", "")
             mode = result.get("mode", "unknown")
+            metrics = (
+                evaluate_summary(generated, rec.output_text, rec.input_text)
+                if status == "success" and rec.output_text
+                else {}
+            )
 
             self.store.store_result(
                 run_id=run_id,
@@ -199,10 +218,13 @@ class BatchRunner:
                 mode=mode,
                 status=status,
                 inference_ms=inference_ms,
+                metrics=metrics,
             )
 
             if status == "success":
                 completed += 1
+                if metrics:
+                    metric_items.append(metrics)
             else:
                 failed += 1
 
@@ -212,10 +234,15 @@ class BatchRunner:
                     agent_name=self.agent.name,
                     status=status,
                     duration_ms=inference_ms,
-                    metadata={"mode": mode, "input_chars": len(rec.input_text)},
+                    metadata={
+                        "mode": mode,
+                        "input_chars": len(rec.input_text),
+                        "metrics": metrics,
+                        "dataset": self.loader.last_load_info,
+                    },
                 )
 
-        return completed, failed
+        return completed, failed, metric_items
 
     # ------------------------------------------------------------------
     # Aggregated (batch) summarization
@@ -226,7 +253,7 @@ class BatchRunner:
         run_id: str,
         records: list[JudgmentRecord],
         config: SummarizationConfig,
-    ) -> tuple[int, int]:
+    ) -> tuple[int, int, list[dict[str, float]]]:
         """Send all judgment texts to the agent as a single batch prompt."""
         texts = [r.input_text for r in records]
 
@@ -249,22 +276,32 @@ class BatchRunner:
 
         status = result.get("status", "failed")
         generated = result.get("summary", "")
+        reference = "\n\n".join(
+            record.output_text for record in records if record.output_text
+        )
+        source = "\n\n".join(texts)
+        metrics = (
+            evaluate_summary(generated, reference, source)
+            if status == "success" and reference
+            else {}
+        )
 
         # Store as a single result with index -1 to mark it as batch
         self.store.store_result(
             run_id=run_id,
             record_index=-1,
             input_text=f"[{len(records)} judgments, {sum(len(t) for t in texts)} chars total]",
-            reference_summary="",
+            reference_summary=reference,
             generated_summary=generated,
             mode=result.get("mode", "unknown"),
             status=status,
             inference_ms=inference_ms,
+            metrics=metrics,
         )
 
         if status == "success":
-            return (1, 0)
-        return (0, 1)
+            return (1, 0, [metrics] if metrics else [])
+        return (0, 1, [])
 
 
 if __name__ == "__main__":
