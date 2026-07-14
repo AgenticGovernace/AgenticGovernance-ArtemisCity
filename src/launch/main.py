@@ -179,7 +179,7 @@ def handle_user_instruction(
     }
 
     if agent_for_dispatch:
-        task_data["agent"] = agent_name
+        task_data["agent"] = agent_for_dispatch.name
 
     logger.info(
         "\n--- User Instruction: Dispatching task with capability '%s' ---",

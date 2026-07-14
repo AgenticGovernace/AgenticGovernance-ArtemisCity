@@ -45,7 +45,8 @@ from sys import path
 # module directly (python src/Experiments/.../main.py) outside an installed
 # package context.
 _repo_root = Path(__file__).resolve().parents[3]
-path.insert(0, str(_repo_root))
+if str(_repo_root) not in path:
+    path.insert(0, str(_repo_root))
 
 try:
     from dotenv import load_dotenv
@@ -353,7 +354,5 @@ def main(argv: list[str] | None = None) -> None:
         )
 
 
-if __name__ != "__main__":
-    pass
-else:
+if __name__ == "__main__":
     main()

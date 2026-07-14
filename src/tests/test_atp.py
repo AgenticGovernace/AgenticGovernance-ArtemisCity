@@ -57,6 +57,49 @@ class TestATPMessage:
         assert message.priority == ATPPriority.CRITICAL
         assert message.action_type == ATPActionType.REFLECT
 
+    def test_str_includes_non_default_headers_and_truncates_long_content(self):
+        """The display form exposes routing headers and bounds content length."""
+        message = ATPMessage(
+            mode=ATPMode.REVIEW,
+            context="Review routing",
+            priority=ATPPriority.HIGH,
+            action_type=ATPActionType.REFLECT,
+            target_zone="src/agents",
+            special_notes="Keep provenance",
+            content="x" * 101,
+        )
+
+        rendered = str(message)
+
+        assert rendered.startswith(
+            "[ATP] Mode: Review | Context: Review routing | Priority: High | "
+            "Action: Reflect | Target: src/agents | Notes: Keep provenance"
+        )
+        assert rendered.endswith(f"Content: {'x' * 100}...")
+
+    def test_str_handles_default_headers_and_short_content(self):
+        """A default message renders clearly without appending an ellipsis."""
+        assert str(ATPMessage(content="hello")) == (
+            "[ATP] No ATP headers\nContent: hello"
+        )
+
+    def test_to_dict_includes_protocol_state(self):
+        """Serialization includes derived header and completeness indicators."""
+        message = ATPMessage(
+            mode=ATPMode.BUILD,
+            context="Build coverage",
+            action_type=ATPActionType.EXECUTE,
+            content="run",
+            metadata={"source": "test"},
+        )
+
+        payload = message.to_dict()
+
+        assert payload["mode"] == "Build"
+        assert payload["has_atp_headers"] is True
+        assert payload["is_complete"] is True
+        assert payload["metadata"] == {"source": "test"}
+
 
 class TestATPParser:
     """Test ATP message parsing."""

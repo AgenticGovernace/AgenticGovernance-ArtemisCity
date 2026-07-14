@@ -132,6 +132,11 @@ class TestBaseAgentBehaviour:
         """
         assert agent.logger is not None
 
+    def test_default_sandbox_declarations_are_empty(self, agent):
+        """Agents inherit a no-tool sandbox declaration unless they override it."""
+        assert agent.get_sandbox_policies() == []
+        assert agent.get_sandbox_actions({"task_id": "1"}) == []
+
     def test_repr(self, agent):
         """Test that repr.
 

@@ -15,6 +15,8 @@ PYTHON_VERSION ?= 3.12
 VENV ?= .venv
 PYTHON ?= $(VENV)/bin/python
 UV ?= uv
+MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+ROOT_DIR := $(abspath $(MAKEFILE_DIR)/../..)
 
 # ============================================
 # HELP
@@ -106,13 +108,21 @@ secrets: ## Check for accidentally committed secrets
 # TESTING
 # ============================================
 
-test: ## Run tests (when available)
+test: ## Run the canonical Python test suite
 	@echo "Running tests..."
-	pytest ../tests/ -v || echo "WARNING: No tests directory found"
+	@if [ ! -d "$(ROOT_DIR)/src/tests" ]; then \
+		echo "WARNING: No tests directory found"; \
+	else \
+		cd "$(ROOT_DIR)" && $(PYTHON) -m pytest src/tests/ -v; \
+	fi
 
 test-cov: ## Run tests with coverage
 	@echo "Running tests with coverage..."
-	pytest ../tests/ --cov=.. --cov-report=html --cov-report=term || echo "WARNING: No tests directory found"
+	@if [ ! -d "$(ROOT_DIR)/src/tests" ]; then \
+		echo "WARNING: No tests directory found"; \
+	else \
+		cd "$(ROOT_DIR)" && $(PYTHON) -m pytest src/tests/ --cov --cov-report=html --cov-report=term; \
+	fi
 
 # ============================================
 # PRE-COMMIT

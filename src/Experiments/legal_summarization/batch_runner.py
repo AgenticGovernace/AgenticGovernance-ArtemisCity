@@ -11,18 +11,11 @@ import time
 from datetime import datetime
 from typing import Optional
 
-try:
-    from .dataset_loader import JudgmentRecord, LegalDatasetLoader
-    from .evaluation import aggregate_metrics, evaluate_summary
-    from .legal_summarizer_agent import LegalSummarizerAgent
-    from .run_store import RunStore
-    from .summarization_config import AggregationLevel, SummarizationConfig
-except ImportError:
-    from dataset_loader import JudgmentRecord, LegalDatasetLoader
-    from evaluation import aggregate_metrics, evaluate_summary
-    from legal_summarizer_agent import LegalSummarizerAgent
-    from run_store import RunStore
-    from summarization_config import AggregationLevel, SummarizationConfig
+from .dataset_loader import JudgmentRecord, LegalDatasetLoader
+from .evaluation import aggregate_metrics, evaluate_summary
+from .legal_summarizer_agent import LegalSummarizerAgent
+from .run_store import RunStore
+from .summarization_config import AggregationLevel, SummarizationConfig
 
 logger = logging.getLogger("legal_summarization.batch_runner")
 

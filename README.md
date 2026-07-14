@@ -282,7 +282,8 @@ runs four checks in parallel:
 
 - `docs-mirror` — `CLAUDE.md` and `AGENTS.md` must stay byte-for-byte identical
 - `python-3.12` — environment-config validation, dependency install, and the
-  `src/tests` suite with coverage (single Python 3.12)
+  `src/tests` suite with production coverage across `src/`, `app/kernel/`, and
+  the Python modules in `app/api/` (single Python 3.12)
 - `typescript-api` — `tsc --noEmit` type-check and the Jest suite for the Express API
 - `secrets-check` — `detect-secrets` diff against `.secrets.baseline`
 
@@ -917,13 +918,11 @@ All operations logged with:
 ╲──────────────────╱ - Individual functions/classes
 ```
 ### 7.2 Coverage Requirements
-| Module | Target |
-| ----- | ----- |
-| agents/artemis/ | 90% |
-| agents/atp/ | 95% |
-| core/instructions/ | 85% |
-| memory/integration/ | 85% |
-| **Overall** | **85%** |
+The canonical `src/tests/` suite measures the production Python surfaces in
+`src/`, `app/kernel/`, and `app/api/`. Aggregate coverage must remain at or
+above **90%**. Test modules are excluded from the denominator, and
+`*/demo_*.py` entry points are exercised as smoke workflows rather than counted
+as production-library coverage.
 ### 7.3 Test Naming Convention
 ```
 test_<module>_<function>_<scenario>
@@ -951,7 +950,8 @@ CircleCI (`.circleci/config.yml`) runs on every branch:
 
 - Environment configuration validation
 - Python dependency installation
-- Test suite execution with coverage (single Python 3.12)
+- `src/tests` execution with the canonical production coverage scope (single
+  Python 3.12)
 - TypeScript type-check and Jest tests for the Express API
 - Advisory lint (black, isort, flake8) and security (bandit) checks
 - `detect-secrets` gate against `.secrets.baseline`

@@ -196,8 +196,10 @@ class TrustStore:
     """Thin SQLite-backed persistence layer for :class:`TrustScore`."""
 
     def __init__(self, db_path: Optional[Path] = None) -> None:
-        self._db_path = Path(
-            data_path("trust_scores.db", db_path, env_var="ARTEMIS_TRUST_DB")
+        self._db_path = (
+            _default_db_path()
+            if db_path is None
+            else Path(data_path("trust_scores.db", db_path, env_var="ARTEMIS_TRUST_DB"))
         )
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
@@ -423,8 +425,9 @@ class TrustInterface:
         shared trust database, level, and event counters synchronized without
         applying a second independent +/- adjustment.
         """
+        normalized_score = max(0.0, min(1.0, float(score)))
         trust_score = self.get_trust_score(entity_id, entity_type)
-        trust_score.score = max(0.0, min(1.0, float(score)))
+        trust_score.score = normalized_score
         if success:
             trust_score.reinforcement_events += 1
         else:
@@ -448,8 +451,9 @@ class TrustInterface:
         violation or manual review are not execution outcomes.  When supplied,
         the matching event counter is incremented exactly once.
         """
+        normalized_score = max(0.0, min(1.0, float(score)))
         trust_score = self.get_trust_score(entity_id, entity_type)
-        trust_score.score = max(0.0, min(1.0, float(score)))
+        trust_score.score = normalized_score
         if success is True:
             trust_score.reinforcement_events += 1
         elif success is False:

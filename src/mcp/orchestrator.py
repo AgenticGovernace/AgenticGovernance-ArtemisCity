@@ -601,6 +601,7 @@ class Orchestrator:
             f"Starting task {task_id} with {agent_name}",
         )
 
+        results: Dict[str, Any]
         try:
             enriched_context = self._enrich_task_with_memory(task_context)
             results = agent.perform_task(enriched_context)
@@ -1370,9 +1371,23 @@ class Orchestrator:
                 self.update_task_status_in_obsidian(
                     relative_note_path, "in progress", task_id
                 )
-                self.route_and_execute_task(task_data, relative_note_path)
-                summary["completed"] += 1
-                summary["details"].append({"task_id": task_id, "status": "completed"})
+                result = self.route_and_execute_task(task_data, relative_note_path)
+                if result.get("status") == "success":
+                    summary["completed"] += 1
+                    summary["details"].append(
+                        {"task_id": task_id, "status": "completed"}
+                    )
+                else:
+                    summary["failed"] += 1
+                    summary["details"].append(
+                        {
+                            "task_id": task_id,
+                            "status": "failed",
+                            "error": result.get("error")
+                            or result.get("summary")
+                            or "Task returned a failed status",
+                        }
+                    )
             except Exception as exc:
                 logger.error(
                     "Failed to execute task %s from %s.",

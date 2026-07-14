@@ -228,7 +228,7 @@ class SemanticTagger:
         """
         citations = []
 
-        file_pattern = r"(?:^|[\\s(])([\\/~][\\w\\/.-]+\\.[\\w]+)"
+        file_pattern = r"(?:^|[\s(])([\\/~][\w\\/.-]+\.\w+)"
         for match in re.finditer(file_pattern, text):
             path = match.group(1)
             citations.append(
@@ -239,7 +239,7 @@ class SemanticTagger:
                 )
             )
 
-        agent_pattern = r"@(\\w+)"
+        agent_pattern = r"@(\w+)"
         for match in re.finditer(agent_pattern, text):
             agent_name = match.group(1)
             citations.append(

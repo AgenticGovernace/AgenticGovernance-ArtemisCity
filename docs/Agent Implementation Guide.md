@@ -253,7 +253,7 @@ Use this checklist when adding or changing an agent:
     - [ ] Test with real Obsidian vault
 
 - [ ] **Testing**
-    - [ ] Write unit tests in `tests/agents/`
+    - [ ] Write unit tests in `src/tests/`
     - [ ] Create integration tests
     - [ ] Test error scenarios
     - [ ] Verify Obsidian output format
@@ -319,7 +319,7 @@ class ResearchAgent(BaseAgent):
 
 ### Unit Tests
 
-Create tests in `tests/agents/test_my_agent.py`:
+Create tests in `src/tests/test_my_agent.py`:
 
 ```python
 import pytest
@@ -368,7 +368,7 @@ class TestMyNewAgent:
 
 Run tests:
 ```bash
-pytest tests/agents/test_my_agent.py -v
+python -m pytest src/tests/test_my_agent.py -v
 ```
 
 ### Integration Tests
@@ -376,7 +376,7 @@ pytest tests/agents/test_my_agent.py -v
 Test with the full orchestrator:
 
 ```python
-# tests/integration/test_agent_orchestration.py
+# src/tests/integration/test_agent_orchestration.py
 import pytest
 from src.mcp.orchestrator import Orchestrator
 
@@ -706,7 +706,10 @@ python3 src/launch/demo_my_agent.py
 pytest src/tests/test_my_agent.py -v
 
 # Integration testing
-pytest src/tests/integration/ -v
+python -m pytest src/tests/integration/ -v
+
+# Full production coverage (source scope comes from pyproject.toml)
+python -m pytest src/tests/ --cov --cov-report=html --cov-report=term
 
 # Run with orchestrator
 python3 src/launch/main.py --agent my_agent -i "Your instruction"

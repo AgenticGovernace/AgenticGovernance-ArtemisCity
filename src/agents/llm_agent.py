@@ -479,18 +479,12 @@ class LLMAgent(base_agent.BaseAgent):
     ) -> typing.Iterator[str]:
         """Yield content deltas from an Exo SSE response.
 
-        Exo follows the OpenAI chat-completions SSE format: lines beginning
-        with ``data:`` carry a JSON chunk; the literal line ``data: [DONE]``
-        terminates the stream. We extract ``choices[0].delta.content`` from
-        each chunk and yield it as a string.
+        Chat Completions SSE is attempted first, followed by Responses SSE
+        when the first endpoint returns a compatibility status. ``data:`` JSON
+        chunks are normalized from either ``choices[0].delta.content`` or
+        Responses ``response.output_text.*`` events. A literal ``[DONE]``
+        terminates either stream.
         """
-        payload = {
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "stream": True,
-        }
         headers = {
             "Content-Type": "application/json",
             "Accept": "text/event-stream",
@@ -498,42 +492,75 @@ class LLMAgent(base_agent.BaseAgent):
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
-        response = requests.post(
-            f"{self._with_v1_path(model_url)}/chat/completions",
-            json=payload,
-            headers=headers,
-            timeout=self.timeout_seconds,
-            stream=True,
-        )
-        response.raise_for_status()
+        errors = []
+        for endpoint, payload in self._completion_request_candidates(
+            messages, model, temperature, max_tokens, model_url, stream=True
+        ):
+            response = None
+            emitted_content = False
+            try:
+                response = requests.post(
+                    endpoint,
+                    json=payload,
+                    headers=headers,
+                    timeout=self.timeout_seconds,
+                    stream=True,
+                )
+                response.raise_for_status()
 
-        try:
-            for raw_line in response.iter_lines(decode_unicode=True):
-                if not raw_line:
-                    continue
-                if isinstance(raw_line, bytes):
-                    line = raw_line.decode("utf-8", "replace").strip()
-                else:
-                    line = str(raw_line).strip()
-                if not line.startswith("data:"):
-                    continue
-                data = line[len("data:") :].strip()
-                if not data or data == "[DONE]":
-                    if data == "[DONE]":
-                        return
-                    continue
-                try:
-                    chunk = json.loads(data)
-                except json.JSONDecodeError:
-                    continue
-                delta = self._extract_delta_content(chunk)
-                if delta:
-                    yield delta
-        finally:
-            response.close()
+                for raw_line in response.iter_lines(decode_unicode=True):
+                    if not raw_line:
+                        continue
+                    if isinstance(raw_line, bytes):
+                        line = raw_line.decode("utf-8", "replace").strip()
+                    else:
+                        line = str(raw_line).strip()
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[len("data:") :].strip()
+                    if not data or data == "[DONE]":
+                        if data == "[DONE]":
+                            return
+                        continue
+                    try:
+                        chunk = json.loads(data)
+                    except json.JSONDecodeError:
+                        continue
+                    delta = self._extract_delta_content(chunk)
+                    is_final_text = chunk.get("type") in {
+                        "response.output_text.done",
+                        "response.completed",
+                    }
+                    if delta and not (is_final_text and emitted_content):
+                        emitted_content = True
+                        yield delta
+                return
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"{endpoint}: {exc}")
+                if emitted_content or not self._should_try_next_endpoint(exc):
+                    break
+            finally:
+                if response is not None:
+                    response.close()
+        raise RuntimeError("Exo stream failed after trying " + "; ".join(errors))
 
     def _extract_delta_content(self, chunk: typing.Dict[str, typing.Any]) -> str:
         """Pull the incremental content out of one Exo SSE JSON chunk."""
+        event_type = chunk.get("type")
+        if event_type == "response.output_text.delta":
+            delta = chunk.get("delta")
+            return delta if isinstance(delta, str) else ""
+        if event_type == "response.output_text.done":
+            text = chunk.get("text")
+            return text if isinstance(text, str) else ""
+        if event_type == "response.completed":
+            response = chunk.get("response")
+            if isinstance(response, dict):
+                try:
+                    return self._extract_message_content(response)
+                except ValueError:
+                    return ""
+
         choices = chunk.get("choices")
         if not isinstance(choices, list) or not choices:
             return ""

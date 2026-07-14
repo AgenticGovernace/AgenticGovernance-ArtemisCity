@@ -21,10 +21,9 @@ Date: 2024
 
 Example:
     >>> from agents.base_agent import BaseAgent
-    >>> from types import TaskContext, TaskResult
     >>>
     >>> class MyAgent(BaseAgent):
-    ...     def perform_task(self, task_context: TaskContext) -> TaskResult:
+    ...     def perform_task(self, task_context: dict) -> dict:
     ...         self.report_status("Processing task...")
     ...         return {"status": "success", "summary": "Done"}
     >>>
@@ -35,8 +34,7 @@ Example:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, List, Optional
-
+from typing import TYPE_CHECKING, Any, List, Optional
 from ..utils.helpers import logger
 
 if TYPE_CHECKING:
@@ -126,7 +124,7 @@ class BaseAgent(ABC):
         return self._logger
 
     @abstractmethod
-    def perform_task(self, task_context: dict) -> dict:
+    def perform_task(self, task_context: dict[str, Any]) -> dict[str, Any]:
         """
         Execute a task and return the results.
 
@@ -168,7 +166,7 @@ class BaseAgent(ABC):
             >>> print(result["status"])
             success
         """
-        pass
+        raise NotImplementedError
 
     def report_status(self, message: str) -> None:
         """Report agent progress or status.
@@ -190,7 +188,7 @@ class BaseAgent(ABC):
         """
         self._logger.info(message)
 
-    def validate_task_context(self, task_context: dict) -> bool:
+    def validate_task_context(self, task_context: dict[str, Any]) -> bool:
         """
         Validate that a task context contains required fields.
 
@@ -216,7 +214,7 @@ class BaseAgent(ABC):
         """Return tool policies required by this agent, empty by default."""
         return []
 
-    def get_sandbox_actions(self, task_context: dict) -> list[dict]:
+    def get_sandbox_actions(self, task_context: dict[str, Any]) -> list[dict]:
         """Declare external/tool actions for dispatch-time governance checks."""
         return []
 

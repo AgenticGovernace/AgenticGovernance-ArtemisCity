@@ -8,14 +8,9 @@ as mail delivery between agents.
 from __future__ import annotations
 
 import datetime
-import os
 import random
-import sys
 import time
 import typing
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-
 
 import src.integration.context_loader as context_loader
 import src.integration.memory_client
@@ -157,6 +152,28 @@ class PostOffice:
 
         self._log_delivery(packet, response.success)
         return packet
+
+    def check_mailbox(
+        self, recipient: str, limit: int = 20
+    ) -> typing.List[context_loader.ContextEntry]:
+        """Return mail delivered to an agent's governed postal folder.
+
+        Args:
+            recipient: Agent whose mailbox should be inspected.
+            limit: Maximum number of recent mail entries to return.
+
+        Returns:
+            Matching postal notes, limited to ``limit`` entries. Agents without
+            read clearance receive an empty mailbox.
+        """
+        print(f"\n📬 CHECKING MAILBOX: {recipient}")
+        if not self.trust_office.can_perform_operation(recipient, "read"):
+            print("    DENIED: No mailbox read clearance")
+            return []
+
+        mail = self.context_loader.load_folder_context(f"Postal/Agents/{recipient}")[
+            :limit
+        ]
         if mail:
             print(f"   📨 Found {len(mail)} mail item(s)")
             for i, item in enumerate(mail[:5], 1):
@@ -164,6 +181,7 @@ class PostOffice:
         else:
             print("   📭 Mailbox is empty")
 
+        self.trust_office.record_success(recipient)
         return mail
 
     def send_to_archives(
@@ -320,7 +338,7 @@ status: {packet.delivery_status}
 
 **From:** {packet.sender}
 **To:** {packet.recipient}
-**Date:** {packet.timestamp.strftime('%Y-%m-%d %H:%M:%S')}
+**Date:** {packet.timestamp.strftime("%Y-%m-%d %H:%M:%S")}
 **Tracking:** {packet.tracking_id}
 
 ---

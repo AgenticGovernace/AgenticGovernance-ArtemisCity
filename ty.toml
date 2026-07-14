@@ -7,6 +7,5 @@ include = [
 exclude = [
     "src/tests/**",
     "src/Experiments/**",
-    "src/mcp/Orchestrator_Review.py",
     "src/launch/demo_city_postal.py",
 ]

@@ -1,9 +1,5 @@
 """Tests for semantic tagging (src/agents/artemis/semantic_tagging.py)."""
 
-import sys
-
-sys.modules.pop("src.agents.artemis.semantic_tagging", None)
-
 import pytest
 
 from src.agents.artemis.semantic_tagging import Citation, SemanticTag, SemanticTagger
@@ -303,6 +299,25 @@ class TestSemanticTagger:
             None: This function does not return a value.
         """
         assert tagger.extract_tags_from_text("plain text") == []
+
+    def test_extract_citations_from_text(self, tagger):
+        """Extract absolute/home file paths and agent mentions with context."""
+        text = "Ask @Artemis to compare /src/main.py with (~/notes/design.md)."
+
+        citations = tagger.extract_citations_from_text(text)
+
+        assert [
+            (citation.target, citation.citation_type) for citation in citations
+        ] == [
+            ("/src/main.py", "file"),
+            ("~/notes/design.md", "file"),
+            ("Artemis", "agent"),
+        ]
+        assert all(citation.context for citation in citations)
+
+    def test_extract_citations_from_text_without_matches(self, tagger):
+        """Plain prose does not create false-positive citations."""
+        assert tagger.extract_citations_from_text("plain prose only") == []
 
     def test_generate_tag_summary_empty(self, tagger):
         """Test that generate tag summary empty.

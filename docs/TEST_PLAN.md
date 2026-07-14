@@ -60,45 +60,17 @@ Examples:
 
 ```
 Artemis-City/
-├── tests/
-│   ├── __init__.py
-│   ├── conftest.py                    # Shared fixtures
-│   │
-│   ├── unit/                          # Unit tests
-│   │   ├── __init__.py
-│   │   ├── agents/
-│   │   │   ├── __init__.py
-│   │   │   ├── test_persona.py        # ArtemisPersona tests
-│   │   │   ├── test_reflection.py     # ReflectionEngine tests
-│   │   │   ├── test_semantic_tagging.py
-│   │   │   ├── test_atp_models.py
-│   │   │   ├── test_atp_parser.py
-│   │   │   └── test_atp_validator.py
-│   │   ├── core/
-│   │   │   ├── __init__.py
-│   │   │   ├── test_instruction_loader.py
-│   │   │   └── test_instruction_cache.py
-│   │   └── memory/
-│   │       ├── __init__.py
-│   │       ├── test_memory_client.py
-│   │       ├── test_context_loader.py
-│   │       └── test_trust_interface.py
-│   │
-│   ├── integration/                   # Integration tests
-│   │   ├── __init__.py
-│   │   ├── test_atp_pipeline.py
-│   │   ├── test_instruction_system.py
-│   │   ├── test_artemis_integration.py
-│   │   └── test_memory_system.py
-│   │
-│   └── e2e/                           # End-to-end tests
-│       ├── __init__.py
-│       ├── test_cli_workflow.py
-│       └── test_demo_scripts.py
-│
-├── pytest.ini                         # pytest configuration
-└── requirements-dev.txt               # Test dependencies
+├── src/
+│   └── tests/                         # Canonical Python test suite
+│       ├── conftest.py                # Shared fixtures and repo-root setup
+│       ├── test_*.py                  # Unit, component, and workflow tests
+│       └── integration/               # Cross-component integration tests
+└── pyproject.toml                      # pytest and coverage configuration
 ```
+
+`src/tests/` is the single collection root used locally and in CI. Tests may
+exercise launch demos as smoke workflows, but demonstration programs are not
+production-library coverage targets.
 
 ---
 
@@ -1200,22 +1172,13 @@ def sample_context_entries():
 
 ## Running Tests
 
-### pytest.ini
+### pyproject.toml
 
-```
-[pytest]
-testpaths= tests
-python_files= test_*.py
-python_classes= Test*
-python_functions= test_*
-addopts= -v --tb=short --strict-markers
-markers=
-    unit: Unit tests
-    integration: Integration tests
-    e2e: End-to-end tests
-    slow: Slow running tests
-filterwarnings=
-    ignore::DeprecationWarning
+```toml
+[tool.pytest.ini_options]
+testpaths = ["src/tests"]
+python_files = ["test_*.py"]
+addopts = "-ra"
 ```
 
 ### requirements-dev.txt
@@ -1240,57 +1203,55 @@ isort>=5.12.0
 
 ```bash
 # Run all tests
-pytest
+make test
 
-# Run with coverage
-pytest --cov=. --cov-report=html
+# Run the canonical suite with the production coverage scope
+make test-cov
 
-# Run specific test types
-pytest -m unit
-pytest -m integration
-pytest -m e2e
+# Run the suite directly
+python -m pytest src/tests
 
-# Run specific module tests
-pytest tests/unit/agents/test_atp_parser.py
+# Run a specific module
+python -m pytest src/tests/test_atp_validator.py
 
 # Run with verbose output
-pytest -v
-
-# Run specific test
-pytest tests/unit/agents/test_persona.py::TestArtemisPersona::test_set_mode_valid
+python -m pytest src/tests -v
 ```
 
 ---
 
 ## Coverage Requirements
 
-### Minimum Coverage Targets
+### Minimum Coverage Target
 
-| Module | Target |
-| --- | --- |
-| agents/artemis/ | 90% |
-| agents/atp/ | 95% |
-| core/instructions/ | 85% |
-| memory/integration/ | 85% |
-| interface/ | 75% |
-| **Overall** | **85%** |
+The aggregate production Python report must remain at or above **90%**. The
+denominator covers all of `src/`, `app/kernel/`, and the Python modules in
+`app/api/`. Tests under `src/tests/` are excluded from the denominator.
+
+Demo entry points matching `*/demo_*.py` are verified as smoke workflows and
+are intentionally omitted from production-library coverage; their underlying
+production components remain in scope.
 
 ### Coverage Configuration
 
-```
-# pyproject.toml or .coveragerc
+```toml
+# pyproject.toml (authoritative local and CI scope)
 [tool.coverage.run]
-source= ["agents", "core", "memory", "interface"]
-omit= ["*/tests/*", "*/__pycache__/*", "*/demo_*.py"]
+source = ["src", "app/kernel", "app/api"]
+omit = ["src/tests/*", "*/demo_*.py"]
 
 [tool.coverage.report]
-exclude_lines= [
-    "pragma: no cover",
-    "def __repr__",
+fail_under = 90
+show_missing = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
     "raise NotImplementedError",
-    "if __name__== .__main__.:"
 ]
 ```
+
+Both `make test-cov` and CircleCI invoke pytest with bare `--cov`, so this
+single configuration controls the measured source set in every environment.
 
 ---
 
@@ -1326,5 +1287,5 @@ exclude_lines= [
 
 ---
 
-**Last Updated:** 2025-11-23
-**Document Version:** 1.0.0
+**Last Updated:** 2026-07-14
+**Document Version:** 1.1.0

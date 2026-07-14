@@ -1,11 +1,10 @@
 import json
 import logging
 import os
-import re
 import sqlite3
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,14 +14,19 @@ from pydantic import BaseModel, Field
 
 # Add the project root to the Python path
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(_REPO_ROOT))
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
+from src.obsidian_integration.parser import ObsidianParser  # noqa: E402
 from src.runtime_paths import data_dir, data_path  # noqa: E402
 
+_shared_sanitize_for_log: Callable[..., str] | None
 try:
-    from src.utils.helpers import sanitize_for_log as _shared_sanitize_for_log
+    from src.utils import helpers as _shared_helpers
 except Exception:  # pragma: no cover - SQLite-only fallback mode
     _shared_sanitize_for_log = None
+else:
+    _shared_sanitize_for_log = _shared_helpers.sanitize_for_log
 
 
 def _sanitize_for_log(value: Any) -> str:
@@ -331,40 +335,8 @@ def _list_markdown_files(folder: Path) -> List[str]:
 
 
 def _parse_task_note(content: str) -> Dict[str, Any] | None:
-    task_data: Dict[str, Any] = {}
-
-    if content.startswith("---"):
-        parts = content.split("---", 2)
-        if len(parts) > 1:
-            front_matter = parts[1].strip()
-            for line in front_matter.split("\n"):
-                if ":" in line:
-                    key, value = line.split(":", 1)
-                    task_data[key.strip()] = value.strip()
-            content = parts[2].strip()
-
-    lines = content.split("\n")
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        if line.startswith("# ") and "title" not in task_data:
-            task_data["title"] = line[2:].strip()
-            continue
-        match = re.match(r"(\w+):\s*(.*)", line)
-        if match:
-            key = match.group(1).lower()
-            value = match.group(2).strip()
-            task_data[key] = value
-            continue
-        if line.startswith("- [ ] ") or line.startswith("- [x] "):
-            task_data.setdefault("subtasks", []).append(
-                {"text": line[6:].strip(), "completed": line[3] == "x"}
-            )
-
-    if not task_data:
-        return None
-    return task_data
+    """Parse task Markdown through the canonical Obsidian parser."""
+    return ObsidianParser().parse_task_note(content)
 
 
 # --- FastAPI App Setup ---
@@ -431,6 +403,9 @@ async def startup_event():
         logger.error(
             "FastAPI application starting up, but Orchestrator failed to initialize."
         )
+
+
+app.router.add_event_handler("startup", startup_event)
 
 
 # --- API Endpoints ---
@@ -701,6 +676,7 @@ async def execute_pending_task(
             status_code=400, detail="Missing 'relative_path' in request body."
         )
 
+    task_data: dict[str, Any] | None = None
     try:
         content = orchestrator.obs_manager.read_note(relative_note_path)
         if not content:
@@ -749,16 +725,18 @@ async def execute_pending_task(
     except ValueError as ve:
         logger.error("Validation error executing task: %s", _sanitize_for_log(ve))
         orchestrator.update_task_status_in_obsidian(
-            relative_note_path, "failed", task_data.get("task_id")
-        )  # type: ignore
+            relative_note_path,
+            "failed",
+            task_data.get("task_id") if task_data else None,
+        )
         raise HTTPException(status_code=400, detail="Invalid task data.")
     except HTTPException:
         raise
     except Exception as e:
-        if "task_data" in locals() and "relative_note_path" in locals():
+        if task_data is not None:
             orchestrator.update_task_status_in_obsidian(
                 relative_note_path, "failed", task_data.get("task_id")
-            )  # type: ignore
+            )
         logger.error(
             "Error executing task from %s: %s",
             _sanitize_for_log(relative_note_path),
@@ -912,14 +890,8 @@ async def get_hebbian_stats(_key: None = Depends(_require_api_key)):
               COALESCE(SUM(success_count), 0) AS total_successes
             FROM node_connections
             """).fetchone()
-        if row is None:
-            row = {
-                "total_connections": 0,
-                "avg_weight": 0.0,
-                "max_weight": 0.0,
-                "total_activations": 0,
-                "total_successes": 0,
-            }
+        # Aggregate SELECT without GROUP BY always yields one row; COALESCE
+        # above supplies stable values for an empty table.
         total_activations = int(row["total_activations"])
         total_successes = int(row["total_successes"])
         return HebbianStats(
@@ -1029,14 +1001,10 @@ async def get_agent_hebbian_stats(
             (agent_name,),
         ).fetchall()
 
-        if stats_row is None:
-            avg_weight = 0.0
-            total_activations = 0
-            total_successes = 0
-        else:
-            avg_weight = float(stats_row["avg_weight"])
-            total_activations = int(stats_row["total_activations"])
-            total_successes = int(stats_row["total_successes"])
+        # Aggregate SELECT without GROUP BY always yields one row.
+        avg_weight = float(stats_row["avg_weight"])
+        total_activations = int(stats_row["total_activations"])
+        total_successes = int(stats_row["total_successes"])
 
         return {
             "agent_name": agent_name,
@@ -1107,7 +1075,7 @@ async def get_hebbian_sentinel_alerts(
     try:
         where = " WHERE status = 'open'" if open_only else ""
         rows = conn.execute(
-            "SELECT * FROM hebbian_sentinel_alerts" f"{where} ORDER BY id DESC LIMIT ?",
+            f"SELECT * FROM hebbian_sentinel_alerts{where} ORDER BY id DESC LIMIT ?",
             (limit,),
         ).fetchall()
         alerts = [dict(row) for row in rows]
@@ -1137,8 +1105,6 @@ async def get_vector_stats(_key: None = Depends(_require_api_key)):
               COALESCE(AVG(LENGTH(COALESCE(content, ''))), 0.0) AS avg_content_length
             FROM vectors
             """).fetchone()
-        if row is None:
-            return VectorStoreStats(total_docs=0, avg_content_length=0.0)
         return VectorStoreStats(
             total_docs=int(row["total_docs"]),
             avg_content_length=float(row["avg_content_length"]),
@@ -1584,8 +1550,10 @@ async def execute_instruction_stream(
                             "provenance_id": ev.get("provenance_id"),
                         },
                     )
+                    return
                 elif etype == "error":
                     yield _sse_pack("error", {"error": ev.get("error", "")})
+                    return
         except Exception as exc:  # noqa: BLE001
             logger.error("Streaming executor crashed: %s", _sanitize_for_log(exc))
             # Don't leak the raw exception (which may include a stack

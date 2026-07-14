@@ -16,40 +16,31 @@ import re
 import time
 from typing import Dict, Optional, Tuple
 
+from prometheus_client import Counter, Histogram
+
 from .atp_models import ATPActionType, ATPMessage, ATPMode, ATPPriority
+from src.utils.prometheus_guard import safe_metric
 
-# Optional Prometheus metrics
-try:
-    from prometheus_client import Counter, Histogram
-
-    _METRICS_ENABLED = True
-except ImportError:
-    _METRICS_ENABLED = False
-    Counter = None  # type: ignore
-    Histogram = None  # type: ignore
-
-if _METRICS_ENABLED:
-    # safe_metric is reimport-tolerant; without it, sys.modules.pop +
-    # reimport of this module crashes with "Duplicated timeseries".
-    from src.utils.prometheus_guard import safe_metric
-
-    ATP_PARSE_LATENCY = safe_metric(
-        Histogram,
-        "artemis_atp_parse_latency_ms",
-        "ATP message parse latency in milliseconds",
-        buckets=[0.1, 0.5, 1, 2, 5, 10, 50],
-    )
-    ATP_PARSE_TOTAL = safe_metric(
-        Counter,
-        "artemis_atp_parse_total",
-        "Total ATP messages parsed",
-        ["format", "has_headers"],
-    )
-    ATP_PARSE_ERRORS = safe_metric(
-        Counter,
-        "artemis_atp_parse_errors_total",
-        "ATP parse errors",
-    )
+# safe_metric is reimport-tolerant; without it, sys.modules.pop + reimport of
+# this module crashes with "Duplicated timeseries". Prometheus is a declared
+# runtime dependency, so this instrumentation is always active.
+ATP_PARSE_LATENCY = safe_metric(
+    Histogram,
+    "artemis_atp_parse_latency_ms",
+    "ATP message parse latency in milliseconds",
+    buckets=[0.1, 0.5, 1, 2, 5, 10, 50],
+)
+ATP_PARSE_TOTAL = safe_metric(
+    Counter,
+    "artemis_atp_parse_total",
+    "Total ATP messages parsed",
+    ["format", "has_headers"],
+)
+ATP_PARSE_ERRORS = safe_metric(
+    Counter,
+    "artemis_atp_parse_errors_total",
+    "ATP parse errors",
+)
 
 
 class ATPParser:
@@ -275,20 +266,17 @@ class ATPParser:
                 "raw_length": len(raw_input),
             }
 
-            # Emit Prometheus metrics if available
-            if _METRICS_ENABLED:
-                ATP_PARSE_LATENCY.observe(parse_latency_ms)
-                ATP_PARSE_TOTAL.labels(
-                    format=format_detected or "none",
-                    has_headers=str(has_headers).lower(),
-                ).inc()
+            ATP_PARSE_LATENCY.observe(parse_latency_ms)
+            ATP_PARSE_TOTAL.labels(
+                format=format_detected or "none",
+                has_headers=str(has_headers).lower(),
+            ).inc()
 
             # Store metrics in message metadata
             message.metadata["parse_metrics"] = metrics
 
             return message, metrics
 
-        except Exception as e:
-            if _METRICS_ENABLED:
-                ATP_PARSE_ERRORS.inc()
+        except Exception:
+            ATP_PARSE_ERRORS.inc()
             raise

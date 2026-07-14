@@ -433,11 +433,22 @@ exclude_dirs = [
 ]
 
 [tool.coverage.run]
-source = ["src"]
+# Keep local and CI reports aligned with every shipped Python runtime plus the
+# active FastAPI dashboard. Directory sources are intentional: app/api is a
+# deployable namespace directory rather than an import package.
+source = ["src", "app/kernel", "app/api"]
 omit = [
     "src/tests/*",
-    "*/__init__.py",
+    # Demonstration programs are exercised as smoke workflows, not as part of
+    # the production-library coverage denominator (docs/TEST_PLAN.md).
+    "*/demo_*.py",
 ]
 
 [tool.coverage.report]
+fail_under = 90
 show_missing = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]

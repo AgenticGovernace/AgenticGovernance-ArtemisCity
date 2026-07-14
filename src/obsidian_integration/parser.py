@@ -33,17 +33,20 @@ class ObsidianParser:
         # 1. Parse YAML front matter (if present)
         if content.startswith("---"):
             parts = content.split("---", 2)
-            if len(parts) > 1:
+            if len(parts) == 3:
                 front_matter = parts[1].strip()
                 for line in front_matter.split("\n"):
                     if ":" in line:
                         key, value = line.split(":", 1)
                         task_data[key.strip()] = value.strip()
                 content = parts[2].strip()  # Remaining content
+            else:
+                logger.warning(
+                    "Ignoring malformed YAML front matter without closing delimiter."
+                )
 
         # 2. Parse main content for headings, key-value pairs, and list items
         lines = content.split("\n")
-        current_section = None
         for line in lines:
             line = line.strip()
             if not line:
@@ -94,7 +97,7 @@ class ObsidianParser:
 
         if updated_content.startswith("---"):
             parts = updated_content.split("---", 2)
-            if len(parts) > 1:
+            if len(parts) == 3:
                 front_matter = parts[1].strip()
                 main_content = parts[2].strip()
 
@@ -116,6 +119,8 @@ class ObsidianParser:
                     + "\n---\n"
                     + main_content
                 )
+            else:
+                logger.warning("Status not updated: malformed YAML front matter.")
         else:
             # No front matter, add it
             updated_content = f"---\nstatus: {new_status}\n---\n" + original_content

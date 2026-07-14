@@ -55,4 +55,4 @@ class Agent(ABC):
         Returns:
             str: The response content after processing the request.
         """
-        pass
+        raise NotImplementedError

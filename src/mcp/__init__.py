@@ -29,8 +29,12 @@ def _run_as_script() -> None:
 if __name__ == "__main__" and not __package__:
     _run_as_script()
 
-from . import config
-from .config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
+from . import config  # noqa: E402  (direct-execution guard must run first)
+from .config import (  # noqa: E402  (direct-execution guard must run first)
+    AGENT_INPUT_DIR,
+    AGENT_OUTPUT_DIR,
+    OBSIDIAN_VAULT_PATH,
+)
 
 _LAZY_EXPORTS = {
     "Orchestrator": (".orchestrator", "Orchestrator"),
@@ -52,7 +56,7 @@ def __getattr__(name: str):
 
 
 def __dir__() -> list[str]:
-    return sorted([*globals(), *_LAZY_EXPORTS])
+    return sorted({*globals(), *_LAZY_EXPORTS})
 
 
 __all__ = [

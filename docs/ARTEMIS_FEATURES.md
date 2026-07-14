@@ -335,17 +335,20 @@ Tagging: Always tag with #artemis #governance
 
 ## Testing
 
-Run tests (when implemented):
+Run the maintained suites from the repository root:
 
 ```bash
 # Unit tests for ATP
-pytest tests/test_atp.py
+python -m pytest src/tests/test_atp.py
 
 # Unit tests for instructions
-pytest tests/test_instructions.py
+python -m pytest src/tests/test_instruction_loader.py
 
 # Integration tests
-pytest tests/test_artemis_integration.py
+python -m pytest src/tests/integration/
+
+# Full production coverage (source scope comes from pyproject.toml)
+python -m pytest src/tests/ --cov --cov-report=html --cov-report=term
 ```
 
 ## Future Enhancements

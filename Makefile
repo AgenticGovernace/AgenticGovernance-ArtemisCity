@@ -126,7 +126,7 @@ test-cov: ## Run tests with coverage
 	@if [ ! -d src/tests ]; then \
 		echo "WARNING: No tests directory found"; \
 	else \
-		$(PYTHON) -m pytest src/tests/ --cov=src --cov=app --cov-report=html --cov-report=term; \
+		$(PYTHON) -m pytest src/tests/ --cov --cov-report=html --cov-report=term; \
 	fi
 
 # ============================================

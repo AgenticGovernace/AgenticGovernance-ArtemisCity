@@ -34,7 +34,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple, cast
 
 from src.agents.atp.atp_context import resolve_task_context
 from src.agents.atp.atp_models import ATPActionType, ATPMode, ATPPriority
@@ -423,7 +423,9 @@ def _register_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
         raise BridgeError("missing required field: name", code="INVALID_REQUEST")
     name = name.strip()
     capabilities = _optional_string_list(payload, "capabilities") or []
-    description = payload.get("description") or payload.get("role")
+    description = (
+        payload["description"] if "description" in payload else payload.get("role")
+    )
     if description is not None and not isinstance(description, str):
         raise BridgeError("description must be a string", code="INVALID_REQUEST")
 
@@ -498,7 +500,9 @@ def _update_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
         set_parts.append("capabilities = ?")
         params.append(json.dumps(_optional_string_list(updates, "capabilities") or []))
     if "description" in updates or "role" in updates:
-        description = updates.get("description") or updates.get("role")
+        description = (
+            updates["description"] if "description" in updates else updates.get("role")
+        )
         if description is not None and not isinstance(description, str):
             raise BridgeError("description must be a string", code="INVALID_REQUEST")
         set_parts.append("description = ?")
@@ -737,7 +741,9 @@ def _checkpoint_summary(record: dict) -> Dict[str, Any]:
 
 def _create_checkpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
     checkpoint_type = str(payload.get("checkpoint_type", "manual"))
-    metadata = payload.get("metadata") or {}
+    metadata = payload.get("metadata", {})
+    if metadata is None:
+        metadata = {}
     if not isinstance(metadata, dict):
         raise BridgeError("metadata must be an object", code="INVALID_REQUEST")
     retention_days = payload.get("retention_days", 60)
@@ -905,9 +911,15 @@ def _bridge_routing_registry(payload: Dict[str, Any]) -> AgentRegistry:
     """Hydrate the registry facade from its authoritative persisted records."""
     registry = AgentRegistry(db_path=_resolve_db_path(payload))
     for record in registry.store.list_agent_records():
-        registry.agents[record["name"]] = SimpleNamespace(
-            name=record["name"],
-            capabilities=list(record.get("capabilities") or []),
+        name = record.get("name")
+        if not isinstance(name, str):
+            continue
+        registry.agents[name] = cast(
+            Any,
+            SimpleNamespace(
+                name=name,
+                capabilities=list(record.get("capabilities") or []),
+            ),
         )
     return registry
 
@@ -1265,6 +1277,7 @@ def _trust_record_success(payload: Dict[str, Any]) -> Dict[str, Any]:
     entity_id = _require_str(payload, "entity_id")
     entity_type = payload.get("entity_type", "agent")
     amount = _optional_float(payload, "amount", 0.02, 0.0, 1.0)
+    assert amount is not None
     updated = _learning_governance(payload).record_trust_adjustment(
         entity_id,
         success=True,
@@ -1281,6 +1294,7 @@ def _trust_record_failure(payload: Dict[str, Any]) -> Dict[str, Any]:
     entity_id = _require_str(payload, "entity_id")
     entity_type = payload.get("entity_type", "agent")
     amount = _optional_float(payload, "amount", 0.05, 0.0, 1.0)
+    assert amount is not None
     updated = _learning_governance(payload).record_trust_adjustment(
         entity_id,
         success=False,
@@ -1396,6 +1410,7 @@ def _hebbian_update(payload: Dict[str, Any]) -> Dict[str, Any]:
     )
     coordinator.create_checkpoint(f"before_hebbian_update:{origin}:{target}")
     manager = coordinator.hebbian_manager
+    assert manager is not None
     current = manager.get_weight(origin, target)
     new_weight = max(0.0, current + delta)
     now = datetime.now().isoformat()

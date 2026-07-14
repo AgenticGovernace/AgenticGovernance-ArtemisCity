@@ -45,7 +45,7 @@ class MemoryBackend(ABC):
             Implementation-specific identifier or path for the stored
             content, or None if the operation failed.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def read(self, query, limit: int = 10):
@@ -58,7 +58,7 @@ class MemoryBackend(ABC):
         Returns:
             List of matching content entries.
         """
-        pass
+        raise NotImplementedError
 
 
 class FileMemoryBackend(MemoryBackend):
@@ -110,7 +110,7 @@ class FileMemoryBackend(MemoryBackend):
         filepath = os.path.join(self.base_path, filename)
         data = {"content": content, "metadata": metadata, "timestamp": time.time()}
         try:
-            with open(filepath, "w") as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
             return filepath
         except Exception as e:
@@ -132,26 +132,30 @@ class FileMemoryBackend(MemoryBackend):
                 'content', 'metadata', and 'timestamp' keys).
         """
         results = []
-        if not os.path.exists(self.base_path):
+        if limit <= 0 or not os.path.exists(self.base_path):
             return results
 
-        for f in os.listdir(self.base_path):
+        for f in sorted(os.listdir(self.base_path), reverse=True):
             if f.endswith(".json"):
                 try:
-                    with open(os.path.join(self.base_path, f), "r") as file:
+                    with open(
+                        os.path.join(self.base_path, f), "r", encoding="utf-8"
+                    ) as file:
                         data = json.load(file)
                         if query.lower() in str(data.get("content", "")).lower():
                             results.append(data)
+                            if len(results) >= limit:
+                                break
                 except Exception:
                     continue
         return results
 
 
 class VectorMemoryBackend(MemoryBackend):
-    """Supabase pgvector-based memory backend for semantic search.
+    """Adapter over the canonical local vector store for semantic search.
 
     Provides semantic search capabilities using embeddings and
-    vector similarity. Requires the MCP vector_store module.
+    vector similarity while preserving the kernel memory-backend contract.
 
     Attributes:
         vector_store: VectorStore instance for operations
@@ -160,11 +164,11 @@ class VectorMemoryBackend(MemoryBackend):
     def __init__(self):
         """Initialize vector memory backend."""
         try:
-            from MCP.src.vector_store import VectorStore  # type: ignore
+            from src.mcp.vector_store import LocalVectorStore
 
-            self.vector_store = VectorStore()
+            self.vector_store = LocalVectorStore()
             self._available = True
-        except ImportError as e:
+        except Exception as e:
             print(f"[Memory] VectorStore not available: {e}")
             self._available = False
             self.vector_store = None
@@ -184,7 +188,10 @@ class VectorMemoryBackend(MemoryBackend):
             return None
 
         try:
-            return self.vector_store.store(content, metadata)
+            record_metadata = dict(metadata or {})
+            doc_id = str(record_metadata.pop("doc_id", uuid.uuid4().hex))
+            self.vector_store.upsert(doc_id, content, record_metadata)
+            return doc_id
         except Exception as e:
             print(f"[Memory] Vector write failed: {e}")
             return None
@@ -203,15 +210,17 @@ class VectorMemoryBackend(MemoryBackend):
             return []
 
         try:
-            results = self.vector_store.search(query, limit=limit)
+            results = self.vector_store.query(query, top_k=limit, include_content=True)
             return [
                 {
-                    "content": doc.content,
-                    "metadata": doc.metadata,
-                    "timestamp": doc.metadata.get("stored_at", 0),
-                    "similarity": doc.similarity,
+                    "content": content,
+                    "metadata": metadata,
+                    "timestamp": metadata.get(
+                        "stored_at", metadata.get("last_access", 0)
+                    ),
+                    "similarity": similarity,
                 }
-                for doc in results
+                for _doc_id, similarity, metadata, content in results
             ]
         except Exception as e:
             print(f"[Memory] Vector search failed: {e}")
@@ -292,4 +301,6 @@ class MemoryBus:
         Returns:
             True if using vector backend with semantic capabilities.
         """
-        return self.backend_type == "vector"
+        return self.backend_type == "vector" and bool(
+            getattr(self.backend, "_available", True)
+        )
