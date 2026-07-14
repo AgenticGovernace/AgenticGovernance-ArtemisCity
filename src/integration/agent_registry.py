@@ -131,6 +131,9 @@ class AgentRegistryStore:
             ("hebbian_pair_bonus", "REAL NOT NULL DEFAULT 0.0"),
             ("hebbian_timing_score", "REAL"),
             ("routing_intelligence", "REAL NOT NULL DEFAULT 0.0"),
+            ("hebbian_oscillation_rate", "REAL NOT NULL DEFAULT 0.0"),
+            ("hebbian_sentinel_alert", "INTEGER NOT NULL DEFAULT 0"),
+            ("hebbian_sentinel_samples", "INTEGER NOT NULL DEFAULT 0"),
             ("learning_updated_at", "TEXT"),
         ]
         for column, spec in migrations:
@@ -213,6 +216,9 @@ class AgentRegistryStore:
             hebbian_pair_bonus,
             hebbian_timing_score,
             routing_intelligence,
+            hebbian_oscillation_rate,
+            hebbian_sentinel_alert,
+            hebbian_sentinel_samples,
             learning_updated_at,
         ) = row
         try:
@@ -248,6 +254,9 @@ class AgentRegistryStore:
             "hebbian_pair_bonus": hebbian_pair_bonus,
             "hebbian_timing_score": hebbian_timing_score,
             "routing_intelligence": routing_intelligence,
+            "hebbian_oscillation_rate": hebbian_oscillation_rate,
+            "hebbian_sentinel_alert": bool(hebbian_sentinel_alert),
+            "hebbian_sentinel_samples": hebbian_sentinel_samples,
             "learning_updated_at": learning_updated_at,
         }
 
@@ -257,7 +266,8 @@ class AgentRegistryStore:
         "execution_count, successful_executions, failed_executions, "
         "hebbian_weight, hebbian_delta, hebbian_activations, "
         "hebbian_success_rate, hebbian_task_type, hebbian_pair_bonus, "
-        "hebbian_timing_score, routing_intelligence, learning_updated_at"
+        "hebbian_timing_score, routing_intelligence, hebbian_oscillation_rate, "
+        "hebbian_sentinel_alert, hebbian_sentinel_samples, learning_updated_at"
     )
 
     def list_agent_records(self) -> List[dict]:
@@ -426,6 +436,9 @@ class AgentRegistryStore:
                     hebbian_pair_bonus = ?,
                     hebbian_timing_score = ?,
                     routing_intelligence = ?,
+                    hebbian_oscillation_rate = ?,
+                    hebbian_sentinel_alert = ?,
+                    hebbian_sentinel_samples = ?,
                     learning_updated_at = ?,
                     updated_at = ?
                 WHERE name = ?
@@ -443,6 +456,9 @@ class AgentRegistryStore:
                     learning.get("pair_bonus", 0.0),
                     learning.get("timing_score"),
                     learning.get("routing_intelligence", 0.0),
+                    learning.get("oscillation_rate", 0.0),
+                    int(bool(learning.get("sentinel_alert", False))),
+                    learning.get("sentinel_samples", 0),
                     updated_at,
                     time.time(),
                     agent_name,
@@ -472,6 +488,9 @@ class AgentRegistryStore:
                     hebbian_pair_bonus = ?,
                     hebbian_timing_score = ?,
                     routing_intelligence = ?,
+                    hebbian_oscillation_rate = ?,
+                    hebbian_sentinel_alert = ?,
+                    hebbian_sentinel_samples = ?,
                     learning_updated_at = ?,
                     updated_at = ?
                 WHERE name = ?
@@ -485,6 +504,9 @@ class AgentRegistryStore:
                     learning.get("pair_bonus", 0.0),
                     learning.get("timing_score"),
                     learning.get("routing_intelligence", 0.0),
+                    learning.get("oscillation_rate", 0.0),
+                    int(bool(learning.get("sentinel_alert", False))),
+                    learning.get("sentinel_samples", 0),
                     _now_iso(),
                     time.time(),
                     agent_name,

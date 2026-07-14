@@ -38,6 +38,8 @@ WEIGHT_FLOOR = 0.01
 PAIR_PERFORMANCE_FLOOR = 0.3
 TIMING_WINDOW = 30
 TIMING_WARMUP = 5
+SENTINEL_WINDOW = 50
+SENTINEL_THRESHOLD = 0.4
 
 
 @dataclass(frozen=True)
@@ -59,6 +61,9 @@ class HebbianUpdate:
     pair_information: float
     timing_information: float
     routing_intelligence: float
+    oscillation_rate: float = 0.0
+    sentinel_alert: bool = False
+    sentinel_samples: int = 0
 
     def to_dict(self) -> dict:
         """Return the persisted/API form of this update."""
@@ -97,6 +102,38 @@ class HebbianWeightManager:
         self.db_path = data_path(
             "hebbian_weights.db", db_path, env_var="ARTEMIS_HEBBIAN_DB"
         )
+        try:
+            self.sentinel_window = max(
+                2, int(os.getenv("ARTEMIS_HEBBIAN_SENTINEL_WINDOW", SENTINEL_WINDOW))
+            )
+        except ValueError:
+            self.sentinel_window = SENTINEL_WINDOW
+        try:
+            self.sentinel_threshold = max(
+                0.0,
+                min(
+                    1.0,
+                    float(
+                        os.getenv(
+                            "ARTEMIS_HEBBIAN_SENTINEL_THRESHOLD",
+                            SENTINEL_THRESHOLD,
+                        )
+                    ),
+                ),
+            )
+        except ValueError:
+            self.sentinel_threshold = SENTINEL_THRESHOLD
+        try:
+            self.sentinel_warmup = max(
+                2,
+                int(
+                    os.getenv(
+                        "ARTEMIS_HEBBIAN_SENTINEL_WARMUP", self.sentinel_window
+                    )
+                ),
+            )
+        except ValueError:
+            self.sentinel_warmup = self.sentinel_window
         self._ensure_db_directory()
         self._initialize_database()
         logger.info("HebbianWeightManager initialized with database: %s", self.db_path)
@@ -216,6 +253,37 @@ class HebbianWeightManager:
                     created_at TEXT NOT NULL
                 )
                 """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS hebbian_sentinel_state (
+                    agent_name TEXT NOT NULL,
+                    task_type TEXT NOT NULL,
+                    sample_count INTEGER NOT NULL DEFAULT 0,
+                    sign_changes INTEGER NOT NULL DEFAULT 0,
+                    oscillation_rate REAL NOT NULL DEFAULT 0.0,
+                    alert_active INTEGER NOT NULL DEFAULT 0,
+                    threshold REAL NOT NULL,
+                    window_size INTEGER NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (agent_name, task_type)
+                )
+                """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS hebbian_sentinel_alerts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    agent_name TEXT NOT NULL,
+                    task_type TEXT NOT NULL,
+                    oscillation_rate REAL NOT NULL,
+                    sample_count INTEGER NOT NULL,
+                    threshold REAL NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'open',
+                    created_at TEXT NOT NULL,
+                    resolved_at TEXT
+                )
+                """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_sentinel_alert_status
+                ON hebbian_sentinel_alerts(status, created_at DESC)
+                """)
             conn.commit()
 
     @staticmethod
@@ -231,6 +299,97 @@ class HebbianWeightManager:
             if scoped not in targets:
                 targets.append(scoped)
         return targets
+
+    def _update_sentinel_state(
+        self,
+        conn: sqlite3.Connection,
+        agent_name: str,
+        task_type: Optional[str],
+        now: str,
+    ) -> dict:
+        """Persist the simulation's rolling success/failure sign-change signal."""
+        normalized_type = str(task_type or "<unspecified>")
+        previous = conn.execute(
+            "SELECT alert_active FROM hebbian_sentinel_state "
+            "WHERE agent_name = ? AND task_type = ?",
+            (agent_name, normalized_type),
+        ).fetchone()
+        previous_alert = bool(previous[0]) if previous else False
+        rows = conn.execute(
+            "SELECT success FROM hebbian_learning_events "
+            "WHERE agent_name = ? AND COALESCE(task_type, '<unspecified>') = ? "
+            "ORDER BY id DESC LIMIT ?",
+            (agent_name, normalized_type, self.sentinel_window),
+        ).fetchall()
+        signs = [1 if bool(row[0]) else -1 for row in reversed(rows)]
+        sign_changes = sum(
+            1 for index in range(1, len(signs)) if signs[index] != signs[index - 1]
+        )
+        sample_count = len(signs)
+        oscillation_rate = sign_changes / max(1, sample_count)
+        alert_active = (
+            sample_count >= self.sentinel_warmup
+            and oscillation_rate > self.sentinel_threshold
+        )
+        conn.execute(
+            """
+            INSERT INTO hebbian_sentinel_state (
+                agent_name, task_type, sample_count, sign_changes,
+                oscillation_rate, alert_active, threshold, window_size, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(agent_name, task_type) DO UPDATE SET
+                sample_count = excluded.sample_count,
+                sign_changes = excluded.sign_changes,
+                oscillation_rate = excluded.oscillation_rate,
+                alert_active = excluded.alert_active,
+                threshold = excluded.threshold,
+                window_size = excluded.window_size,
+                updated_at = excluded.updated_at
+            """,
+            (
+                agent_name,
+                normalized_type,
+                sample_count,
+                sign_changes,
+                oscillation_rate,
+                int(alert_active),
+                self.sentinel_threshold,
+                self.sentinel_window,
+                now,
+            ),
+        )
+        if alert_active and not previous_alert:
+            conn.execute(
+                """
+                INSERT INTO hebbian_sentinel_alerts (
+                    agent_name, task_type, oscillation_rate, sample_count,
+                    threshold, status, created_at
+                ) VALUES (?, ?, ?, ?, ?, 'open', ?)
+                """,
+                (
+                    agent_name,
+                    normalized_type,
+                    oscillation_rate,
+                    sample_count,
+                    self.sentinel_threshold,
+                    now,
+                ),
+            )
+        elif previous_alert and not alert_active:
+            conn.execute(
+                "UPDATE hebbian_sentinel_alerts SET status = 'resolved', "
+                "resolved_at = ? WHERE agent_name = ? AND task_type = ? "
+                "AND status = 'open'",
+                (now, agent_name, normalized_type),
+            )
+        return {
+            "oscillation_rate": oscillation_rate,
+            "sentinel_alert": alert_active,
+            "sentinel_samples": sample_count,
+            "sentinel_sign_changes": sign_changes,
+            "sentinel_threshold": self.sentinel_threshold,
+            "sentinel_window": self.sentinel_window,
+        }
 
     def record_outcome(
         self,
@@ -463,6 +622,12 @@ class HebbianWeightManager:
                     now,
                 ),
             )
+            sentinel = self._update_sentinel_state(
+                conn,
+                agent_name,
+                task_type,
+                now,
+            )
             conn.commit()
 
         update = HebbianUpdate(
@@ -481,6 +646,9 @@ class HebbianWeightManager:
             pair_information=metrics["pair_information"],
             timing_information=metrics["timing_information"],
             routing_intelligence=metrics["routing_intelligence"],
+            oscillation_rate=sentinel["oscillation_rate"],
+            sentinel_alert=sentinel["sentinel_alert"],
+            sentinel_samples=sentinel["sentinel_samples"],
         )
 
         latency_ms = (time.perf_counter() - start_time) * 1000
@@ -494,6 +662,17 @@ class HebbianWeightManager:
                 new_weight=weight,
                 latency_ms=latency_ms,
             )
+            if sentinel["sentinel_alert"]:
+                run_logger.log_event(
+                    "hebbian_sentinel_alert",
+                    "hebbian_weights",
+                    {
+                        "agent": agent_name,
+                        "task_type": task_type,
+                        **sentinel,
+                    },
+                    "Hebbian outcome oscillation requires review",
+                )
         return update.to_dict()
 
     @staticmethod
@@ -568,6 +747,79 @@ class HebbianWeightManager:
             ).fetchone()
         return float(row[0]) if row else None
 
+    def get_stability_signal(self, agent_name: str, task_type: str) -> dict:
+        """Return the persisted sentinel signal for an agent/routing scope."""
+        normalized_type = str(task_type or "<unspecified>")
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT * FROM hebbian_sentinel_state "
+                "WHERE agent_name = ? AND task_type = ?",
+                (agent_name, normalized_type),
+            ).fetchone()
+        if row is None:
+            return {
+                "agent_name": agent_name,
+                "task_type": normalized_type,
+                "sample_count": 0,
+                "sign_changes": 0,
+                "oscillation_rate": 0.0,
+                "alert_active": False,
+                "threshold": self.sentinel_threshold,
+                "window_size": self.sentinel_window,
+                "updated_at": None,
+            }
+        result = dict(row)
+        result["alert_active"] = bool(result["alert_active"])
+        return result
+
+    def list_sentinel_status(
+        self,
+        *,
+        agent_name: Optional[str] = None,
+        task_type: Optional[str] = None,
+        limit: int = 100,
+    ) -> List[dict]:
+        """List current sentinel states, most recently updated first."""
+        clauses = []
+        params: List[object] = []
+        if agent_name:
+            clauses.append("agent_name = ?")
+            params.append(agent_name)
+        if task_type:
+            clauses.append("task_type = ?")
+            params.append(task_type)
+        where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+        params.append(max(1, int(limit)))
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT * FROM hebbian_sentinel_state"
+                f"{where} ORDER BY updated_at DESC LIMIT ?",
+                params,
+            ).fetchall()
+        results = [dict(row) for row in rows]
+        for result in results:
+            result["alert_active"] = bool(result["alert_active"])
+        return results
+
+    def list_sentinel_alerts(
+        self,
+        *,
+        open_only: bool = False,
+        limit: int = 100,
+    ) -> List[dict]:
+        """List persisted sentinel alert transitions."""
+        where = " WHERE status = 'open'" if open_only else ""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT * FROM hebbian_sentinel_alerts"
+                f"{where} ORDER BY id DESC LIMIT ?",
+                (max(1, int(limit)),),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def get_compounding_value(self) -> dict:
         """Return current routing-intelligence metrics."""
         with sqlite3.connect(self.db_path) as conn:
@@ -592,6 +844,15 @@ class HebbianWeightManager:
             )
             delta = float(stats.get("last_delta") or 0.0)
         metrics = self.get_compounding_value()
+        stability = (
+            self.get_stability_signal(agent_name, task_type)
+            if task_type
+            else {
+                "oscillation_rate": 0.0,
+                "alert_active": False,
+                "sample_count": 0,
+            }
+        )
         return {
             "weight": weight,
             "delta": delta,
@@ -602,6 +863,9 @@ class HebbianWeightManager:
             "timing_score": (
                 self.get_timing_score(agent_name, task_type) if task_type else None
             ),
+            "oscillation_rate": stability["oscillation_rate"],
+            "sentinel_alert": stability["alert_active"],
+            "sentinel_samples": stability["sample_count"],
             **metrics,
         }
 
@@ -1010,6 +1274,8 @@ class HebbianWeightManager:
             "agent_timing_metrics",
             "hebbian_engine_state",
             "hebbian_learning_events",
+            "hebbian_sentinel_state",
+            "hebbian_sentinel_alerts",
         )
         snapshot = {"schema_version": 1, "tables": {}}
         with sqlite3.connect(self.db_path) as conn:
@@ -1029,6 +1295,8 @@ class HebbianWeightManager:
             "agent_timing_metrics",
             "hebbian_engine_state",
             "hebbian_learning_events",
+            "hebbian_sentinel_state",
+            "hebbian_sentinel_alerts",
         )
         tables = snapshot.get("tables") if isinstance(snapshot, dict) else None
         if not isinstance(tables, dict):

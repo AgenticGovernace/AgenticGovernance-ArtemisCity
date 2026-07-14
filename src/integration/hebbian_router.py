@@ -76,6 +76,9 @@ class CandidateScore:
     pair_bonus: float = 0.0
     timing_score: Optional[float] = None
     hebbian_effective: float = 0.0
+    oscillation_rate: float = 0.0
+    sentinel_alert: bool = False
+    sentinel_samples: int = 0
 
 
 @dataclass
@@ -90,6 +93,9 @@ class RoutingDecision:
     # The originally-requested capability, set when this decision came from the
     # fallback path (i.e. no agent had the requested capability). None otherwise.
     fallback_from: Optional[str] = None
+    capability: Optional[str] = None
+    routing_scope: Optional[str] = None
+    atp_action_type: Optional[str] = None
 
     def to_dict(self) -> dict:
         """Serialize the decision (e.g. for the run logger / API).
@@ -103,6 +109,9 @@ class RoutingDecision:
             "beta": self.beta,
             "trust_floor": self.trust_floor,
             "fallback_from": self.fallback_from,
+            "capability": self.capability,
+            "routing_scope": self.routing_scope,
+            "atp_action_type": self.atp_action_type,
             "candidates": [c.__dict__ for c in self.candidates],
         }
 
@@ -172,11 +181,16 @@ class HebbianRouter:
                 eligible agent matches the requested or fallback capability.
         """
         capability = task.get("required_capability")
+        routing_scope = str(task.get("routing_scope") or capability or "").strip()
+        atp_action_type = task.get("atp_action_type")
         if not capability:
             # No capability at all: only routable if a fallback is configured.
             if self.fallback_capability:
                 decision = self._route_for(
-                    self.fallback_capability, fell_back_from="<unspecified>"
+                    self.fallback_capability,
+                    fell_back_from="<unspecified>",
+                    routing_scope=routing_scope or self.fallback_capability,
+                    atp_action_type=atp_action_type,
                 )
                 if decision is not None:
                     return decision
@@ -184,14 +198,21 @@ class HebbianRouter:
                 "Task dictionary must contain a 'required_capability' key."
             )
 
-        decision = self._route_for(capability)
+        decision = self._route_for(
+            capability,
+            routing_scope=routing_scope or capability,
+            atp_action_type=atp_action_type,
+        )
         if decision is not None:
             return decision
 
         # Fallback: nothing advertised the requested capability.
         if self.fallback_capability and self.fallback_capability != capability:
             decision = self._route_for(
-                self.fallback_capability, fell_back_from=capability
+                self.fallback_capability,
+                fell_back_from=capability,
+                routing_scope=routing_scope or capability,
+                atp_action_type=atp_action_type,
             )
             if decision is not None:
                 return decision
@@ -207,7 +228,12 @@ class HebbianRouter:
     # ------------------------------------------------------------------
 
     def _route_for(
-        self, capability: str, fell_back_from: Optional[str] = None
+        self,
+        capability: str,
+        fell_back_from: Optional[str] = None,
+        *,
+        routing_scope: Optional[str] = None,
+        atp_action_type: Optional[str] = None,
     ) -> Optional[RoutingDecision]:
         """Score and choose among agents with ``capability``; None if there are none."""
         # First pass: capability + governance (quarantine/suspension) filter.
@@ -245,10 +271,12 @@ class HebbianRouter:
             return None
 
         raw = {}
+        learning_scope = routing_scope or capability
         for name in candidates:
-            base = self._hebbian_weight(name, capability)
+            base = self._hebbian_weight(name, learning_scope)
             pair_bonus = self._pair_bonus(name)
-            timing_score = self._timing_score(name, capability)
+            timing_score = self._timing_score(name, learning_scope)
+            stability = self._stability_signal(name, learning_scope)
             effective = None
             if base is not None or timing_score is not None or pair_bonus != 0.0:
                 effective = max(
@@ -261,6 +289,7 @@ class HebbianRouter:
                 pair_bonus,
                 timing_score,
                 effective,
+                stability,
             )
         max_heb = max(
             (values[4] for values in raw.values() if values[4] is not None),
@@ -270,7 +299,14 @@ class HebbianRouter:
 
         scored: List[CandidateScore] = []
         for name in candidates:
-            composite, scoped_heb, pair_bonus, timing_score, effective = raw[name]
+            (
+                composite,
+                scoped_heb,
+                pair_bonus,
+                timing_score,
+                effective,
+                stability,
+            ) = raw[name]
             # Cold start (no weights anywhere) -> neutral prior for everyone, so
             # ranking collapses to the composite + trust portion.
             if effective is None:
@@ -294,6 +330,9 @@ class HebbianRouter:
                     pair_bonus=pair_bonus,
                     timing_score=timing_score,
                     hebbian_effective=float(effective or 0.0),
+                    oscillation_rate=stability["oscillation_rate"],
+                    sentinel_alert=stability["alert_active"],
+                    sentinel_samples=stability["sample_count"],
                 )
             )
 
@@ -334,6 +373,9 @@ class HebbianRouter:
             trust_floor=self.trust_floor,
             candidates=scored,
             fallback_from=fell_back_from if fell_back_from != "<unspecified>" else None,
+            capability=capability,
+            routing_scope=learning_scope,
+            atp_action_type=(str(atp_action_type) if atp_action_type else None),
         )
 
     def _is_blocked(self, name: str) -> bool:
@@ -429,3 +471,25 @@ class HebbianRouter:
             return max(0.0, min(1.0, float(score)))
         except Exception:  # pragma: no cover - defensive
             return None
+
+    def _stability_signal(self, name: str, task_type: str) -> dict:
+        """Return observational sentinel state without altering route ranking."""
+        neutral = {
+            "oscillation_rate": 0.0,
+            "alert_active": False,
+            "sample_count": 0,
+        }
+        try:
+            getter = getattr(self.hebbian, "get_stability_signal", None)
+            if not callable(getter):
+                return neutral
+            signal = getter(name, task_type) or {}
+            return {
+                "oscillation_rate": max(
+                    0.0, min(1.0, float(signal.get("oscillation_rate", 0.0)))
+                ),
+                "alert_active": bool(signal.get("alert_active", False)),
+                "sample_count": max(0, int(signal.get("sample_count", 0))),
+            }
+        except Exception:  # pragma: no cover - defensive
+            return neutral

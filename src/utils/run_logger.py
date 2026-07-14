@@ -79,10 +79,19 @@ class RunLogger:
                     message TEXT,
                     metadata TEXT,
                     duration_ms REAL,
+                    prov_id TEXT,
+                    parent_prov_id TEXT,
                     created_at REAL NOT NULL
                 )
             """
             )
+
+            existing_event_columns = {
+                row[1] for row in conn.execute("PRAGMA table_info(event_log)")
+            }
+            for column in ("prov_id", "parent_prov_id"):
+                if column not in existing_event_columns:
+                    conn.execute(f"ALTER TABLE event_log ADD COLUMN {column} TEXT")
 
             # Vector log table - tracks all semantic embeddings
             conn.execute(
@@ -128,6 +137,14 @@ class RunLogger:
             )
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_event_type ON event_log(event_type)"
+            )
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_event_prov "
+                "ON event_log(prov_id) WHERE prov_id IS NOT NULL"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_event_parent_prov "
+                "ON event_log(parent_prov_id)"
             )
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_vector_run ON vector_log(run_id)"
@@ -181,7 +198,9 @@ class RunLogger:
         metadata: Optional[Dict] = None,
         message: Optional[str] = None,
         duration_ms: Optional[float] = None,
-    ):
+        prov_id: Optional[str] = None,
+        parent_prov_id: Optional[str] = None,
+    ) -> str:
         """Log a general event.
 
         Args:
@@ -190,12 +209,15 @@ class RunLogger:
             metadata: Additional structured data
             message: Human-readable message
             duration_ms: Operation duration if applicable
+            prov_id: Stable identifier for this individual event.
+            parent_prov_id: Parent prompt/action provenance identifier.
 
         Returns:
             None: This function does not return a value.
         """
         timestamp = datetime.now().isoformat()
         created_at = time.time()
+        prov_id = prov_id or str(uuid.uuid4())
 
         event = {
             "run_id": self.run_id,
@@ -205,6 +227,8 @@ class RunLogger:
             "message": message,
             "metadata": metadata,
             "duration_ms": duration_ms,
+            "prov_id": prov_id,
+            "parent_prov_id": parent_prov_id,
             "created_at": created_at,
         }
         self._events.append(event)
@@ -214,8 +238,9 @@ class RunLogger:
             conn.execute(
                 """
                 INSERT INTO event_log
-                (run_id, timestamp, event_type, component, message, metadata, duration_ms, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (run_id, timestamp, event_type, component, message, metadata,
+                 duration_ms, prov_id, parent_prov_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     self.run_id,
@@ -225,6 +250,8 @@ class RunLogger:
                     message,
                     json.dumps(metadata) if metadata else None,
                     duration_ms,
+                    prov_id,
+                    parent_prov_id,
                     created_at,
                 ),
             )
@@ -242,6 +269,7 @@ class RunLogger:
             event_type,
             details[:100],  # Truncate for table readability
         )
+        return prov_id
 
     def log_vector_operation(
         self,
@@ -394,6 +422,8 @@ class RunLogger:
         status: str,
         duration_ms: float,
         metadata: Optional[Dict] = None,
+        prov_id: Optional[str] = None,
+        parent_prov_id: Optional[str] = None,
     ):
         """Log task execution details.
 
@@ -418,6 +448,8 @@ class RunLogger:
             },
             f"Task {task_id} {status} by {agent_name}",
             duration_ms,
+            prov_id,
+            parent_prov_id,
         )
 
     def log_hebbian_update(
@@ -764,7 +796,8 @@ def get_run_events(
         if event_type:
             cursor = conn.execute(
                 """
-                SELECT run_id, timestamp, event_type, component, message, metadata
+                SELECT run_id, timestamp, event_type, component, message, metadata,
+                       prov_id, parent_prov_id
                 FROM event_log
                 WHERE run_id = ? AND event_type = ?
                 ORDER BY created_at DESC
@@ -775,7 +808,8 @@ def get_run_events(
         else:
             cursor = conn.execute(
                 """
-                SELECT run_id, timestamp, event_type, component, message, metadata
+                SELECT run_id, timestamp, event_type, component, message, metadata,
+                       prov_id, parent_prov_id
                 FROM event_log
                 WHERE run_id = ?
                 ORDER BY created_at DESC

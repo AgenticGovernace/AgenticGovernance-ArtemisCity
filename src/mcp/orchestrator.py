@@ -1,5 +1,7 @@
+import hashlib
 import os
 import time
+import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -7,6 +9,7 @@ from src.agents import SummarizerAgent
 from src.agents.artemis_agent import ArtemisAgent
 from src.agents.llm_agent import LLMAgent
 from src.agents.research_agent import ResearchAgent
+from src.agents.atp.atp_context import resolve_task_context
 from src.obsidian_integration import ObsidianGenerator, ObsidianManager, ObsidianParser
 from src.utils.helpers import logger, sanitize_for_log
 from src.governance.checkpoints import CheckpointStore
@@ -327,6 +330,90 @@ class Orchestrator:
 
         return None
 
+    def prepare_task_context(self, task_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Attach canonical ATP routing context when headers are present."""
+        strict_default = os.getenv("ARTEMIS_ATP_STRICT", "0").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
+        strict = bool(task_context.get("atp_strict", strict_default))
+        return resolve_task_context(
+            task_context,
+            strict=strict,
+            default_capability=self.hebbian_router.fallback_capability or "llm_chat",
+        )
+
+    @staticmethod
+    def _strict_provenance(task_context: Dict[str, Any]) -> bool:
+        """ATP prompts fail closed when their provenance sink is unavailable."""
+        return bool(task_context.get("atp"))
+
+    def ensure_task_provenance(
+        self,
+        task_context: Dict[str, Any],
+        *,
+        source: str,
+    ) -> Dict[str, Any]:
+        """Create the parent provenance event for one prompt/task."""
+        if task_context.get("provenance_id"):
+            return task_context
+
+        parent_id = str(uuid.uuid4())
+        run_logger = _get_run_logger()
+        if run_logger is None:
+            if self._strict_provenance(task_context):
+                raise RuntimeError("ATP provenance sink is unavailable")
+            task_context["provenance_id"] = parent_id
+            return task_context
+
+        prompt = str(task_context.get("atp_raw") or task_context.get("content") or "")
+        recorded_id = run_logger.log_event(
+            "prompt_received",
+            "orchestrator",
+            {
+                "task_id": task_context.get("task_id"),
+                "source": source,
+                "required_capability": task_context.get("required_capability"),
+                "routing_scope": task_context.get("routing_scope"),
+                "atp": task_context.get("atp"),
+                "content_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+            },
+            "Prompt accepted for governed routing",
+            prov_id=parent_id,
+        )
+        task_context["provenance_id"] = recorded_id
+        return task_context
+
+    def _log_provenance_action(
+        self,
+        task_context: Dict[str, Any],
+        event_type: str,
+        component: str,
+        metadata: Optional[Dict[str, Any]] = None,
+        message: Optional[str] = None,
+        duration_ms: Optional[float] = None,
+    ) -> Optional[str]:
+        """Write one child action linked to the task's parent provenance."""
+        parent_id = task_context.get("provenance_id")
+        if not parent_id:
+            self.ensure_task_provenance(task_context, source=component)
+            parent_id = task_context.get("provenance_id")
+        run_logger = _get_run_logger()
+        if run_logger is None:
+            if self._strict_provenance(task_context):
+                raise RuntimeError("ATP provenance sink is unavailable")
+            return None
+        return run_logger.log_event(
+            event_type,
+            component,
+            metadata,
+            message,
+            duration_ms,
+            parent_prov_id=str(parent_id),
+        )
+
     def route_and_execute_task(
         self,
         task_context: Dict[str, Any],
@@ -361,6 +448,11 @@ class Orchestrator:
             ... })
         """
         try:
+            task_context = self.prepare_task_context(task_context)
+            task_context = self.ensure_task_provenance(
+                task_context,
+                source="route_and_execute_task",
+            )
             resolved_capability = self._resolve_required_capability(task_context)
             if not resolved_capability:
                 raise ValueError(
@@ -433,6 +525,11 @@ class Orchestrator:
             Hebbian learning is applied automatically - successful tasks
             strengthen agent-task associations, failures weaken them.
         """
+        task_context = self.prepare_task_context(task_context)
+        task_context = self.ensure_task_provenance(
+            task_context,
+            source="assign_and_execute_task",
+        )
         task_start_time = time.perf_counter()
         run_logger = _get_run_logger()
 
@@ -463,18 +560,18 @@ class Orchestrator:
                     "failed",
                     task_id,
                 )
-            if run_logger:
-                run_logger.log_event(
-                    "dispatch_denied",
-                    "sandbox",
-                    {
-                        "task_id": task_id,
-                        "agent": agent_name,
-                        "capability": task_context.get("required_capability"),
-                        "violation_type": sandbox_result.violation_type,
-                        "reason": sandbox_result.reason,
-                    },
-                )
+            self._log_provenance_action(
+                task_context,
+                "dispatch_denied",
+                "sandbox",
+                {
+                    "task_id": task_id,
+                    "agent": agent_name,
+                    "capability": task_context.get("required_capability"),
+                    "violation_type": sandbox_result.violation_type,
+                    "reason": sandbox_result.reason,
+                },
+            )
             return result
 
         logger.info(
@@ -486,17 +583,18 @@ class Orchestrator:
         task_success = False
 
         # Log task start
-        if run_logger:
-            run_logger.log_event(
-                "task_start",
-                "orchestrator",
-                {
-                    "task_id": task_id,
-                    "agent": agent_name,
-                    "capability": task_context.get("required_capability"),
-                },
-                f"Starting task {task_id} with {agent_name}",
-            )
+        self._log_provenance_action(
+            task_context,
+            "task_start",
+            "orchestrator",
+            {
+                "task_id": task_id,
+                "agent": agent_name,
+                "capability": task_context.get("required_capability"),
+                "routing_scope": task_context.get("routing_scope"),
+            },
+            f"Starting task {task_id} with {agent_name}",
+        )
 
         try:
             enriched_context = self._enrich_task_with_memory(task_context)
@@ -523,7 +621,19 @@ class Orchestrator:
                 self.memory_bus.write_note_with_embedding(
                     report_path,
                     report_md,
-                    metadata={"agent": agent_name, "task_id": task_id},
+                    metadata={
+                        "agent": agent_name,
+                        "task_id": task_id,
+                        "provenance_id": task_context.get("provenance_id"),
+                        "routing_scope": task_context.get("routing_scope"),
+                        "atp_action_type": task_context.get("atp_action_type"),
+                    },
+                )
+                self._log_provenance_action(
+                    task_context,
+                    "memory_persisted",
+                    "memory_bus",
+                    {"task_id": task_id, "path": report_path},
                 )
             except Exception:
                 logger.error(
@@ -564,14 +674,34 @@ class Orchestrator:
 
         # Full learning update: nonlinear Hebbian/anti-Hebbian weight,
         # pair/timing signals, registry mirror, and governance trust score.
-        self._update_hebbian_weights(
+        learning = self._update_hebbian_weights(
             agent_name,
             task_id,
             task_success,
-            task_type=task_context.get("required_capability"),
+            task_type=(
+                task_context.get("routing_scope")
+                or task_context.get("required_capability")
+            ),
             results=results,
             duration_ms=task_duration_ms,
         )
+        self._log_provenance_action(
+            task_context,
+            "learning_updated",
+            "hebbian_weights",
+            {
+                "task_id": task_id,
+                "agent": agent_name,
+                "task_type": learning.get("task_type"),
+                "delta": learning.get("delta"),
+                "weight": learning.get("weight"),
+                "sentinel_alert": learning.get("sentinel_alert", False),
+            },
+        )
+
+        results.setdefault("provenance_id", task_context.get("provenance_id"))
+        if task_context.get("atp"):
+            results.setdefault("atp", task_context["atp"])
 
         # Log task completion
         if run_logger:
@@ -582,8 +712,10 @@ class Orchestrator:
                 duration_ms=task_duration_ms,
                 metadata={
                     "capability": task_context.get("required_capability"),
+                    "routing_scope": task_context.get("routing_scope"),
                     "summary": results.get("summary", "")[:100],
                 },
+                parent_prov_id=task_context.get("provenance_id"),
             )
 
         return results
@@ -610,6 +742,11 @@ class Orchestrator:
         case which agent was picked.
         """
         try:
+            task_context = self.prepare_task_context(task_context)
+            task_context = self.ensure_task_provenance(
+                task_context,
+                source="stream_route_and_execute",
+            )
             resolved_capability = self._resolve_required_capability(task_context)
             if not resolved_capability:
                 yield {
@@ -695,6 +832,18 @@ class Orchestrator:
                     "failed",
                     task_id,
                 )
+            self._log_provenance_action(
+                task_context,
+                "dispatch_denied",
+                "sandbox",
+                {
+                    "task_id": task_id,
+                    "agent": agent_name,
+                    "capability": task_context.get("required_capability"),
+                    "violation_type": sandbox_result.violation_type,
+                    "reason": sandbox_result.reason,
+                },
+            )
             yield {
                 "type": "error",
                 "error": "Task denied by governance policy; see server logs.",
@@ -704,6 +853,18 @@ class Orchestrator:
         task_success = False
         results: Dict[str, Any] = {}
         task_start_time = time.perf_counter()
+        self._log_provenance_action(
+            task_context,
+            "task_start",
+            "orchestrator",
+            {
+                "task_id": task_id,
+                "agent": agent_name,
+                "capability": task_context.get("required_capability"),
+                "routing_scope": task_context.get("routing_scope"),
+            },
+            f"Starting streaming task {task_id} with {agent_name}",
+        )
         try:
             enriched_context = self._enrich_task_with_memory(task_context)
 
@@ -747,7 +908,19 @@ class Orchestrator:
                 self.memory_bus.write_note_with_embedding(
                     report_path,
                     report_md,
-                    metadata={"agent": agent_name, "task_id": task_id},
+                    metadata={
+                        "agent": agent_name,
+                        "task_id": task_id,
+                        "provenance_id": task_context.get("provenance_id"),
+                        "routing_scope": task_context.get("routing_scope"),
+                        "atp_action_type": task_context.get("atp_action_type"),
+                    },
+                )
+                self._log_provenance_action(
+                    task_context,
+                    "memory_persisted",
+                    "memory_bus",
+                    {"task_id": task_id, "path": report_path},
                 )
             except Exception:
                 # exc_info=True attaches the stack trace; agent_name omitted
@@ -783,13 +956,29 @@ class Orchestrator:
         # reached a terminal result, matching the JSON executor's trail.
         hebbian_error: Optional[str] = None
         try:
-            self._update_hebbian_weights(
+            learning = self._update_hebbian_weights(
                 agent_name,
                 task_id,
                 task_success,
-                task_type=task_context.get("required_capability"),
+                task_type=(
+                    task_context.get("routing_scope")
+                    or task_context.get("required_capability")
+                ),
                 results=results,
                 duration_ms=(time.perf_counter() - task_start_time) * 1000,
+            )
+            self._log_provenance_action(
+                task_context,
+                "learning_updated",
+                "hebbian_weights",
+                {
+                    "task_id": task_id,
+                    "agent": agent_name,
+                    "task_type": learning.get("task_type"),
+                    "delta": learning.get("delta"),
+                    "weight": learning.get("weight"),
+                    "sentinel_alert": learning.get("sentinel_alert", False),
+                },
             )
         except Exception:
             logger.error("Hebbian update failed in streaming executor.", exc_info=True)
@@ -805,6 +994,19 @@ class Orchestrator:
         # otherwise the Hebbian-update error, otherwise None.
         complete_error = results.get("error") or hebbian_error
 
+        self._log_provenance_action(
+            task_context,
+            "task_completed" if task_success else "task_failed",
+            "orchestrator",
+            {
+                "task_id": task_id,
+                "agent": agent_name,
+                "status": "success" if task_success else "failed",
+                "error": complete_error,
+            },
+            duration_ms=(time.perf_counter() - task_start_time) * 1000,
+        )
+
         yield {
             "type": "complete",
             "task_id": task_id,
@@ -813,6 +1015,8 @@ class Orchestrator:
             "summary": results.get("summary", "Task executed"),
             "note_path": original_task_note_path,
             "error": complete_error,
+            "provenance_id": task_context.get("provenance_id"),
+            "atp": task_context.get("atp"),
         }
 
     def _update_hebbian_weights(
@@ -861,6 +1065,15 @@ class Orchestrator:
             performance,
             trust_score,
         )
+        if learning.get("sentinel_alert"):
+            logger.warning(
+                "Hebbian sentinel review signal for %s / %s "
+                "(oscillation=%.3f, samples=%d)",
+                _sanitize_for_log(agent_name),
+                _sanitize_for_log(task_type),
+                learning.get("oscillation_rate", 0.0),
+                learning.get("sentinel_samples", 0),
+            )
         return {**learning, **registry_metrics}
 
     def _check_dispatch(self, agent, task_context: Dict[str, Any]):
@@ -914,10 +1127,8 @@ class Orchestrator:
         pinned: bool = False,
     ) -> None:
         """Persist the chosen route and full candidate breakdown."""
-        run_logger = _get_run_logger()
-        if not run_logger:
-            return
-        run_logger.log_event(
+        self._log_provenance_action(
+            task_context,
             "routing_decision",
             "hebbian_router" if decision is not None else "agent_registry",
             {
