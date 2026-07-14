@@ -417,10 +417,7 @@ class TestOrchestratorRouting:
         dispatched_context = summarizer.perform_task.call_args.args[0]
         assert dispatched_context["content"] == "A long report body."
         assert dispatched_context["required_capability"] == "text_summarization"
-        assert (
-            dispatched_context["routing_scope"]
-            == "atp:summarize:text_summarization"
-        )
+        assert dispatched_context["routing_scope"] == "atp:summarize:text_summarization"
         assert dispatched_context["provenance_id"] == result["provenance_id"]
         prompt_call = next(
             call

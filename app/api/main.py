@@ -877,9 +877,7 @@ async def get_agent_scores(_key: None = Depends(_require_api_key)):
                         else None
                     ),
                     routing_intelligence=float(row["routing_intelligence"]),
-                    hebbian_oscillation_rate=float(
-                        row["hebbian_oscillation_rate"]
-                    ),
+                    hebbian_oscillation_rate=float(row["hebbian_oscillation_rate"]),
                     hebbian_sentinel_alert=bool(row["hebbian_sentinel_alert"]),
                     hebbian_sentinel_samples=int(row["hebbian_sentinel_samples"]),
                     learning_updated_at=row["learning_updated_at"],
@@ -1109,16 +1107,13 @@ async def get_hebbian_sentinel_alerts(
     try:
         where = " WHERE status = 'open'" if open_only else ""
         rows = conn.execute(
-            "SELECT * FROM hebbian_sentinel_alerts"
-            f"{where} ORDER BY id DESC LIMIT ?",
+            "SELECT * FROM hebbian_sentinel_alerts" f"{where} ORDER BY id DESC LIMIT ?",
             (limit,),
         ).fetchall()
         alerts = [dict(row) for row in rows]
         return {"alerts": alerts, "total": len(alerts)}
     except Exception as e:
-        logger.error(
-            "Error fetching Hebbian sentinel alerts: %s", _sanitize_for_log(e)
-        )
+        logger.error("Error fetching Hebbian sentinel alerts: %s", _sanitize_for_log(e))
         raise HTTPException(status_code=500, detail="Failed to fetch sentinel alerts.")
     finally:
         conn.close()
@@ -1530,9 +1525,9 @@ async def execute_instruction_stream(
     task_data.setdefault("routing_scope", task_data["required_capability"])
     task_data["tags"] = ["user_instruction", task_data["required_capability"]]
     if task_data.get("atp") and not request.title:
-        task_data["title"] = (
-            task_data["atp"].get("context") or task_data["title"]
-        )[:80]
+        task_data["title"] = (task_data["atp"].get("context") or task_data["title"])[
+            :80
+        ]
     task_data = active_orchestrator.ensure_task_provenance(
         task_data,
         source="fastapi.execute.stream",

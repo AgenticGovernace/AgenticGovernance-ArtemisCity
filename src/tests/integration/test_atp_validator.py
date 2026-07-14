@@ -5,6 +5,7 @@ import sys
 sys.modules.pop("agents.atp.atp_validator", None)
 
 import pytest
+
 from src.agents.atp.atp_models import ATPActionType, ATPMessage, ATPMode
 from src.agents.atp.atp_validator import ATPValidator, ValidationResult
 

@@ -38,12 +38,9 @@ class RunLogger:
         run_id: Optional[str] = None,
     ):
         self.log_dir = Path(log_path(".", log_dir))
-        self.db_path = data_path(
-            "run_logs.db", db_path, env_var="ARTEMIS_RUN_LOG_DB"
-        )
+        self.db_path = data_path("run_logs.db", db_path, env_var="ARTEMIS_RUN_LOG_DB")
         self.run_id = run_id or (
-            f"{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}_"
-            f"{uuid.uuid4().hex[:8]}"
+            f"{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}_" f"{uuid.uuid4().hex[:8]}"
         )
         self.run_start_time = time.perf_counter()
         self._events: List[Dict] = []
@@ -68,8 +65,7 @@ class RunLogger:
         """Create logging tables if they don't exist."""
         with sqlite3.connect(self.db_path) as conn:
             # Event log table - tracks all operations
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS event_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id TEXT NOT NULL,
@@ -83,8 +79,7 @@ class RunLogger:
                     parent_prov_id TEXT,
                     created_at REAL NOT NULL
                 )
-            """
-            )
+            """)
 
             existing_event_columns = {
                 row[1] for row in conn.execute("PRAGMA table_info(event_log)")
@@ -94,8 +89,7 @@ class RunLogger:
                     conn.execute(f"ALTER TABLE event_log ADD COLUMN {column} TEXT")
 
             # Vector log table - tracks all semantic embeddings
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS vector_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id TEXT NOT NULL,
@@ -109,12 +103,10 @@ class RunLogger:
                     latency_ms REAL,
                     created_at REAL NOT NULL
                 )
-            """
-            )
+            """)
 
             # Database write log - tracks all DB operations
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS db_write_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id TEXT NOT NULL,
@@ -128,8 +120,7 @@ class RunLogger:
                     latency_ms REAL,
                     created_at REAL NOT NULL
                 )
-            """
-            )
+            """)
 
             # Create indexes for efficient querying
             conn.execute(
@@ -731,9 +722,7 @@ def get_recent_runs(db_path: Optional[str] = None, limit: int = 20) -> List[Dict
     Returns:
         List of run summaries
     """
-    resolved_db_path = data_path(
-        "run_logs.db", db_path, env_var="ARTEMIS_RUN_LOG_DB"
-    )
+    resolved_db_path = data_path("run_logs.db", db_path, env_var="ARTEMIS_RUN_LOG_DB")
     with sqlite3.connect(resolved_db_path) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.execute(
@@ -787,9 +776,7 @@ def get_run_events(
     Returns:
         List of event dictionaries
     """
-    resolved_db_path = data_path(
-        "run_logs.db", db_path, env_var="ARTEMIS_RUN_LOG_DB"
-    )
+    resolved_db_path = data_path("run_logs.db", db_path, env_var="ARTEMIS_RUN_LOG_DB")
     with sqlite3.connect(resolved_db_path) as conn:
         conn.row_factory = sqlite3.Row
 

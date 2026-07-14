@@ -19,11 +19,12 @@ for _key in [
     del sys.modules[_key]
 
 import pytest
+
 from integration.sandbox import (
     AgentSandbox,
+    QuarantineStatus,
     SandboxManager,
     ViolationType,
-    QuarantineStatus,
 )
 
 

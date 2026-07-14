@@ -306,9 +306,7 @@ def _ensure_atp_store(payload: Dict[str, Any]) -> str:
                 updated_at TEXT NOT NULL
             )
             """)
-        existing = {
-            row[1] for row in conn.execute("PRAGMA table_info(atp_messages)")
-        }
+        existing = {row[1] for row in conn.execute("PRAGMA table_info(atp_messages)")}
         if "provenance_id" not in existing:
             conn.execute("ALTER TABLE atp_messages ADD COLUMN provenance_id TEXT")
         conn.execute(

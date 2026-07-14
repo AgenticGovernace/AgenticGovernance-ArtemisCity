@@ -7,12 +7,12 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from src.agents import SummarizerAgent
 from src.agents.artemis_agent import ArtemisAgent
+from src.agents.atp.atp_context import resolve_task_context
 from src.agents.llm_agent import LLMAgent
 from src.agents.research_agent import ResearchAgent
-from src.agents.atp.atp_context import resolve_task_context
+from src.governance.checkpoints import CheckpointStore
 from src.obsidian_integration import ObsidianGenerator, ObsidianManager, ObsidianParser
 from src.utils.helpers import logger, sanitize_for_log
-from src.governance.checkpoints import CheckpointStore
 
 from ..integration.agent_registry import AgentRegistry
 from ..integration.governance import GovernanceMonitor

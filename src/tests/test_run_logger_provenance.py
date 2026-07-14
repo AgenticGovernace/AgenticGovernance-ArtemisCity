@@ -27,12 +27,16 @@ def test_run_logger_persists_parent_child_provenance(tmp_path):
     assert parent == "parent-1"
     assert child != parent
     events = get_run_events(str(db_path), "provenance-test")
-    routing = next(event for event in events if event["event_type"] == "routing_decision")
+    routing = next(
+        event for event in events if event["event_type"] == "routing_decision"
+    )
     assert routing["parent_prov_id"] == parent
     assert routing["prov_id"] == child
 
     with sqlite3.connect(db_path) as conn:
-        assert conn.execute(
-            "SELECT COUNT(*) FROM event_log WHERE parent_prov_id = ?", (parent,)
-        ).fetchone()[0] == 1
-
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM event_log WHERE parent_prov_id = ?", (parent,)
+            ).fetchone()[0]
+            == 1
+        )

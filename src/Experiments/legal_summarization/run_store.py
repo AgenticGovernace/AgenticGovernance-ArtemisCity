@@ -57,8 +57,7 @@ class RunStore:
 
     def _init_db(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS runs (
                     run_id          TEXT PRIMARY KEY,
                     started_at      TEXT NOT NULL,
@@ -76,10 +75,8 @@ class RunStore:
                     dataset_source  TEXT,
                     metrics_json    TEXT
                 )
-            """
-            )
-            conn.execute(
-                """
+            """)
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS results (
                     id              INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id          TEXT NOT NULL REFERENCES runs(run_id),
@@ -95,8 +92,7 @@ class RunStore:
                     metrics_json    TEXT,
                     created_at      REAL NOT NULL
                 )
-            """
-            )
+            """)
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_results_run ON results(run_id)"
             )

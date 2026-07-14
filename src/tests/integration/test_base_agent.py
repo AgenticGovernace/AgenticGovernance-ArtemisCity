@@ -5,6 +5,7 @@ import sys
 sys.modules.pop("agents.base_agent", None)
 
 import pytest
+
 from src.agents.base_agent import BaseAgent
 
 

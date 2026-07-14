@@ -16,8 +16,8 @@ from typing import Dict, List, Optional
 from src.obsidian_integration import ObsidianManager
 from src.utils.helpers import logger
 
-from .memory_decay import MemoryDecayService, MemoryNode
 from ..mcp.vector_store import LocalVectorStore
+from .memory_decay import MemoryDecayService, MemoryNode
 
 # Lazy import to avoid circular dependency
 _run_logger = None

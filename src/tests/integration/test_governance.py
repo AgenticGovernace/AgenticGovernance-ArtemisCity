@@ -15,22 +15,25 @@ if _repo not in sys.path:
 _src = str(Path(__file__).resolve().parents[2])
 if _src not in sys.path:
     sys.path.insert(0, _src)
-for _key in [k for k in sys.modules if k == "governance" or k.startswith("governance.")]:
+for _key in [
+    k for k in sys.modules if k == "governance" or k.startswith("governance.")
+]:
     del sys.modules[_key]
 
 import pytest
-from src.governance.approvals import (
-    SelfUpdateGovernor,
-    ApprovalTier,
-    UpdateProposal,
-    ApprovalDecision,
-)
-from src.governance.rollback import RollbackManager, Checkpoint
 
+from src.governance.approvals import (
+    ApprovalDecision,
+    ApprovalTier,
+    SelfUpdateGovernor,
+    UpdateProposal,
+)
+from src.governance.rollback import Checkpoint, RollbackManager
 
 # ---------------------------------------------------------------------------
 # SelfUpdateGovernor / ApprovalTier tests
 # ---------------------------------------------------------------------------
+
 
 class TestApprovalTier:
     """Tests for ApprovalTier enum values."""
@@ -153,6 +156,7 @@ class TestSelfUpdateGovernor:
 # RollbackManager tests
 # ---------------------------------------------------------------------------
 
+
 class TestRollbackManager:
     """Tests for RollbackManager class."""
 
@@ -255,7 +259,9 @@ class TestRollbackManager:
     def test_diff_checkpoints(self, manager):
         """diff_checkpoints shows differences between two states."""
         id_a = manager.create_checkpoint("v1", state={"agent_registry": {"a": 1}})
-        id_b = manager.create_checkpoint("v2", state={"agent_registry": {"a": 2, "b": 3}})
+        id_b = manager.create_checkpoint(
+            "v2", state={"agent_registry": {"a": 2, "b": 3}}
+        )
         diff = manager.diff_checkpoints(id_a, id_b)
         assert "differences" in diff
         assert "agent_registry" in diff["differences"]

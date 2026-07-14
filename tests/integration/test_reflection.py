@@ -5,6 +5,7 @@ import sys
 sys.modules.pop("agents.artemis.reflection", None)
 
 import pytest
+
 from agents.artemis.reflection import ConceptGraph, ConceptNode, ReflectionEngine
 
 

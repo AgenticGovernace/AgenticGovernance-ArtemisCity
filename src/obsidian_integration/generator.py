@@ -38,7 +38,11 @@ class ObsidianGenerator:
                     markdown += f"- **{key.replace('_', ' ').title()}**: {value}\n"
 
         markdown += f"""\n## Next Steps (Optional)\n\n- [ ]  Review this report\n- [ ]  Discuss findings with team\n"""
-        logger.info("Generated report for %s, task %s", sanitize_for_log(agent_name), sanitize_for_log(task_id))
+        logger.info(
+            "Generated report for %s, task %s",
+            sanitize_for_log(agent_name),
+            sanitize_for_log(task_id),
+        )
         return markdown
 
     def generate_task_note(self, task_data: dict) -> str:

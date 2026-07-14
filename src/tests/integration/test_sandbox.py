@@ -10,17 +10,20 @@ from pathlib import Path
 _repo = str(Path(__file__).resolve().parents[3])
 if _repo not in sys.path:
     sys.path.insert(0, _repo)
-for _key in [k for k in sys.modules if k == "integration" or k.startswith("integration.")]:
+for _key in [
+    k for k in sys.modules if k == "integration" or k.startswith("integration.")
+]:
     del sys.modules[_key]
 
 import pytest
+
 from src.integration.sandbox import (
-    AgentSandbox,
-    ToolPolicy,
-    CheckResult,
-    VIOLATION_UNAUTHORIZED_TOOL,
-    VIOLATION_UNAUTHORIZED_PATH,
     VIOLATION_UNAUTHORIZED_OPERATION,
+    VIOLATION_UNAUTHORIZED_PATH,
+    VIOLATION_UNAUTHORIZED_TOOL,
+    AgentSandbox,
+    CheckResult,
+    ToolPolicy,
 )
 
 
@@ -61,7 +64,9 @@ class TestCheckResult:
         assert r.violation_type is None
 
     def test_denied(self):
-        r = CheckResult(allowed=False, violation_type="unauthorized_tool", reason="not whitelisted")
+        r = CheckResult(
+            allowed=False, violation_type="unauthorized_tool", reason="not whitelisted"
+        )
         assert r.allowed is False
         assert r.violation_type == "unauthorized_tool"
 

@@ -15,15 +15,15 @@ for _key in [
     del sys.modules[_key]
 
 import pytest
-from governance.self_update_governance import (
-    SelfUpdateGovernor,
-    ApprovalLevel,
-    WorkflowChange,
-    ApprovalDecision,
-    SandboxTestResults,
-)
-from governance.rollback import RollbackManager, Checkpoint
 
+from governance.rollback import Checkpoint, RollbackManager
+from governance.self_update_governance import (
+    ApprovalDecision,
+    ApprovalLevel,
+    SandboxTestResults,
+    SelfUpdateGovernor,
+    WorkflowChange,
+)
 
 # ---------------------------------------------------------------------------
 # SelfUpdateGovernor tests

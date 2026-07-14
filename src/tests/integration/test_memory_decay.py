@@ -10,12 +10,20 @@ from pathlib import Path
 _repo = str(Path(__file__).resolve().parents[3])
 if _repo not in sys.path:
     sys.path.insert(0, _repo)
-for _key in [k for k in sys.modules if k == "integration" or k.startswith("integration.")]:
+for _key in [
+    k for k in sys.modules if k == "integration" or k.startswith("integration.")
+]:
     del sys.modules[_key]
 
-import pytest
 from datetime import datetime, timedelta, timezone
-from src.integration.memory_decay import MemoryDecayService, MemoryNode, DecayCycleResult
+
+import pytest
+
+from src.integration.memory_decay import (
+    DecayCycleResult,
+    MemoryDecayService,
+    MemoryNode,
+)
 
 
 class TestMemoryNode:
@@ -174,12 +182,21 @@ class TestMemoryDecayService:
         """Test a cycle with nodes in different states."""
         now = datetime.now(timezone.utc)
 
-        service.register_node(MemoryNode("fresh", content="c", weight=1.0, last_access=now))
         service.register_node(
-            MemoryNode("stale", content="c", weight=1.0, last_access=now - timedelta(days=60))
+            MemoryNode("fresh", content="c", weight=1.0, last_access=now)
         )
         service.register_node(
-            MemoryNode("ancient", content="c", weight=1.0, last_access=now - timedelta(days=200))
+            MemoryNode(
+                "stale", content="c", weight=1.0, last_access=now - timedelta(days=60)
+            )
+        )
+        service.register_node(
+            MemoryNode(
+                "ancient",
+                content="c",
+                weight=1.0,
+                last_access=now - timedelta(days=200),
+            )
         )
 
         result = service.run_decay_cycle(now=now)
@@ -224,7 +241,9 @@ class TestMemoryDecayService:
         """Decay events are included in the result."""
         now = datetime.now(timezone.utc)
         service.register_node(
-            MemoryNode("n1", content="c", weight=1.0, last_access=now - timedelta(days=60))
+            MemoryNode(
+                "n1", content="c", weight=1.0, last_access=now - timedelta(days=60)
+            )
         )
         result = service.run_decay_cycle(now=now)
         assert len(result.events) >= 1
@@ -234,7 +253,9 @@ class TestMemoryDecayService:
         """Test that decay events are written to disk."""
         now = datetime.now(timezone.utc)
         service.register_node(
-            MemoryNode("n1", content="c", weight=1.0, last_access=now - timedelta(days=60))
+            MemoryNode(
+                "n1", content="c", weight=1.0, last_access=now - timedelta(days=60)
+            )
         )
         service.run_decay_cycle(now=now)
         log_files = list(service.log_dir.glob("*.jsonl"))
@@ -248,7 +269,9 @@ class TestMemoryDecayService:
         )
         now = datetime.now(timezone.utc)
         svc.register_node(
-            MemoryNode("n1", content="c", weight=1.0, last_access=now - timedelta(days=60))
+            MemoryNode(
+                "n1", content="c", weight=1.0, last_access=now - timedelta(days=60)
+            )
         )
         svc.run_decay_cycle(now=now)
         log_dir = tmp_path / "no_prov"
@@ -268,7 +291,9 @@ class TestMemoryDecayService:
         )
         now = datetime.now(timezone.utc)
         svc.register_node(
-            MemoryNode("n1", content="c", weight=1.0, last_access=now - timedelta(days=60))
+            MemoryNode(
+                "n1", content="c", weight=1.0, last_access=now - timedelta(days=60)
+            )
         )
         svc.run_decay_cycle(now=now)
         assert len(calls) == 1

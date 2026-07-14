@@ -8,7 +8,6 @@ import pytest
 
 from src.integration.hebbian_sync import BatchResult, HebbianSyncService, WeightUpdate
 
-
 # ---------------------------------------------------------------------------
 # WeightUpdate
 # ---------------------------------------------------------------------------
@@ -158,9 +157,7 @@ class TestHebbianSyncService:
 
         service = HebbianSyncService(batch_size=3, auto_flush=True, sink=_sink)
         for i in range(3):
-            service.queue_update(
-                WeightUpdate.from_weights(f"a{i}->t{i}", 0.0, 1.0)
-            )
+            service.queue_update(WeightUpdate.from_weights(f"a{i}->t{i}", 0.0, 1.0))
         assert len(flushed_batches) == 1
         assert service.pending() == 0
 
@@ -179,9 +176,7 @@ class TestHebbianSyncService:
 
     def test_no_auto_flush_when_disabled(self, service):
         for i in range(200):
-            service.queue_update(
-                WeightUpdate.from_weights(f"a{i}->t{i}", 0.0, 1.0)
-            )
+            service.queue_update(WeightUpdate.from_weights(f"a{i}->t{i}", 0.0, 1.0))
         assert service.pending() == 200
 
     # -- get_stats ----------------------------------------------------------
@@ -195,9 +190,7 @@ class TestHebbianSyncService:
 
     def test_stats_after_flush(self, service):
         for i in range(3):
-            service.queue_update(
-                WeightUpdate.from_weights(f"a{i}->t{i}", 0.0, 1.0)
-            )
+            service.queue_update(WeightUpdate.from_weights(f"a{i}->t{i}", 0.0, 1.0))
         service.flush_batch()
 
         stats = service.get_stats()
@@ -219,8 +212,6 @@ class TestHebbianSyncService:
 
     def test_buffer_cleared_after_flush(self, service):
         for i in range(5):
-            service.queue_update(
-                WeightUpdate.from_weights(f"a{i}->t{i}", 0.0, 1.0)
-            )
+            service.queue_update(WeightUpdate.from_weights(f"a{i}->t{i}", 0.0, 1.0))
         service.flush_batch()
         assert service.pending() == 0

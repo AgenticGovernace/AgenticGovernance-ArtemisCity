@@ -3,6 +3,7 @@
 import sys
 
 sys.modules.pop("exceptions", None)
+import pytest
 from exceptions import (
     AgentCapabilityError,
     AgentError,
@@ -22,8 +23,6 @@ from exceptions import (
     TaskValidationError,
     VectorStoreError,
 )
-
-import pytest
 
 
 # ---------------------------------------------------------------------------

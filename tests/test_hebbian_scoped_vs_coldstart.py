@@ -639,8 +639,7 @@ print("=" * 70)
 training_value = mae_cold - mae_scoped
 atp_bonus = mae_scoped - mae_atp
 
-print(
-    f"""
+print(f"""
 The Math of Embodied Cognition:
 
 1. TRAINING VALUE
@@ -673,8 +672,7 @@ The Math of Embodied Cognition:
    Scoped corpus BREAKS monopoly by giving each agent a domain where it
    outperforms others. This is the mathematical proof that embodied cognition
    creates a functioning marketplace.
-"""
-)
+""")
 
 print("=" * 70)
 print("TEST COMPLETE")

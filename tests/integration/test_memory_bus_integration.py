@@ -4,8 +4,10 @@ import sys
 
 sys.modules.pop("integration.memory_bus", None)
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from integration.memory_bus import MemoryBus
 
 

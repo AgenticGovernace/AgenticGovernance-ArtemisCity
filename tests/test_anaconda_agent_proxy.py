@@ -10,9 +10,9 @@ import pytest
 
 from src.integration.anaconda_agent_proxy import (
     ANACONDA_API_KEY_ENV,
+    ARTEMIS_PROVIDER_TAG,
     DEFAULT_ANACONDA_API_KEY,
     AnacondaAgentProxy,
-    ARTEMIS_PROVIDER_TAG,
     discover_anaconda_agents,
     parse_port_map,
     parse_sse_chat_completion,

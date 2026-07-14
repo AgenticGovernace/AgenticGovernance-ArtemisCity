@@ -173,8 +173,7 @@ def test_legal_agent_uses_current_extractive_baseline_without_exo():
 def test_run_store_migrates_and_persists_evaluation_metrics(tmp_path):
     db_path = tmp_path / "legacy.db"
     with sqlite3.connect(db_path) as conn:
-        conn.executescript(
-            """
+        conn.executescript("""
             CREATE TABLE runs (
                 run_id TEXT PRIMARY KEY, started_at TEXT NOT NULL,
                 finished_at TEXT, status TEXT NOT NULL DEFAULT 'running',
@@ -190,8 +189,7 @@ def test_run_store_migrates_and_persists_evaluation_metrics(tmp_path):
                 inference_ms REAL, input_chars INTEGER, output_chars INTEGER,
                 created_at REAL NOT NULL
             );
-            """
-        )
+            """)
 
     store = RunStore(db_path=str(db_path), report_dir=str(tmp_path / "reports"))
     store.start_run(

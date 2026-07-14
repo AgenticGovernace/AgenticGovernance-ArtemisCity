@@ -14,7 +14,6 @@ from .atp_models import ATPActionType, ATPMessage, ATPMode
 from .atp_parser import ATPParser
 from .atp_validator import ATPValidator
 
-
 ACTION_CAPABILITIES = {
     ATPActionType.SUMMARIZE: "text_summarization",
     ATPActionType.SCAFFOLD: "text_generation",
@@ -117,4 +116,3 @@ def resolve_task_context(
         resolved["content"] = message.content
         resolved["context"] = message.context or message.content
     return resolved
-

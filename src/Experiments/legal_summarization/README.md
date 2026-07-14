@@ -10,14 +10,14 @@ change agent trust.
 Inspect five streamed rows without running inference:
 
 ```bash
-python -m src.Experiments.legal_summarization.main \
+python3 -m src.Experiments.legal_summarization.main \
   --dataset-source hub --streaming --describe
 ```
 
 Run the dependency-free extractive baseline over ten rows:
 
 ```bash
-python -m src.Experiments.legal_summarization.main \
+python3 -m src.Experiments.legal_summarization.main \
   --dataset-source hub --streaming --mode extractive --limit 10
 ```
 
@@ -40,7 +40,7 @@ HF_TOKEN=hf_your_read_token
 Or request hidden terminal input without persisting the token:
 
 ```bash
-python -m src.Experiments.legal_summarization.main \
+python3 -m src.Experiments.legal_summarization.main \
   --dataset-id owner/private-dataset \
   --prompt-for-hf-token --describe
 ```

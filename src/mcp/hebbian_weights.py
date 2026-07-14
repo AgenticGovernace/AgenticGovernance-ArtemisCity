@@ -126,11 +126,7 @@ class HebbianWeightManager:
         try:
             self.sentinel_warmup = max(
                 2,
-                int(
-                    os.getenv(
-                        "ARTEMIS_HEBBIAN_SENTINEL_WARMUP", self.sentinel_window
-                    )
-                ),
+                int(os.getenv("ARTEMIS_HEBBIAN_SENTINEL_WARMUP", self.sentinel_window)),
             )
         except ValueError:
             self.sentinel_warmup = self.sentinel_window

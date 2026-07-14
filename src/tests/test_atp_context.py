@@ -4,7 +4,6 @@ import pytest
 
 from src.agents.atp.atp_context import resolve_task_context
 
-
 ATP_SUMMARY = """#Mode: Synthesize
 #Context: Condense the release notes
 #Priority: Normal
@@ -52,4 +51,3 @@ def test_strict_atp_context_rejects_incomplete_header():
             {"content": "#Mode: Build\nCreate it."},
             strict=True,
         )
-

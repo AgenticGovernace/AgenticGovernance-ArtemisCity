@@ -5,6 +5,7 @@ import sys
 sys.modules.pop("integration.agent_registry", None)
 
 import pytest
+
 from agents.base_agent import BaseAgent
 from integration.agent_registry import AgentRegistry, AgentRegistryStore, AgentScore
 

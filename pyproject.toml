@@ -55,7 +55,7 @@ dependencies = [
     "basedpyright==1.39.7",
     "beartype==0.22.9",
     "beautifulsoup4==4.15.0",
-    "black==26.5.1",
+    "black[jupyter]==26.5.1",
     "build==1.5.0",
     "cachetools==7.1.4",
     "caio==0.9.25",

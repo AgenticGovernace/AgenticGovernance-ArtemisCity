@@ -19,9 +19,15 @@ class ObsidianManager:
             vault_path = _vault
         self.vault_path = Path(vault_path)
         if not self.vault_path.is_dir():
-            logger.error("Obsidian vault path does not exist: %s", sanitize_for_log(self.vault_path))
+            logger.error(
+                "Obsidian vault path does not exist: %s",
+                sanitize_for_log(self.vault_path),
+            )
             raise FileNotFoundError(f"Obsidian vault path not found: {self.vault_path}")
-        logger.info("Obsidian Manager initialized for vault: %s", sanitize_for_log(self.vault_path))
+        logger.info(
+            "Obsidian Manager initialized for vault: %s",
+            sanitize_for_log(self.vault_path),
+        )
 
     def _get_full_path(self, relative_path: str) -> Path:
         """Resolve a vault-relative path and reject vault escapes."""
@@ -86,7 +92,9 @@ class ObsidianManager:
                 except FileNotFoundError:
                     pass
                 raise
-            logger.info("Wrote note: %s (mode: w, atomic)", sanitize_for_log(relative_path))
+            logger.info(
+                "Wrote note: %s (mode: w, atomic)", sanitize_for_log(relative_path)
+            )
         else:
             with open(full_path, "a", encoding="utf-8") as f:
                 f.write(content)
@@ -113,7 +121,9 @@ class ObsidianManager:
             for f in full_path.iterdir()
             if f.is_file() and f.suffix == suffix
         ]
-        logger.debug("Listed %s notes in %s", len(notes), sanitize_for_log(relative_folder_path))
+        logger.debug(
+            "Listed %s notes in %s", len(notes), sanitize_for_log(relative_folder_path)
+        )
         return notes
 
     def create_folder(self, relative_folder_path: str):

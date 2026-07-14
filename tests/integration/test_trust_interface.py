@@ -4,8 +4,10 @@ import sys
 
 sys.modules.pop("integration.trust_interface", None)
 
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
+
 from integration.trust_interface import (
     TrustInterface,
     TrustLevel,

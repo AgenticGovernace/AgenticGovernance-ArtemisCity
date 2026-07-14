@@ -1,5 +1,7 @@
 """Tests for the Artemis exception hierarchy (src/integration/exceptions.py)."""
 
+import pytest
+
 from src.integration.exceptions import (
     AgentCapabilityError,
     AgentError,
@@ -19,8 +21,6 @@ from src.integration.exceptions import (
     TaskValidationError,
     VectorStoreError,
 )
-
-import pytest
 
 
 # ---------------------------------------------------------------------------

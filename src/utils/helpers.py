@@ -67,12 +67,7 @@ def sanitize_for_log(value: object, max_length: int = 200) -> str:
     Returns:
         str: The sanitized, truncated representation safe for logging.
     """
-    text = (
-        str(value)
-        .replace("\r", " ")
-        .replace("\n", " ")
-        .replace("\t", " ")
-    )
+    text = str(value).replace("\r", " ").replace("\n", " ").replace("\t", " ")
     text = "".join(ch if ch.isprintable() else " " for ch in text)
     if len(text) > max_length:
         text = text[:max_length] + "…"

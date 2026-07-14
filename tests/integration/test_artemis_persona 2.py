@@ -1,11 +1,12 @@
 """Tests for the Artemis persona (src/agents/artemis/persona.py)."""
 
-import sys
 import random
+import sys
 
 sys.modules.pop("agents.artemis.persona", None)
 
 import pytest
+
 from agents.artemis.persona import ArtemisPersona, ResponseMode
 
 
