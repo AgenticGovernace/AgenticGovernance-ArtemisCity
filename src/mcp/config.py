@@ -66,4 +66,4 @@ EXO_MODEL_URL = os.getenv("EXO_MODEL_URL", "")
 # instance is configured. Override with EXO_MODEL_ID for production. The
 # previous default ("gpt-4o-2024-08-06") was an OpenAI model name that no
 # self-hosted Exo can serve, causing every call to 404.
-EXO_MODEL_ID = os.getenv("EXO_MODEL_ID", "mlx-community/Qwen3-0.6B-4bit")
+EXO_MODEL_ID = os.getenv("EXO_MODEL_ID") or "mlx-community/Qwen3-0.6B-4bit"

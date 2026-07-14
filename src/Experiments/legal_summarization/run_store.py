@@ -14,6 +14,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from src.runtime_paths import data_path, log_path
+
 
 class RunStore:
     """Store and query summarization run results.
@@ -28,13 +30,23 @@ class RunStore:
 
     def __init__(
         self,
-        db_path: str = "data/legal_summarization.db",
-        report_dir: str = "logs/legal_summarization",
+        db_path: Optional[str] = None,
+        report_dir: Optional[str] = None,
     ):
-        self.db_path = db_path
-        self.report_dir = Path(report_dir)
+        self.db_path = data_path(
+            "legal_summarization.db",
+            db_path,
+            env_var="ARTEMIS_LEGAL_SUMMARIZATION_DB",
+        )
+        self.report_dir = Path(
+            log_path(
+                "legal_summarization",
+                report_dir,
+                env_var="ARTEMIS_LEGAL_SUMMARIZATION_LOG_DIR",
+            )
+        )
 
-        os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
+        os.makedirs(os.path.dirname(self.db_path) or ".", exist_ok=True)
         self.report_dir.mkdir(parents=True, exist_ok=True)
 
         self._init_db()

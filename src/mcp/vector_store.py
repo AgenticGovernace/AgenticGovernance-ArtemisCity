@@ -15,6 +15,7 @@ import time
 from dataclasses import dataclass
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
+from src.runtime_paths import data_path
 from src.utils.helpers import logger
 
 # Lazy import to avoid circular dependency
@@ -81,10 +82,12 @@ class LocalVectorStore:
 
     def __init__(
         self,
-        db_path: str = "data/vector_store.db",
+        db_path: Optional[str] = None,
         embedding_fn: Optional[Callable[[str], List[float]]] = None,
     ):
-        self.db_path = db_path
+        self.db_path = data_path(
+            "vector_store.db", db_path, env_var="ARTEMIS_VECTOR_DB"
+        )
         self.embedding_fn = embedding_fn or _default_embedding
         self._ensure_db_directory()
         self._initialize()

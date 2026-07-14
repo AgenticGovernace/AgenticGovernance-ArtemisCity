@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.mcp.vector_store import LocalVectorStore
+from src.mcp.vector_store import LocalVectorStore  # noqa: E402
 
 DEFAULT_DOCS = [
     (
@@ -71,15 +71,18 @@ def main():
     )
     parser.add_argument(
         "--db",
-        default="data/vector_store.db",
-        help="Path to the SQLite vector store DB.",
+        default=None,
+        help="SQLite path (default: <repo>/data/vector_store.db).",
     )
     args = parser.parse_args()
 
     store = LocalVectorStore(db_path=args.db)
     records = load_docs()
     store.upsert_many(records)
-    print(f"Seeded {len(records)} records into {args.db}. Total rows: {store.count()}")
+    print(
+        f"Seeded {len(records)} records into {store.db_path}. "
+        f"Total rows: {store.count()}"
+    )
 
 
 if __name__ == "__main__":

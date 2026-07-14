@@ -2,6 +2,8 @@ import logging
 import os
 from logging import Logger
 
+from src.runtime_paths import log_path
+
 
 def setup_logging():
     """Configure the standard Python logger for MCP system.
@@ -16,13 +18,10 @@ def setup_logging():
     Returns:
         logging.Logger: The configured ``MCP_System`` logger.
     """
-    default_log = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "../..",
-        "logs",
+    log_file = log_path(
         "mcp_obsidian.log",
+        env_var="ARTEMIS_LOG_FILE",
     )
-    log_file = os.environ.get("ARTEMIS_LOG_FILE", default_log)
 
     handlers: list[logging.Handler] = [logging.StreamHandler()]
     try:
@@ -80,13 +79,8 @@ def sanitize_for_log(value: object, max_length: int = 200) -> str:
     return text
 
 
-# Re-export run_logger utilities for convenience
-
 __all__ = [
     "logger",
     "sanitize_for_log",
     "setup_logging",
-    "RunLogger",
-    "get_run_logger",
-    "init_run_logger",
 ]

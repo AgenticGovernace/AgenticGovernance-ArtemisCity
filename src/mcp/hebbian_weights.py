@@ -11,6 +11,7 @@ import time
 from datetime import datetime
 from typing import List, Optional, Tuple
 
+from src.runtime_paths import data_path
 from src.utils.helpers import logger
 
 # Lazy import to avoid circular dependency
@@ -40,17 +41,21 @@ class HebbianWeightManager:
     - Weight threshold for pruning: configurable
     """
 
-    def __init__(self, db_path: str = "data/hebbian_weights.db"):
+    def __init__(self, db_path: Optional[str] = None):
         """
         Initialize Hebbian weight manager with SQLite backend.
 
         Args:
             db_path: Path to SQLite database file
         """
-        self.db_path = db_path
+        self.db_path = data_path(
+            "hebbian_weights.db", db_path, env_var="ARTEMIS_HEBBIAN_DB"
+        )
         self._ensure_db_directory()
         self._initialize_database()
-        logger.info(f"HebbianWeightManager initialized with database: {db_path}")
+        logger.info(
+            "HebbianWeightManager initialized with database: %s", self.db_path
+        )
 
     def _ensure_db_directory(self):
         """Ensure the data directory exists."""

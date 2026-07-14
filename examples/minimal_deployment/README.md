@@ -15,8 +15,9 @@ python examples/minimal_deployment/run.py
 4. Writes the result through the `MemoryBus` (vector store + Obsidian vault),
    then recalls it via the read hierarchy (exact → keyword → vector).
 
-Everything uses temporary SQLite databases and a temporary vault, so there is
-nothing to configure and no files are left behind.
+The demo writes to the shared repo-root `data/` databases and `logs/`, matching
+the dashboard API. Its example vault is retained under `data/minimal_vault/`
+so the run remains inspectable.
 
 ## Expected output (abridged)
 

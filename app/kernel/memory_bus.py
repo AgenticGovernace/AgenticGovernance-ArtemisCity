@@ -19,7 +19,9 @@ import os
 import time
 import uuid
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
+
+from src.runtime_paths import data_path
 
 
 class MemoryBackend(ABC):
@@ -70,16 +72,20 @@ class FileMemoryBackend(MemoryBackend):
         base_path: Directory path where memory files are stored.
     """
 
-    def __init__(self, base_path="memory_store"):
+    def __init__(self, base_path: Optional[str] = None):
         """Initialize the file-based memory backend.
 
         Args:
             base_path: Directory path for storing memory files.
                 Created if it doesn't exist.
         """
-        self.base_path = base_path
-        if not os.path.exists(base_path):
-            os.makedirs(base_path)
+        self.base_path = data_path(
+            "memory_store",
+            base_path,
+            env_var="ARTEMIS_MEMORY_STORE_DIR",
+        )
+        if not os.path.exists(self.base_path):
+            os.makedirs(self.base_path)
 
     def write(self, content, metadata=None):
         """Write content to a JSON file in the memory store.
@@ -230,7 +236,10 @@ class MemoryBus:
     """
 
     def __init__(
-        self, backend_type: str = "file", backend: Optional[MemoryBackend] = None
+        self,
+        backend_type: str = "file",
+        backend: Optional[MemoryBackend] = None,
+        file_base_path: Optional[str] = None,
     ):
         """Initialize the MemoryBus with the specified backend.
 
@@ -245,12 +254,12 @@ class MemoryBus:
         if backend is not None:
             self.backend = backend
         elif backend_type == "file":
-            self.backend = FileMemoryBackend()
+            self.backend = FileMemoryBackend(file_base_path)
         elif backend_type == "vector":
             self.backend = VectorMemoryBackend()
         else:
             print(f"[Memory] Unknown backend {backend_type}, defaulting to file.")
-            self.backend = FileMemoryBackend()
+            self.backend = FileMemoryBackend(file_base_path)
             self.backend_type = "file"
 
     def write(self, content: str, metadata: Optional[Dict] = None) -> Optional[str]:

@@ -52,6 +52,7 @@ from src.integration.trust_interface import (
 from src.mcp.hebbian_weights import HebbianWeightManager
 from src.mcp.vector_store import LocalVectorStore
 from src.obsidian_integration.manager import ObsidianManager
+from src.runtime_paths import data_path
 
 
 class BridgeError(Exception):
@@ -63,10 +64,10 @@ class BridgeError(Exception):
 
 
 def _resolve_db_path(payload: Dict[str, Any]) -> str:
-    return (
-        payload.get("db_path")
-        or os.environ.get("ARTEMIS_REGISTRY_DB")
-        or "data/agent_registry.db"
+    return data_path(
+        "agent_registry.db",
+        payload.get("db_path"),
+        env_var="ARTEMIS_REGISTRY_DB",
     )
 
 
@@ -193,10 +194,10 @@ def _memory_manager(payload: Dict[str, Any]) -> ObsidianManager:
 def _memory_dependencies(payload: Dict[str, Any]) -> Tuple[ObsidianManager, MemoryBus]:
     manager = _memory_manager(payload)
 
-    vector_db_path = (
-        payload.get("vector_db_path")
-        or os.environ.get("ARTEMIS_VECTOR_DB")
-        or "data/vector_store.db"
+    vector_db_path = data_path(
+        "vector_store.db",
+        payload.get("vector_db_path"),
+        env_var="ARTEMIS_VECTOR_DB",
     )
     search_dirs = payload.get("search_dirs")
     if search_dirs is None:
@@ -212,24 +213,28 @@ def _memory_dependencies(payload: Dict[str, Any]) -> Tuple[ObsidianManager, Memo
 
 
 def _trust_interface(payload: Dict[str, Any]) -> TrustInterface:
-    db_path = payload.get("trust_db_path") or os.environ.get("ARTEMIS_TRUST_DB")
-    return TrustInterface(db_path=Path(db_path) if db_path else None)
+    db_path = data_path(
+        "trust_scores.db",
+        payload.get("trust_db_path"),
+        env_var="ARTEMIS_TRUST_DB",
+    )
+    return TrustInterface(db_path=Path(db_path))
 
 
 def _hebbian_manager(payload: Dict[str, Any]) -> HebbianWeightManager:
-    db_path = (
-        payload.get("hebbian_db_path")
-        or os.environ.get("ARTEMIS_HEBBIAN_DB")
-        or "data/hebbian_weights.db"
+    db_path = data_path(
+        "hebbian_weights.db",
+        payload.get("hebbian_db_path"),
+        env_var="ARTEMIS_HEBBIAN_DB",
     )
     return HebbianWeightManager(db_path=str(db_path))
 
 
 def _atp_db_path(payload: Dict[str, Any]) -> str:
-    return (
-        payload.get("atp_db_path")
-        or os.environ.get("ARTEMIS_ATP_DB")
-        or "data/atp_messages.db"
+    return data_path(
+        "atp_messages.db",
+        payload.get("atp_db_path"),
+        env_var="ARTEMIS_ATP_DB",
     )
 
 

@@ -8,6 +8,9 @@ import typing
 
 from . import base_agent
 
+DEFAULT_EXO_BASE_URL = "http://localhost:52415"
+DEFAULT_EXO_MODEL_ID = "mlx-community/Qwen3-0.6B-4bit"
+
 
 class _MissingRequests:
     """Stand in for requests when dependencies have not been installed."""
@@ -17,6 +20,9 @@ class _MissingRequests:
             "The 'requests' package is not installed. Run `make install` "
             "from the repository root to enable Exo HTTP calls."
         )
+
+    def get(self, *_args: typing.Any, **_kwargs: typing.Any) -> typing.Any:
+        return self.post(*_args, **_kwargs)
 
 
 requests: typing.Any
@@ -55,13 +61,13 @@ class LLMAgent(base_agent.BaseAgent):
             model_url
             or os.getenv("EXO_MODEL_URL")
             or base_url
-            or os.getenv("EXO_BASE_URL", "http://localhost:52415")
+            or os.getenv("EXO_BASE_URL", DEFAULT_EXO_BASE_URL)
         )
         self.model_url = self._with_v1_path(configured_url)
         self.base_url = self.model_url
-        self.model_id = model_id or os.getenv(
-            "EXO_MODEL_ID", "mlx-community/Qwen3-0.6B-4bit"
-        )
+        configured_model = str(model_id or os.getenv("EXO_MODEL_ID") or "").strip()
+        self._model_id_explicit = bool(configured_model)
+        self.model_id = configured_model or DEFAULT_EXO_MODEL_ID
         self.timeout_seconds = timeout_seconds
         self.api_key = os.getenv("EXO_API_KEY", "").strip()
 
@@ -80,10 +86,10 @@ class LLMAgent(base_agent.BaseAgent):
         # was enough for non-reasoning chat models but caused reasoning models
         # to hit the length limit mid-thought and return empty content.
         max_tokens = int(task_context.get("max_tokens", 4000))
-        model = str(task_context.get("model") or self.model_id)
         model_url = self._with_v1_path(
             str(task_context.get("model_url") or self.model_url)
         )
+        model = self._resolve_model(task_context, model_url)
 
         self.report_status(
             f"Dispatching {len(messages)} message(s) to Exo model '{model}'."
@@ -103,17 +109,54 @@ class LLMAgent(base_agent.BaseAgent):
                 "response_id": response.get("id"),
             }
         except Exception as exc:
-            # Keep the system usable when Exo is offline while surfacing the reason.
-            fallback = self._build_fallback_summary(messages)
-            self.report_status(f"Exo request failed, using fallback response: {exc}")
+            fallback = self._build_fallback_summary(model, model_url)
+            self.report_status(f"Exo request failed: {exc}")
             return {
-                "status": "success",
+                "status": "failed",
                 "summary": fallback,
                 "provider": "fallback",
                 "model": model,
                 "model_url": model_url,
+                "error": fallback,
                 "llm_error": str(exc),
             }
+
+    def _resolve_model(self, task_context: dict, model_url: str) -> str:
+        """Resolve an explicit, running, or safe default Exo model ID."""
+        task_model = str(task_context.get("model") or "").strip()
+        if task_model:
+            return task_model
+        if self._model_id_explicit:
+            return self.model_id
+        return self._discover_running_model(model_url) or self.model_id
+
+    def _discover_running_model(self, model_url: str) -> typing.Optional[str]:
+        """Return the first model currently loaded by Exo, if available."""
+        root = self._with_v1_path(model_url)[: -len("/v1")]
+        headers = {}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        try:
+            response = requests.get(
+                f"{root}/ollama/api/ps",
+                headers=headers,
+                timeout=min(self.timeout_seconds, 2.0),
+            )
+            response.raise_for_status()
+            models = response.json().get("models", [])
+            if not isinstance(models, list):
+                return None
+            for item in models:
+                if not isinstance(item, dict):
+                    continue
+                model = str(
+                    item.get("model") or item.get("name") or item.get("id") or ""
+                ).strip()
+                if model:
+                    return model
+        except Exception:  # Discovery is best-effort; the default remains usable.
+            return None
+        return None
 
     def _build_messages(self, task_context: dict) -> typing.List[typing.Dict[str, str]]:
         raw_messages = task_context.get("messages")
@@ -172,6 +215,8 @@ class LLMAgent(base_agent.BaseAgent):
                 response.raise_for_status()
                 body = response.json()
                 content = self._extract_message_content(body)
+                if not content:
+                    raise ValueError("Exo returned no text content.")
                 return {
                     "content": content,
                     "usage": body.get("usage", {}),
@@ -201,28 +246,17 @@ class LLMAgent(base_agent.BaseAgent):
             "max_tokens": max_tokens,
             "stream": stream,
         }
-        completion_payload = {
+        responses_payload = {
             "model": model,
-            "prompt": self._messages_to_prompt(messages),
+            "input": messages,
             "temperature": temperature,
-            "max_tokens": max_tokens,
+            "max_output_tokens": max_tokens,
             "stream": stream,
         }
         return [
             (f"{base}/chat/completions", chat_payload),
-            (f"{base}/completions", completion_payload),
+            (f"{base}/responses", responses_payload),
         ]
-
-    def _messages_to_prompt(self, messages: typing.List[typing.Dict[str, str]]) -> str:
-        """Flatten chat messages for text-completions style endpoints."""
-        parts = []
-        for message in messages:
-            content = str(message.get("content", "")).strip()
-            if not content:
-                continue
-            role = str(message.get("role", "user")).strip() or "user"
-            parts.append(f"{role}: {content}")
-        return "\n".join(parts)
 
     def _should_try_next_endpoint(self, exc: Exception) -> bool:
         """Retry only when a response suggests the endpoint shape was wrong."""
@@ -253,6 +287,29 @@ class LLMAgent(base_agent.BaseAgent):
         return f"{endpoint}/v1"
 
     def _extract_message_content(self, body: typing.Dict[str, typing.Any]) -> str:
+        output_text = body.get("output_text")
+        if isinstance(output_text, str) and output_text.strip():
+            return output_text.strip()
+
+        output = body.get("output")
+        if isinstance(output, list):
+            parts = []
+            for item in output:
+                if not isinstance(item, dict):
+                    continue
+                content = item.get("content")
+                if not isinstance(content, list):
+                    continue
+                for part in content:
+                    if not isinstance(part, dict):
+                        continue
+                    if part.get("type") in {"output_text", "text"}:
+                        text = str(part.get("text") or "").strip()
+                        if text:
+                            parts.append(text)
+            if parts:
+                return " ".join(parts)
+
         choices = body.get("choices")
         if not isinstance(choices, list) or not choices:
             raise ValueError("No choices returned from Exo response.")
@@ -316,9 +373,9 @@ class LLMAgent(base_agent.BaseAgent):
         returned, so the orchestrator can run its normal post-processing
         (memory bus write, Hebbian update) on it.
 
-        When Exo is unreachable, we fall back to a single-chunk emission of
-        the same offline-fallback message ``perform_task`` produces, so the
-        UI stays consistent across both code paths.
+        When Exo is unreachable, a single failure message is emitted as a
+        token followed by a failed terminal result, so the UI stays consistent
+        without treating an echoed prompt as a successful LLM completion.
         """
         messages = self._build_messages(task_context)
         if not messages:
@@ -333,10 +390,10 @@ class LLMAgent(base_agent.BaseAgent):
 
         temperature = float(task_context.get("temperature", 0.2))
         max_tokens = int(task_context.get("max_tokens", 4000))
-        model = str(task_context.get("model") or self.model_id)
         model_url = self._with_v1_path(
             str(task_context.get("model_url") or self.model_url)
         )
+        model = self._resolve_model(task_context, model_url)
 
         self.report_status(
             f"Streaming {len(messages)} message(s) to Exo model '{model}'."
@@ -367,18 +424,19 @@ class LLMAgent(base_agent.BaseAgent):
                 },
             }
         except Exception as exc:  # noqa: BLE001
-            fallback = self._build_fallback_summary(messages)
-            self.report_status(f"Exo stream failed, using fallback response: {exc}")
+            fallback = self._build_fallback_summary(model, model_url)
+            self.report_status(f"Exo stream failed: {exc}")
             # Emit the fallback as a single token so UI animation still works.
             yield {"type": "token", "text": fallback}
             yield {
                 "type": "final",
                 "result": {
-                    "status": "success",
+                    "status": "failed",
                     "summary": fallback,
                     "provider": "fallback",
                     "model": model,
                     "model_url": model_url,
+                    "error": fallback,
                     "llm_error": str(exc),
                 },
             }
@@ -471,15 +529,9 @@ class LLMAgent(base_agent.BaseAgent):
                 return content
         return ""
 
-    def _build_fallback_summary(
-        self, messages: typing.List[typing.Dict[str, str]]
-    ) -> str:
-        user_messages = [m["content"] for m in messages if m.get("role") == "user"]
-        prompt = user_messages[-1] if user_messages else messages[-1]["content"]
-        snippet = prompt[:220].replace("\n", " ").strip()
-        if len(prompt) > 220:
-            snippet += "..."
+    def _build_fallback_summary(self, model: str, model_url: str) -> str:
         return (
-            "Fallback response: Exo is unavailable right now. "
-            f"Received prompt: {snippet}"
+            f"LLM execution unavailable: Exo could not serve model '{model}' at "
+            f"{model_url}. Start the model in Exo or set EXO_MODEL_ID to a "
+            "model available to the cluster."
         )

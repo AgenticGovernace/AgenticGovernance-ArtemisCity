@@ -13,13 +13,13 @@ Part of the Artemis City Governance Layer.
 
 import json
 import re
-import shutil
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from src.runtime_paths import data_path
 from utils.helpers import logger
 
 # Checkpoint ids become filenames; forbid path separators / traversal so an
@@ -78,10 +78,16 @@ class RollbackManager:
 
     def __init__(
         self,
-        checkpoint_dir: str = "data/checkpoints",
+        checkpoint_dir: Optional[str] = None,
         max_checkpoints: int = DEFAULT_MAX_CHECKPOINTS,
     ):
-        self.checkpoint_dir = Path(checkpoint_dir)
+        self.checkpoint_dir = Path(
+            data_path(
+                "checkpoints",
+                checkpoint_dir,
+                env_var="ARTEMIS_CHECKPOINT_DIR",
+            )
+        )
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         self.max_checkpoints = max_checkpoints
         self.checkpoint_history: List[str] = []

@@ -22,6 +22,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import List, Optional
 
+from src.runtime_paths import data_path
 from src.utils.helpers import logger
 
 CHECKPOINT_TYPES = ("deployment", "scheduled", "manual")
@@ -68,8 +69,14 @@ def _hash_state(state: dict) -> str:
 class CheckpointStore:
     """JSON-file-backed store for system checkpoints."""
 
-    def __init__(self, checkpoint_dir: str = "data/checkpoints"):
-        self.checkpoint_dir = Path(checkpoint_dir)
+    def __init__(self, checkpoint_dir: Optional[str] = None):
+        self.checkpoint_dir = Path(
+            data_path(
+                "checkpoints",
+                checkpoint_dir,
+                env_var="ARTEMIS_CHECKPOINT_DIR",
+            )
+        )
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
     def _path(self, checkpoint_id: str) -> Path:

@@ -40,9 +40,9 @@ _repo_root = Path(__file__).resolve().parents[3]
 path.insert(0, str(_repo_root))
 
 from src.Experiments.legal_summarization.batch_runner import BatchRunner  # noqa: E402
-from src.Experiments.legal_summarization.dataset_loader import (
+from src.Experiments.legal_summarization.dataset_loader import (  # noqa: E402
     LegalDatasetLoader,
-)  # noqa: E402
+)
 from src.Experiments.legal_summarization.run_store import RunStore  # noqa: E402
 from src.Experiments.legal_summarization.summarization_config import (  # noqa: E402
     AggregationLevel,
@@ -224,10 +224,7 @@ def main(argv: list[str] | None = None) -> None:
     try:
         from src.utils.run_logger import init_run_logger
 
-        run_logger = init_run_logger(
-            log_dir="logs",
-            db_path="data/run_logs.db",
-        )
+        run_logger = init_run_logger()
     except Exception:
         logger.info(
             "Core RunLogger not available — proceeding without event integration."

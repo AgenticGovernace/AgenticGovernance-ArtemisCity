@@ -41,9 +41,11 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 try:  # repo root on path (tests / app): `src` is a package
+    from src.runtime_paths import log_path as resolve_log_path
     from src.utils.helpers import logger
 except ImportError:  # pragma: no cover - exercised under benchmark/bare layouts
     try:  # src/ itself on path (benchmark): `utils` is top-level
+        from runtime_paths import log_path as resolve_log_path
         from utils.helpers import logger
     except ImportError:  # last resort: never fail to import over logging
         import logging
@@ -110,7 +112,7 @@ class MemoryDecayService:
         delete_threshold_weight: float = 0.01,
         decay_interval_days: int = 30,
         restore_boost: float = 0.10,
-        log_dir: str = "logs/memory_decay",
+        log_dir: Optional[str] = None,
         enable_provenance: bool = True,
         sink: Optional[WeightChangeSink] = None,
     ) -> None:
@@ -136,7 +138,13 @@ class MemoryDecayService:
         self.delete_threshold_weight = delete_threshold_weight
         self.decay_interval_days = decay_interval_days
         self.restore_boost = restore_boost
-        self.log_dir = Path(log_dir)
+        self.log_dir = Path(
+            resolve_log_path(
+                "memory_decay",
+                log_dir,
+                env_var="ARTEMIS_MEMORY_DECAY_LOG_DIR",
+            )
+        )
         self.enable_provenance = enable_provenance
         self.sink = sink
         self.nodes: Dict[str, MemoryNode] = {}

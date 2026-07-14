@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from src.agents.base_agent import BaseAgent
+from src.runtime_paths import data_path
 from src.utils.helpers import logger
 
 # Governance constants — mirror GOVERNANCE.md
@@ -58,8 +59,10 @@ class AgentScore:
 class AgentRegistryStore:
     """Lightweight SQLite-backed store for agent registry metadata and scores."""
 
-    def __init__(self, db_path: str = "data/agent_registry.db"):
-        self.db_path = db_path
+    def __init__(self, db_path: Optional[str] = None):
+        self.db_path = data_path(
+            "agent_registry.db", db_path, env_var="ARTEMIS_REGISTRY_DB"
+        )
         self._ensure_db_directory()
         self._initialize_database()
 
@@ -600,7 +603,7 @@ class AgentRegistryStore:
 class AgentRegistry:
     """Coordinate agent registration, routing, and governance state backed by SQLite."""
 
-    def __init__(self, db_path: str = "data/agent_registry.db"):
+    def __init__(self, db_path: Optional[str] = None):
         self.store = AgentRegistryStore(db_path=db_path)
         self.agents: Dict[str, BaseAgent] = {}
         self.scores: Dict[str, AgentScore] = self.store.load_scores()

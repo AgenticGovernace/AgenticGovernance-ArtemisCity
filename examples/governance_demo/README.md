@@ -22,7 +22,9 @@ python examples/governance_demo/run.py
 4. **Checkpoint & rollback** — snapshots the registry into a `CheckpointStore`
    (SHA-256 integrity hash), verifies it, and rolls back via `RollbackManager`.
 
-All state lives in a temporary directory that is removed on exit.
+The demo keeps its mutation-heavy registry and checkpoints isolated under
+`data/demo_sandboxes/governance/`, while its run events go to the shared
+`data/run_logs.db` and `logs/` used by the dashboard.
 
 ## Expected output (abridged)
 

@@ -43,7 +43,10 @@ def test_kernel_boots(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     from app.kernel.kernel import Kernel
 
-    kernel = Kernel()
+    kernel = Kernel(
+        state_file=str(tmp_path / "state_kernel.json"),
+        memory_path=str(tmp_path / "memory_store"),
+    )
     assert kernel.booted is True
     assert kernel.router is not None
     assert kernel.memory is not None
@@ -62,7 +65,10 @@ def test_default_route_uses_daemon_agent(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     from app.kernel.kernel import Kernel
 
-    result = Kernel().process({"type": "command", "content": "system status"})
+    result = Kernel(
+        state_file=str(tmp_path / "state_kernel.json"),
+        memory_path=str(tmp_path / "memory_store"),
+    ).process({"type": "command", "content": "system status"})
     assert "daemon" in result.lower()
     assert "codex" not in result.lower()
 
@@ -80,7 +86,10 @@ def test_planner_route_uses_planner_agent(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     from app.kernel.kernel import Kernel
 
-    result = Kernel().process({"type": "command", "content": "draft a roadmap"})
+    result = Kernel(
+        state_file=str(tmp_path / "state_kernel.json"),
+        memory_path=str(tmp_path / "memory_store"),
+    ).process({"type": "command", "content": "draft a roadmap"})
     assert "planner" in result
 
 
@@ -113,6 +122,9 @@ def test_unimplemented_persona_route_falls_back_to_daemon(tmp_path, monkeypatch)
 
     # "governance review" matches the artemis route, which has no concrete
     # agent yet (Phase B of #67) -> must be handled by the daemon.
-    result = Kernel().process({"type": "command", "content": "governance review"})
+    result = Kernel(
+        state_file=str(tmp_path / "state_kernel.json"),
+        memory_path=str(tmp_path / "memory_store"),
+    ).process({"type": "command", "content": "governance review"})
     assert "[Kernel] daemon responded:" in result
     assert "artemis" not in result

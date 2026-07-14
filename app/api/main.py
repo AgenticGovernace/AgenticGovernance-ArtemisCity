@@ -14,10 +14,10 @@ from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 
 # Add the project root to the Python path
-sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../app/web", ".."))
-)
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_REPO_ROOT))
 
+from src.runtime_paths import data_dir, data_path  # noqa: E402
 
 try:
     from src.utils.helpers import sanitize_for_log as _shared_sanitize_for_log
@@ -255,16 +255,13 @@ class ExecuteInstructionResponse(BaseModel):
 # "Database unavailable." Honor ``ARTEMIS_DATA_DIR`` as an umbrella
 # override (useful for Docker), and the existing per-DB env names that
 # api_bridge already documents.
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-DB_DIR = Path(os.environ.get("ARTEMIS_DATA_DIR") or (_REPO_ROOT / "data"))
+DB_DIR = data_dir()
 AGENT_REGISTRY_DB = Path(
-    os.environ.get("ARTEMIS_REGISTRY_DB") or (DB_DIR / "agent_registry.db")
+    data_path("agent_registry.db", env_var="ARTEMIS_REGISTRY_DB")
 )
-HEBBIAN_DB = Path(
-    os.environ.get("ARTEMIS_HEBBIAN_DB") or (DB_DIR / "hebbian_weights.db")
-)
-VECTOR_DB = Path(os.environ.get("ARTEMIS_VECTOR_DB") or (DB_DIR / "vector_store.db"))
-RUN_LOG_DB = Path(os.environ.get("ARTEMIS_RUN_LOG_DB") or (DB_DIR / "run_logs.db"))
+HEBBIAN_DB = Path(data_path("hebbian_weights.db", env_var="ARTEMIS_HEBBIAN_DB"))
+VECTOR_DB = Path(data_path("vector_store.db", env_var="ARTEMIS_VECTOR_DB"))
+RUN_LOG_DB = Path(data_path("run_logs.db", env_var="ARTEMIS_RUN_LOG_DB"))
 
 
 def _connect_db(db_path: Path) -> sqlite3.Connection:
@@ -1269,12 +1266,13 @@ async def execute_instruction(
                     chosen_agent_name, task_data, note_path
                 )
 
+            execution_failed = result.get("status") == "failed"
             return ExecuteInstructionResponse(
                 task_id=task_id,
-                status="success",
+                status="failed" if execution_failed else "success",
                 summary=result.get("summary", "Task executed"),
                 note_path=note_path,
-                error=None,
+                error=result.get("error") if execution_failed else None,
                 agent_name=chosen_agent_name,
                 routing=routing_decision.to_dict() if routing_decision else None,
             )

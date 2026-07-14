@@ -217,7 +217,7 @@ def main() -> None:
     args = parse_cli_args()
 
     # Initialize run logger for comprehensive tracking
-    run_logger = init_run_logger(log_dir="logs", db_path="data/run_logs.db")
+    run_logger = init_run_logger()
 
     logger.info("Starting Multi-Agent Coordination Platform...")
     run_logger.log_event(

@@ -11,13 +11,16 @@ main entry point for processing user requests through its agent network.
 
 import json
 import os
-from typing import Any, Dict
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+from src.runtime_paths import data_path
 
 from .agent_router import AgentRouter
 from .agents import DaemonAgent, PlannerAgent
 from .memory_bus import MemoryBus
 
-STATE_FILE = "state_kernel.json"
+STATE_FILE = data_path("state_kernel.json", env_var="ARTEMIS_KERNEL_STATE")
 
 
 class Kernel:
@@ -42,7 +45,11 @@ class Kernel:
         >>> print(result)
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        state_file: Optional[str] = None,
+        memory_path: Optional[str] = None,
+    ):
         """Initialize the Kernel and boot all subsystems.
 
         Creates a new Kernel instance and immediately boots all subsystems
@@ -51,6 +58,12 @@ class Kernel:
         """
         self.booted = False
         self.state: Dict[str, Any] = {}
+        self.state_file = data_path(
+            "state_kernel.json",
+            state_file,
+            env_var="ARTEMIS_KERNEL_STATE",
+        )
+        self.memory_path = memory_path
         self.router = None
         self.memory = None
         self.boot()
@@ -67,7 +80,7 @@ class Kernel:
         """
         self._load_state()
         self.router = AgentRouter()
-        self.memory = MemoryBus()
+        self.memory = MemoryBus(file_base_path=self.memory_path)
         self.booted = True
 
     def _load_state(self):
@@ -78,9 +91,9 @@ class Kernel:
         default state containing empty history and zero boot count.
         Increments boot_count and saves state on each load.
         """
-        if os.path.exists(STATE_FILE):
+        if os.path.exists(self.state_file):
             try:
-                with open(STATE_FILE, "r") as f:
+                with open(self.state_file, "r") as f:
                     self.state = json.load(f)
             except Exception as e:
                 print(f"[Kernel] Failed to load state: {e}")
@@ -98,7 +111,8 @@ class Kernel:
         Logs an error message if the save operation fails.
         """
         try:
-            with open(STATE_FILE, "w") as f:
+            Path(self.state_file).parent.mkdir(parents=True, exist_ok=True)
+            with open(self.state_file, "w") as f:
                 json.dump(self.state, f, indent=2)
         except Exception as e:
             print(f"[Kernel] Failed to save state: {e}")

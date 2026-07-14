@@ -482,7 +482,9 @@ class Orchestrator:
             # Update the original task note's status in Obsidian if provided
             if original_task_note_path:
                 self.update_task_status_in_obsidian(
-                    original_task_note_path, "completed", task_id
+                    original_task_note_path,
+                    "completed" if task_success else "failed",
+                    task_id,
                 )
 
         except Exception as e:

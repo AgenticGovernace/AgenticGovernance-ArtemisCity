@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import sqlite3
 import threading
 from contextlib import contextmanager
@@ -9,6 +8,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple
+
+from src.runtime_paths import data_path
 
 # ---------------------------------------------------------------------------
 # Levels & thresholds
@@ -173,11 +174,7 @@ def _default_db_path() -> Path:
 
     Honors ``ARTEMIS_TRUST_DB`` so tests / containers can redirect storage.
     """
-    env = os.environ.get("ARTEMIS_TRUST_DB")
-    if env:
-        return Path(env)
-    # Sit beside the agent registry by default.
-    return Path("data/trust_scores.db")
+    return Path(data_path("trust_scores.db", env_var="ARTEMIS_TRUST_DB"))
 
 
 _SCHEMA = """
@@ -199,7 +196,9 @@ class TrustStore:
     """Thin SQLite-backed persistence layer for :class:`TrustScore`."""
 
     def __init__(self, db_path: Optional[Path] = None) -> None:
-        self._db_path = Path(db_path) if db_path else _default_db_path()
+        self._db_path = Path(
+            data_path("trust_scores.db", db_path, env_var="ARTEMIS_TRUST_DB")
+        )
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         with self._connect() as conn:

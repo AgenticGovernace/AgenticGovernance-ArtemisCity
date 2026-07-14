@@ -11,8 +11,8 @@ _project_root = str(Path(__file__).resolve().parents[2])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from src.mcp.config import AGENT_INPUT_DIR, OBSIDIAN_VAULT_PATH  # noqa: E402
 import src.mcp.orchestrator  # noqa: E402
+from src.mcp.config import AGENT_INPUT_DIR, OBSIDIAN_VAULT_PATH  # noqa: E402
 from src.utils.helpers import logger, sanitize_for_log  # noqa: E402
 from src.utils.run_logger import init_run_logger  # noqa: E402
 
@@ -225,7 +225,7 @@ def main():
     args = parse_cli_args()
 
     # Initialize run logger for comprehensive tracking
-    run_logger = init_run_logger(log_dir="logs", db_path="data/run_logs.db")
+    run_logger = init_run_logger()
 
     logger.info("Starting Multi-Agent Coordination Platform...")
     run_logger.log_event(

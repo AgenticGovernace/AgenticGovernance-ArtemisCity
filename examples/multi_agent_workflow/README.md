@@ -31,5 +31,6 @@ summary task  ──▶ SummarizerAgent ◀── reads findings back from Memor
 ## Note
 
 The `ResearchAgent` simulates work with a short randomized sleep, so this
-example takes a few seconds to complete. Temporary databases and vault are
-cleaned up on exit.
+example takes a few seconds to complete. The workflow uses the same root
+`data/` databases as the API; its small example vault is retained at
+`data/workflow_vault/` so the full run remains inspectable.

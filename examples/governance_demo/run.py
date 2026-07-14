@@ -12,16 +12,15 @@ Walks through the governance surface end to end:
 4. **Checkpoint & rollback** — a registry snapshot is checkpointed (SHA-256
    integrity), then verified and rolled back to.
 
-Runs against temporary databases / checkpoint dir; no configuration needed::
+Runs in an isolated repo-root ``data/demo_sandboxes/governance`` directory and
+records run metrics in the shared run log; no configuration needed::
 
     python examples/governance_demo/run.py
 """
 
 from __future__ import annotations
 
-import shutil
 import sys
-import tempfile
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -32,11 +31,15 @@ from src.governance.approvals import SelfUpdateGovernor, UpdateProposal  # noqa:
 from src.governance.checkpoints import CheckpointStore, RollbackManager  # noqa: E402
 from src.integration.agent_registry import AgentRegistry  # noqa: E402
 from src.integration.sandbox import AgentSandbox, ToolPolicy  # noqa: E402
+from src.runtime_paths import data_path  # noqa: E402
+from src.utils.run_logger import init_run_logger  # noqa: E402
 
 
 def main() -> None:
     """Run the full governance walkthrough."""
-    workdir = Path(tempfile.mkdtemp(prefix="artemis_gov_"))
+    workdir = Path(data_path("demo_sandboxes/governance"))
+    workdir.mkdir(parents=True, exist_ok=True)
+    run_logger = init_run_logger()
     try:
         print("=" * 70)
         print("ARTEMIS CITY — Governance Demo")
@@ -50,9 +53,15 @@ def main() -> None:
         _demo_approvals()
         _demo_checkpoint_rollback(registry, workdir)
 
-        print("\nDone.")
-    finally:
-        shutil.rmtree(workdir, ignore_errors=True)
+        run_logger.finalize_run(
+            status="completed",
+            summary={"demo": "governance", "data_dir": str(workdir)},
+        )
+        print(f"\nPersistent demo state: {workdir}")
+        print("Done.")
+    except Exception as exc:
+        run_logger.finalize_run(status="failed", summary={"error": str(exc)})
+        raise
 
 
 def _demo_sandbox(registry: AgentRegistry, agent_name: str) -> None:

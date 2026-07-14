@@ -10,7 +10,8 @@ Hebbian layer learns from the outcomes:
 4. Each successful step strengthens a Hebbian agent->task connection, and the
    weight changes are propagated in a single batch via :class:`HebbianSyncService`.
 
-Runs against temporary databases and a temporary vault. Note the ResearchAgent
+Runs against the same repository-level stores as the API so its routing,
+memory, and run metrics remain visible after completion. Note the ResearchAgent
 simulates work with a short sleep, so the demo takes a few seconds. Run with::
 
     python examples/multi_agent_workflow/run.py
@@ -18,9 +19,7 @@ simulates work with a short sleep, so the demo takes a few seconds. Run with::
 
 from __future__ import annotations
 
-import shutil
 import sys
-import tempfile
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -34,30 +33,38 @@ from src.integration.memory_bus import MemoryBus  # noqa: E402
 from src.mcp.hebbian_weights import HebbianWeightManager  # noqa: E402
 from src.mcp.vector_store import LocalVectorStore  # noqa: E402
 from src.obsidian_integration import ObsidianManager  # noqa: E402
+from src.runtime_paths import data_dir, data_path  # noqa: E402
+from src.utils.run_logger import init_run_logger  # noqa: E402
 
 
 def main() -> None:
     """Run the research -> summarize pipeline end to end."""
-    workdir = Path(tempfile.mkdtemp(prefix="artemis_workflow_"))
-    vault = workdir / "vault"
+    workdir = data_dir()
+    vault = Path(
+        data_path(
+            "workflow_vault",
+            env_var="ARTEMIS_WORKFLOW_VAULT",
+        )
+    )
     (vault / "Agent Outputs").mkdir(parents=True, exist_ok=True)
+    run_logger = init_run_logger()
 
     try:
         print("=" * 70)
         print("ARTEMIS CITY — Multi-Agent Workflow (Research -> Summarize)")
         print("=" * 70)
 
-        registry = AgentRegistry(db_path=str(workdir / "agent_registry.db"))
+        registry = AgentRegistry()
         registry.register_agent(ResearchAgent())
         registry.register_agent(SummarizerAgent())
         print(f"\nRegistered agents: {registry.get_agent_names()}")
 
         memory = MemoryBus(
             ObsidianManager(str(vault)),
-            LocalVectorStore(db_path=str(workdir / "vector_store.db")),
+            LocalVectorStore(),
             search_dirs=["Agent Outputs"],
         )
-        hebbian = HebbianWeightManager(db_path=str(workdir / "hebbian_weights.db"))
+        hebbian = HebbianWeightManager()
         # Batch weight-change propagation instead of one write per update.
         sync = HebbianSyncService(sink=lambda batch: None)
 
@@ -111,9 +118,18 @@ def main() -> None:
             f"  sync batch       : flushed {batch.flushed} update(s) "
             f"in {batch.latency_ms:.2f}ms"
         )
-        print("\nDone.")
-    finally:
-        shutil.rmtree(workdir, ignore_errors=True)
+        run_logger.finalize_run(
+            status="completed",
+            summary={
+                "research_agent": researcher,
+                "summarizer_agent": summarizer,
+            },
+        )
+        print(f"\nPersistent metrics: {workdir}")
+        print("Done.")
+    except Exception as exc:
+        run_logger.finalize_run(status="failed", summary={"error": str(exc)})
+        raise
 
 
 def _reward(hebbian, sync, agent_name: str, task_id: str) -> None:

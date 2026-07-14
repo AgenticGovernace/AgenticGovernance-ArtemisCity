@@ -353,6 +353,35 @@ class TestOrchestratorRouting:
         assert result["status"] == "failed"
         assert "No agent found with the required capability" in result["error"]
 
+    def test_assign_and_execute_task_failed_result_marks_note_failed(self):
+        """A normal failed agent result must propagate to the task note."""
+        failed_agent = Mock(spec=BaseAgent)
+        failed_agent.name = "Failing Agent"
+        failed_agent.capabilities = ["research"]
+        failed_agent.perform_task.return_value = {
+            "status": "failed",
+            "summary": "LLM execution unavailable",
+            "error": "Exo has no running model",
+        }
+        self.orchestrator.agent_registry.agents.clear()
+        self.orchestrator.agent_registry.register_agent(failed_agent)
+        self.orchestrator.update_task_status_in_obsidian = Mock()
+
+        result = self.orchestrator.assign_and_execute_task(
+            failed_agent.name,
+            {
+                "task_id": "failed_llm_task",
+                "required_capability": "research",
+                "content": "test",
+            },
+            "Agent Inputs/failed_llm_task.md",
+        )
+
+        assert result["status"] == "failed"
+        self.orchestrator.update_task_status_in_obsidian.assert_called_once_with(
+            "Agent Inputs/failed_llm_task.md", "failed", "failed_llm_task"
+        )
+
     def test_route_and_execute_task_orchestrator_agents_are_used_by_default(self):
         # This test verifies that the Orchestrator's default agents are registered and can be routed to
         # The Orchestrator's __init__ method will have already registered ArtemisAgent, ResearchAgent, SummarizerAgent

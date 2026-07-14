@@ -33,7 +33,7 @@ graph TD
     end
 
     subgraph "Memory Backends"
-        MemoryBus --> FileMemory[memory_store/*.json]
+        MemoryBus --> FileMemory[data/memory_store/*.json]
         MemoryBus --> VectorMemory[optional vector backend]
     end
 ```
@@ -69,11 +69,11 @@ sequenceDiagram
     participant Router as AgentRouter
     participant Agent as DaemonAgent or PlannerAgent
     participant MemBus as MemoryBus
-    participant Store as memory_store
+    participant Store as data/memory_store
 
     User->>CLI: python -m app.kernel.cli "draft a roadmap"
     CLI->>Kernel: {"type": "command", "content": "..."}
-    Kernel->>Kernel: append request to state_kernel.json
+    Kernel->>Kernel: append request to data/state_kernel.json
     Kernel->>Router: route(command)
     Router-->>Kernel: {"agent": "planner", "metadata": {...}}
     Kernel->>Agent: handle(request, memory)
@@ -91,7 +91,7 @@ sequenceDiagram
 - Accepts dictionary requests from the CLI.
 - Supports `type: "command"` for routed command handling.
 - Supports `type: "exec"` as a placeholder plan-file execution path.
-- Appends each request to `state_kernel.json` for simple local auditability.
+- Appends each request to `data/state_kernel.json` for simple local auditability.
 
 ### 4.2 Agent Routing
 
@@ -108,7 +108,7 @@ sequenceDiagram
 ### 4.4 Memory Persistence
 
 - Uses `FileMemoryBackend` by default.
-- Writes timestamped JSON entries under `memory_store/`.
+- Writes timestamped JSON entries under `data/memory_store/`.
 - Accepts optional custom backends through `MemoryBus`.
 
 ## 5. Python Version & Environment Policy

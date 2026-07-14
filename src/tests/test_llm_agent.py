@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
-from src.agents.llm_agent import LLMAgent
+from src.agents.llm_agent import DEFAULT_EXO_MODEL_ID, LLMAgent
 
 
 def _http_error(status_code: int, message: str = "endpoint failed") -> Exception:
@@ -127,34 +127,95 @@ class TestLLMAgent:
         assert result["model_url"] == "http://localhost:52415/v1"
         assert post.call_args.args[0] == "http://localhost:52415/v1/chat/completions"
 
-    def test_perform_task_falls_back_to_text_completions_endpoint(self):
-        """A 404/405-style endpoint miss should retry /v1/completions."""
+    def test_perform_task_falls_back_to_responses_endpoint(self):
+        """A chat endpoint miss should retry Exo's supported Responses API."""
         agent = LLMAgent(base_url="http://localhost:52415", model_id="test-model")
         missing_endpoint = Mock()
         missing_endpoint.raise_for_status.side_effect = _http_error(404, "not found")
-        completion_response = Mock()
-        completion_response.raise_for_status.return_value = None
-        completion_response.json.return_value = {
-            "choices": [{"text": "hello from completions"}],
+        responses_response = Mock()
+        responses_response.raise_for_status.return_value = None
+        responses_response.json.return_value = {
+            "output": [
+                {
+                    "type": "message",
+                    "content": [
+                        {"type": "output_text", "text": "hello from responses"}
+                    ],
+                }
+            ],
         }
 
         with patch(
             "src.agents.llm_agent.requests.post",
-            side_effect=[missing_endpoint, completion_response],
+            side_effect=[missing_endpoint, responses_response],
         ) as post:
             result = agent.perform_task({"prompt": "hello"})
 
         assert result["status"] == "success"
-        assert result["summary"] == "hello from completions"
+        assert result["summary"] == "hello from responses"
         assert result["model_url"] == "http://localhost:52415/v1"
         assert post.call_args_list[0].args[0] == (
             "http://localhost:52415/v1/chat/completions"
         )
-        assert post.call_args_list[1].args[0] == "http://localhost:52415/v1/completions"
-        assert post.call_args_list[1].kwargs["json"]["prompt"] == "user: hello"
+        assert post.call_args_list[1].args[0] == "http://localhost:52415/v1/responses"
+        assert post.call_args_list[1].kwargs["json"]["input"] == [
+            {"role": "user", "content": "hello"}
+        ]
+
+    def test_perform_task_blank_model_auto_detects_running_exo_model(self):
+        """Blank EXO_MODEL_ID should use a model already loaded in Exo."""
+        running_models = Mock()
+        running_models.raise_for_status.return_value = None
+        running_models.json.return_value = {
+            "models": [{"model": "mlx-community/running-model"}]
+        }
+        completion = Mock()
+        completion.raise_for_status.return_value = None
+        completion.json.return_value = {
+            "choices": [{"message": {"content": "running model response"}}]
+        }
+
+        with patch.dict("os.environ", {"EXO_MODEL_ID": ""}):
+            agent = LLMAgent(base_url="http://localhost:52415")
+        with (
+            patch("src.agents.llm_agent.requests.get", return_value=running_models),
+            patch(
+                "src.agents.llm_agent.requests.post", return_value=completion
+            ) as post,
+        ):
+            result = agent.perform_task({"prompt": "hello"})
+
+        assert result["status"] == "success"
+        assert result["model"] == "mlx-community/running-model"
+        assert post.call_args.kwargs["json"]["model"] == ("mlx-community/running-model")
+
+    def test_perform_task_blank_model_uses_non_empty_default_when_none_running(self):
+        """No loaded model should use the valid lightweight Exo default."""
+        running_models = Mock()
+        running_models.raise_for_status.return_value = None
+        running_models.json.return_value = {"models": []}
+        completion = Mock()
+        completion.raise_for_status.return_value = None
+        completion.json.return_value = {
+            "choices": [{"message": {"content": "default model response"}}]
+        }
+
+        with patch.dict("os.environ", {"EXO_MODEL_ID": ""}):
+            agent = LLMAgent(base_url="http://localhost:52415")
+        with (
+            patch("src.agents.llm_agent.requests.get", return_value=running_models),
+            patch(
+                "src.agents.llm_agent.requests.post", return_value=completion
+            ) as post,
+        ):
+            result = agent.perform_task({"prompt": "hello"})
+
+        assert result["model"] == DEFAULT_EXO_MODEL_ID
+        assert post.call_args.kwargs["json"]["model"] == DEFAULT_EXO_MODEL_ID
+        assert post.call_args.kwargs["json"]["model"] != ""
 
     def test_perform_task_fallback_when_endpoint_unavailable(self):
-        """The agent should return a fallback response when Exo calls fail."""
+        """An unavailable Exo call must fail rather than claim LLM success."""
         agent = LLMAgent(base_url="http://localhost:52415", model_id="test-model")
 
         with patch(
@@ -163,9 +224,10 @@ class TestLLMAgent:
         ):
             result = agent.perform_task({"prompt": "test prompt"})
 
-        assert result["status"] == "success"
+        assert result["status"] == "failed"
         assert result["provider"] == "fallback"
-        assert "Exo is unavailable" in result["summary"]
+        assert "LLM execution unavailable" in result["summary"]
+        assert "test-model" in result["summary"]
 
     def test_perform_task_requires_prompt_or_messages(self):
         """An empty payload should fail fast with a clear message."""
@@ -219,7 +281,8 @@ class TestLLMAgent:
         finals = [e for e in events if e["type"] == "final"]
         assert len(finals) == 1
         assert finals[0]["result"]["provider"] == "fallback"
-        assert "Exo is unavailable" in finals[0]["result"]["summary"]
+        assert finals[0]["result"]["status"] == "failed"
+        assert "LLM execution unavailable" in finals[0]["result"]["summary"]
         # Single fallback token so the UI animation still renders.
         assert len(tokens) == 1
         assert tokens[0] == finals[0]["result"]["summary"]

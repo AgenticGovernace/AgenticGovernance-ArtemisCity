@@ -11,10 +11,13 @@ import json
 import os
 import sqlite3
 import time
+import uuid
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+from src.runtime_paths import data_path, log_path
 
 
 class RunLogger:
@@ -30,19 +33,24 @@ class RunLogger:
 
     def __init__(
         self,
-        log_dir: str = "logs",
-        db_path: str = "data/run_logs.db",
+        log_dir: Optional[str] = None,
+        db_path: Optional[str] = None,
         run_id: Optional[str] = None,
     ):
-        self.log_dir = Path(log_dir)
-        self.db_path = db_path
-        self.run_id = run_id or datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.log_dir = Path(log_path(".", log_dir))
+        self.db_path = data_path(
+            "run_logs.db", db_path, env_var="ARTEMIS_RUN_LOG_DB"
+        )
+        self.run_id = run_id or (
+            f"{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}_"
+            f"{uuid.uuid4().hex[:8]}"
+        )
         self.run_start_time = time.perf_counter()
         self._events: List[Dict] = []
 
         # Ensure directories exist
         self.log_dir.mkdir(parents=True, exist_ok=True)
-        db_dir = os.path.dirname(db_path)
+        db_dir = os.path.dirname(self.db_path)
         if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir, exist_ok=True)
 
@@ -520,18 +528,23 @@ class RunLogger:
         context: Dict[str, Any] = {"metadata": metadata or {}}
         try:
             yield context
-            status = context.get("status", "success")
+            status = str(context.get("status", "success"))
         except Exception as e:
             status = "error"
             context["error"] = str(e)
             raise
         finally:
             duration_ms = (time.perf_counter() - start) * 1000
+            context_metadata = context.get("metadata", {})
+            if not isinstance(context_metadata, dict):
+                context_metadata = {}
+            context_message = context.get("message")
+            message = context_message if isinstance(context_message, str) else None
             self.log_event(
                 event_type,
                 component,
-                {**context.get("metadata", {}), "status": status},
-                context.get("message"),
+                {**context_metadata, "status": status},
+                message,
                 duration_ms,
             )
 
@@ -656,8 +669,8 @@ def get_run_logger() -> RunLogger:
 
 
 def init_run_logger(
-    log_dir: str = "logs",
-    db_path: str = "data/run_logs.db",
+    log_dir: Optional[str] = None,
+    db_path: Optional[str] = None,
     run_id: Optional[str] = None,
 ) -> RunLogger:
     """Initialize a new run logger (resets the global instance).
@@ -675,7 +688,7 @@ def init_run_logger(
     return _run_logger
 
 
-def get_recent_runs(db_path: str = "data/run_logs.db", limit: int = 20) -> List[Dict]:
+def get_recent_runs(db_path: Optional[str] = None, limit: int = 20) -> List[Dict]:
     """
     Get recent runs with summary statistics.
 
@@ -686,7 +699,10 @@ def get_recent_runs(db_path: str = "data/run_logs.db", limit: int = 20) -> List[
     Returns:
         List of run summaries
     """
-    with sqlite3.connect(db_path) as conn:
+    resolved_db_path = data_path(
+        "run_logs.db", db_path, env_var="ARTEMIS_RUN_LOG_DB"
+    )
+    with sqlite3.connect(resolved_db_path) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.execute(
             """
@@ -722,7 +738,7 @@ def get_recent_runs(db_path: str = "data/run_logs.db", limit: int = 20) -> List[
 
 
 def get_run_events(
-    db_path: str = "data/run_logs.db",
+    db_path: Optional[str] = None,
     run_id: Optional[str] = None,
     event_type: Optional[str] = None,
     limit: int = 100,
@@ -739,7 +755,10 @@ def get_run_events(
     Returns:
         List of event dictionaries
     """
-    with sqlite3.connect(db_path) as conn:
+    resolved_db_path = data_path(
+        "run_logs.db", db_path, env_var="ARTEMIS_RUN_LOG_DB"
+    )
+    with sqlite3.connect(resolved_db_path) as conn:
         conn.row_factory = sqlite3.Row
 
         if event_type:
@@ -772,7 +791,7 @@ def get_run_events(
             if event_dict["metadata"]:
                 try:
                     event_dict["metadata"] = json.loads(event_dict["metadata"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     pass
             events.append(event_dict)
         return events

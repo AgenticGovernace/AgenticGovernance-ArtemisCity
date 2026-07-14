@@ -6,8 +6,9 @@ when repeated divergence is detected.
 import json
 import time
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
+from src.runtime_paths import log_path as resolve_log_path
 from src.utils.helpers import logger
 
 
@@ -15,10 +16,16 @@ class GovernanceMonitor:
     """Tracks failures and emits alerts/rollback signals after thresholds are crossed."""
 
     def __init__(
-        self, alert_threshold: int = 3, log_path: str = "data/governance_events.log"
+        self, alert_threshold: int = 3, log_path: Optional[str] = None
     ):
         self.alert_threshold = alert_threshold
-        self.log_path = Path(log_path)
+        self.log_path = Path(
+            resolve_log_path(
+                "governance_events.log",
+                log_path,
+                env_var="ARTEMIS_GOVERNANCE_LOG",
+            )
+        )
         self._failure_streak = 0
         self._events: List[Dict] = []
         if self.log_path.parent:

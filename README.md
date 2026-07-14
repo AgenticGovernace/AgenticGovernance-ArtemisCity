@@ -127,8 +127,15 @@ Depending on which surface you run, the repository may depend on:
 - Python 3.12
 - Node.js 18+ for TypeScript services
 - Obsidian with the Local REST API plugin
-- SQLite databases under `data/`  or `app/api/db/` 
+- SQLite databases and persistent runtime state under repo-root `data/`
+- human-readable process and per-run output under repo-root `logs/`
 - optional local inference services such as Exo
+
+All Python, bridge, dashboard, kernel, and example-process defaults resolve
+through `src/runtime_paths.py`, so launching from a nested working directory
+does not create a second data source. `ARTEMIS_DATA_DIR` and `ARTEMIS_LOG_DIR`
+can relocate the two roots for containers; per-store absolute overrides remain
+available for tests and specialized deployments.
 ### Containerization
 Containerization is currently focused on the standalone Obsidian MCP server:
 
