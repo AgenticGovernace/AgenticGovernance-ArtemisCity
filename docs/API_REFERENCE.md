@@ -56,6 +56,8 @@ All routes below require the Express API authentication middleware except health
 | `POST /api/v1/trust/:entityId/failure` | Implemented | `trust.record_failure` |
 | `GET /api/v1/trust/hebbian/weights` | Implemented | `hebbian.weights` |
 | `PUT /api/v1/trust/hebbian/weights` | Implemented | `hebbian.update` |
+| `GET /api/v1/trust/hebbian/sentinel` | Implemented | `hebbian.sentinel_status` |
+| `GET /api/v1/trust/hebbian/sentinel/alerts` | Implemented | `hebbian.sentinel_alerts` |
 | `GET /api/v1/trust/levels` | Implemented | `trust.levels` |
 | `GET /api/v1/trust/report` | Implemented | `trust.report` |
 | `PUT /api/v1/trust/:entityId` | Implemented | `trust.set_score` |
@@ -66,9 +68,17 @@ All routes below require the Express API authentication middleware except health
 Trust mutations are write-through for agent entities: the bridge synchronizes
 the authoritative registry projection and `data/trust_scores.db`. Governance
 violations recalculate trust from execution history plus active violations but
-do not alter capability-scoped Hebbian weights. Manual Hebbian edits refresh
-the corresponding registry learning summary without incrementing execution
-counts.
+do not themselves alter capability-scoped Hebbian weights. A completed task
+updates both systems from the same outcome: it applies the Hebbian/anti-Hebbian
+rule, mirrors learning into `data/agent_registry.db`, recomputes governance
+trust, and synchronizes `data/trust_scores.db`. Manual Hebbian edits refresh the
+corresponding registry learning summary without incrementing execution counts.
+
+The Sentinel endpoints expose the rolling sign-change rate of recent outcomes
+for each `(agent_name, task_type)` association and its persisted alert
+transitions. Sentinel is observational: it does not change weights, trust,
+quarantine state, or routing rank. Operators or governance policy can use the
+alerts as review evidence without creating a hidden feedback loop.
 
 Checkpoint rollback requires both `confirmed: true` and `initiated_by`. The
 checkpoint integrity hash is verified before atomically restoring registry and
@@ -108,6 +118,31 @@ ATP is the structured message format for agent-to-agent communication and kernel
 | `#SpecialNotes:` | Free-form text | Optional | `#SpecialNotes: Keep API stable` | Warnings or context |
 
 Canonical parse and validation are implemented in `src/agents/atp/atp_models.py`, `src/agents/atp/atp_parser.py`, and `src/agents/atp/atp_validator.py`, exposed through `atp.parse` and `atp.validate`.
+
+ATP is also a live routing domain. When an execution request contains ATP
+headers and does not explicitly pin `required_capability`, Artemis maps the
+action and target zone to a capability, strips the headers before dispatch,
+and learns against a scope of
+`atp:<lowercase-action-type>:<capability>`. An explicit capability always wins.
+`atp.route` uses the same registry, trust floor, fallback, and Hebbian blend as
+the orchestrator; it no longer performs a metadata-only route.
+
+Every accepted ATP prompt creates a parent provenance event in
+`data/run_logs.db`. Routing, dispatch, memory persistence, learning, and task
+completion create child events linked by `parent_prov_id`. ATP execution fails
+closed if this provenance sink is unavailable. Set `ARTEMIS_ATP_STRICT=1` to
+also reject validation errors; the default keeps validation details attached
+while preserving compatibility.
+
+## Current FastAPI Dashboard Additions
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/cli/execute` | Executes plain or ATP instructions and returns `atp` plus `provenance_id` with the routing result. |
+| `POST /api/cli/execute/stream` | SSE equivalent; routing and complete events include ATP/provenance context. |
+| `GET /api/db/hebbian/sentinel` | Current stability state, filterable by `agent_name` and `task_type`. |
+| `GET /api/db/hebbian/sentinel/alerts` | Persisted open/resolved alert transitions; `open_only=true` filters active alerts. |
+
 ### ATP Message Examples
 #### Example 1: Query Task from Memory Bus
 ```

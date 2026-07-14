@@ -415,6 +415,48 @@ class TestHebbianWeightManager:
         assert stats["weight"] == 2.0  # 3 successes - 1 failure
 
 
+def test_hebbian_sentinel_detects_and_resolves_oscillation(tmp_path, monkeypatch):
+    monkeypatch.setenv("ARTEMIS_HEBBIAN_SENTINEL_WINDOW", "4")
+    monkeypatch.setenv("ARTEMIS_HEBBIAN_SENTINEL_WARMUP", "4")
+    monkeypatch.setenv("ARTEMIS_HEBBIAN_SENTINEL_THRESHOLD", "0.4")
+    manager = HebbianWeightManager(db_path=str(tmp_path / "sentinel.db"))
+
+    latest = None
+    for index, success in enumerate((True, False, True, False)):
+        latest = manager.record_outcome(
+            "agent_a",
+            f"oscillating-{index}",
+            success=success,
+            performance=1.0 if success else 0.0,
+            task_type="atp:execute:llm_chat",
+        )
+
+    assert latest is not None
+    assert latest["sentinel_alert"] is True
+    assert latest["oscillation_rate"] == pytest.approx(0.75)
+    assert manager.list_sentinel_alerts(open_only=True)[0]["status"] == "open"
+
+    for index in range(4):
+        latest = manager.record_outcome(
+            "agent_a",
+            f"stable-{index}",
+            success=True,
+            performance=1.0,
+            task_type="atp:execute:llm_chat",
+        )
+
+    assert latest["sentinel_alert"] is False
+    assert latest["oscillation_rate"] == 0.0
+    assert manager.list_sentinel_alerts(open_only=True) == []
+    assert manager.list_sentinel_alerts()[0]["status"] == "resolved"
+
+
+def test_hebbian_snapshot_includes_sentinel_tables(hebbian_manager):
+    snapshot = hebbian_manager.export_snapshot()
+    assert "hebbian_sentinel_state" in snapshot["tables"]
+    assert "hebbian_sentinel_alerts" in snapshot["tables"]
+
+
 @pytest.mark.integration
 class TestHebbianIntegration:
     """Integration tests for Hebbian learning in the orchestrator."""

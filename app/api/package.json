@@ -10,7 +10,7 @@
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only index.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "jest"
+    "test": "jest --config ../../jest.config.cjs"
   },
   "dependencies": {
     "cors": "^2.8.5",

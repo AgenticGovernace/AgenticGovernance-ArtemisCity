@@ -52,6 +52,12 @@ interface RoutingCandidate {
   hebbian_norm: number;
   trust_score: number;
   blended: number;
+  pair_bonus: number;
+  timing_score: number | null;
+  hebbian_effective: number;
+  oscillation_rate: number;
+  sentinel_alert: boolean;
+  sentinel_samples: number;
 }
 
 interface RoutingDecision {
@@ -60,6 +66,9 @@ interface RoutingDecision {
   beta: number;
   trust_floor: number;
   fallback_from: string | null;
+  capability: string | null;
+  routing_scope: string | null;
+  atp_action_type: string | null;
   candidates: RoutingCandidate[];
 }
 
@@ -74,6 +83,8 @@ interface ExecutionResult {
   error?: string;
   agent_name?: string | null;
   routing?: RoutingDecision | null;
+  atp?: Record<string, unknown> | null;
+  provenance_id?: string | null;
 }
 
 /**
@@ -173,13 +184,15 @@ const Executor = () => {
     // finalises `result.summary`.
     let accumulated = '';
     streamAbortRef.current = executeInstructionStream(payload, {
-      onRouting: ({ decision, agent_name, task_id }) => {
+      onRouting: ({ decision, agent_name, task_id, atp, provenance_id }) => {
         setResult({
           task_id,
           status: 'in_progress',
           summary: '',
           agent_name,
           routing: (decision as RoutingDecision) || null,
+          atp,
+          provenance_id,
         });
       },
       onToken: (text) => {
@@ -195,6 +208,8 @@ const Executor = () => {
           note_path: data.note_path || undefined,
           error: data.error || undefined,
           agent_name: data.agent_name,
+          atp: data.atp,
+          provenance_id: data.provenance_id,
         }));
         setExecuting(false);
         if (data.status === 'success') {
@@ -465,6 +480,14 @@ Or: Summarize the key findings from the reports folder"
                       </StatNumber>
                     </Stat>
                   )}
+                  {result.provenance_id && (
+                    <Stat>
+                      <StatLabel fontSize="xs">Provenance</StatLabel>
+                      <StatNumber fontSize="xs" wordBreak="break-all">
+                        {result.provenance_id}
+                      </StatNumber>
+                    </Stat>
+                  )}
                 </SimpleGrid>
 
                 {/* Hebbian routing decision */}
@@ -486,6 +509,11 @@ Or: Summarize the key findings from the reports folder"
                       {result.routing.fallback_from && (
                         <Badge ml={2} colorScheme="orange">
                           fallback from: {result.routing.fallback_from}
+                        </Badge>
+                      )}
+                      {result.routing.routing_scope && (
+                        <Badge ml={2} colorScheme="blue">
+                          {result.routing.routing_scope}
                         </Badge>
                       )}
                     </Text>
@@ -516,6 +544,11 @@ Or: Summarize the key findings from the reports folder"
                               {c.composite.toFixed(3)} · heb=
                               {c.hebbian_weight.toFixed(2)} · trust=
                               {c.trust_score.toFixed(2)}
+                              {c.sentinel_alert && (
+                                <Badge ml={2} colorScheme="orange">
+                                  stability review ({c.oscillation_rate.toFixed(2)})
+                                </Badge>
+                              )}
                             </Text>
                           </Flex>
                         );

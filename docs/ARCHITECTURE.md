@@ -197,12 +197,27 @@ returned to the caller as the `agent_name` and `routing` fields on
 `ExecuteInstructionResponse`. The dashboard Executor page renders the
 per-candidate blended-score breakdown so operators can observe how the
 router weighted composite score, scoped Hebbian history, pair/timing signals,
-and trust for each
-capability match. The blend is
+and trust for each capability match. ATP action types create distinct learning
+scopes (`atp:<action>:<capability>`) while still filtering agents by their real
+capabilities. This lets Summarize, Execute, and Reflect develop separate
+associations without inventing duplicate agent identities. The blend is
 `(1 - α - β)·composite + α·hebbian_norm + β·trust`; agents below
 `trust_floor` are excluded before scoring. See the "Dashboard executor
 contract" section of `CLAUDE.md` for the response shape and the
 controlling env vars.
+
+Every routed prompt has one parent provenance ID in `data/run_logs.db`.
+Routing, sandbox dispatch, memory persistence, Hebbian/trust learning, and
+completion are child events, making one execution reconstructable without
+joining on log text. ATP tasks fail closed when the provenance sink is not
+available.
+
+The Hebbian sentinel calculates rolling success/failure sign changes per
+agent and routing scope. It stores current state and alert transitions in
+`data/hebbian_weights.db`, mirrors the current signal into the agent registry,
+and exposes it through both API boundaries. It is deliberately observational:
+the signal appears in routing diagnostics but is not part of the blended score
+and cannot autonomously modify weights, trust, or quarantine state.
 
 ## Integration Points
 **Obsidian Integration:**

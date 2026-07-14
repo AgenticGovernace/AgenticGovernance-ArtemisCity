@@ -23,6 +23,33 @@ router.get(
   })
 );
 
+router.get(
+  '/hebbian/sentinel',
+  asyncHandler(async (req: Request, res: Response) => {
+    const agentName = typeof req.query.agent_name === 'string' ? req.query.agent_name : undefined;
+    const taskType = typeof req.query.task_type === 'string' ? req.query.task_type : undefined;
+    const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 100;
+    if (!Number.isInteger(limit) || limit < 1 || limit > 500) {
+      throw Errors.BadRequest('limit must be an integer between 1 and 500');
+    }
+    const data = await controller.getHebbianSentinelStatus(agentName, taskType, limit);
+    res.json({ success: true, data });
+  })
+);
+
+router.get(
+  '/hebbian/sentinel/alerts',
+  asyncHandler(async (req: Request, res: Response) => {
+    const openOnly = req.query.open_only === 'true';
+    const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 100;
+    if (!Number.isInteger(limit) || limit < 1 || limit > 500) {
+      throw Errors.BadRequest('limit must be an integer between 1 and 500');
+    }
+    const data = await controller.getHebbianSentinelAlerts(openOnly, limit);
+    res.json({ success: true, data });
+  })
+);
+
 router.put(
   '/hebbian/weights',
   asyncHandler(async (req: Request, res: Response) => {

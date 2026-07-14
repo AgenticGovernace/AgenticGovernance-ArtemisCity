@@ -198,6 +198,11 @@ class Orchestrator:
         for registered_agent in self.agent_registry.get_all_agents():
             self.learning_governance.reconcile_agent(registered_agent.name)
 
+        # Initialize and migrate the shared audit/provenance sink at boot so
+        # dashboard reads never race the first task write.
+        if _get_run_logger() is None:
+            logger.warning("Run provenance sink is unavailable at boot.")
+
         self._ensure_obsidian_agent_dirs()
         self._validate_kernel_state()
         logger.info("MCP Orchestrator initialized with Agent Registry.")

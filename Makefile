@@ -195,7 +195,7 @@ frontend: ## Start the web frontend dev server (needs `make api` running separat
 
 api: ## Start the FastAPI dashboard backend on :8000 (paired with `make frontend`)
 	@echo "Starting FastAPI dashboard backend on http://localhost:8000 ..."
-	@$(LOAD_ENV) $(PYTHON) -m uvicorn app.api.main:app --reload --host 0.0.0.0 --port 8000
+	uvicorn app.api.main:app --reload --host 0.0.0.0 --port 8000
 
 # ============================================
 # BUILD & PACKAGE

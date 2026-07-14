@@ -146,6 +146,9 @@ class AgentScore(BaseModel):
     hebbian_pair_bonus: float = 0.0
     hebbian_timing_score: float | None = None
     routing_intelligence: float = 0.0
+    hebbian_oscillation_rate: float = 0.0
+    hebbian_sentinel_alert: bool = False
+    hebbian_sentinel_samples: int = 0
     learning_updated_at: str | None = None
 
 
@@ -233,6 +236,7 @@ class ExecuteInstructionRequest(BaseModel):
     capability: str | None = None
     agent: str | None = None
     title: str | None = None
+    atp_strict: bool = False
 
 
 class ExecuteInstructionResponse(BaseModel):
@@ -261,6 +265,8 @@ class ExecuteInstructionResponse(BaseModel):
     # {agent_name, alpha, fallback_from, candidates: [{name, composite,
     # hebbian_weight, hebbian_norm, blended}, ...]}.
     routing: Dict[str, Any] | None = None
+    atp: Dict[str, Any] | None = None
+    provenance_id: str | None = None
 
 
 # SQLite paths -- align with the rest of the project, which writes to
@@ -819,6 +825,9 @@ async def get_agent_scores(_key: None = Depends(_require_api_key)):
               COALESCE(hebbian_pair_bonus, 0.0) AS hebbian_pair_bonus,
               hebbian_timing_score,
               COALESCE(routing_intelligence, 0.0) AS routing_intelligence,
+              COALESCE(hebbian_oscillation_rate, 0.0) AS hebbian_oscillation_rate,
+              COALESCE(hebbian_sentinel_alert, 0) AS hebbian_sentinel_alert,
+              COALESCE(hebbian_sentinel_samples, 0) AS hebbian_sentinel_samples,
               learning_updated_at
             FROM agents
             ORDER BY name ASC
@@ -868,6 +877,11 @@ async def get_agent_scores(_key: None = Depends(_require_api_key)):
                         else None
                     ),
                     routing_intelligence=float(row["routing_intelligence"]),
+                    hebbian_oscillation_rate=float(
+                        row["hebbian_oscillation_rate"]
+                    ),
+                    hebbian_sentinel_alert=bool(row["hebbian_sentinel_alert"]),
+                    hebbian_sentinel_samples=int(row["hebbian_sentinel_samples"]),
                     learning_updated_at=row["learning_updated_at"],
                 )
             )
@@ -1044,6 +1058,72 @@ async def get_agent_hebbian_stats(
         conn.close()
 
 
+@app.get("/api/db/hebbian/sentinel")
+async def get_hebbian_sentinel_status(
+    agent_name: str | None = None,
+    task_type: str | None = None,
+    limit: int = 100,
+    _key: None = Depends(_require_api_key),
+):
+    """Return current observational Hebbian stability signals."""
+    if limit < 1 or limit > 500:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
+    conn = _connect_db(HEBBIAN_DB)
+    try:
+        clauses = []
+        params: List[Any] = []
+        if agent_name:
+            clauses.append("agent_name = ?")
+            params.append(agent_name)
+        if task_type:
+            clauses.append("task_type = ?")
+            params.append(task_type)
+        where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+        params.append(limit)
+        rows = conn.execute(
+            "SELECT * FROM hebbian_sentinel_state"
+            f"{where} ORDER BY updated_at DESC LIMIT ?",
+            tuple(params),
+        ).fetchall()
+        results = [dict(row) for row in rows]
+        for result in results:
+            result["alert_active"] = bool(result["alert_active"])
+        return {"signals": results, "total": len(results)}
+    except Exception as e:
+        logger.error("Error fetching Hebbian sentinel: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch sentinel state.")
+    finally:
+        conn.close()
+
+
+@app.get("/api/db/hebbian/sentinel/alerts")
+async def get_hebbian_sentinel_alerts(
+    open_only: bool = False,
+    limit: int = 100,
+    _key: None = Depends(_require_api_key),
+):
+    """Return persisted sentinel alert transitions for operator review."""
+    if limit < 1 or limit > 500:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
+    conn = _connect_db(HEBBIAN_DB)
+    try:
+        where = " WHERE status = 'open'" if open_only else ""
+        rows = conn.execute(
+            "SELECT * FROM hebbian_sentinel_alerts"
+            f"{where} ORDER BY id DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        alerts = [dict(row) for row in rows]
+        return {"alerts": alerts, "total": len(alerts)}
+    except Exception as e:
+        logger.error(
+            "Error fetching Hebbian sentinel alerts: %s", _sanitize_for_log(e)
+        )
+        raise HTTPException(status_code=500, detail="Failed to fetch sentinel alerts.")
+    finally:
+        conn.close()
+
+
 @app.get("/api/db/vectors/stats", response_model=VectorStoreStats)
 async def get_vector_stats(_key: None = Depends(_require_api_key)):
     """Return aggregate statistics for the vector store database.
@@ -1193,7 +1273,9 @@ async def get_run_events_endpoint(
               component,
               message,
               metadata,
-              duration_ms
+              duration_ms,
+              prov_id,
+              parent_prov_id
             FROM event_log
             WHERE run_id = ?
         """
@@ -1214,6 +1296,8 @@ async def get_run_events_endpoint(
                     "message": row["message"],
                     "metadata": _parse_json(row["metadata"], {}),
                     "duration_ms": row["duration_ms"],
+                    "prov_id": row["prov_id"],
+                    "parent_prov_id": row["parent_prov_id"],
                 }
             )
         return events
@@ -1253,8 +1337,9 @@ async def execute_instruction(
         task_id = f"user_instruction_{timestamp}"
         task_title = request.title or request.instruction.strip().split("\n")[0][:80]
 
-        # Resolve capability and agent
-        effective_capability = request.capability or "web_search"
+        # Resolve capability and agent. ATP can supply the action domain when
+        # the caller did not pin a capability.
+        effective_capability = request.capability
         agent_for_dispatch = None
 
         if request.agent:
@@ -1268,15 +1353,32 @@ async def execute_instruction(
                 effective_capability = agent_for_dispatch.capabilities[0]
 
         # Build task data
-        task_data = {
+        task_data: Dict[str, Any] = {
             "task_id": task_id,
             "title": task_title,
             "context": request.instruction,
             "content": request.instruction,
-            "required_capability": effective_capability,
+            "_capability_explicit": bool(effective_capability),
+            "atp_strict": request.atp_strict,
             "status": "pending",
-            "tags": ["user_instruction", effective_capability],
+            "tags": ["user_instruction"],
         }
+        if effective_capability:
+            task_data["required_capability"] = effective_capability
+
+        task_data = orchestrator.prepare_task_context(task_data)
+        if not task_data.get("required_capability"):
+            task_data["required_capability"] = "web_search"
+        task_data.setdefault("routing_scope", task_data["required_capability"])
+        task_data["tags"] = ["user_instruction", task_data["required_capability"]]
+        if task_data.get("atp") and not request.title:
+            task_data["title"] = (
+                task_data["atp"].get("context") or task_data["title"]
+            )[:80]
+        task_data = orchestrator.ensure_task_provenance(
+            task_data,
+            source="fastapi.execute",
+        )
 
         if agent_for_dispatch:
             task_data["agent"] = agent_for_dispatch.name
@@ -1342,6 +1444,8 @@ async def execute_instruction(
                 error=result.get("error") if execution_failed else None,
                 agent_name=chosen_agent_name,
                 routing=routing_decision.to_dict() if routing_decision else None,
+                atp=task_data.get("atp"),
+                provenance_id=task_data.get("provenance_id"),
             )
         except Exception as e:
             # Log the real exception server-side; never echo exception
@@ -1359,6 +1463,8 @@ async def execute_instruction(
                 error="Task execution failed; see server logs",
                 agent_name=None,
                 routing=routing_decision.to_dict() if routing_decision else None,
+                atp=task_data.get("atp"),
+                provenance_id=task_data.get("provenance_id"),
             )
 
     except HTTPException:
@@ -1398,7 +1504,7 @@ async def execute_instruction_stream(
     task_id = f"user_instruction_{timestamp}"
     task_title = request.title or request.instruction.strip().split("\n")[0][:80]
 
-    effective_capability = request.capability or "web_search"
+    effective_capability = request.capability
     if request.agent:
         agent_obj = active_orchestrator.agent_registry.get_agent(request.agent)
         if not agent_obj:
@@ -1406,15 +1512,31 @@ async def execute_instruction_stream(
         if not request.capability and agent_obj.capabilities:
             effective_capability = agent_obj.capabilities[0]
 
-    task_data = {
+    task_data: Dict[str, Any] = {
         "task_id": task_id,
         "title": task_title,
         "context": request.instruction,
         "content": request.instruction,
-        "required_capability": effective_capability,
+        "_capability_explicit": bool(effective_capability),
+        "atp_strict": request.atp_strict,
         "status": "pending",
-        "tags": ["user_instruction", effective_capability],
+        "tags": ["user_instruction"],
     }
+    if effective_capability:
+        task_data["required_capability"] = effective_capability
+    task_data = active_orchestrator.prepare_task_context(task_data)
+    if not task_data.get("required_capability"):
+        task_data["required_capability"] = "web_search"
+    task_data.setdefault("routing_scope", task_data["required_capability"])
+    task_data["tags"] = ["user_instruction", task_data["required_capability"]]
+    if task_data.get("atp") and not request.title:
+        task_data["title"] = (
+            task_data["atp"].get("context") or task_data["title"]
+        )[:80]
+    task_data = active_orchestrator.ensure_task_provenance(
+        task_data,
+        source="fastapi.execute.stream",
+    )
     if request.agent:
         task_data["agent"] = request.agent
 
@@ -1447,6 +1569,8 @@ async def execute_instruction_stream(
                             "decision": ev.get("decision"),
                             "agent_name": ev.get("agent_name"),
                             "task_id": task_id,
+                            "atp": task_data.get("atp"),
+                            "provenance_id": task_data.get("provenance_id"),
                         },
                     )
                 elif etype == "token":
@@ -1461,6 +1585,8 @@ async def execute_instruction_stream(
                             "summary": ev.get("summary"),
                             "note_path": ev.get("note_path"),
                             "error": ev.get("error"),
+                            "atp": ev.get("atp"),
+                            "provenance_id": ev.get("provenance_id"),
                         },
                     )
                 elif etype == "error":

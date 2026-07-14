@@ -49,6 +49,25 @@ export class TrustController {
     return callBridge('hebbian.weights');
   }
 
+  async getHebbianSentinelStatus(
+    agentName?: string,
+    taskType?: string,
+    limit = 100
+  ): Promise<unknown> {
+    return callBridge('hebbian.sentinel_status', {
+      agent_name: agentName,
+      task_type: taskType,
+      limit,
+    });
+  }
+
+  async getHebbianSentinelAlerts(openOnly = false, limit = 100): Promise<unknown> {
+    return callBridge('hebbian.sentinel_alerts', {
+      open_only: openOnly,
+      limit,
+    });
+  }
+
   async updateHebbianWeight(agent1: string, agent2: string, delta: number): Promise<unknown> {
     return callBridge('hebbian.update', {
       agent1,

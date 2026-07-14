@@ -1,0 +1,55 @@
+"""Production ATP context-routing tests."""
+
+import pytest
+
+from src.agents.atp.atp_context import resolve_task_context
+
+
+ATP_SUMMARY = """#Mode: Synthesize
+#Context: Condense the release notes
+#Priority: Normal
+#ActionType: Summarize
+#TargetZone: docs/
+#SpecialNotes: Preserve decisions
+
+Summarize the release notes for operators.
+"""
+
+
+def test_atp_context_infers_action_domain_and_cleans_content():
+    resolved = resolve_task_context(
+        {"content": ATP_SUMMARY, "_capability_explicit": False}
+    )
+
+    assert resolved["required_capability"] == "text_summarization"
+    assert resolved["routing_scope"] == "atp:summarize:text_summarization"
+    assert resolved["atp_action_type"] == "Summarize"
+    assert resolved["content"] == "Summarize the release notes for operators."
+    assert resolved["atp"]["context"] == "Condense the release notes"
+
+
+def test_atp_context_preserves_explicit_capability():
+    resolved = resolve_task_context(
+        {
+            "content": ATP_SUMMARY,
+            "required_capability": "reasoning",
+            "_capability_explicit": True,
+        }
+    )
+
+    assert resolved["required_capability"] == "reasoning"
+    assert resolved["routing_scope"] == "atp:summarize:reasoning"
+
+
+def test_non_atp_context_is_unchanged():
+    source = {"content": "ordinary task", "required_capability": "web_search"}
+    assert resolve_task_context(source) == source
+
+
+def test_strict_atp_context_rejects_incomplete_header():
+    with pytest.raises(ValueError, match="Incomplete ATP headers"):
+        resolve_task_context(
+            {"content": "#Mode: Build\nCreate it."},
+            strict=True,
+        )
+

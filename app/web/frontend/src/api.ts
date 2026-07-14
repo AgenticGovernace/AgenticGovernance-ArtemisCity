@@ -210,6 +210,7 @@ export const executeInstruction = (data: {
   capability?: string;
   agent?: string;
   title?: string;
+  atp_strict?: boolean;
 }) => jsonPost('/cli/execute', data);
 
 /**
@@ -218,7 +219,13 @@ export const executeInstruction = (data: {
  * the consumer cancel the in-flight stream mid-flight.
  */
 export interface ExecuteStreamHandlers {
-  onRouting?: (data: { decision: unknown; agent_name: string; task_id: string }) => void;
+  onRouting?: (data: {
+    decision: unknown;
+    agent_name: string;
+    task_id: string;
+    atp: Record<string, unknown> | null;
+    provenance_id: string | null;
+  }) => void;
   onToken?: (text: string) => void;
   onComplete?: (data: {
     task_id: string;
@@ -227,6 +234,8 @@ export interface ExecuteStreamHandlers {
     summary: string;
     note_path: string | null;
     error: string | null;
+    atp: Record<string, unknown> | null;
+    provenance_id: string | null;
   }) => void;
   onError?: (message: string) => void;
 }
@@ -242,7 +251,13 @@ export interface ExecuteStreamHandlers {
  * (the FastAPI side will see the client disconnect and stop emitting).
  */
 export const executeInstructionStream = (
-  data: { instruction: string; capability?: string; agent?: string; title?: string },
+  data: {
+    instruction: string;
+    capability?: string;
+    agent?: string;
+    title?: string;
+    atp_strict?: boolean;
+  },
   handlers: ExecuteStreamHandlers
 ): AbortController => {
   const controller = new AbortController();

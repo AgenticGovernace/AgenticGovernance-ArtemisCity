@@ -101,6 +101,12 @@ const routeSchemas = {
   hebbianUpdate: successEnvelope(
     z.object({ origin_node: z.string(), target_node: z.string(), weight: z.number() }).passthrough()
   ),
+  hebbianSentinel: successEnvelope(
+    z.object({ signals: z.array(z.unknown()), total: z.number() }).passthrough()
+  ),
+  hebbianSentinelAlerts: successEnvelope(
+    z.object({ alerts: z.array(z.unknown()), total: z.number() }).passthrough()
+  ),
 };
 
 function bridgeResponse(command: string): unknown {
@@ -161,6 +167,10 @@ function bridgeResponse(command: string): unknown {
       };
     case 'hebbian.update':
       return { origin_node: 'Alpha', target_node: 'task', weight: 2 };
+    case 'hebbian.sentinel_status':
+      return { signals: [], total: 0 };
+    case 'hebbian.sentinel_alerts':
+      return { alerts: [], total: 0 };
     default:
       throw new Error(`Unhandled bridge command in test: ${command}`);
   }
@@ -345,6 +355,20 @@ const bridgeRouteCases: RouteCase[] = [
     body: { agent1: 'Alpha', agent2: 'task', delta: 1 },
     command: 'hebbian.update',
     schema: routeSchemas.hebbianUpdate,
+  },
+  {
+    name: 'reads Hebbian sentinel state',
+    method: 'get',
+    path: '/api/v1/trust/hebbian/sentinel',
+    command: 'hebbian.sentinel_status',
+    schema: routeSchemas.hebbianSentinel,
+  },
+  {
+    name: 'reads Hebbian sentinel alerts',
+    method: 'get',
+    path: '/api/v1/trust/hebbian/sentinel/alerts?open_only=true',
+    command: 'hebbian.sentinel_alerts',
+    schema: routeSchemas.hebbianSentinelAlerts,
   },
   {
     name: 'lists trust levels',

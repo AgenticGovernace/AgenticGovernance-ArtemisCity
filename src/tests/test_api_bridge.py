@@ -9,6 +9,7 @@ import pytest
 from src.agents.base_agent import BaseAgent
 from src.api_bridge import BridgeError, dispatch
 from src.integration.agent_registry import QUARANTINE_THRESHOLD, AgentRegistry
+from src.mcp.hebbian_weights import HebbianWeightManager
 
 
 class _StubAgent(BaseAgent):
@@ -436,6 +437,7 @@ class TestATPBackedCommands:
 
         sent = dispatch("atp.send", {"atp_db_path": atp_db, "message": message})
         assert sent["status"] == "queued"
+        assert sent["provenance_id"]
         message_id = sent["message_id"]
 
         queued = dispatch("atp.queue", {"atp_db_path": atp_db})
@@ -452,12 +454,15 @@ class TestATPBackedCommands:
             },
         )
         assert route["route"]["agent_name"] == "Alpha"
+        assert route["route"]["routing_scope"] == "atp:execute:research"
+        assert route["provenance_id"] == sent["provenance_id"]
 
         stored = dispatch(
             "atp.get_message", {"atp_db_path": atp_db, "message_id": message_id}
         )
         assert stored["status"] == "routed"
         assert stored["route"]["agent_name"] == "Alpha"
+        assert stored["provenance_id"] == sent["provenance_id"]
 
         assert "Build" in dispatch("atp.modes", {})["modes"]
         assert "Normal" in dispatch("atp.priorities", {})["priorities"]
@@ -522,6 +527,32 @@ class TestTrustAndHebbianCommands:
         weights = dispatch("hebbian.weights", {"hebbian_db_path": hebbian_db})
         assert weights["summary"]["total_connections"] == 1
         assert weights["connections"][0]["origin_node"] == "Alpha"
+
+    def test_hebbian_sentinel_read_commands(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("ARTEMIS_HEBBIAN_SENTINEL_WINDOW", "4")
+        monkeypatch.setenv("ARTEMIS_HEBBIAN_SENTINEL_WARMUP", "4")
+        hebbian_db = str(tmp_path / "hebbian.db")
+        manager = HebbianWeightManager(db_path=hebbian_db)
+        for index, success in enumerate((True, False, True, False)):
+            manager.record_outcome(
+                "Alpha",
+                f"task-{index}",
+                success=success,
+                performance=1.0 if success else 0.0,
+                task_type="atp:execute:research",
+            )
+
+        status = dispatch(
+            "hebbian.sentinel_status",
+            {"hebbian_db_path": hebbian_db, "agent_name": "Alpha"},
+        )
+        alerts = dispatch(
+            "hebbian.sentinel_alerts",
+            {"hebbian_db_path": hebbian_db, "open_only": True},
+        )
+
+        assert status["signals"][0]["alert_active"] is True
+        assert alerts["alerts"][0]["status"] == "open"
 
 
 # ---------------------------------------------------------------------------

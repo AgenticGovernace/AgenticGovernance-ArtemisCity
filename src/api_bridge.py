@@ -33,15 +33,18 @@ import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Callable, Dict, Tuple
 
+from src.agents.atp.atp_context import resolve_task_context
 from src.agents.atp.atp_models import ATPActionType, ATPMode, ATPPriority
 from src.agents.atp.atp_parser import ATPParser
 from src.agents.atp.atp_validator import ATPValidator
 from src.governance.approvals import SelfUpdateGovernor, UpdateProposal
 from src.governance.checkpoints import CheckpointStore, RollbackManager
 from src.governance.trust import TrustMetrics, compute_trust_score, trust_breakdown
-from src.integration.agent_registry import AgentRegistryStore
+from src.integration.agent_registry import AgentRegistry, AgentRegistryStore
+from src.integration.hebbian_router import HebbianRouter
 from src.integration.learning_governance import LearningGovernanceCoordinator
 from src.integration.memory_bus import MemoryBus
 from src.integration.trust_interface import (
@@ -53,6 +56,8 @@ from src.mcp.hebbian_weights import HebbianWeightManager
 from src.mcp.vector_store import LocalVectorStore
 from src.obsidian_integration.manager import ObsidianManager
 from src.runtime_paths import data_path
+from src.utils import get_run_logger
+from src.utils.run_logger import RunLogger
 
 
 class BridgeError(Exception):
@@ -296,10 +301,16 @@ def _ensure_atp_store(payload: Dict[str, Any]) -> str:
                 status TEXT NOT NULL,
                 route_json TEXT,
                 response_json TEXT,
+                provenance_id TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )
             """)
+        existing = {
+            row[1] for row in conn.execute("PRAGMA table_info(atp_messages)")
+        }
+        if "provenance_id" not in existing:
+            conn.execute("ALTER TABLE atp_messages ADD COLUMN provenance_id TEXT")
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_atp_status_created "
             "ON atp_messages(status, created_at DESC)"
@@ -317,6 +328,7 @@ def _atp_row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
         "status": row["status"],
         "route": json.loads(row["route_json"]) if row["route_json"] else None,
         "response": json.loads(row["response_json"]) if row["response_json"] else None,
+        "provenance_id": row["provenance_id"],
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
@@ -330,6 +342,63 @@ def _parse_and_validate_atp(raw_input: str, strict: bool = False) -> Dict[str, A
         "metrics": metrics,
         "validation": _validation_to_dict(validation),
     }
+
+
+def _record_atp_prompt_provenance(
+    payload: Dict[str, Any],
+    raw_input: str,
+    parsed_message: Dict[str, Any],
+    *,
+    source: str,
+    provenance_id: str | None = None,
+) -> str:
+    """Fail-closed parent provenance write for an ATP prompt."""
+    parent_id = provenance_id or str(uuid.uuid4())
+    try:
+        return _atp_provenance_logger(payload).log_event(
+            "atp_prompt_received",
+            "atp",
+            {
+                "source": source,
+                "message": parsed_message,
+                "content_length": len(raw_input),
+            },
+            "ATP prompt accepted",
+            prov_id=parent_id,
+        )
+    except Exception as exc:
+        raise BridgeError("ATP provenance write failed", code="BRIDGE_ERROR") from exc
+
+
+def _record_atp_child_provenance(
+    payload: Dict[str, Any],
+    parent_id: str,
+    event_type: str,
+    metadata: Dict[str, Any],
+) -> str:
+    """Fail-closed child provenance write for an ATP action."""
+    try:
+        return _atp_provenance_logger(payload).log_event(
+            event_type,
+            "atp",
+            metadata,
+            parent_prov_id=parent_id,
+        )
+    except Exception as exc:
+        raise BridgeError("ATP provenance write failed", code="BRIDGE_ERROR") from exc
+
+
+def _atp_provenance_logger(payload: Dict[str, Any]) -> RunLogger:
+    """Use sibling test stores when a bridge request overrides runtime paths."""
+    for key in ("atp_db_path", "db_path", "hebbian_db_path", "trust_db_path"):
+        configured = payload.get(key)
+        if configured and configured != ":memory:":
+            parent = Path(str(configured)).parent
+            return RunLogger(
+                log_dir=str(parent / "logs"),
+                db_path=str(parent / "run_logs.db"),
+            )
+    return get_run_logger()
 
 
 # ---------------------------------------------------------------------------
@@ -778,6 +847,12 @@ def _send_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
     strict = bool(payload.get("strict", False))
     parsed = _parse_and_validate_atp(raw_input, strict=strict)
     message_id = str(uuid.uuid4())
+    provenance_id = _record_atp_prompt_provenance(
+        payload,
+        raw_input,
+        parsed["message"],
+        source="api_bridge.atp.send",
+    )
     now = _now_iso()
     db_path = _ensure_atp_store(payload)
     with sqlite3.connect(db_path) as conn:
@@ -785,8 +860,8 @@ def _send_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
             """
             INSERT INTO atp_messages (
                 message_id, raw_message, parsed_json, validation_json,
-                status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                status, provenance_id, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 message_id,
@@ -794,6 +869,7 @@ def _send_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
                 json.dumps(parsed["message"]),
                 json.dumps(parsed["validation"]),
                 "queued",
+                provenance_id,
                 now,
                 now,
             ),
@@ -804,6 +880,7 @@ def _send_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
         "status": "queued",
         "message": parsed["message"],
         "validation": parsed["validation"],
+        "provenance_id": provenance_id,
         "queued_at": now,
     }
 
@@ -824,6 +901,24 @@ def _infer_route_capability(message: Dict[str, Any], payload: Dict[str, Any]) ->
     if "plan" in target or "scaffold" in action:
         return "planning"
     return "llm_chat"
+
+
+def _bridge_routing_registry(payload: Dict[str, Any]) -> AgentRegistry:
+    """Hydrate the registry facade from its authoritative persisted records."""
+    registry = AgentRegistry(db_path=_resolve_db_path(payload))
+    for record in registry.store.list_agent_records():
+        registry.agents[record["name"]] = SimpleNamespace(
+            name=record["name"],
+            capabilities=list(record.get("capabilities") or []),
+        )
+    return registry
+
+
+def _env_float(name: str, default: float) -> float:
+    try:
+        return float(os.getenv(name, str(default)))
+    except ValueError:
+        return default
 
 
 def _route_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -848,45 +943,77 @@ def _route_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(raw_input, str) or not raw_input.strip():
         raise BridgeError("missing required field: message", code="INVALID_REQUEST")
 
-    parsed = _parse_and_validate_atp(raw_input)
-    required_capability = _infer_route_capability(parsed["message"], payload)
-    agents = _store(payload).list_agent_records()
-    active_agents = [
-        agent
-        for agent in agents
-        if agent.get("status") == "active"
-        and required_capability in (agent.get("capabilities") or [])
-    ]
-    fallback_agents = [
-        agent
-        for agent in agents
-        if agent.get("status") == "active"
-        and "llm_chat" in (agent.get("capabilities") or [])
-    ]
-    candidates = active_agents or fallback_agents
-    selected = candidates[0]["name"] if candidates else None
-    route = {
-        "required_capability": required_capability,
-        "agent_name": selected,
-        "fallback_used": not bool(active_agents) and bool(fallback_agents),
-        "candidates": candidates,
+    parsed = _parse_and_validate_atp(raw_input, strict=bool(payload.get("strict")))
+    explicit = payload.get("required_capability") or payload.get("capability")
+    task_context: Dict[str, Any] = {
+        "content": raw_input,
+        "context": raw_input,
+        "_capability_explicit": bool(explicit),
     }
+    if explicit:
+        task_context["required_capability"] = str(explicit)
+    task_context = resolve_task_context(
+        task_context,
+        strict=bool(payload.get("strict")),
+        default_capability="llm_chat",
+    )
+    if not task_context.get("required_capability"):
+        task_context["required_capability"] = _infer_route_capability(
+            parsed["message"], payload
+        )
+    task_context.setdefault("routing_scope", task_context["required_capability"])
+
+    provenance_id = stored.get("provenance_id") if stored else None
+    if not provenance_id:
+        provenance_id = _record_atp_prompt_provenance(
+            payload,
+            raw_input,
+            parsed["message"],
+            source="api_bridge.atp.route",
+        )
+
+    fallback = os.getenv("ARTEMIS_ROUTING_FALLBACK_CAPABILITY", "llm_chat").strip()
+    router = HebbianRouter(
+        _bridge_routing_registry(payload),
+        _hebbian_manager(payload),
+        alpha=_env_float("ARTEMIS_HEBBIAN_ROUTING_ALPHA", 0.3),
+        beta=_env_float("ARTEMIS_HEBBIAN_ROUTING_BETA", 0.0),
+        trust_floor=_env_float("ARTEMIS_ROUTING_TRUST_FLOOR", 0.0),
+        trust_interface=_trust_interface(payload),
+        fallback_capability=fallback or None,
+    )
+    try:
+        decision = router.route(task_context)
+    except ValueError as exc:
+        raise BridgeError(str(exc), code="NOT_FOUND") from exc
+    route = decision.to_dict() | {
+        "required_capability": task_context["required_capability"],
+        "fallback_used": decision.fallback_from is not None,
+        "provenance_id": provenance_id,
+    }
+    _record_atp_child_provenance(
+        payload,
+        provenance_id,
+        "atp_routing_decision",
+        {"route": route, "validation": parsed["validation"]},
+    )
     if stored:
         now = _now_iso()
         with sqlite3.connect(db_path) as conn:
             conn.execute(
                 """
                 UPDATE atp_messages
-                SET status = ?, route_json = ?, updated_at = ?
+                SET status = ?, route_json = ?, provenance_id = ?, updated_at = ?
                 WHERE message_id = ?
                 """,
-                ("routed", json.dumps(route), now, message_id),
+                ("routed", json.dumps(route), provenance_id, now, message_id),
             )
             conn.commit()
     return {
         "message": parsed["message"],
         "validation": parsed["validation"],
         "route": route,
+        "provenance_id": provenance_id,
     }
 
 
@@ -1226,6 +1353,34 @@ def _hebbian_weights(payload: Dict[str, Any]) -> Dict[str, Any]:
     return {"summary": manager.get_network_summary(), "connections": connections}
 
 
+def _hebbian_sentinel_status(payload: Dict[str, Any]) -> Dict[str, Any]:
+    limit = _optional_limit(payload, default=100, maximum=500)
+    agent_name = payload.get("agent_name")
+    task_type = payload.get("task_type")
+    if agent_name is not None and not isinstance(agent_name, str):
+        raise BridgeError("agent_name must be a string", code="INVALID_REQUEST")
+    if task_type is not None and not isinstance(task_type, str):
+        raise BridgeError("task_type must be a string", code="INVALID_REQUEST")
+    signals = _hebbian_manager(payload).list_sentinel_status(
+        agent_name=agent_name,
+        task_type=task_type,
+        limit=limit,
+    )
+    return {"signals": signals, "total": len(signals)}
+
+
+def _hebbian_sentinel_alerts(payload: Dict[str, Any]) -> Dict[str, Any]:
+    limit = _optional_limit(payload, default=100, maximum=500)
+    open_only = payload.get("open_only", False)
+    if not isinstance(open_only, bool):
+        raise BridgeError("open_only must be a boolean", code="INVALID_REQUEST")
+    alerts = _hebbian_manager(payload).list_sentinel_alerts(
+        open_only=open_only,
+        limit=limit,
+    )
+    return {"alerts": alerts, "total": len(alerts)}
+
+
 def _hebbian_update(payload: Dict[str, Any]) -> Dict[str, Any]:
     origin = payload.get("origin") or payload.get("agent1")
     target = payload.get("target") or payload.get("agent2")
@@ -1332,6 +1487,8 @@ COMMANDS: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
     "trust.report": _trust_report,
     "trust.apply_decay": _trust_apply_decay,
     "hebbian.weights": _hebbian_weights,
+    "hebbian.sentinel_status": _hebbian_sentinel_status,
+    "hebbian.sentinel_alerts": _hebbian_sentinel_alerts,
     "hebbian.update": _hebbian_update,
 }
 

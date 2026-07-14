@@ -761,13 +761,21 @@ user instructions here. The response is `ExecuteInstructionResponse`:
 | `note_path` | `str \| None` | Vault-relative path to the persisted report. |
 | `error` | `str \| None` | Failure detail when `status == "failed"`. |
 | `agent_name` | `str \| None` | Which agent actually executed — either the request's `agent` (when pinned) or the agent the Hebbian router picked. |
-| `routing` | `dict \| None` | `HebbianRouter.RoutingDecision.to_dict()` shape: `agent_name`, `alpha`, `beta`, `trust_floor`, `fallback_from`, and `candidates[]` (each carrying `name`, `composite`, `hebbian_weight`, `pair_bonus`, `timing_score`, `hebbian_effective`, `hebbian_norm`, `trust_score`, `blended`). `None` when the caller pinned `agent` explicitly. |
+| `routing` | `dict \| None` | `HebbianRouter.RoutingDecision.to_dict()` shape: selected agent, capability, routing scope, ATP action, blend settings, fallback, and `candidates[]` (including Hebbian/trust scores plus observational Sentinel fields). `None` when the caller pinned `agent` explicitly. |
+| `atp` | `dict \| None` | Canonical ATP headers and validation context when the instruction used ATP. |
+| `provenance_id` | `str \| None` | Parent provenance event linking routing, execution, memory, learning, and completion. |
 
 Behaviorally: when the request lacks an `agent`, the handler calls
 `orchestrator.hebbian_router.route(task_data)` to capture the decision
 *before* dispatching, then calls `assign_and_execute_task(chosen, ...)`
 with the picked agent. Routing is side-effect-free, so this does not
 double-execute.
+
+ATP headers are resolved before routing. When the caller did not explicitly
+pin a capability, the action type/target zone selects one and the learning key
+becomes `atp:<action>:<capability>`; agents are still filtered by the underlying
+capability. The headers are removed from agent-visible `content`. ATP prompts
+fail closed if `data/run_logs.db` cannot accept their parent provenance event.
 
 The router blends three signals — composite score, Hebbian-learned
 weight, and trust score — as
@@ -781,6 +789,10 @@ env:
 | `ARTEMIS_HEBBIAN_ROUTING_BETA` | `0.0` | Weight on trust score. `0` disables the trust signal in the blend. |
 | `ARTEMIS_ROUTING_TRUST_FLOOR` | `0.0` | Hard cutoff: agents with trust below this are excluded before scoring. `0` disables floor exclusion. |
 | `ARTEMIS_ROUTING_FALLBACK_CAPABILITY` | `llm_chat` | Capability to retry on if no agent advertises the requested one. Empty string disables fallback. |
+| `ARTEMIS_ATP_STRICT` | `0` | Set to `1` to reject ATP validation errors instead of attaching them for compatibility. |
+| `ARTEMIS_HEBBIAN_SENTINEL_WINDOW` | `50` | Number of recent outcomes used for sign-change stability analysis. |
+| `ARTEMIS_HEBBIAN_SENTINEL_THRESHOLD` | `0.4` | Alert when the rolling sign-change rate exceeds this value after warmup. |
+| `ARTEMIS_HEBBIAN_SENTINEL_WARMUP` | `10` | Minimum samples required before Sentinel can alert. |
 
 `TrustInterface` is instantiated for every orchestrator so completed outcomes
 always update `data/trust_scores.db`, even when `beta == 0` and trust is not a
@@ -812,9 +824,9 @@ this event sequence:
 
 | Event | Data | When |
 |---|---|---|
-| `routing` | `{decision, agent_name, task_id}` | First frame. `decision` is the same `RoutingDecision.to_dict()` blob; `null` when the user pinned an `agent` explicitly. |
+| `routing` | `{decision, agent_name, task_id, atp, provenance_id}` | First frame. `decision` is the same `RoutingDecision.to_dict()` blob; `null` when the user pinned an `agent` explicitly. |
 | `token` | `{text}` | Zero or more frames as the agent produces output. For `LLMAgent` these are real Exo SSE deltas; for non-streaming agents a single frame carries the full summary. |
-| `complete` | `{task_id, agent_name, status, summary, note_path, error}` | Terminal on success. Mirrors `ExecuteInstructionResponse`. |
+| `complete` | `{task_id, agent_name, status, summary, note_path, error, atp, provenance_id}` | Terminal on success. Mirrors `ExecuteInstructionResponse`. |
 | `error` | `{error}` | Terminal on failure (routing error, agent crash, etc.). |
 
 Streaming is opt-in per request — `Executor.tsx` exposes it as a
@@ -830,6 +842,13 @@ Agents declare streaming support via `supports_streaming = True` plus a
 served by `/api/cli/execute/stream`, just with a single `token` event
 carrying the full summary — the client does not need to branch on
 agent type.
+
+The Hebbian Sentinel persists rolling outcome sign-change state and alert
+transitions in `data/hebbian_weights.db`. It is available through
+`GET /api/db/hebbian/sentinel`,
+`GET /api/db/hebbian/sentinel/alerts`, and the matching Express routes under
+`/api/v1/trust/hebbian/`. Sentinel fields are diagnostic only and never change
+routing rank, weights, trust, or quarantine state on their own.
 
 ---
 

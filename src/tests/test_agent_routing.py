@@ -249,6 +249,9 @@ class TestAgentRegistry:
             "pair_bonus": 0.02,
             "timing_score": 0.5,
             "routing_intelligence": 0.4,
+            "oscillation_rate": 0.6,
+            "sentinel_alert": True,
+            "sentinel_samples": 50,
         }
         agent_registry.record_learning_outcome(
             mock_agent_a.name, success=True, learning=learning
@@ -264,6 +267,9 @@ class TestAgentRegistry:
         assert record["trust_score"] == pytest.approx(0.825)
         assert record["hebbian_weight"] == pytest.approx(1.08)
         assert record["hebbian_task_type"] == "research"
+        assert record["hebbian_oscillation_rate"] == pytest.approx(0.6)
+        assert record["hebbian_sentinel_alert"] is True
+        assert record["hebbian_sentinel_samples"] == 50
 
 
 @pytest.mark.integration
@@ -364,11 +370,90 @@ class TestOrchestratorRouting:
         result = self.orchestrator.route_and_execute_task(task_context)
 
         assert result["status"] == "success"
-        mock_orchestrator_agent_a.perform_task.assert_called_once_with(task_context)
+        mock_orchestrator_agent_a.perform_task.assert_called_once()
+        dispatched_context = mock_orchestrator_agent_a.perform_task.call_args.args[0]
+        assert dispatched_context | task_context == dispatched_context
+        assert dispatched_context["provenance_id"] == result["provenance_id"]
         record = self.orchestrator.agent_registry.store.get_agent_record("Agent A")
         assert record["execution_count"] == 1
         assert record["hebbian_weight"] is not None
         assert record["trust_score"] == pytest.approx(1.0)
+
+    def test_atp_headers_drive_scoped_routing_and_provenance(self, monkeypatch):
+        summarizer = Mock(spec=BaseAgent)
+        summarizer.name = "ATP Summarizer"
+        summarizer.capabilities = ["text_summarization"]
+        summarizer.perform_task.return_value = {
+            "status": "success",
+            "summary": "condensed",
+        }
+        self.orchestrator.agent_registry.agents.clear()
+        self.orchestrator.agent_registry.register_agent(summarizer)
+
+        run_logger = Mock()
+
+        def log_event(_event, _component, *_args, **kwargs):
+            return kwargs.get("prov_id") or "child-provenance"
+
+        run_logger.log_event.side_effect = log_event
+        monkeypatch.setattr(orchestrator_module, "_run_logger", run_logger)
+
+        result = self.orchestrator.route_and_execute_task(
+            {
+                "task_id": "atp_scoped_route",
+                "content": (
+                    "#Mode: Synthesize\n"
+                    "#Context: Summarize a report\n"
+                    "#Priority: High\n"
+                    "#ActionType: Summarize\n"
+                    "#TargetZone: reports\n\n"
+                    "A long report body."
+                ),
+            }
+        )
+
+        assert result["status"] == "success"
+        assert result["atp"]["action_type"] == "Summarize"
+        dispatched_context = summarizer.perform_task.call_args.args[0]
+        assert dispatched_context["content"] == "A long report body."
+        assert dispatched_context["required_capability"] == "text_summarization"
+        assert (
+            dispatched_context["routing_scope"]
+            == "atp:summarize:text_summarization"
+        )
+        assert dispatched_context["provenance_id"] == result["provenance_id"]
+        prompt_call = next(
+            call
+            for call in run_logger.log_event.call_args_list
+            if call.args[0] == "prompt_received"
+        )
+        assert prompt_call.kwargs["prov_id"] == result["provenance_id"]
+        child_calls = [
+            call
+            for call in run_logger.log_event.call_args_list
+            if call.args[0] != "prompt_received"
+        ]
+        assert child_calls
+        assert all(
+            call.kwargs["parent_prov_id"] == result["provenance_id"]
+            for call in child_calls
+        )
+
+    def test_atp_execution_fails_closed_without_provenance_sink(self, monkeypatch):
+        monkeypatch.setattr(orchestrator_module, "_get_run_logger", lambda: None)
+
+        with pytest.raises(RuntimeError, match="provenance sink is unavailable"):
+            self.orchestrator.route_and_execute_task(
+                {
+                    "task_id": "atp_no_provenance",
+                    "content": (
+                        "#Mode: Build\n"
+                        "#ActionType: Execute\n"
+                        "#TargetZone: kernel\n\n"
+                        "Run this task."
+                    ),
+                }
+            )
 
     def test_route_persists_full_routing_decision(self, mock_agent_a, monkeypatch):
         routed_agent = Mock(spec=BaseAgent)

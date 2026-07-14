@@ -46,10 +46,17 @@ class FakeRegistry:
 
 
 class FakeHebbian:
-    def __init__(self, weights=None, raise_on=None, scoped_weights=None):
+    def __init__(
+        self,
+        weights=None,
+        raise_on=None,
+        scoped_weights=None,
+        stability=None,
+    ):
         self._weights = weights or {}
         self._raise_on = set(raise_on or ())
         self._scoped_weights = scoped_weights or {}
+        self._stability = stability or {}
 
     def get_agent_average_weight(self, name):
         if name in self._raise_on:
@@ -63,6 +70,12 @@ class FakeHebbian:
 
     def has_task_type_history(self, name):
         return any(agent_name == name for agent_name, _ in self._scoped_weights)
+
+    def get_stability_signal(self, name, task_type):
+        return self._stability.get(
+            (name, task_type),
+            {"oscillation_rate": 0.0, "alert_active": False, "sample_count": 0},
+        )
 
 
 class _TrustScore:
@@ -370,3 +383,47 @@ def test_hebbian_router_trust_floor_exclusion_does_not_silently_fall_back():
     )
     with pytest.raises(ValueError, match="below trust floor"):
         router.route({"required_capability": "web_search"})
+
+
+@pytest.mark.unit
+def test_hebbian_router_uses_atp_routing_scope_for_learning():
+    reg = _two_research_agents({"A": 0.5, "B": 0.5})
+    scope = "atp:reflect:research"
+    heb = FakeHebbian(
+        scoped_weights={("A", scope): 1.0, ("B", scope): 5.0},
+    )
+    router = HebbianRouter(reg, heb, alpha=1.0)
+
+    decision = router.route(
+        {
+            "required_capability": "research",
+            "routing_scope": scope,
+            "atp_action_type": "Reflect",
+        }
+    )
+
+    assert decision.agent_name == "B"
+    assert decision.routing_scope == scope
+    assert decision.atp_action_type == "Reflect"
+
+
+@pytest.mark.unit
+def test_hebbian_router_exposes_sentinel_without_changing_ranking():
+    reg = _two_research_agents({"A": 0.9, "B": 0.6})
+    heb = FakeHebbian(
+        stability={
+            ("A", "research"): {
+                "oscillation_rate": 0.6,
+                "alert_active": True,
+                "sample_count": 50,
+            }
+        }
+    )
+    decision = HebbianRouter(reg, heb, alpha=0.0).route(
+        {"required_capability": "research"}
+    )
+
+    assert decision.agent_name == "A"
+    candidate = next(item for item in decision.candidates if item.name == "A")
+    assert candidate.sentinel_alert is True
+    assert candidate.oscillation_rate == pytest.approx(0.6)
