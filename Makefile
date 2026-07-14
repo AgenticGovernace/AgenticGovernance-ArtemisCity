@@ -40,14 +40,15 @@ help: ## Show this help message
 venv: ## Create the Python 3.12 virtual environment with uv
 	$(UV) venv --python $(PYTHON_VERSION) $(VENV)
 
-install: venv ## Install runtime dependencies with uv
+install:  ## Install runtime dependencies with uv
 	echo "Installing Python dependencies..."
-	$(UV) pip install --python $(PYTHON) -r ./requirements.txt
+	UV add -r ./requirements.txt 
 	echo "Installation complete!"
 
-install-dev: venv ## Install runtime and development dependencies with uv
+install-dev:  ## Install runtime and development dependencies with uv
 	echo "Installing development dependencies..."
-	$(UV) pip install --python $(PYTHON) -r requirements.txt -r requirements-dev.txt
+	uv pip install -r requirements.txt -r requirements-dev.txt
+	uv pip install -e . 
 	@echo "Development dependencies installed!"
 
 setup-hooks: venv ## Install pre-commit hooks into the uv-managed virtual environment
