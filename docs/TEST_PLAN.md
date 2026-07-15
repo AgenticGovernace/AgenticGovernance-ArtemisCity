@@ -43,6 +43,20 @@
 - **Coverage:** pytest-cov
 - **Async:** pytest-asyncio (if needed)
 
+### Runtime-state isolation
+
+The repository-root `conftest.py` redirects `ARTEMIS_DATA_DIR`,
+`ARTEMIS_LOG_DIR`, and both Obsidian vault variables to a disposable session
+directory before test modules import application code. This is mandatory:
+constructors exercised during collection and coverage tests must never write
+test agents, provenance, vectors, trust changes, or Hebbian rewards into the
+live repository `data/` and `logs/` stores. Individual tests may use a narrower
+`tmp_path`, but must not override these roots with production paths.
+
+For persistence-sensitive changes, compare hashes of the live SQLite files
+before and after the suite. A successful suite must leave them byte-for-byte
+unchanged.
+
 ### Test Naming Convention
 
 ```
@@ -53,6 +67,26 @@ Examples:
 - `test_atp_parser_parse_hash_format`
 - `test_trust_score_apply_decay_after_one_day`
 - `test_memory_client_get_context_server_unreachable`
+
+### Exo and long-context regression matrix
+
+The provider boundary and compression hand-off require these focused checks:
+
+- Exo success preserves endpoint/status/request and response IDs, observed
+  model, usage, content length, SHA-256, and a stable request ID across retries.
+- Connect failures and HTTP 429/502/503/504 retry only within configured bounds;
+  `Retry-After` is honored and exposed to the HTTP caller. Read timeouts and
+  partially emitted streams are not replayed.
+- A provider failure stays failed and is excluded from Hebbian/trust learning;
+  an explicit local baseline is labelled `degraded_success` and also excluded.
+- The public Express LLM routes call `src.api_bridge`; unsupported embedding,
+  provider mutation, ATP shortcut, usage estimate, and simulated streaming
+  routes fail with `501`.
+- Oversized Exo output is durably hash-linked, the child task is routed in the
+  `text_summarization` domain, both agents receive equivalent independent
+  source-context copies, and sync/SSE terminal results expose the same
+  compression evidence.
+- If compression or storage fails, no path silently loses the full Exo output.
 
 ---
 

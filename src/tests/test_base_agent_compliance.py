@@ -23,9 +23,11 @@ from __future__ import annotations
 
 import inspect
 from typing import Any, Dict, List, Type
+from unittest.mock import Mock
 
 import pytest
 
+import src.agents.llm_agent as llm_module
 from src.agents.artemis_agent import ArtemisAgent
 
 # Import base class and all concrete implementations
@@ -37,6 +39,25 @@ from src.agents.summarizer_agent import SummarizerAgent
 # =============================================================================
 # Test Fixtures
 # =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def endpoint_free_exo(monkeypatch: pytest.MonkeyPatch):
+    """Exercise agent contracts without depending on a live local Exo node."""
+    discovery = Mock()
+    discovery.raise_for_status.return_value = None
+    discovery.json.return_value = {"models": [{"model": "compliance-model"}]}
+    completion = Mock()
+    completion.status_code = 200
+    completion.headers = {"X-Request-ID": "compliance-request"}
+    completion.raise_for_status.return_value = None
+    completion.json.return_value = {
+        "id": "compliance-response",
+        "model": "compliance-model",
+        "choices": [{"message": {"content": "compliance response"}}],
+    }
+    monkeypatch.setattr(llm_module.requests, "get", Mock(return_value=discovery))
+    monkeypatch.setattr(llm_module.requests, "post", Mock(return_value=completion))
 
 
 def get_all_agent_classes() -> List[Type[BaseAgent]]:
@@ -177,11 +198,11 @@ class TestInterfaceCompliance:
         Returns:
             None: This function does not return a value.
         """
-        assert hasattr(agent_instance, "name"), f"Agent missing name attribute"
+        assert hasattr(agent_instance, "name"), "Agent missing name attribute"
         assert isinstance(
             agent_instance.name, str
         ), f"{agent_instance.name} name must be a string"
-        assert len(agent_instance.name) > 0, f"Agent name cannot be empty"
+        assert len(agent_instance.name) > 0, "Agent name cannot be empty"
 
     def test_agent_has_capabilities_attribute(self, agent_instance: BaseAgent) -> None:
         """All agents must have a capabilities list attribute.

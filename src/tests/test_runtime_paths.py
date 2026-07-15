@@ -11,6 +11,14 @@ import pytest
 from src.runtime_paths import REPO_ROOT, data_dir, data_path, log_path, logs_dir
 
 
+def test_pytest_session_isolated_from_live_runtime_state():
+    """The root pytest guard must redirect defaults before imports execute."""
+    assert data_dir() != REPO_ROOT / "data"
+    assert logs_dir() != REPO_ROOT / "logs"
+    assert "artemis-city-pytest-" in str(data_dir())
+    assert "artemis-city-pytest-" in str(logs_dir())
+
+
 def test_defaults_are_repo_rooted_when_cwd_changes(tmp_path, monkeypatch):
     """Default data and log paths must never depend on process cwd."""
     monkeypatch.delenv("ARTEMIS_DATA_DIR", raising=False)

@@ -64,6 +64,11 @@ All routes below require the Express API authentication middleware except health
 | `POST /api/v1/trust/:entityId/success` | Implemented | `trust.record_success` |
 | `GET /api/v1/trust/:entityId/permissions` | Implemented | `trust.permissions` |
 | `POST /api/v1/trust/:entityId/can-perform` | Implemented | `trust.can_perform` |
+| `POST /api/v1/llm/chat` | Implemented | `llm.chat` |
+| `POST /api/v1/llm/complete` | Implemented | `llm.complete` |
+| `GET /api/v1/llm/models` | Implemented (configured state) | `llm.config` |
+| `GET /api/v1/llm/providers` | Implemented (redacted environment state) | `llm.config` |
+| `POST /api/v1/llm/embed`, `/stream`, `/provider`, `/atp`; `GET /usage` | Explicit `501` | None; no simulated fallback |
 
 Trust mutations are write-through for agent entities: the bridge synchronizes
 the authoritative registry projection and `data/trust_scores.db`. Governance
@@ -91,6 +96,11 @@ projection.
 |---|---:|
 | `NOT_FOUND` | 404 |
 | `INVALID_REQUEST`, `INVALID_JSON` | 400 |
+| `FORBIDDEN` | 403 |
+| `RATE_LIMITED` | 429 |
+| `PROVIDER_ERROR` | 502 |
+| `SERVICE_UNAVAILABLE` | 503 |
+| `TIMEOUT` | 504 |
 | `UNKNOWN_COMMAND`, `BRIDGE_ERROR`, `INTERNAL_ERROR`, `BRIDGE_UNAVAILABLE` | 500 |
 
 ## Agent Transmission Protocol (ATP)
@@ -138,10 +148,35 @@ while preserving compatibility.
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /api/cli/execute` | Executes plain or ATP instructions and returns `atp` plus `provenance_id` with the routing result. |
-| `POST /api/cli/execute/stream` | SSE equivalent; routing and complete events include ATP/provenance context. |
+| `POST /api/cli/execute` | Executes plain or ATP instructions and returns routing/provenance plus verified `provider`, `fallback_used`, `model`, `outcome_class`, `learning_eligible`, `exo_request`, and optional `output_compression` evidence. |
+| `POST /api/cli/execute/stream` | SSE equivalent; emits heartbeats during long inference and returns the same provider/compression evidence in `complete`. |
 | `GET /api/db/hebbian/sentinel` | Current stability state, filterable by `agent_name` and `task_type`. |
 | `GET /api/db/hebbian/sentinel/alerts` | Persisted open/resolved alert transitions; `open_only=true` filters active alerts. |
+
+### Exo execution evidence and long output
+
+A successful Exo result is identifiable by `provider: "exo"` and an
+`exo_request` object containing the concrete request endpoint, HTTP status,
+latency, stable client request ID, server/response IDs when supplied, requested
+and observed models, attempt history, content length, and content SHA-256. The
+object never contains the API key or prompt. Provider failures are explicit;
+they remain `status: "failed"`, carry `fallback_used: false`, and cannot be
+converted to an unlabelled successful fallback. Streaming failures do not emit
+locally generated fallback tokens.
+
+The client uses separate connect/read timeouts (10 and 900 seconds by default)
+and honors bounded `Retry-After` for HTTP 429 plus transient 502/503/504 and
+connect failures. Read timeouts and partially emitted streams are not replayed.
+Set `EXO_READ_TIMEOUT_SECONDS=0` only when an unlimited provider wait is
+intentional.
+
+When complete normalized Exo text exceeds `ARTEMIS_EXO_SUMMARY_THRESHOLD_CHARS` (12000 by
+default), it is stored as a non-embedded raw artifact and SHA-256 linked from
+`output_compression`. A governed child task routes over agents advertising
+`text_summarization`; its dedicated Hebbian scope records which summarizer best
+compresses context for follow-on agents. `compressed_context` and the terminal
+`summary` carry the condensed result. Live SSE may display the original token
+deltas before that terminal compression step.
 
 ### ATP Message Examples
 #### Example 1: Query Task from Memory Bus
@@ -824,14 +859,23 @@ All error responses follow this format:
 | `SERVICE_UNAVAILABLE`  | 503 | Service temporarily down |
 | `TIMEOUT`  | 504 | Request timeout |
 ## Rate Limiting
-All endpoints subject to rate limiting:
+Protected Express `/api/v1/*` endpoints are limited per authenticated API key.
+The defaults are 100 request starts per 60-second window and can be changed
+with `ARTEMIS_API_RATE_LIMIT_MAX_REQUESTS` and
+`ARTEMIS_API_RATE_LIMIT_WINDOW_MS`. A long-running Exo request consumes one
+slot when it begins; elapsed generation time does not consume more quota.
 
-- Default: 100 requests/minute per API key
-- Burst: 200 requests for 10 seconds
 - Headers:
     - `X-RateLimit-Limit`  : Requests per minute
     - `X-RateLimit-Remaining`  : Remaining requests
     - `X-RateLimit-Reset`  : Unix timestamp of reset
+    - `Retry-After` : Seconds until retry (429 responses)
+
+Exo's own independent 429 limit is handled by the Python client using bounded
+`Retry-After` retries. An upstream 429 is a provider-availability outcome, not
+an agent governance violation, and therefore does not change agent trust or
+Hebbian weight. If retries are exhausted, the Express LLM route forwards safe
+numeric retry guidance in its own `Retry-After` response header.
 
 ## Authentication
 Use Bearer token in Authorization header:

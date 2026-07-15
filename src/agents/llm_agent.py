@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import time
 import typing
+import uuid
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from urllib.parse import urlsplit
 
 from src.integration.sandbox import ToolPolicy
@@ -13,6 +18,36 @@ from . import base_agent
 
 DEFAULT_EXO_BASE_URL = "http://localhost:52415"
 DEFAULT_EXO_MODEL_ID = "mlx-community/Qwen3-0.6B-4bit"
+DEFAULT_EXO_CONNECT_TIMEOUT_SECONDS = 10.0
+DEFAULT_EXO_READ_TIMEOUT_SECONDS = 900.0
+DEFAULT_EXO_MAX_RETRIES = 2
+DEFAULT_EXO_RETRY_BACKOFF_SECONDS = 1.0
+DEFAULT_EXO_RETRY_MAX_DELAY_SECONDS = 60.0
+_TRANSIENT_HTTP_STATUSES = {429, 502, 503, 504}
+
+
+class _ExoRequestError(RuntimeError):
+    """Transport failure that retains redacted request-attempt evidence."""
+
+    def __init__(self, message: str, request_metadata: dict[str, typing.Any]) -> None:
+        super().__init__(message)
+        self.request_metadata = request_metadata
+
+
+def _env_float(name: str, default: float) -> float:
+    """Read a non-negative float without making bad environment data fatal."""
+    try:
+        return max(0.0, float(os.getenv(name, str(default))))
+    except (TypeError, ValueError):
+        return default
+
+
+def _env_int(name: str, default: int) -> int:
+    """Read a bounded retry count without making bad environment data fatal."""
+    try:
+        return min(10, max(0, int(os.getenv(name, str(default)))))
+    except (TypeError, ValueError):
+        return default
 
 
 class _MissingRequests:
@@ -38,7 +73,14 @@ else:
 
 
 class LLMAgent(base_agent.BaseAgent):
-    """Route prompt-style tasks to the configured Exo model endpoint."""
+    """Route prompt-style tasks to the configured Exo model endpoint.
+
+    Connections fail fast after 10 seconds by default, while model generation
+    may run for 900 seconds. Operators can tune those independently with
+    ``EXO_CONNECT_TIMEOUT_SECONDS`` and ``EXO_READ_TIMEOUT_SECONDS``; setting
+    the read timeout to ``0`` waits without a read deadline. The legacy
+    ``timeout_seconds`` constructor argument still sets both sides when used.
+    """
 
     def __init__(
         self,
@@ -46,7 +88,12 @@ class LLMAgent(base_agent.BaseAgent):
         base_url: typing.Optional[str] = None,
         model_url: typing.Optional[str] = None,
         model_id: typing.Optional[str] = None,
-        timeout_seconds: float = 60.0,
+        timeout_seconds: typing.Optional[float] = None,
+        connect_timeout_seconds: typing.Optional[float] = None,
+        read_timeout_seconds: typing.Optional[float] = None,
+        max_retries: typing.Optional[int] = None,
+        retry_backoff_seconds: typing.Optional[float] = None,
+        retry_max_delay_seconds: typing.Optional[float] = None,
     ) -> None:
         super().__init__(
             name,
@@ -54,6 +101,7 @@ class LLMAgent(base_agent.BaseAgent):
                 "llm_chat",
                 "text_generation",
                 "reasoning",
+                "text_summarization",
                 # Aliases so common generic requests route here.
                 "chat",
                 "general",
@@ -71,7 +119,69 @@ class LLMAgent(base_agent.BaseAgent):
         configured_model = str(model_id or os.getenv("EXO_MODEL_ID") or "").strip()
         self._model_id_explicit = bool(configured_model)
         self.model_id = configured_model or DEFAULT_EXO_MODEL_ID
-        self.timeout_seconds = timeout_seconds
+        legacy_timeout = (
+            max(0.0, float(timeout_seconds)) if timeout_seconds is not None else None
+        )
+        configured_connect = (
+            float(connect_timeout_seconds)
+            if connect_timeout_seconds is not None
+            else (
+                legacy_timeout
+                if legacy_timeout is not None
+                else _env_float(
+                    "EXO_CONNECT_TIMEOUT_SECONDS",
+                    DEFAULT_EXO_CONNECT_TIMEOUT_SECONDS,
+                )
+            )
+        )
+        configured_read = (
+            float(read_timeout_seconds)
+            if read_timeout_seconds is not None
+            else (
+                legacy_timeout
+                if legacy_timeout is not None
+                else _env_float(
+                    "EXO_READ_TIMEOUT_SECONDS", DEFAULT_EXO_READ_TIMEOUT_SECONDS
+                )
+            )
+        )
+        self.connect_timeout_seconds = max(0.001, configured_connect)
+        # A zero read timeout explicitly means "wait indefinitely for Exo".
+        self.read_timeout_seconds: typing.Optional[float] = (
+            max(0.001, configured_read) if configured_read > 0 else None
+        )
+        # Preserve the legacy public attribute for callers that inspect it.
+        self.timeout_seconds = self.read_timeout_seconds or 0.0
+        self.request_timeout = (
+            self.connect_timeout_seconds,
+            self.read_timeout_seconds,
+        )
+        self.max_retries = min(
+            10,
+            max(
+                0,
+                int(max_retries)
+                if max_retries is not None
+                else _env_int("EXO_MAX_RETRIES", DEFAULT_EXO_MAX_RETRIES),
+            ),
+        )
+        self.retry_backoff_seconds = max(
+            0.0,
+            float(retry_backoff_seconds)
+            if retry_backoff_seconds is not None
+            else _env_float(
+                "EXO_RETRY_BACKOFF_SECONDS", DEFAULT_EXO_RETRY_BACKOFF_SECONDS
+            ),
+        )
+        self.retry_max_delay_seconds = max(
+            0.0,
+            float(retry_max_delay_seconds)
+            if retry_max_delay_seconds is not None
+            else _env_float(
+                "EXO_RETRY_MAX_DELAY_SECONDS",
+                DEFAULT_EXO_RETRY_MAX_DELAY_SECONDS,
+            ),
+        )
         self.api_key = os.getenv("EXO_API_KEY", "").strip()
 
     def get_sandbox_policies(self) -> list[ToolPolicy]:
@@ -126,28 +236,49 @@ class LLMAgent(base_agent.BaseAgent):
             response = self._call_exo(
                 messages, model, temperature, max_tokens, model_url
             )
-            self.report_status("Exo response received.")
+            exo_request = response["exo_request"]
+            self.report_status(
+                "Exo response received "
+                f"(request_id={exo_request['request_id']}, "
+                f"endpoint={exo_request['endpoint']}, "
+                f"status={exo_request['http_status']}, "
+                f"latency_ms={exo_request['latency_ms']}, "
+                f"response_id={exo_request.get('response_id')}, "
+                f"response_model={exo_request.get('response_model')}, "
+                f"content_sha256={exo_request.get('content_sha256')})."
+            )
             return {
                 "status": "success",
                 "summary": response["content"],
+                "raw_output": response["content"],
                 "provider": "exo",
+                "fallback_used": False,
+                "outcome_class": "success",
+                "learning_eligible": True,
                 "model": model,
                 "model_url": model_url,
                 "usage": response.get("usage", {}),
                 "response_id": response.get("id"),
+                "exo_request": exo_request,
             }
         except Exception as exc:
-            fallback = self._build_fallback_summary(model, model_url)
+            failure_summary = self._build_failure_summary(model, model_url)
             self.report_status(f"Exo request failed: {exc}")
-            return {
+            result = {
                 "status": "failed",
-                "summary": fallback,
-                "provider": "fallback",
+                "summary": failure_summary,
+                "provider": "exo",
+                "fallback_used": False,
                 "model": model,
                 "model_url": model_url,
-                "error": fallback,
+                "error": failure_summary,
                 "llm_error": str(exc),
             }
+            request_metadata = getattr(exc, "request_metadata", None)
+            if isinstance(request_metadata, dict):
+                result.update(self._provider_failure_fields(request_metadata))
+                result["exo_request"] = request_metadata
+            return result
 
     def _resolve_model(self, task_context: dict, model_url: str) -> str:
         """Resolve an explicit, running, or safe default Exo model ID."""
@@ -165,10 +296,15 @@ class LLMAgent(base_agent.BaseAgent):
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         try:
+            discovery_timeout = min(
+                self.connect_timeout_seconds,
+                self.read_timeout_seconds or 2.0,
+                2.0,
+            )
             response = requests.get(
                 f"{root}/ollama/api/ps",
                 headers=headers,
-                timeout=min(self.timeout_seconds, 2.0),
+                timeout=discovery_timeout,
             )
             response.raise_for_status()
             models = response.json().get("models", [])
@@ -225,36 +361,306 @@ class LLMAgent(base_agent.BaseAgent):
         max_tokens: int,
         model_url: str,
     ) -> typing.Dict[str, typing.Any]:
-        headers = {"Content-Type": "application/json"}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+        request_id = str(uuid.uuid4())
+        headers = self._request_headers(request_id=request_id, stream=False)
+        started = time.monotonic()
+        attempts: list[dict[str, typing.Any]] = []
+        errors: list[str] = []
+        last_endpoint: typing.Optional[str] = None
+        last_status: typing.Optional[int] = None
+        last_kind = "transport_error"
+        last_retryable = False
 
-        errors = []
         for endpoint, payload in self._completion_request_candidates(
             messages, model, temperature, max_tokens, model_url, stream=False
         ):
-            try:
-                response = requests.post(
-                    endpoint,
-                    json=payload,
-                    headers=headers,
-                    timeout=self.timeout_seconds,
-                )
-                response.raise_for_status()
-                body = response.json()
-                content = self._extract_message_content(body)
-                if not content:
-                    raise ValueError("Exo returned no text content.")
-                return {
-                    "content": content,
-                    "usage": body.get("usage", {}),
-                    "id": body.get("id"),
-                }
-            except Exception as exc:  # noqa: BLE001
-                errors.append(f"{endpoint}: {exc}")
-                if not self._should_try_next_endpoint(exc):
+            last_endpoint = endpoint
+            endpoint_error: typing.Optional[Exception] = None
+            for retry_index in range(self.max_retries + 1):
+                response = None
+                attempt_started = time.monotonic()
+                try:
+                    response = requests.post(
+                        endpoint,
+                        json=payload,
+                        headers=headers,
+                        timeout=self.request_timeout,
+                    )
+                    response.raise_for_status()
+                    body = response.json()
+                    content = self._extract_message_content(body)
+                    if not content:
+                        raise ValueError("Exo returned no text content.")
+                    status = self._response_status(response)
+                    attempts.append(
+                        self._attempt_record(
+                            endpoint,
+                            retry_index,
+                            attempt_started,
+                            status,
+                            outcome="success",
+                        )
+                    )
+                    metadata = self._success_request_metadata(
+                        request_id=request_id,
+                        endpoint=endpoint,
+                        response=response,
+                        body=body,
+                        content=content,
+                        requested_model=model,
+                        started=started,
+                        attempts=attempts,
+                    )
+                    return {
+                        "content": content,
+                        "usage": body.get("usage", {}),
+                        "id": metadata.get("response_id"),
+                        "exo_request": metadata,
+                    }
+                except Exception as exc:  # noqa: BLE001
+                    endpoint_error = exc
+                    status = self._response_status(response) or self._exception_status(
+                        exc
+                    )
+                    failure_kind, retryable = self._classify_failure(exc, status)
+                    last_status = status
+                    last_kind = failure_kind
+                    last_retryable = retryable
+                    retry_response = (
+                        response
+                        if self._response_status(response) is not None
+                        else getattr(exc, "response", None)
+                    )
+                    record = self._attempt_record(
+                        endpoint,
+                        retry_index,
+                        attempt_started,
+                        status,
+                        outcome="failed",
+                        error=str(exc),
+                        failure_kind=failure_kind,
+                    )
+                    retry_after = self._retry_after_seconds(retry_response)
+                    if retry_after is not None:
+                        record["retry_after_seconds"] = retry_after
+                    attempts.append(record)
+                    if retryable and retry_index < self.max_retries:
+                        delay = self._retry_delay_seconds(retry_index, retry_response)
+                        record["retry_delay_seconds"] = delay
+                        if delay:
+                            time.sleep(delay)
+                        continue
                     break
-        raise RuntimeError("Exo request failed after trying " + "; ".join(errors))
+                finally:
+                    if response is not None:
+                        response.close()
+
+            assert endpoint_error is not None
+            errors.append(f"{endpoint}: {endpoint_error}")
+            if not self._should_try_next_endpoint(endpoint_error):
+                break
+
+        metadata = self._failure_request_metadata(
+            request_id=request_id,
+            endpoint=last_endpoint,
+            status=last_status,
+            requested_model=model,
+            started=started,
+            attempts=attempts,
+            failure_kind=last_kind,
+            retryable=last_retryable,
+        )
+        raise _ExoRequestError(
+            "Exo request failed after trying " + "; ".join(errors), metadata
+        )
+
+    def _request_headers(self, *, request_id: str, stream: bool) -> dict[str, str]:
+        """Build transport headers without ever copying credentials to results."""
+        headers = {
+            "Content-Type": "application/json",
+            "X-Request-ID": request_id,
+            "X-Artemis-Agent": self.name,
+        }
+        if stream:
+            headers["Accept"] = "text/event-stream"
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
+
+    def _attempt_record(
+        self,
+        endpoint: str,
+        retry_index: int,
+        started: float,
+        status: typing.Optional[int],
+        *,
+        outcome: str,
+        error: typing.Optional[str] = None,
+        failure_kind: typing.Optional[str] = None,
+    ) -> dict[str, typing.Any]:
+        record: dict[str, typing.Any] = {
+            "attempt": retry_index + 1,
+            "endpoint": endpoint,
+            "http_status": status,
+            "latency_ms": round((time.monotonic() - started) * 1000, 3),
+            "outcome": outcome,
+        }
+        if error is not None:
+            record["error"] = error
+        if failure_kind is not None:
+            record["failure_kind"] = failure_kind
+        return record
+
+    def _success_request_metadata(
+        self,
+        *,
+        request_id: str,
+        endpoint: str,
+        response: typing.Any,
+        body: dict[str, typing.Any],
+        content: str,
+        requested_model: str,
+        started: float,
+        attempts: list[dict[str, typing.Any]],
+    ) -> dict[str, typing.Any]:
+        response_id, response_model = self._response_identity(body)
+        return {
+            "request_id": request_id,
+            "server_request_id": self._server_request_id(response),
+            "endpoint": endpoint,
+            "http_status": self._response_status(response),
+            "latency_ms": round((time.monotonic() - started) * 1000, 3),
+            "requested_model": requested_model,
+            "response_id": response_id,
+            "response_model": response_model,
+            "content_length": len(content),
+            "content_sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+            "attempt_count": len(attempts),
+            "attempts": attempts,
+        }
+
+    def _failure_request_metadata(
+        self,
+        *,
+        request_id: str,
+        endpoint: typing.Optional[str],
+        status: typing.Optional[int],
+        requested_model: str,
+        started: float,
+        attempts: list[dict[str, typing.Any]],
+        failure_kind: str,
+        retryable: bool,
+    ) -> dict[str, typing.Any]:
+        metadata = {
+            "request_id": request_id,
+            "endpoint": endpoint,
+            "http_status": status,
+            "latency_ms": round((time.monotonic() - started) * 1000, 3),
+            "requested_model": requested_model,
+            "attempt_count": len(attempts),
+            "attempts": attempts,
+            "failure_kind": failure_kind,
+            "retryable": retryable,
+        }
+        for attempt in reversed(attempts):
+            retry_after = attempt.get("retry_after_seconds")
+            if isinstance(retry_after, (int, float)) and not isinstance(
+                retry_after, bool
+            ):
+                metadata["retry_after_seconds"] = max(0.0, float(retry_after))
+                break
+        return metadata
+
+    def _provider_failure_fields(
+        self, request_metadata: dict[str, typing.Any]
+    ) -> dict[str, typing.Any]:
+        """Describe provider availability separately from agent task quality."""
+        return {
+            "outcome_class": "provider_failure",
+            "learning_eligible": False,
+            "failure_kind": request_metadata.get("failure_kind", "transport_error"),
+            "retryable": bool(request_metadata.get("retryable", False)),
+            "upstream_status_code": request_metadata.get("http_status"),
+            "attempt_count": int(request_metadata.get("attempt_count", 0)),
+            "retry_after_seconds": request_metadata.get("retry_after_seconds"),
+        }
+
+    def _response_status(self, response: typing.Any) -> typing.Optional[int]:
+        status = getattr(response, "status_code", None)
+        return status if isinstance(status, int) else None
+
+    def _exception_status(self, exc: Exception) -> typing.Optional[int]:
+        return self._response_status(getattr(exc, "response", None))
+
+    def _server_request_id(self, response: typing.Any) -> typing.Optional[str]:
+        headers = getattr(response, "headers", None)
+        if headers is None or not hasattr(headers, "get"):
+            return None
+        for name in ("X-Request-ID", "Request-ID", "X-Correlation-ID"):
+            value = headers.get(name)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return None
+
+    def _response_identity(
+        self, body: dict[str, typing.Any]
+    ) -> tuple[typing.Optional[str], typing.Optional[str]]:
+        nested = body.get("response")
+        nested = nested if isinstance(nested, dict) else {}
+        response_id = body.get("id") or nested.get("id")
+        response_model = body.get("model") or nested.get("model")
+        return (
+            str(response_id) if isinstance(response_id, (str, int)) else None,
+            str(response_model) if isinstance(response_model, (str, int)) else None,
+        )
+
+    def _classify_failure(
+        self, exc: Exception, status: typing.Optional[int]
+    ) -> tuple[str, bool]:
+        if isinstance(exc, (ValueError, json.JSONDecodeError)):
+            return "invalid_response", False
+        name = type(exc).__name__.lower()
+        detail = str(exc).lower()
+        if "readtimeout" in name or "read timed out" in detail:
+            return "read_timeout", False
+        if (
+            "connecttimeout" in name
+            or "connectionerror" in name
+            or "connection refused" in detail
+            or "failed to establish a new connection" in detail
+            or "connection failed" in detail
+        ):
+            return "connect_timeout", True
+        if status == 429:
+            return "rate_limited", True
+        if status is not None and status >= 400:
+            return "http_error", status in _TRANSIENT_HTTP_STATUSES
+        return "transport_error", False
+
+    def _retry_delay_seconds(self, retry_index: int, response: typing.Any) -> float:
+        retry_after = self._retry_after_seconds(response)
+        if retry_after is None:
+            retry_after = self.retry_backoff_seconds * (2**retry_index)
+        return min(max(0.0, retry_after), self.retry_max_delay_seconds)
+
+    def _retry_after_seconds(self, response: typing.Any) -> typing.Optional[float]:
+        headers = getattr(response, "headers", None)
+        if headers is None or not hasattr(headers, "get"):
+            return None
+        raw = headers.get("Retry-After")
+        if raw is None:
+            return None
+        try:
+            return max(0.0, float(raw))
+        except (TypeError, ValueError):
+            pass
+        try:
+            retry_at = parsedate_to_datetime(str(raw))
+            if retry_at.tzinfo is None:
+                retry_at = retry_at.replace(tzinfo=timezone.utc)
+            return max(0.0, (retry_at - datetime.now(timezone.utc)).total_seconds())
+        except (TypeError, ValueError, OverflowError):
+            return None
 
     def _completion_request_candidates(
         self,
@@ -401,9 +807,8 @@ class LLMAgent(base_agent.BaseAgent):
         returned, so the orchestrator can run its normal post-processing
         (memory bus write, Hebbian update) on it.
 
-        When Exo is unreachable, a single failure message is emitted as a
-        token followed by a failed terminal result, so the UI stays consistent
-        without treating an echoed prompt as a successful LLM completion.
+        When Exo is unreachable, no substitute token is emitted. The stream
+        ends with a failed terminal result carrying explicit provider evidence.
         """
         messages = self._build_messages(task_context)
         if not messages:
@@ -429,44 +834,74 @@ class LLMAgent(base_agent.BaseAgent):
 
         chunks: typing.List[str] = []
         try:
-            for piece in self._stream_exo(
+            stream = self._stream_exo(
                 messages, model, temperature, max_tokens, model_url
-            ):
+            )
+            exo_request: dict[str, typing.Any] = {}
+            while True:
+                try:
+                    piece = next(stream)
+                except StopIteration as completed:
+                    if isinstance(completed.value, dict):
+                        exo_request = completed.value
+                    break
                 if not piece:
                     continue
                 chunks.append(piece)
                 yield {"type": "token", "text": piece}
-            full = "".join(chunks).strip()
-            if not full:
-                # Exo returned an empty stream (rare but observed) -> fall back.
-                raise RuntimeError("Exo stream produced no content")
-            self.report_status("Exo stream completed.")
+            full = "".join(chunks)
+            if not full.strip():
+                # Exo returned an empty stream (rare but observed) -> fail with
+                # the same provider evidence rather than claiming model success.
+                exo_request["failure_kind"] = "invalid_response"
+                exo_request["retryable"] = False
+                raise _ExoRequestError("Exo stream produced no content", exo_request)
+            self.report_status(
+                "Exo stream completed "
+                f"(request_id={exo_request.get('request_id')}, "
+                f"endpoint={exo_request.get('endpoint')}, "
+                f"status={exo_request.get('http_status')}, "
+                f"latency_ms={exo_request.get('latency_ms')}, "
+                f"response_id={exo_request.get('response_id')}, "
+                f"response_model={exo_request.get('response_model')}, "
+                f"content_sha256={exo_request.get('content_sha256')})."
+            )
             yield {
                 "type": "final",
                 "result": {
                     "status": "success",
                     "summary": full,
+                    "raw_output": full,
                     "provider": "exo",
+                    "fallback_used": False,
+                    "outcome_class": "success",
+                    "learning_eligible": True,
                     "model": model,
                     "model_url": model_url,
+                    "response_id": exo_request.get("response_id"),
+                    "exo_request": exo_request,
                 },
             }
         except Exception as exc:  # noqa: BLE001
-            fallback = self._build_fallback_summary(model, model_url)
+            failure_summary = self._build_failure_summary(model, model_url)
             self.report_status(f"Exo stream failed: {exc}")
-            # Emit the fallback as a single token so UI animation still works.
-            yield {"type": "token", "text": fallback}
+            result = {
+                "status": "failed",
+                "summary": failure_summary,
+                "provider": "exo",
+                "fallback_used": False,
+                "model": model,
+                "model_url": model_url,
+                "error": failure_summary,
+                "llm_error": str(exc),
+            }
+            request_metadata = getattr(exc, "request_metadata", None)
+            if isinstance(request_metadata, dict):
+                result.update(self._provider_failure_fields(request_metadata))
+                result["exo_request"] = request_metadata
             yield {
                 "type": "final",
-                "result": {
-                    "status": "failed",
-                    "summary": fallback,
-                    "provider": "fallback",
-                    "model": model,
-                    "model_url": model_url,
-                    "error": fallback,
-                    "llm_error": str(exc),
-                },
+                "result": result,
             }
 
     def _stream_exo(
@@ -476,7 +911,7 @@ class LLMAgent(base_agent.BaseAgent):
         temperature: float,
         max_tokens: int,
         model_url: str,
-    ) -> typing.Iterator[str]:
+    ) -> typing.Generator[str, None, dict[str, typing.Any]]:
         """Yield content deltas from an Exo SSE response.
 
         Chat Completions SSE is attempted first, followed by Responses SSE
@@ -485,64 +920,154 @@ class LLMAgent(base_agent.BaseAgent):
         Responses ``response.output_text.*`` events. A literal ``[DONE]``
         terminates either stream.
         """
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "text/event-stream",
-        }
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+        request_id = str(uuid.uuid4())
+        headers = self._request_headers(request_id=request_id, stream=True)
+        started = time.monotonic()
+        attempts: list[dict[str, typing.Any]] = []
+        errors: list[str] = []
+        last_endpoint: typing.Optional[str] = None
+        last_status: typing.Optional[int] = None
+        last_kind = "transport_error"
+        last_retryable = False
 
-        errors = []
         for endpoint, payload in self._completion_request_candidates(
             messages, model, temperature, max_tokens, model_url, stream=True
         ):
-            response = None
-            emitted_content = False
-            try:
-                response = requests.post(
-                    endpoint,
-                    json=payload,
-                    headers=headers,
-                    timeout=self.timeout_seconds,
-                    stream=True,
-                )
-                response.raise_for_status()
+            last_endpoint = endpoint
+            endpoint_error: typing.Optional[Exception] = None
+            for retry_index in range(self.max_retries + 1):
+                response = None
+                response_started = False
+                emitted_content = False
+                content_parts: list[str] = []
+                response_body: dict[str, typing.Any] = {}
+                attempt_started = time.monotonic()
+                try:
+                    response = requests.post(
+                        endpoint,
+                        json=payload,
+                        headers=headers,
+                        timeout=self.request_timeout,
+                        stream=True,
+                    )
+                    response.raise_for_status()
+                    response_started = True
 
-                for raw_line in response.iter_lines(decode_unicode=True):
-                    if not raw_line:
+                    for raw_line in response.iter_lines(decode_unicode=True):
+                        if not raw_line:
+                            continue
+                        if isinstance(raw_line, bytes):
+                            line = raw_line.decode("utf-8", "replace").strip()
+                        else:
+                            line = str(raw_line).strip()
+                        if not line.startswith("data:"):
+                            continue
+                        data = line[len("data:") :].strip()
+                        if not data or data == "[DONE]":
+                            if data == "[DONE]":
+                                break
+                            continue
+                        try:
+                            chunk = json.loads(data)
+                        except json.JSONDecodeError:
+                            continue
+                        response_id, response_model = self._response_identity(chunk)
+                        if response_id is not None:
+                            response_body["id"] = response_id
+                        if response_model is not None:
+                            response_body["model"] = response_model
+                        delta = self._extract_delta_content(chunk)
+                        is_final_text = chunk.get("type") in {
+                            "response.output_text.done",
+                            "response.completed",
+                        }
+                        if delta and not (is_final_text and emitted_content):
+                            emitted_content = True
+                            content_parts.append(delta)
+                            yield delta
+                    status = self._response_status(response)
+                    attempts.append(
+                        self._attempt_record(
+                            endpoint,
+                            retry_index,
+                            attempt_started,
+                            status,
+                            outcome="success",
+                        )
+                    )
+                    return self._success_request_metadata(
+                        request_id=request_id,
+                        endpoint=endpoint,
+                        response=response,
+                        body=response_body,
+                        content="".join(content_parts),
+                        requested_model=model,
+                        started=started,
+                        attempts=attempts,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    endpoint_error = exc
+                    status = self._response_status(response) or self._exception_status(
+                        exc
+                    )
+                    failure_kind, retryable = self._classify_failure(exc, status)
+                    last_status = status
+                    last_kind = failure_kind
+                    safely_retryable = (
+                        retryable and not response_started and not emitted_content
+                    )
+                    last_retryable = safely_retryable
+                    retry_response = (
+                        response
+                        if self._response_status(response) is not None
+                        else getattr(exc, "response", None)
+                    )
+                    record = self._attempt_record(
+                        endpoint,
+                        retry_index,
+                        attempt_started,
+                        status,
+                        outcome="failed",
+                        error=str(exc),
+                        failure_kind=failure_kind,
+                    )
+                    retry_after = self._retry_after_seconds(retry_response)
+                    if retry_after is not None:
+                        record["retry_after_seconds"] = retry_after
+                    attempts.append(record)
+                    # Once headers/body processing starts, replaying could duplicate
+                    # generated tokens. Read timeouts and partial streams therefore
+                    # fail as-is; only pre-response connection/transient failures retry.
+                    can_retry = safely_retryable and retry_index < self.max_retries
+                    if can_retry:
+                        delay = self._retry_delay_seconds(retry_index, retry_response)
+                        record["retry_delay_seconds"] = delay
+                        if delay:
+                            time.sleep(delay)
                         continue
-                    if isinstance(raw_line, bytes):
-                        line = raw_line.decode("utf-8", "replace").strip()
-                    else:
-                        line = str(raw_line).strip()
-                    if not line.startswith("data:"):
-                        continue
-                    data = line[len("data:") :].strip()
-                    if not data or data == "[DONE]":
-                        if data == "[DONE]":
-                            return
-                        continue
-                    try:
-                        chunk = json.loads(data)
-                    except json.JSONDecodeError:
-                        continue
-                    delta = self._extract_delta_content(chunk)
-                    is_final_text = chunk.get("type") in {
-                        "response.output_text.done",
-                        "response.completed",
-                    }
-                    if delta and not (is_final_text and emitted_content):
-                        emitted_content = True
-                        yield delta
-                return
-            except Exception as exc:  # noqa: BLE001
-                errors.append(f"{endpoint}: {exc}")
-                if emitted_content or not self._should_try_next_endpoint(exc):
                     break
-            finally:
-                if response is not None:
-                    response.close()
-        raise RuntimeError("Exo stream failed after trying " + "; ".join(errors))
+                finally:
+                    if response is not None:
+                        response.close()
+
+            assert endpoint_error is not None
+            errors.append(f"{endpoint}: {endpoint_error}")
+            if emitted_content or not self._should_try_next_endpoint(endpoint_error):
+                break
+
+        metadata = self._failure_request_metadata(
+            request_id=request_id,
+            endpoint=last_endpoint,
+            status=last_status,
+            requested_model=model,
+            started=started,
+            attempts=attempts,
+            failure_kind=last_kind,
+            retryable=last_retryable,
+        )
+        raise _ExoRequestError(
+            "Exo stream failed after trying " + "; ".join(errors), metadata
+        )
 
     def _extract_delta_content(self, chunk: typing.Dict[str, typing.Any]) -> str:
         """Pull the incremental content out of one Exo SSE JSON chunk."""
@@ -584,7 +1109,8 @@ class LLMAgent(base_agent.BaseAgent):
                 return content
         return ""
 
-    def _build_fallback_summary(self, model: str, model_url: str) -> str:
+    def _build_failure_summary(self, model: str, model_url: str) -> str:
+        """Describe an Exo failure without fabricating substitute model output."""
         return (
             f"LLM execution unavailable: Exo could not serve model '{model}' at "
             f"{model_url}. Start the model in Exo or set EXO_MODEL_ID to a "

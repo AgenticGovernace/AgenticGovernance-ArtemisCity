@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import sys
 from pathlib import Path
@@ -22,6 +23,10 @@ class _HTTPError(RuntimeError):
         self.response = SimpleNamespace(status_code=status_code)
 
 
+class ReadTimeout(RuntimeError):
+    """Requests-like read timeout used without an external endpoint."""
+
+
 def _response(
     *,
     body: dict | None = None,
@@ -29,6 +34,12 @@ def _response(
     error: Exception | None = None,
 ) -> Mock:
     response = Mock()
+    response.status_code = (
+        getattr(getattr(error, "response", None), "status_code", 200)
+        if error is not None
+        else 200
+    )
+    response.headers = {}
     response.json.return_value = body or {}
     response.iter_lines.return_value = iter(lines or [])
     response.raise_for_status.side_effect = error
@@ -93,6 +104,77 @@ def test_environment_configuration_and_sandbox_declarations(
             "operation": "chat",
         }
     ]
+
+
+def test_timeout_and_retry_configuration_supports_env_legacy_and_no_read_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("EXO_CONNECT_TIMEOUT_SECONDS", "3.5")
+    monkeypatch.setenv("EXO_READ_TIMEOUT_SECONDS", "0")
+    monkeypatch.setenv("EXO_MAX_RETRIES", "4")
+    monkeypatch.setenv("EXO_RETRY_BACKOFF_SECONDS", "0.25")
+    monkeypatch.setenv("EXO_RETRY_MAX_DELAY_SECONDS", "9")
+
+    configured = LLMAgent(base_url="http://exo.test:52415", model_id="model")
+    assert configured.request_timeout == (3.5, None)
+    assert configured.timeout_seconds == 0.0
+    assert configured.max_retries == 4
+    assert configured.retry_backoff_seconds == 0.25
+    assert configured.retry_max_delay_seconds == 9.0
+
+    legacy = LLMAgent(
+        base_url="http://exo.test:52415", model_id="model", timeout_seconds=7
+    )
+    assert legacy.request_timeout == (7.0, 7.0)
+    assert legacy.timeout_seconds == 7.0
+
+    split = LLMAgent(
+        base_url="http://exo.test:52415",
+        model_id="model",
+        timeout_seconds=7,
+        connect_timeout_seconds=2,
+        read_timeout_seconds=0,
+    )
+    assert split.request_timeout == (2.0, None)
+
+
+def test_invalid_timeout_and_retry_environment_values_use_safe_defaults(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("EXO_CONNECT_TIMEOUT_SECONDS", "bad")
+    monkeypatch.setenv("EXO_READ_TIMEOUT_SECONDS", "bad")
+    monkeypatch.setenv("EXO_MAX_RETRIES", "bad")
+
+    agent = LLMAgent(base_url="http://exo.test:52415", model_id="model")
+
+    assert agent.request_timeout == (10.0, 900.0)
+    assert agent.max_retries == 2
+
+
+def test_optional_response_headers_and_http_date_retry_after_are_safe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _agent(monkeypatch)
+    assert agent._server_request_id(SimpleNamespace(headers=None)) is None
+
+    parser = Mock(
+        side_effect=[
+            llm_module.datetime(2099, 1, 1),
+            ValueError("invalid HTTP date"),
+        ]
+    )
+    monkeypatch.setattr(llm_module, "parsedate_to_datetime", parser)
+
+    delay = agent._retry_after_seconds(
+        SimpleNamespace(headers={"Retry-After": "future-date"})
+    )
+    assert delay is not None and delay > 0
+    assert (
+        agent._retry_after_seconds(
+            SimpleNamespace(headers={"Retry-After": "invalid-date"})
+        )
+        is None
+    )
 
 
 def test_message_normalization_filters_invalid_items_and_falls_back_to_prompt(
@@ -246,15 +328,16 @@ def test_nonstreaming_fallback_uses_responses_output_text_and_auth(
         {"prompt": "hello", "temperature": 0.7, "max_tokens": 99}
     )
 
-    assert result == {
-        "status": "success",
-        "summary": "response text",
-        "provider": "exo",
-        "model": "test-model",
-        "model_url": "http://exo.test:52415/v1",
-        "usage": {"input_tokens": 2, "output_tokens": 3},
-        "response_id": "response-id",
-    }
+    assert result["status"] == "success"
+    assert result["summary"] == "response text"
+    assert result["raw_output"] == "response text"
+    assert result["provider"] == "exo"
+    assert result["model"] == "test-model"
+    assert result["model_url"] == "http://exo.test:52415/v1"
+    assert result["usage"] == {"input_tokens": 2, "output_tokens": 3}
+    assert result["response_id"] == "response-id"
+    assert result["exo_request"]["endpoint"] == ("http://exo.test:52415/v1/responses")
+    assert result["exo_request"]["attempt_count"] == 2
     assert [call.args[0] for call in post.call_args_list] == [
         "http://exo.test:52415/v1/chat/completions",
         "http://exo.test:52415/v1/responses",
@@ -262,6 +345,149 @@ def test_nonstreaming_fallback_uses_responses_output_text_and_auth(
     assert post.call_args_list[1].kwargs["headers"]["Authorization"] == (
         "Bearer api-key"
     )
+    assert "api-key" not in repr(result["exo_request"])
+
+
+def test_nonstreaming_success_exposes_correlatable_wire_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _agent(monkeypatch)
+    response = _response(
+        body={
+            "id": "exo-response-42",
+            "model": "actual-running-model",
+            "choices": [{"message": {"content": "verifiable output"}}],
+        }
+    )
+    response.headers = {"X-Request-ID": "exo-server-request-9"}
+    post = Mock(return_value=response)
+    monkeypatch.setattr(llm_module.requests, "post", post)
+    monkeypatch.setattr(llm_module.uuid, "uuid4", Mock(return_value="artemis-req-1"))
+
+    result = agent.perform_task({"prompt": "hello"})
+
+    assert result["summary"] == "verifiable output"
+    assert result["raw_output"] == result["summary"]
+    wire = result["exo_request"]
+    assert wire["request_id"] == "artemis-req-1"
+    assert wire["server_request_id"] == "exo-server-request-9"
+    assert wire["endpoint"] == "http://exo.test:52415/v1/chat/completions"
+    assert wire["http_status"] == 200
+    assert wire["requested_model"] == "test-model"
+    assert wire["response_id"] == "exo-response-42"
+    assert wire["response_model"] == "actual-running-model"
+    assert wire["content_length"] == len("verifiable output")
+    assert wire["content_sha256"] == hashlib.sha256(b"verifiable output").hexdigest()
+    assert wire["attempt_count"] == 1
+    assert wire["attempts"][0]["outcome"] == "success"
+    assert post.call_args.kwargs["timeout"] == (10.0, 900.0)
+    assert post.call_args.kwargs["headers"]["X-Request-ID"] == wire["request_id"]
+
+
+def test_rate_limit_retries_respect_retry_after_and_keep_correlation_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _agent(
+        monkeypatch,
+        max_retries=2,
+        retry_backoff_seconds=0.1,
+        retry_max_delay_seconds=10,
+    )
+    limited = _response(error=_HTTPError(429, "slow down"))
+    limited.headers = {"Retry-After": "2.5"}
+    success = _response(body={"choices": [{"message": {"content": "after wait"}}]})
+    post = Mock(side_effect=[limited, success])
+    sleep = Mock()
+    monkeypatch.setattr(llm_module.requests, "post", post)
+    monkeypatch.setattr(llm_module.time, "sleep", sleep)
+
+    result = agent.perform_task({"prompt": "hello"})
+
+    assert result["status"] == "success"
+    assert result["raw_output"] == "after wait"
+    assert post.call_count == 2
+    sleep.assert_called_once_with(2.5)
+    request_ids = [
+        call.kwargs["headers"]["X-Request-ID"] for call in post.call_args_list
+    ]
+    assert len(set(request_ids)) == 1
+    wire = result["exo_request"]
+    assert wire["attempt_count"] == 2
+    assert wire["attempts"][0]["failure_kind"] == "rate_limited"
+    assert wire["attempts"][0]["retry_after_seconds"] == 2.5
+    assert wire["attempts"][0]["retry_delay_seconds"] == 2.5
+
+
+def test_exhausted_rate_limit_exposes_upstream_retry_guidance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _agent(monkeypatch, max_retries=0)
+    limited = _response(error=_HTTPError(429, "slow down"))
+    limited.headers = {"Retry-After": "7"}
+    monkeypatch.setattr(llm_module.requests, "post", Mock(return_value=limited))
+
+    result = agent.perform_task({"prompt": "hello"})
+
+    assert result["status"] == "failed"
+    assert result["failure_kind"] == "rate_limited"
+    assert result["retry_after_seconds"] == 7.0
+    assert result["exo_request"]["retry_after_seconds"] == 7.0
+
+
+def test_transient_retries_are_bounded_and_provider_failure_is_not_learnable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _agent(
+        monkeypatch,
+        max_retries=1,
+        retry_backoff_seconds=0,
+    )
+    unavailable = _response(error=_HTTPError(503, "exo loading model"))
+    post = Mock(return_value=unavailable)
+    monkeypatch.setattr(llm_module.requests, "post", post)
+
+    result = agent.perform_task({"prompt": "hello"})
+
+    assert result["status"] == "failed"
+    assert result["provider"] == "exo"
+    assert result["fallback_used"] is False
+    assert result["outcome_class"] == "provider_failure"
+    assert result["learning_eligible"] is False
+    assert result["failure_kind"] == "http_error"
+    assert result["retryable"] is True
+    assert result["upstream_status_code"] == 503
+    assert result["attempt_count"] == 2
+    assert result["exo_request"]["attempt_count"] == 2
+    assert post.call_count == 2
+
+
+def test_connect_failures_retry_but_read_timeouts_do_not_replay(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _agent(
+        monkeypatch,
+        max_retries=2,
+        retry_backoff_seconds=0,
+    )
+    success = _response(body={"choices": [{"message": {"content": "connected"}}]})
+    post = Mock(side_effect=[ConnectionError("connection refused"), success])
+    monkeypatch.setattr(llm_module.requests, "post", post)
+
+    result = agent.perform_task({"prompt": "hello"})
+
+    assert result["status"] == "success"
+    assert result["exo_request"]["attempt_count"] == 2
+    assert result["exo_request"]["attempts"][0]["failure_kind"] == ("connect_timeout")
+
+    read_timeout_post = Mock(side_effect=ReadTimeout("read timed out"))
+    monkeypatch.setattr(llm_module.requests, "post", read_timeout_post)
+    failed = agent.perform_task({"prompt": "hello"})
+
+    assert failed["status"] == "failed"
+    assert failed["failure_kind"] == "read_timeout"
+    assert failed["retryable"] is False
+    assert failed["attempt_count"] == 1
+    read_timeout_post.assert_called_once()
 
 
 def test_nonstreaming_does_not_retry_server_error(
@@ -327,7 +553,8 @@ def test_missing_requests_dependency_returns_normalized_failure(
     result = agent.perform_task({"prompt": "hello"})
 
     assert result["status"] == "failed"
-    assert result["provider"] == "fallback"
+    assert result["provider"] == "exo"
+    assert result["fallback_used"] is False
     assert "requests' package is not installed" in result["llm_error"]
 
 
@@ -444,16 +671,17 @@ def test_streaming_falls_back_to_responses_sse_without_duplicate_final_text(
         "Hello",
         " world",
     ]
-    assert events[-1] == {
-        "type": "final",
-        "result": {
-            "status": "success",
-            "summary": "Hello world",
-            "provider": "exo",
-            "model": "test-model",
-            "model_url": "http://exo.test:52415/v1",
-        },
-    }
+    final = events[-1]
+    assert final["type"] == "final"
+    assert final["result"]["status"] == "success"
+    assert final["result"]["summary"] == "Hello world"
+    assert final["result"]["raw_output"] == "Hello world"
+    assert final["result"]["provider"] == "exo"
+    assert final["result"]["model"] == "test-model"
+    assert final["result"]["model_url"] == "http://exo.test:52415/v1"
+    assert final["result"]["exo_request"]["endpoint"] == (
+        "http://exo.test:52415/v1/responses"
+    )
     assert [call.args[0] for call in post.call_args_list] == [
         "http://exo.test:52415/v1/chat/completions",
         "http://exo.test:52415/v1/responses",
@@ -491,6 +719,105 @@ def test_streaming_responses_completed_event_can_supply_the_only_text(
     assert events[-1]["result"]["summary"] == "final only"
 
 
+def test_streaming_final_preserves_exact_output_and_wire_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _agent(monkeypatch)
+    response = _response(
+        lines=[
+            'data: {"id":"stream-7","model":"running-model","choices":[{"delta":{"content":" leading"}}]}',
+            'data: {"choices":[{"delta":{"content":" and trailing "}}]}',
+            "data: [DONE]",
+        ]
+    )
+    response.headers = {"X-Request-ID": "exo-stream-server-2"}
+    post = Mock(return_value=response)
+    monkeypatch.setattr(llm_module.requests, "post", post)
+    monkeypatch.setattr(llm_module.uuid, "uuid4", Mock(return_value="stream-req-1"))
+
+    events = list(agent.stream_task({"prompt": "hello"}))
+
+    final = events[-1]["result"]
+    assert final["status"] == "success"
+    assert final["summary"] == " leading and trailing "
+    assert final["raw_output"] == final["summary"]
+    wire = final["exo_request"]
+    assert wire["request_id"] == "stream-req-1"
+    assert wire["server_request_id"] == "exo-stream-server-2"
+    assert wire["http_status"] == 200
+    assert wire["response_id"] == "stream-7"
+    assert wire["response_model"] == "running-model"
+    assert wire["content_length"] == len(final["raw_output"])
+    assert (
+        wire["content_sha256"]
+        == hashlib.sha256(final["raw_output"].encode()).hexdigest()
+    )
+    assert post.call_args.kwargs["timeout"] == (10.0, 900.0)
+
+
+def test_streaming_retries_transient_pre_response_failure_without_id_drift(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _agent(
+        monkeypatch,
+        max_retries=1,
+        retry_backoff_seconds=0.25,
+    )
+    unavailable = _response(error=_HTTPError(502, "gateway warming"))
+    success = _response(
+        lines=[
+            'data: {"choices":[{"delta":{"content":"ready"}}]}',
+            "data: [DONE]",
+        ]
+    )
+    post = Mock(side_effect=[unavailable, success])
+    sleep = Mock()
+    monkeypatch.setattr(llm_module.requests, "post", post)
+    monkeypatch.setattr(llm_module.time, "sleep", sleep)
+
+    events = list(agent.stream_task({"prompt": "hello"}))
+
+    final = events[-1]["result"]
+    assert final["status"] == "success"
+    assert final["raw_output"] == "ready"
+    assert final["exo_request"]["attempt_count"] == 2
+    assert [call.args[0] for call in post.call_args_list] == [
+        "http://exo.test:52415/v1/chat/completions",
+        "http://exo.test:52415/v1/chat/completions",
+    ]
+    request_ids = [
+        call.kwargs["headers"]["X-Request-ID"] for call in post.call_args_list
+    ]
+    assert len(set(request_ids)) == 1
+    sleep.assert_called_once_with(0.25)
+
+
+def test_streaming_read_timeout_is_not_replayed_or_learned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _agent(
+        monkeypatch,
+        max_retries=3,
+        retry_backoff_seconds=0,
+    )
+    response = _response()
+    response.iter_lines.side_effect = ReadTimeout("read timed out")
+    post = Mock(return_value=response)
+    monkeypatch.setattr(llm_module.requests, "post", post)
+
+    events = list(agent.stream_task({"prompt": "hello"}))
+
+    final = events[-1]["result"]
+    assert final["status"] == "failed"
+    assert final["provider"] == "exo"
+    assert final["fallback_used"] is False
+    assert final["outcome_class"] == "provider_failure"
+    assert final["learning_eligible"] is False
+    assert final["failure_kind"] == "read_timeout"
+    assert final["attempt_count"] == 1
+    post.assert_called_once()
+
+
 def test_streaming_retries_when_post_itself_raises_compatible_http_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -525,10 +852,11 @@ def test_streaming_both_compatible_endpoints_fail_with_one_terminal_result(
 
     events = list(agent.stream_task({"prompt": "hello"}))
 
-    assert [event["type"] for event in events] == ["token", "final"]
+    assert [event["type"] for event in events] == ["final"]
     result = events[-1]["result"]
     assert result["status"] == "failed"
-    assert result["provider"] == "fallback"
+    assert result["provider"] == "exo"
+    assert result["fallback_used"] is False
     assert "chat absent" in result["llm_error"]
     assert "responses rejected" in result["llm_error"]
     assert post.call_count == 2
@@ -565,11 +893,12 @@ def test_chat_sse_parser_handles_bytes_blanks_lists_and_final_messages(
     )
 
     assert pieces == ["AB", "C"]
-    assert post.call_args.kwargs["headers"] == {
-        "Content-Type": "application/json",
-        "Accept": "text/event-stream",
-        "Authorization": "Bearer api-key",
-    }
+    headers = post.call_args.kwargs["headers"]
+    assert headers["Content-Type"] == "application/json"
+    assert headers["Accept"] == "text/event-stream"
+    assert headers["Authorization"] == "Bearer api-key"
+    assert headers["X-Artemis-Agent"] == "LLM Agent"
+    assert headers["X-Request-ID"]
     response.close.assert_called_once_with()
 
 
@@ -582,7 +911,7 @@ def test_empty_successful_stream_uses_failed_final_contract(
 
     events = list(agent.stream_task({"prompt": "hello"}))
 
-    assert [event["type"] for event in events] == ["token", "final"]
+    assert [event["type"] for event in events] == ["final"]
     assert events[-1]["result"]["status"] == "failed"
     assert events[-1]["result"]["llm_error"] == "Exo stream produced no content"
     response.close.assert_called_once_with()
@@ -603,10 +932,39 @@ def test_stream_failure_after_partial_content_does_not_claim_success(
     events = list(agent.stream_task({"prompt": "hello"}))
 
     assert events[0] == {"type": "token", "text": "partial"}
-    assert events[1]["type"] == "token"
+    assert len(events) == 2
     assert events[-1]["type"] == "final"
     assert events[-1]["result"]["status"] == "failed"
     assert events[-1]["result"]["llm_error"] == "connection dropped"
+
+
+def test_partial_stream_connection_failure_is_not_safe_to_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _agent(
+        monkeypatch,
+        max_retries=3,
+        retry_backoff_seconds=0,
+    )
+    response = _response()
+
+    def partial_lines(**_kwargs: object):
+        yield 'data: {"choices":[{"delta":{"content":"partial"}}]}'
+        raise ConnectionError("connection refused after response started")
+
+    response.iter_lines.side_effect = partial_lines
+    post = Mock(return_value=response)
+    monkeypatch.setattr(llm_module.requests, "post", post)
+
+    events = list(agent.stream_task({"prompt": "hello"}))
+
+    assert events[0] == {"type": "token", "text": "partial"}
+    final = events[-1]["result"]
+    assert final["status"] == "failed"
+    assert final["failure_kind"] == "connect_timeout"
+    assert final["retryable"] is False
+    assert final["attempt_count"] == 1
+    post.assert_called_once()
 
 
 def test_sse_response_is_closed_when_iteration_raises(

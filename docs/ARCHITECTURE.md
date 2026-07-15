@@ -26,8 +26,11 @@ WeightedScore = Score × HebianWeight(agent, task_type)
 
 - Fallback routing if primary agent unavailable
 - Load balancing across agents with similar scores
-- Timeout enforcement (configurable per task class)
-- Retry logic with exponential backoff
+- Separate provider connect/read deadlines: connections fail quickly while an
+  accepted Exo generation may run for 15 minutes by default (or without a read
+  deadline when explicitly configured)
+- Bounded retry/backoff for connect failures and Exo 429/502/503/504 responses;
+  read timeouts and partially emitted streams are never replayed
 ### 2. Memory Bus
 The Memory Bus provides unified access to both explicit (Obsidian) and semantic (vector store) memory with write-through synchronization.
 
@@ -81,7 +84,9 @@ Adaptive connection strength between agents and task types through Hebbian weigh
 **Storage Backend:**
 - SQLite-backed persistence in `data/hebbian_weights.db`
 - Atomic updates via transactions
-- A learning-event row is written for every completed execution
+- A learning-event row is written for every measured agent outcome. Provider
+  availability failures and explicitly degraded local baselines are recorded in
+  provenance but do not change Hebbian weights or trust.
 - Current Hebbian, execution, timing, and trust summaries are mirrored into
   `data/agent_registry.db`
 ### 4. Agent Registry
@@ -219,6 +224,26 @@ and exposes it through both API boundaries. It is deliberately observational:
 the signal appears in routing diagnostics but is not part of the blended score
 and cannot autonomously modify weights, trust, or quarantine state.
 
+### Verified Exo execution and context compression
+
+LLM success is backed by wire evidence, not a controller-generated response.
+`LLMAgent` records the concrete endpoint, HTTP status, stable request ID, Exo
+response/model IDs, latency, attempt history, token usage, output length, and
+SHA-256. The Express `/api/v1/llm/chat` and `/complete` routes cross the JSON
+bridge into this Python implementation; unsupported demo-era LLM operations
+return `501` instead of synthetic data.
+
+When successful Exo text crosses `ARTEMIS_EXO_SUMMARY_THRESHOLD_CHARS`, the
+orchestrator keeps the complete output as a non-embedded raw artifact and
+routes a governed child task over the `text_summarization` capability. The
+requesting agent and chosen summarizer receive independent copies of the same
+memory-enriched source context. The child uses the dedicated
+`system:context_compression:text_summarization` scope, so summarizers compete
+with their own Hebbian history. The terminal result contains compressed
+follow-on context plus the raw artifact path/hash and child routing decision.
+Raw text is removed from the response only after either the raw artifact or the
+consumer report was durably written.
+
 ## Integration Points
 **Obsidian Integration:**
 
@@ -250,11 +275,18 @@ and cannot autonomously modify weights, trust, or quarantine state.
 | Hebbian update | 1ms | 5ms | 10ms |
 | Sandbox check | 2ms | 10ms | 20ms |
 ## Failure Modes & Recovery
-**Agent Timeout:**
+**Provider timeout or rate limit:**
 
-- Abort task after threshold
-- Decrement accuracy score
-- Auto-retry on next invocation (agent-dependent)
+- Classify as `provider_failure` and retain redacted request evidence
+- Honor bounded `Retry-After` for Exo 429 responses
+- Do not penalize agent trust or Hebbian weight for provider availability
+- Preserve a completed response as-is; long output is compressed only after the
+  provider call finishes
+
+**Measured agent failure:**
+
+- Classify as `agent_failure`
+- Apply the anti-Hebbian update and synchronize execution/trust projections
 **Memory Bus Desynchronization:**
 - Detect via consistency checks
 - Trigger rebuild from Obsidian source-of-truth

@@ -40,6 +40,7 @@ from src.agents.atp.atp_context import resolve_task_context
 from src.agents.atp.atp_models import ATPActionType, ATPMode, ATPPriority
 from src.agents.atp.atp_parser import ATPParser
 from src.agents.atp.atp_validator import ATPValidator
+from src.agents.llm_agent import LLMAgent
 from src.governance.approvals import SelfUpdateGovernor, UpdateProposal
 from src.governance.checkpoints import CheckpointStore, RollbackManager
 from src.governance.trust import TrustMetrics, compute_trust_score, trust_breakdown
@@ -47,6 +48,7 @@ from src.integration.agent_registry import AgentRegistry, AgentRegistryStore
 from src.integration.hebbian_router import HebbianRouter
 from src.integration.learning_governance import LearningGovernanceCoordinator
 from src.integration.memory_bus import MemoryBus
+from src.integration.sandbox import AgentSandbox
 from src.integration.trust_interface import (
     TRUST_THRESHOLDS,
     TrustInterface,
@@ -402,6 +404,280 @@ def _atp_provenance_logger(payload: Dict[str, Any]) -> RunLogger:
 # ---------------------------------------------------------------------------
 # Command handlers — each takes the payload dict and returns a JSON-able dict
 # ---------------------------------------------------------------------------
+
+
+_LLM_MESSAGE_ROLES = {"system", "user", "assistant"}
+_LLM_OPTION_KEYS = {
+    "temperature",
+    "maxTokens",
+    "max_tokens",
+    "systemPrompt",
+    "system_prompt",
+}
+
+
+def _llm_options(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate and normalize the public LLM generation options."""
+    options = payload.get("options")
+    if options is None:
+        return {}
+    if not isinstance(options, dict):
+        raise BridgeError("options must be an object", code="INVALID_REQUEST")
+    unsupported = sorted(set(options) - _LLM_OPTION_KEYS)
+    if unsupported:
+        raise BridgeError(
+            "unsupported LLM option(s): " + ", ".join(unsupported),
+            code="INVALID_REQUEST",
+        )
+    return options
+
+
+def _llm_number_option(
+    payload: Dict[str, Any],
+    options: Dict[str, Any],
+    *,
+    option_key: str,
+    aliases: tuple[str, ...] = (),
+    default: float,
+    minimum: float,
+    maximum: float,
+) -> float:
+    """Read one finite numeric LLM option from nested or flat payloads."""
+    raw: Any = default
+    for key in (option_key, *aliases):
+        if key in options:
+            raw = options[key]
+            break
+        if key in payload:
+            raw = payload[key]
+            break
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        raise BridgeError(f"{option_key} must be a number", code="INVALID_REQUEST")
+    value = float(raw)
+    if not (minimum <= value <= maximum):
+        raise BridgeError(
+            f"{option_key} must be between {minimum} and {maximum}",
+            code="INVALID_REQUEST",
+        )
+    return value
+
+
+def _llm_max_tokens(payload: Dict[str, Any], options: Dict[str, Any]) -> int:
+    """Read a bounded integral max-token value."""
+    raw: Any = 4000
+    for key in ("maxTokens", "max_tokens"):
+        if key in options:
+            raw = options[key]
+            break
+        if key in payload:
+            raw = payload[key]
+            break
+    if (
+        isinstance(raw, bool)
+        or not isinstance(raw, (int, float))
+        or not float(raw).is_integer()
+    ):
+        raise BridgeError("maxTokens must be an integer", code="INVALID_REQUEST")
+    value = int(raw)
+    if not 1 <= value <= 65536:
+        raise BridgeError(
+            "maxTokens must be between 1 and 65536", code="INVALID_REQUEST"
+        )
+    return value
+
+
+def _llm_model(payload: Dict[str, Any]) -> str | None:
+    """Validate an optional caller-selected model identifier."""
+    model = payload.get("model")
+    if model is None:
+        return None
+    if not isinstance(model, str) or not model.strip():
+        raise BridgeError("model must be a non-empty string", code="INVALID_REQUEST")
+    return model.strip()
+
+
+def _llm_system_prompt(payload: Dict[str, Any], options: Dict[str, Any]) -> str | None:
+    """Validate an optional system prompt without accepting arbitrary options."""
+    value = None
+    for key in ("systemPrompt", "system_prompt"):
+        if key in options:
+            value = options[key]
+            break
+        if key in payload:
+            value = payload[key]
+            break
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise BridgeError("systemPrompt must be a string", code="INVALID_REQUEST")
+    return value.strip() or None
+
+
+def _llm_context(payload: Dict[str, Any], *, prompt: str | None = None) -> dict:
+    """Build the narrow task context accepted by the authoritative LLM agent."""
+    options = _llm_options(payload)
+    context: dict[str, Any] = {
+        "temperature": _llm_number_option(
+            payload,
+            options,
+            option_key="temperature",
+            default=0.2,
+            minimum=0.0,
+            maximum=2.0,
+        ),
+        "max_tokens": _llm_max_tokens(payload, options),
+    }
+    model = _llm_model(payload)
+    if model is not None:
+        context["model"] = model
+    system_prompt = _llm_system_prompt(payload, options)
+    if system_prompt is not None:
+        context["system_prompt"] = system_prompt
+    if prompt is not None:
+        context["prompt"] = prompt
+    return context
+
+
+def _llm_messages(payload: Dict[str, Any]) -> list[dict[str, str]]:
+    """Validate chat messages before any provider request is attempted."""
+    messages = _require(payload, "messages")
+    if not isinstance(messages, list) or not messages:
+        raise BridgeError("messages must be a non-empty array", code="INVALID_REQUEST")
+    normalized: list[dict[str, str]] = []
+    for index, message in enumerate(messages):
+        if not isinstance(message, dict):
+            raise BridgeError(
+                f"messages[{index}] must be an object", code="INVALID_REQUEST"
+            )
+        role = message.get("role")
+        content = message.get("content")
+        if role not in _LLM_MESSAGE_ROLES:
+            raise BridgeError(
+                f"messages[{index}].role must be one of: "
+                + ", ".join(sorted(_LLM_MESSAGE_ROLES)),
+                code="INVALID_REQUEST",
+            )
+        if not isinstance(content, str) or not content.strip():
+            raise BridgeError(
+                f"messages[{index}].content must be a non-empty string",
+                code="INVALID_REQUEST",
+            )
+        normalized.append({"role": role, "content": content})
+    return normalized
+
+
+def _llm_failure_code(result: Dict[str, Any]) -> str:
+    """Map provider evidence to a stable bridge-level failure code."""
+    exo_request = result.get("exo_request")
+    if not isinstance(exo_request, dict):
+        exo_request = {}
+    status = result.get("upstream_status_code", exo_request.get("http_status"))
+    failure_kind = str(
+        result.get("failure_kind") or exo_request.get("failure_kind") or ""
+    )
+    if status == 429 or failure_kind == "rate_limited":
+        return "RATE_LIMITED"
+    if status == 504 or failure_kind == "read_timeout":
+        return "TIMEOUT"
+    if status in {502, 503} or failure_kind == "connect_timeout":
+        return "SERVICE_UNAVAILABLE"
+    return "PROVIDER_ERROR"
+
+
+def _normalize_llm_result(result: Any, agent: LLMAgent) -> Dict[str, Any]:
+    """Preserve the agent result while exposing stable public response fields."""
+    if not isinstance(result, dict):
+        raise BridgeError("LLM agent returned an invalid result", code="BRIDGE_ERROR")
+    normalized = dict(result)
+    status = normalized.get("status")
+    if status not in {"success", "failed"}:
+        raise BridgeError("LLM agent returned an invalid status", code="BRIDGE_ERROR")
+    summary = normalized.get("summary")
+    if not isinstance(summary, str):
+        raise BridgeError("LLM agent returned an invalid summary", code="BRIDGE_ERROR")
+
+    raw_output = normalized.get("raw_output")
+    normalized["raw"] = raw_output if isinstance(raw_output, str) else None
+    normalized.setdefault("provider", None)
+    normalized.setdefault("fallback_used", False)
+    normalized.setdefault("model", agent.model_id)
+    normalized.setdefault("exo_request", None)
+    normalized.setdefault("error", None if status == "success" else summary)
+    if status == "failed":
+        normalized["bridge_code"] = _llm_failure_code(normalized)
+    return normalized
+
+
+def _run_llm(context: Dict[str, Any]) -> Dict[str, Any]:
+    """Run one real Exo request after the agent's sandbox preflight."""
+    agent = LLMAgent()
+    sandbox = AgentSandbox(
+        agent.name,
+        policies=agent.get_sandbox_policies(),
+        capabilities=agent.capabilities,
+    )
+    dispatch_result = sandbox.check_dispatch("llm_chat")
+    if not dispatch_result.allowed:
+        raise BridgeError(
+            dispatch_result.reason or "LLM dispatch denied", code="FORBIDDEN"
+        )
+    for action in agent.get_sandbox_actions(context):
+        action_result = sandbox.check_action(
+            str(action.get("tool_name", "")),
+            path=action.get("path"),
+            operation=action.get("operation"),
+        )
+        if not action_result.allowed:
+            raise BridgeError(
+                action_result.reason or "LLM action denied", code="FORBIDDEN"
+            )
+    return _normalize_llm_result(agent.perform_task(context), agent)
+
+
+def _llm_chat(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Execute a real Exo chat request through :class:`LLMAgent`."""
+    context = _llm_context(payload)
+    messages = _llm_messages(payload)
+    system_prompt = context.pop("system_prompt", None)
+    if system_prompt is not None:
+        messages.insert(0, {"role": "system", "content": system_prompt})
+    context["messages"] = messages
+    return _run_llm(context)
+
+
+def _llm_complete(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Execute a real Exo text-completion request through :class:`LLMAgent`."""
+    prompt = _require_str(payload, "prompt").strip()
+    return _run_llm(_llm_context(payload, prompt=prompt))
+
+
+def _llm_config(_: Dict[str, Any]) -> Dict[str, Any]:
+    """Return environment-backed Exo configuration without probing the network."""
+    agent = LLMAgent()
+    return {
+        "source": "configured",
+        "default_model": agent.model_id,
+        "models": [
+            {
+                "id": agent.model_id,
+                "name": agent.model_id,
+                "provider": "exo",
+                "source": "configured",
+                "running": None,
+                "capabilities": list(agent.capabilities),
+            }
+        ],
+        "providers": [
+            {
+                "id": "exo",
+                "name": "Exo",
+                "enabled": True,
+                "base_url": agent.model_url,
+                "api_key_configured": bool(agent.api_key),
+                "source": "environment",
+            }
+        ],
+    }
 
 
 def _list_agents(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -1456,6 +1732,9 @@ def _hebbian_update(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 COMMANDS: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
+    "llm.chat": _llm_chat,
+    "llm.complete": _llm_complete,
+    "llm.config": _llm_config,
     "atp.parse": _parse_atp,
     "atp.validate": _validate_atp,
     "atp.send": _send_atp,

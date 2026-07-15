@@ -5,6 +5,7 @@ That keeps vault, network, and persistent governance stores out of the test run
 while exercising the real routing, streaming, memory, and task-note control flow.
 """
 
+import hashlib
 from types import SimpleNamespace
 from unittest.mock import Mock, call
 
@@ -130,7 +131,7 @@ def test_streaming_route_executes_persists_learns_and_completes(orchestrator):
     report_path, report = (
         orchestrator.memory_bus.write_note_with_embedding.call_args.args
     )
-    assert report_path == "Agent Outputs/Stream_Agent_Report_stream-1_3.md"
+    assert report_path == "Agent Outputs/Stream_Agent_Report_stream-1_5.md"
     assert report == "# Agent report"
     assert (
         orchestrator.memory_bus.write_note_with_embedding.call_args.kwargs["metadata"][
@@ -461,6 +462,320 @@ def test_assign_execution_error_and_persistence_fallbacks(orchestrator):
     )
     assert persisted["status"] == "success"
     assert persisted["provenance_id"]
+
+
+@pytest.mark.parametrize(
+    ("result", "task_success", "expected_outcome"),
+    [
+        (
+            {
+                "status": "failed",
+                "outcome_class": "provider_failure",
+                "learning_eligible": False,
+            },
+            False,
+            "provider_failure",
+        ),
+        ({"status": "failed", "outcome_class": "cancelled"}, False, "cancelled"),
+        (
+            {"status": "success", "outcome_class": "degraded_success"},
+            True,
+            "degraded_success",
+        ),
+        (
+            {
+                "status": "success",
+                "outcome_class": "success",
+                "learning_eligible": False,
+            },
+            True,
+            "success",
+        ),
+    ],
+)
+def test_non_agent_outcomes_skip_learning_and_record_provenance(
+    orchestrator, result, task_success, expected_outcome
+):
+    learning = orchestrator._record_execution_learning(
+        "LLM Agent",
+        "skip-learning",
+        {"required_capability": "llm_chat", "provenance_id": "parent"},
+        result,
+        task_success=task_success,
+        duration_ms=7.5,
+    )
+
+    assert learning is None
+    orchestrator._update_hebbian_weights.assert_not_called()
+    skipped = orchestrator._log_provenance_action.call_args
+    assert skipped.args[1:3] == ("learning_skipped", "hebbian_weights")
+    assert skipped.args[3]["outcome_class"] == expected_outcome
+
+
+@pytest.mark.parametrize(
+    ("outcome_class", "task_success", "learning_success"),
+    [("success", True, True), ("agent_failure", False, False)],
+)
+def test_measured_agent_outcomes_update_learning_with_correct_sign(
+    orchestrator, outcome_class, task_success, learning_success
+):
+    orchestrator._record_execution_learning(
+        "Measured Agent",
+        "measured-task",
+        {"routing_scope": "research", "provenance_id": "parent"},
+        {
+            "status": "success" if task_success else "failed",
+            "outcome_class": outcome_class,
+        },
+        task_success=task_success,
+        duration_ms=4.0,
+    )
+
+    assert orchestrator._update_hebbian_weights.call_args.args[:3] == (
+        "Measured Agent",
+        "measured-task",
+        learning_success,
+    )
+
+
+def test_long_exo_output_uses_governed_child_and_shared_source_context(
+    orchestrator,
+):
+    raw_output = "exo-output-" * 8
+    retrievals = [{"path": "Agent Outputs/source.md", "score": 0.91}]
+    orchestrator.exo_summary_threshold_chars = 20
+    orchestrator._enrich_task_with_memory = (
+        Orchestrator._enrich_task_with_memory.__get__(orchestrator, Orchestrator)
+    )
+    orchestrator.memory_bus.read.return_value = retrievals
+    orchestrator.hebbian_router.route.return_value = _Decision("Summarizer Agent")
+
+    primary = SimpleNamespace(
+        name="LLM Agent",
+        capabilities=["llm_chat"],
+        perform_task=Mock(
+            return_value={
+                "status": "success",
+                "summary": raw_output,
+                "raw_output": raw_output,
+                "provider": "exo",
+                "model": "exo/model",
+                "exo_request": {"request_id": "exo-1", "attempt_count": 1},
+            }
+        ),
+    )
+    summarizer = SimpleNamespace(
+        name="Summarizer Agent",
+        capabilities=["text_summarization"],
+        perform_task=Mock(
+            return_value={"status": "success", "summary": "bounded context"}
+        ),
+    )
+    orchestrator.agent_registry.get_agent.side_effect = lambda name: {
+        "LLM Agent": primary,
+        "Summarizer Agent": summarizer,
+    }.get(name)
+
+    result = orchestrator.assign_and_execute_task(
+        "LLM Agent",
+        {
+            "task_id": "long-exo",
+            "required_capability": "llm_chat",
+            "content": "Use contextual evidence",
+        },
+    )
+
+    assert result["summary"] == "bounded context"
+    assert result["compressed_context"] == "bounded context"
+    assert "raw_output" not in result
+    assert result["provider"] == "exo"
+    assert result["model"] == "exo/model"
+    assert result["exo_request"]["request_id"] == "exo-1"
+    compression = result["output_compression"]
+    assert compression["status"] == "compressed"
+    assert compression["raw_length"] == len(raw_output)
+    assert (
+        compression["raw_sha256"]
+        == hashlib.sha256(raw_output.encode("utf-8")).hexdigest()
+    )
+    assert compression["raw_artifact_persisted"] is True
+    assert compression["report_persisted"] is True
+    assert compression["raw_output_returned"] is False
+    assert compression["summarizer_agent"] == "Summarizer Agent"
+    assert compression["routing"]["agent_name"] == "Summarizer Agent"
+
+    primary_context = primary.perform_task.call_args.args[0]
+    child_context = summarizer.perform_task.call_args.args[0]
+    assert primary_context["memory_context"] == retrievals
+    assert child_context["source_context"] == primary_context["source_context"]
+    assert child_context["source_context"] is not primary_context["source_context"]
+    assert child_context["provenance_id"] == primary_context["provenance_id"]
+    assert child_context["required_capability"] == "text_summarization"
+    assert (
+        child_context["routing_scope"] == orchestrator_module.CONTEXT_COMPRESSION_SCOPE
+    )
+    assert child_context["_skip_memory_enrichment"] is True
+    assert child_context["_skip_output_compression"] is True
+    assert "Highlight the most important points" in child_context["system_prompt"]
+    orchestrator.memory_bus.read.assert_called_once_with(
+        "Use contextual evidence", max_results=3
+    )
+
+    raw_write = next(
+        item
+        for item in orchestrator.memory_bus.write_note_with_embedding.call_args_list
+        if item.kwargs.get("embed") is False
+    )
+    assert raw_write.args[1] == raw_output
+    assert raw_write.kwargs["metadata"]["content_length"] == len(raw_output)
+    assert raw_write.kwargs["metadata"]["content_sha256"] == compression["raw_sha256"]
+    parent_report_result = (
+        orchestrator.obs_generator.generate_agent_report.call_args.args[2]
+    )
+    assert "raw_output" not in parent_report_result
+
+    learning_calls = orchestrator._update_hebbian_weights.call_args_list
+    assert learning_calls[0].args[:3] == ("LLM Agent", "long-exo", True)
+    assert learning_calls[1].args[:3] == (
+        "Summarizer Agent",
+        "long-exo:context-compression",
+        True,
+    )
+    assert (
+        learning_calls[1].kwargs["task_type"]
+        == orchestrator_module.CONTEXT_COMPRESSION_SCOPE
+    )
+
+
+def test_failed_long_output_compression_keeps_bounded_audit_metadata(orchestrator):
+    raw_output = "long-output" * 5
+    orchestrator.exo_summary_threshold_chars = 10
+    orchestrator.hebbian_router.route.return_value = _Decision("Summarizer Agent")
+    orchestrator.assign_and_execute_task = Mock(
+        return_value={"status": "failed", "summary": "summarizer failed"}
+    )
+    execution_context = {
+        "source_context": {"task_id": "parent", "memory_context": ["same"]}
+    }
+
+    result = orchestrator._compress_long_exo_output(
+        {"task_id": "parent", "provenance_id": "prov"},
+        execution_context,
+        {
+            "status": "success",
+            "summary": raw_output,
+            "raw_output": raw_output,
+            "provider": "exo",
+        },
+    )
+
+    assert result["summary"].startswith("Long Exo output was preserved")
+    assert result["compressed_context"] == result["summary"]
+    assert result["output_compression"]["status"] == "failed"
+    assert result["output_compression"]["raw_artifact_persisted"] is True
+    assert result["raw_output"] == raw_output
+    child = orchestrator.assign_and_execute_task.call_args.args[1]
+    assert child["source_context"] == execution_context["source_context"]
+    assert child["source_context"] is not execution_context["source_context"]
+
+
+def test_raw_output_is_returned_when_no_durable_copy_exists() -> None:
+    result = {
+        "raw_output": "only surviving copy",
+        "output_compression": {"raw_artifact_persisted": False},
+    }
+
+    Orchestrator._remove_preserved_raw_output(result, report_persisted=False)
+
+    assert result["raw_output"] == "only surviving copy"
+    assert result["output_compression"]["report_persisted"] is False
+    assert result["output_compression"]["raw_output_returned"] is True
+
+
+def test_zero_threshold_disables_long_output_compression(orchestrator):
+    orchestrator.exo_summary_threshold_chars = 0
+    result = {
+        "status": "success",
+        "summary": "unchanged",
+        "raw_output": "long raw output",
+        "provider": "exo",
+    }
+
+    processed = orchestrator._compress_long_exo_output(
+        {"task_id": "disabled"}, {"source_context": {}}, result
+    )
+
+    assert processed is result
+    orchestrator.memory_bus.write_note_with_embedding.assert_not_called()
+    orchestrator.hebbian_router.route.assert_not_called()
+
+
+def test_stream_terminal_event_compresses_but_tokens_remain_raw(
+    orchestrator, monkeypatch
+):
+    raw_output = "raw token stream from exo"
+    exo_request = {"request_id": "stream-request", "attempt_count": 1}
+    run_logger = Mock()
+    run_logger.log_event.return_value = "stream-provenance"
+    monkeypatch.setattr(orchestrator_module, "_get_run_logger", lambda: run_logger)
+    orchestrator.exo_summary_threshold_chars = 8
+    orchestrator.hebbian_router.route.return_value = _Decision("LLM Agent")
+    orchestrator.assign_and_execute_task = Mock(
+        return_value={"status": "success", "summary": "compressed terminal"}
+    )
+    agent = SimpleNamespace(
+        name="LLM Agent",
+        capabilities=["llm_chat"],
+        supports_streaming=True,
+        stream_task=lambda _context: iter(
+            [
+                {"type": "token", "text": "raw token "},
+                {"type": "token", "text": "stream from exo"},
+                {
+                    "type": "final",
+                    "result": {
+                        "status": "success",
+                        "summary": raw_output,
+                        "raw_output": raw_output,
+                        "provider": "exo",
+                        "fallback_used": False,
+                        "model": "exo/stream-model",
+                        "exo_request": exo_request,
+                    },
+                },
+            ]
+        ),
+    )
+    orchestrator.agent_registry.get_agent.return_value = agent
+
+    events = list(
+        orchestrator.stream_route_and_execute(
+            {
+                "task_id": "long-stream",
+                "required_capability": "llm_chat",
+                "provenance_id": "stream-provenance",
+            }
+        )
+    )
+
+    assert [event["text"] for event in events if event["type"] == "token"] == [
+        "raw token ",
+        "stream from exo",
+    ]
+    terminal = events[-1]
+    assert terminal["type"] == "complete"
+    assert terminal["summary"] == "compressed terminal"
+    assert terminal["provider"] == "exo"
+    assert terminal["fallback_used"] is False
+    assert terminal["model"] == "exo/stream-model"
+    assert terminal["exo_request"] == exo_request
+    assert terminal["output_compression"]["status"] == "compressed"
+    run_execution = run_logger.log_task_execution.call_args
+    assert run_execution.kwargs["metadata"]["provider"] == "exo"
+    assert run_execution.kwargs["metadata"]["exo_request"] == exo_request
+    assert (
+        run_execution.kwargs["metadata"]["output_compression"]["status"] == "compressed"
+    )
 
 
 def test_pending_task_discovery_filters_and_infers_capability(orchestrator):

@@ -331,7 +331,18 @@ class _Orchestrator:
 
     def assign_and_execute_task(self, name, task, note_path):
         self.assigned.append((name, task, note_path))
-        return {"status": "success", "summary": "completed"}
+        return {
+            "status": "success",
+            "summary": "completed",
+            "provider": "exo",
+            "fallback_used": False,
+            "model": "model-a",
+            "outcome_class": "success",
+            "learning_eligible": True,
+            "exo_request": {"request_id": "req-a", "http_status": 200},
+            "compressed_context": "completed",
+            "output_compression": {"status": "completed", "agent": "Summary A"},
+        }
 
     def route_and_execute_task(self, task, note_path):
         return {"status": "success", "summary": "routed", "path": note_path}
@@ -355,6 +366,14 @@ class _Orchestrator:
             "error": None,
             "atp": task.get("atp"),
             "provenance_id": task.get("provenance_id"),
+            "provider": "exo",
+            "fallback_used": False,
+            "model": "model-a",
+            "outcome_class": "success",
+            "learning_eligible": True,
+            "exo_request": {"request_id": "req-stream", "http_status": 200},
+            "compressed_context": "hello",
+            "output_compression": {"status": "completed", "agent": "Summary A"},
         }
 
 
@@ -946,6 +965,13 @@ def test_cli_execute_pinned_hebbian_and_legacy_routing(
     assert pinned.json()["agent_name"] == "Pinned Agent"
     assert pinned.json()["routing"] is None
     assert pinned.json()["provenance_id"] == "prov:fastapi.execute"
+    assert pinned.json()["provider"] == "exo"
+    assert pinned.json()["fallback_used"] is False
+    assert pinned.json()["model"] == "model-a"
+    assert pinned.json()["outcome_class"] == "success"
+    assert pinned.json()["learning_eligible"] is True
+    assert pinned.json()["exo_request"]["request_id"] == "req-a"
+    assert pinned.json()["output_compression"]["agent"] == "Summary A"
     assert orch.routing_logs[-1][2]["pinned"] is True
 
     explicit_capability = client.post(
@@ -1048,6 +1074,10 @@ def test_cli_stream_emits_every_event_and_sanitizes_crashes(
     assert "event: complete" in body
     assert "event: error" not in body
     assert '"text": "hello"' in body
+    assert '"request_id": "req-stream"' in body
+    assert '"fallback_used": false' in body
+    assert '"learning_eligible": true' in body
+    assert '"output_compression": {"status": "completed"' in body
 
     explicit_capability = client.post(
         "/api/cli/execute/stream",

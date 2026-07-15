@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 # Add the project root to the Python path
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -271,6 +272,14 @@ class ExecuteInstructionResponse(BaseModel):
     routing: Dict[str, Any] | None = None
     atp: Dict[str, Any] | None = None
     provenance_id: str | None = None
+    provider: str | None = None
+    fallback_used: bool | None = None
+    model: str | None = None
+    outcome_class: str | None = None
+    learning_eligible: bool | None = None
+    exo_request: Dict[str, Any] | None = None
+    compressed_context: str | None = None
+    output_compression: Dict[str, Any] | None = None
 
 
 # SQLite paths -- align with the rest of the project, which writes to
@@ -1370,8 +1379,11 @@ async def execute_instruction(
                     source="fastapi.execute",
                     pinned=True,
                 )
-                result = orchestrator.assign_and_execute_task(
-                    chosen_agent_name, task_data, note_path
+                result = await run_in_threadpool(
+                    orchestrator.assign_and_execute_task,
+                    chosen_agent_name,
+                    task_data,
+                    note_path,
                 )
             elif orchestrator.hebbian_routing_enabled:
                 routing_decision = orchestrator.hebbian_router.route(task_data)
@@ -1382,8 +1394,11 @@ async def execute_instruction(
                     decision=routing_decision,
                     source="fastapi.execute",
                 )
-                result = orchestrator.assign_and_execute_task(
-                    chosen_agent_name, task_data, note_path
+                result = await run_in_threadpool(
+                    orchestrator.assign_and_execute_task,
+                    chosen_agent_name,
+                    task_data,
+                    note_path,
                 )
             else:
                 chosen_agent_name = orchestrator.agent_registry.route_task(task_data)
@@ -1392,8 +1407,11 @@ async def execute_instruction(
                     chosen_agent_name,
                     source="fastapi.execute",
                 )
-                result = orchestrator.assign_and_execute_task(
-                    chosen_agent_name, task_data, note_path
+                result = await run_in_threadpool(
+                    orchestrator.assign_and_execute_task,
+                    chosen_agent_name,
+                    task_data,
+                    note_path,
                 )
 
             execution_failed = result.get("status") == "failed"
@@ -1407,6 +1425,14 @@ async def execute_instruction(
                 routing=routing_decision.to_dict() if routing_decision else None,
                 atp=task_data.get("atp"),
                 provenance_id=task_data.get("provenance_id"),
+                provider=result.get("provider"),
+                fallback_used=result.get("fallback_used"),
+                model=result.get("model"),
+                outcome_class=result.get("outcome_class"),
+                learning_eligible=result.get("learning_eligible"),
+                exo_request=result.get("exo_request"),
+                compressed_context=result.get("compressed_context"),
+                output_compression=result.get("output_compression"),
             )
         except Exception as e:
             # Log the real exception server-side; never echo exception
@@ -1518,10 +1544,71 @@ async def execute_instruction_stream(
         return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
     def _stream():
+        # Execute orchestration in its own worker so this generator can emit
+        # heartbeat comments while Exo is still thinking. This keeps proxies
+        # and browsers from treating a legitimate long inference as a dead
+        # connection. The daemon worker also finishes persistence/learning if
+        # the client disconnects after dispatch.
+        import queue
+        import threading
+
+        event_queue: queue.Queue[Any] = queue.Queue()
+        finished = object()
+        consumer_closed = threading.Event()
+
+        def _produce() -> None:
+            try:
+                for item in active_orchestrator.stream_route_and_execute(
+                    task_data, note_path
+                ):
+                    # Keep advancing the governed execution after disconnect so
+                    # persistence and learning still finish, but do not retain an
+                    # unbounded token backlog once nobody can consume it.
+                    if not consumer_closed.is_set():
+                        event_queue.put(item)
+            except Exception:  # noqa: BLE001
+                logger.error("Streaming executor worker crashed.", exc_info=True)
+                if not consumer_closed.is_set():
+                    event_queue.put(
+                        {
+                            "type": "error",
+                            "error": "Streaming executor crashed; see server logs.",
+                        }
+                    )
+            finally:
+                if not consumer_closed.is_set():
+                    event_queue.put(finished)
+
+        threading.Thread(target=_produce, daemon=True).start()
         try:
-            for ev in active_orchestrator.stream_route_and_execute(
-                task_data, note_path
-            ):
+            heartbeat_seconds = max(
+                1.0, float(os.getenv("ARTEMIS_SSE_HEARTBEAT_SECONDS", "15"))
+            )
+        except ValueError:
+            heartbeat_seconds = 15.0
+
+        terminal_sent = False
+        try:
+            while True:
+                try:
+                    ev = event_queue.get(timeout=heartbeat_seconds)
+                except queue.Empty:
+                    yield ": artemis-heartbeat\n\n"
+                    continue
+
+                if ev is finished:
+                    if not terminal_sent:
+                        yield _sse_pack(
+                            "error",
+                            {
+                                "error": "Execution ended before a terminal event; "
+                                "see server logs."
+                            },
+                        )
+                    return
+
+                if not isinstance(ev, dict):
+                    continue
                 etype = ev.get("type")
                 if etype == "routing":
                     yield _sse_pack(
@@ -1537,6 +1624,7 @@ async def execute_instruction_stream(
                 elif etype == "token":
                     yield _sse_pack("token", {"text": ev.get("text", "")})
                 elif etype == "complete":
+                    terminal_sent = True
                     yield _sse_pack(
                         "complete",
                         {
@@ -1548,21 +1636,31 @@ async def execute_instruction_stream(
                             "error": ev.get("error"),
                             "atp": ev.get("atp"),
                             "provenance_id": ev.get("provenance_id"),
+                            "provider": ev.get("provider"),
+                            "fallback_used": ev.get("fallback_used"),
+                            "model": ev.get("model"),
+                            "outcome_class": ev.get("outcome_class"),
+                            "learning_eligible": ev.get("learning_eligible"),
+                            "exo_request": ev.get("exo_request"),
+                            "compressed_context": ev.get("compressed_context"),
+                            "output_compression": ev.get("output_compression"),
                         },
                     )
-                    return
                 elif etype == "error":
+                    terminal_sent = True
                     yield _sse_pack("error", {"error": ev.get("error", "")})
-                    return
-        except Exception as exc:  # noqa: BLE001
-            logger.error("Streaming executor crashed: %s", _sanitize_for_log(exc))
-            # Don't leak the raw exception (which may include a stack
-            # trace or internal paths) to an SSE client. Server logs
-            # above already carry the sanitized detail.
+        except GeneratorExit:
+            # The worker deliberately continues to finalize the governed task
+            # even when a browser closes the stream.
+            return
+        except Exception:  # noqa: BLE001
+            logger.error("Streaming event encoder crashed.", exc_info=True)
             yield _sse_pack(
                 "error",
                 {"error": "Streaming executor crashed; see server logs."},
             )
+        finally:
+            consumer_closed.set()
 
     return StreamingResponse(
         _stream(),

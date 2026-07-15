@@ -208,14 +208,29 @@ const rateLimitStore: Map<string, { count: number; resetTime: number }> = new Ma
  * @returns Express middleware that enforces the configured request budget.
  */
 export const rateLimit = (options: { windowMs?: number; maxRequests?: number } = {}) => {
-  const windowMs = options.windowMs || 60000;
-  const maxRequests = options.maxRequests || 100;
+  const requestedWindow = options.windowMs ?? 60000;
+  const requestedMaximum = options.maxRequests ?? 100;
+  const windowMs = Number.isFinite(requestedWindow) && requestedWindow > 0
+    ? Math.floor(requestedWindow)
+    : 60000;
+  const maxRequests = Number.isFinite(requestedMaximum) && requestedMaximum > 0
+    ? Math.floor(requestedMaximum)
+    : 100;
 
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     const key = req.apiKey || req.ip || 'anonymous';
     const now = Date.now();
 
     let record = rateLimitStore.get(key);
+
+    // Keep the process-local limiter bounded during long-lived development
+    // sessions. Production multi-instance deployments should replace this
+    // store with their shared gateway/Redis limiter.
+    if (rateLimitStore.size > 10_000) {
+      for (const [storedKey, stored] of rateLimitStore) {
+        if (stored.resetTime <= now) rateLimitStore.delete(storedKey);
+      }
+    }
 
     if (!record || now > record.resetTime) {
       record = { count: 0, resetTime: now + windowMs };
@@ -226,13 +241,16 @@ export const rateLimit = (options: { windowMs?: number; maxRequests?: number } =
 
     res.setHeader('X-RateLimit-Limit', maxRequests.toString());
     res.setHeader('X-RateLimit-Remaining', Math.max(0, maxRequests - record.count).toString());
-    res.setHeader('X-RateLimit-Reset', record.resetTime.toString());
+    res.setHeader('X-RateLimit-Reset', Math.ceil(record.resetTime / 1000).toString());
 
     if (record.count > maxRequests) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((record.resetTime - now) / 1000));
+      res.setHeader('Retry-After', retryAfterSeconds.toString());
       res.status(429).json({
         success: false,
+        code: 'RATE_LIMITED',
         error: 'Rate limit exceeded',
-        message: `Too many requests. Please try again after ${Math.ceil((record.resetTime - now) / 1000)} seconds`
+        message: `Too many requests. Please try again after ${retryAfterSeconds} seconds`
       });
       return;
     }

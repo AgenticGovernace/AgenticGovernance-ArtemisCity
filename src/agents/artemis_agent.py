@@ -4,6 +4,11 @@ from typing import Dict, List, Optional
 
 from .artemis import ArtemisPersona, ReflectionEngine, SemanticTagger
 from .base_agent import BaseAgent
+from .fallback_policy import (
+    degraded_metadata,
+    provider_failure_result,
+    synthetic_fallback_enabled,
+)
 from .llm_agent import LLMAgent
 
 
@@ -75,7 +80,9 @@ class ArtemisAgent(BaseAgent):
         }
 
         base_summary = None
-        if task_context.get("disable_llm_delegate") is not True:
+        llm_result = None
+        disable_delegate = task_context.get("disable_llm_delegate") is True
+        if not disable_delegate:
             llm_result = self.llm_agent.perform_task(
                 {
                     "task_id": task_context.get("task_id"),
@@ -87,11 +94,16 @@ class ArtemisAgent(BaseAgent):
                     "temperature": task_context.get("temperature", 0.2),
                     "max_tokens": task_context.get("max_tokens", 500),
                     "model": task_context.get("model"),
+                    "model_url": task_context.get("model_url"),
                 }
             )
             if llm_result.get("status") == "success":
                 base_summary = str(llm_result.get("summary", "")).strip()
 
+            if not base_summary and not synthetic_fallback_enabled(task_context):
+                return provider_failure_result(llm_result, agent_name=self.name)
+
+        degraded = not base_summary
         if not base_summary:
             base_summary = (
                 f"Artemis reviewed '{title}'. "
@@ -101,7 +113,7 @@ class ArtemisAgent(BaseAgent):
 
         self.report_status("Artemis synthesis complete.")
 
-        return {
+        result = {
             "status": "success",
             "summary": formatted_summary,
             "narrative": narrative,
@@ -110,3 +122,27 @@ class ArtemisAgent(BaseAgent):
             "persona_context": self.persona.get_personality_context(),
             "recent_context": self.persona.get_recent_context(),
         }
+        if degraded:
+            reason = (
+                "llm_delegate_disabled" if disable_delegate else "provider_unavailable"
+            )
+            result.update(degraded_metadata("artemis_persona_fallback", reason))
+            result["performance_score"] = 0.25
+            if llm_result is not None:
+                result["delegate_failure"] = llm_result
+        else:
+            result.update(
+                {
+                    "provider": llm_result.get("provider"),
+                    "fallback_used": llm_result.get("fallback_used", False),
+                    "outcome_class": llm_result.get("outcome_class", "success"),
+                    "learning_eligible": llm_result.get("learning_eligible", True),
+                    "raw_output": llm_result.get("raw_output", base_summary),
+                    "model": llm_result.get("model"),
+                    "model_url": llm_result.get("model_url"),
+                    "usage": llm_result.get("usage", {}),
+                    "response_id": llm_result.get("response_id"),
+                    "exo_request": llm_result.get("exo_request"),
+                }
+            )
+        return result

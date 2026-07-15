@@ -526,6 +526,15 @@ class TestHebbianIntegration:
         import src.mcp.orchestrator as orchestrator_module
 
         orchestrator = orchestrator_module.Orchestrator()
+        artemis = orchestrator.agent_registry.get_agent("Artemis Agent")
+        artemis.perform_task = MagicMock(
+            return_value={
+                "status": "success",
+                "summary": "measured success",
+                "outcome_class": "success",
+                "learning_eligible": True,
+            }
+        )
 
         # Get initial weight
         initial_weight = orchestrator.hebbian.get_weight(
@@ -537,13 +546,12 @@ class TestHebbianIntegration:
             "task_id": "test_task_123",
             "title": "Test Task",
             "content": "Test content",
+            "disable_llm_delegate": True,
         }
 
-        # Execute task
-        try:
-            orchestrator.assign_and_execute_task("Artemis Agent", task_context)
-        except Exception:
-            pass  # Task might fail, but weight should still update
+        # Execute a deterministic measured success. Provider outages are
+        # intentionally excluded from learning and belong in separate tests.
+        orchestrator.assign_and_execute_task("Artemis Agent", task_context)
 
         # Check that weight increased
         final_weight = orchestrator.hebbian.get_weight("Artemis Agent", "test_task_123")

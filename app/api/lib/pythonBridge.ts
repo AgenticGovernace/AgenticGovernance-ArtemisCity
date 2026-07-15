@@ -19,8 +19,13 @@ type BridgeEnvelope = BridgeSuccessEnvelope | BridgeErrorEnvelope;
 
 const CODE_TO_STATUS: Record<string, number> = {
   NOT_FOUND: 404,
+  FORBIDDEN: 403,
   INVALID_REQUEST: 400,
   INVALID_JSON: 400,
+  RATE_LIMITED: 429,
+  PROVIDER_ERROR: 502,
+  SERVICE_UNAVAILABLE: 503,
+  TIMEOUT: 504,
   UNKNOWN_COMMAND: 500,
   BRIDGE_ERROR: 500,
   INTERNAL_ERROR: 500,
@@ -59,6 +64,18 @@ function findRepoRoot(): string {
   );
 }
 
+function findPython(repoRoot: string): string {
+  if (process.env.ARTEMIS_PYTHON) {
+    return process.env.ARTEMIS_PYTHON;
+  }
+
+  const workspaceCandidates = process.platform === 'win32'
+    ? [join(repoRoot, '.venv', 'Scripts', 'python.exe')]
+    : [join(repoRoot, '.venv', 'bin', 'python')];
+  const workspacePython = workspaceCandidates.find(candidate => existsSync(candidate));
+  return workspacePython || 'python3';
+}
+
 /**
  * Python bridge: JSON stdin/stdout transport between the Express layer
  * and the authoritative Python core in `src/api_bridge.py`.
@@ -69,7 +86,7 @@ function findRepoRoot(): string {
  */
 export function callBridge(command: string, payload: Record<string, unknown> = {}): Promise<unknown> {
   const repoRoot = findRepoRoot();
-  const python = process.env.ARTEMIS_PYTHON || 'python3';
+  const python = findPython(repoRoot);
   const request = JSON.stringify({ command, payload });
 
   return new Promise((resolvePromise, reject) => {

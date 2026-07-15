@@ -85,6 +85,14 @@ interface ExecutionResult {
   routing?: RoutingDecision | null;
   atp?: Record<string, unknown> | null;
   provenance_id?: string | null;
+  provider?: string | null;
+  fallback_used?: boolean | null;
+  model?: string | null;
+  outcome_class?: string | null;
+  learning_eligible?: boolean | null;
+  exo_request?: Record<string, unknown> | null;
+  compressed_context?: string | null;
+  output_compression?: Record<string, unknown> | null;
 }
 
 /**
@@ -210,6 +218,14 @@ const Executor = () => {
           agent_name: data.agent_name,
           atp: data.atp,
           provenance_id: data.provenance_id,
+          provider: data.provider,
+          fallback_used: data.fallback_used,
+          model: data.model,
+          outcome_class: data.outcome_class,
+          learning_eligible: data.learning_eligible,
+          exo_request: data.exo_request,
+          compressed_context: data.compressed_context,
+          output_compression: data.output_compression,
         }));
         setExecuting(false);
         if (data.status === 'success') {
@@ -488,7 +504,83 @@ Or: Summarize the key findings from the reports folder"
                       </StatNumber>
                     </Stat>
                   )}
+                  {result.provider && (
+                    <Stat>
+                      <StatLabel fontSize="xs">Provider</StatLabel>
+                      <StatNumber fontSize="sm" wordBreak="break-all">
+                        {result.provider}
+                      </StatNumber>
+                    </Stat>
+                  )}
+                  {result.fallback_used != null && (
+                    <Stat>
+                      <StatLabel fontSize="xs">Local fallback</StatLabel>
+                      <StatNumber fontSize="sm">
+                        {result.fallback_used ? 'Used' : 'Not used'}
+                      </StatNumber>
+                    </Stat>
+                  )}
+                  {result.model && (
+                    <Stat>
+                      <StatLabel fontSize="xs">Model</StatLabel>
+                      <StatNumber fontSize="xs" wordBreak="break-all">
+                        {result.model}
+                      </StatNumber>
+                    </Stat>
+                  )}
+                  {result.outcome_class && (
+                    <Stat>
+                      <StatLabel fontSize="xs">Outcome</StatLabel>
+                      <StatNumber fontSize="xs" wordBreak="break-all">
+                        {result.outcome_class}
+                      </StatNumber>
+                    </Stat>
+                  )}
+                  {result.learning_eligible != null && (
+                    <Stat>
+                      <StatLabel fontSize="xs">Learning</StatLabel>
+                      <StatNumber fontSize="xs">
+                        {result.learning_eligible ? 'Recorded' : 'Skipped'}
+                      </StatNumber>
+                    </Stat>
+                  )}
                 </SimpleGrid>
+
+                {result.exo_request && (
+                  <Box
+                    mb={4}
+                    p={3}
+                    bg="rgba(20,184,166,0.08)"
+                    borderRadius="md"
+                    borderLeft="4px solid"
+                    borderColor="rgba(20,184,166,0.5)"
+                  >
+                    <Text fontWeight="bold" fontSize="sm" mb={1}>
+                      Verified Exo Request
+                    </Text>
+                    <Text fontSize="xs" fontFamily="mono" whiteSpace="pre-wrap">
+                      {JSON.stringify(result.exo_request, null, 2)}
+                    </Text>
+                  </Box>
+                )}
+
+                {result.output_compression && (
+                  <Box
+                    mb={4}
+                    p={3}
+                    bg="rgba(168,85,247,0.08)"
+                    borderRadius="md"
+                    borderLeft="4px solid"
+                    borderColor="rgba(168,85,247,0.5)"
+                  >
+                    <Text fontWeight="bold" fontSize="sm" mb={1}>
+                      Hebbian-routed Context Compression
+                    </Text>
+                    <Text fontSize="xs" fontFamily="mono" whiteSpace="pre-wrap">
+                      {JSON.stringify(result.output_compression, null, 2)}
+                    </Text>
+                  </Box>
+                )}
 
                 {/* Hebbian routing decision */}
                 {result.routing && (

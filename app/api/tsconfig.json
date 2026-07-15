@@ -14,5 +14,13 @@
     "sourceMap": false
   },
   "include": ["**/*.ts"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "test/**", "__tests__/**"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "test/**",
+    "__tests__/**",
+    "frontend/**",
+    "routes/**"
+  ]
 }

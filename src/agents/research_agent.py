@@ -1,7 +1,9 @@
-import random
-import time
-
 from .base_agent import BaseAgent
+from .fallback_policy import (
+    degraded_metadata,
+    provider_failure_result,
+    synthetic_fallback_enabled,
+)
 from .llm_agent import LLMAgent
 
 
@@ -33,7 +35,9 @@ class ResearchAgent(BaseAgent):
         keywords = task_context.get("keywords", "").split(",")
         depth = task_context.get("depth", "overview")
 
-        if task_context.get("disable_llm_delegate") is not True:
+        disable_delegate = task_context.get("disable_llm_delegate") is True
+        llm_result = None
+        if not disable_delegate:
             prompt = (
                 f"Research topic: {topic}\n"
                 f"Depth: {depth}\n"
@@ -51,6 +55,7 @@ class ResearchAgent(BaseAgent):
                     "temperature": task_context.get("temperature", 0.2),
                     "max_tokens": task_context.get("max_tokens", 700),
                     "model": task_context.get("model"),
+                    "model_url": task_context.get("model_url"),
                 }
             )
             if llm_result.get("status") == "success":
@@ -58,6 +63,7 @@ class ResearchAgent(BaseAgent):
                 return {
                     "status": "success",
                     "summary": summary,
+                    "raw_output": llm_result.get("raw_output", summary),
                     "findings": [summary],
                     "sources_consulted": [
                         f"LLM provider: {llm_result.get('provider', 'unknown')}"
@@ -65,38 +71,42 @@ class ResearchAgent(BaseAgent):
                     "recommendations": [
                         "Validate cited claims with primary sources.",
                     ],
+                    "provider": llm_result.get("provider"),
+                    "fallback_used": llm_result.get("fallback_used", False),
+                    "outcome_class": llm_result.get("outcome_class", "success"),
+                    "learning_eligible": llm_result.get("learning_eligible", True),
+                    "model": llm_result.get("model"),
+                    "model_url": llm_result.get("model_url"),
+                    "usage": llm_result.get("usage", {}),
+                    "response_id": llm_result.get("response_id"),
+                    "exo_request": llm_result.get("exo_request"),
                 }
 
-        self.report_status(f"Starting research on '{topic}' with depth '{depth}'...")
-        self.report_status(f"Keywords: {', '.join(keywords)}")
+            if not synthetic_fallback_enabled(task_context):
+                return provider_failure_result(llm_result, agent_name=self.name)
 
-        # Simulate research activity
-        time.sleep(random.uniform(2, 5))
-
-        # Simulate findings
-        findings = [
-            f"Found key paper on {topic} by Author A (2023).",
-            "Relevant data set discovered at Source B.",
-            f"Emerging trend: X in {topic} field.",
-        ]
-
-        summary = (
-            f"Initial research on '{topic}' has been completed. "
-            f"Key findings indicate {random.choice(['significant progress', 'new challenges', 'interesting paradigms'])}. "
-            f"Further investigation into specific areas like {random.choice(keywords) or 'data analysis'} is recommended."
+        self.report_status(
+            "Using the explicitly enabled local research planning baseline; "
+            "no external research source was queried."
         )
-
-        self.report_status("Research completed.")
-        return {
+        normalized_keywords = [item.strip() for item in keywords if item.strip()]
+        summary = (
+            f"A research plan was prepared for '{topic}' at {depth} depth. "
+            "No model or external source results are included."
+        )
+        result = {
             "status": "success",
             "summary": summary,
-            "findings": findings,
-            "sources_consulted": [
-                f"Simulated academic database for {topic}",
-                f"Simulated online encyclopedia for {topic}",
-            ],
+            "findings": [],
+            "sources_consulted": [],
             "recommendations": [
-                "Follow up on Author A's work",
-                "Analyze Source B data",
+                "Query primary sources before treating this plan as research output.",
+                "Prioritize: " + (", ".join(normalized_keywords) or "topic discovery"),
             ],
+            "performance_score": 0.0,
         }
+        reason = "llm_delegate_disabled" if disable_delegate else "provider_unavailable"
+        result.update(degraded_metadata("research_planning_fallback", reason))
+        if llm_result is not None:
+            result["delegate_failure"] = llm_result
+        return result

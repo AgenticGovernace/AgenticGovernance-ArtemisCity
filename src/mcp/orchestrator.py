@@ -2,6 +2,7 @@ import hashlib
 import os
 import time
 import uuid
+from copy import deepcopy
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -27,6 +28,12 @@ from ..mcp.vector_store import LocalVectorStore
 
 # Lazy import to avoid circular dependency
 _run_logger = None
+
+DEFAULT_EXO_SUMMARY_THRESHOLD_CHARS = 12_000
+CONTEXT_COMPRESSION_SCOPE = "system:context_compression:text_summarization"
+_LEARNING_SKIP_OUTCOMES = frozenset(
+    {"provider_failure", "cancelled", "degraded_success"}
+)
 
 
 def _get_run_logger():
@@ -147,6 +154,17 @@ class Orchestrator:
         self.hebbian_routing_enabled = os.getenv(
             "ARTEMIS_HEBBIAN_ROUTING", "1"
         ).strip().lower() not in ("0", "false", "no", "off")
+
+        try:
+            configured_threshold = int(
+                os.getenv(
+                    "ARTEMIS_EXO_SUMMARY_THRESHOLD_CHARS",
+                    str(DEFAULT_EXO_SUMMARY_THRESHOLD_CHARS),
+                )
+            )
+        except ValueError:
+            configured_threshold = DEFAULT_EXO_SUMMARY_THRESHOLD_CHARS
+        self.exo_summary_threshold_chars = max(0, configured_threshold)
 
         def _env_float(name: str, default: float) -> float:
             try:
@@ -337,6 +355,8 @@ class Orchestrator:
 
     def prepare_task_context(self, task_context: Dict[str, Any]) -> Dict[str, Any]:
         """Attach canonical ATP routing context when headers are present."""
+        if task_context.get("_skip_atp_resolution") is True:
+            return dict(task_context)
         strict_default = os.getenv("ARTEMIS_ATP_STRICT", "0").strip().lower() in (
             "1",
             "true",
@@ -602,9 +622,11 @@ class Orchestrator:
         )
 
         results: Dict[str, Any]
+        execution_context = self._attach_source_context(
+            self._enrich_task_with_memory(task_context)
+        )
         try:
-            enriched_context = self._enrich_task_with_memory(task_context)
-            results = agent.perform_task(enriched_context)
+            results = agent.perform_task(execution_context)
             result_summary = results.get("summary", "N/A")
             logger.info(
                 "Agent %s completed task. Results: %s",
@@ -614,47 +636,6 @@ class Orchestrator:
 
             # Determine if task was successful
             task_success = results.get("status") != "failed"
-
-            # Write results via the memory bus for consistency and recall
-            report_filename = (
-                f"{agent_name.replace(' ', '_')}_Report_{task_id}_{len(results)}.md"
-            )
-            report_md = self.obs_generator.generate_agent_report(
-                agent_name, task_id, results
-            )
-            report_path = f"{AGENT_OUTPUT_DIR}/{report_filename}"
-            try:
-                self.memory_bus.write_note_with_embedding(
-                    report_path,
-                    report_md,
-                    metadata={
-                        "agent": agent_name,
-                        "task_id": task_id,
-                        "provenance_id": task_context.get("provenance_id"),
-                        "routing_scope": task_context.get("routing_scope"),
-                        "atp_action_type": task_context.get("atp_action_type"),
-                    },
-                )
-                self._log_provenance_action(
-                    task_context,
-                    "memory_persisted",
-                    "memory_bus",
-                    {"task_id": task_id, "path": report_path},
-                )
-            except Exception:
-                logger.error(
-                    "Failed to persist report for %s.",
-                    _sanitize_for_log(agent_name),
-                    exc_info=True,
-                )
-
-            # Update the original task note's status in Obsidian if provided
-            if original_task_note_path:
-                self.update_task_status_in_obsidian(
-                    original_task_note_path,
-                    "completed" if task_success else "failed",
-                    task_id,
-                )
 
         except Exception as e:
             logger.error(
@@ -670,40 +651,33 @@ class Orchestrator:
                 "summary": f"Task failed: {e}",
             }
 
-            # Update task status to failed
-            if original_task_note_path:
-                self.update_task_status_in_obsidian(
-                    original_task_note_path, "failed", task_id
-                )
-
         task_duration_ms = (time.perf_counter() - task_start_time) * 1000
 
-        # Full learning update: nonlinear Hebbian/anti-Hebbian weight,
-        # pair/timing signals, registry mirror, and governance trust score.
-        learning = self._update_hebbian_weights(
+        self._record_execution_learning(
             agent_name,
             task_id,
-            task_success,
-            task_type=(
-                task_context.get("routing_scope")
-                or task_context.get("required_capability")
-            ),
-            results=results,
+            task_context,
+            results,
+            task_success=task_success,
             duration_ms=task_duration_ms,
         )
-        self._log_provenance_action(
+
+        results = self._compress_long_exo_output(
             task_context,
-            "learning_updated",
-            "hebbian_weights",
-            {
-                "task_id": task_id,
-                "agent": agent_name,
-                "task_type": learning.get("task_type"),
-                "delta": learning.get("delta"),
-                "weight": learning.get("weight"),
-                "sentinel_alert": learning.get("sentinel_alert", False),
-            },
+            execution_context,
+            results,
         )
+        report_persisted = self._persist_agent_report(
+            agent_name, task_id, task_context, results
+        )
+        self._remove_preserved_raw_output(results, report_persisted=report_persisted)
+
+        if original_task_note_path:
+            self.update_task_status_in_obsidian(
+                original_task_note_path,
+                "completed" if task_success else "failed",
+                task_id,
+            )
 
         results.setdefault("provenance_id", task_context.get("provenance_id"))
         if task_context.get("atp"):
@@ -720,11 +694,341 @@ class Orchestrator:
                     "capability": task_context.get("required_capability"),
                     "routing_scope": task_context.get("routing_scope"),
                     "summary": results.get("summary", "")[:100],
+                    "provider": results.get("provider"),
+                    "model": results.get("model"),
+                    "exo_request": results.get("exo_request"),
+                    "output_compression": results.get("output_compression"),
+                    "outcome_class": results.get("outcome_class"),
+                    "learning_eligible": results.get("learning_eligible"),
                 },
                 parent_prov_id=task_context.get("provenance_id"),
             )
 
+        self._log_provenance_action(
+            task_context,
+            "task_completed" if task_success else "task_failed",
+            "orchestrator",
+            {
+                "task_id": task_id,
+                "agent": agent_name,
+                "status": "success" if task_success else "failed",
+                "provider": results.get("provider"),
+                "fallback_used": results.get("fallback_used"),
+                "model": results.get("model"),
+                "exo_request": results.get("exo_request"),
+                "output_compression": results.get("output_compression"),
+                "outcome_class": results.get("outcome_class"),
+                "learning_eligible": results.get("learning_eligible"),
+            },
+            duration_ms=task_duration_ms,
+        )
+
         return results
+
+    def _record_execution_learning(
+        self,
+        agent_name: str,
+        task_id: str,
+        task_context: Dict[str, Any],
+        results: Dict[str, Any],
+        *,
+        task_success: bool,
+        duration_ms: float,
+    ) -> Optional[dict]:
+        """Apply learning only when an outcome measures agent performance."""
+        outcome_class = (
+            str(
+                results.get("outcome_class")
+                or ("success" if task_success else "agent_failure")
+            )
+            .strip()
+            .lower()
+        )
+        learning_eligible = results.get("learning_eligible") is not False
+        results.setdefault("outcome_class", outcome_class)
+        results.setdefault("learning_eligible", learning_eligible)
+        if not learning_eligible or outcome_class in _LEARNING_SKIP_OUTCOMES:
+            reason = (
+                "learning_eligible_false"
+                if not learning_eligible
+                else f"outcome_class:{outcome_class}"
+            )
+            self._log_provenance_action(
+                task_context,
+                "learning_skipped",
+                "hebbian_weights",
+                {
+                    "task_id": task_id,
+                    "agent": agent_name,
+                    "outcome_class": outcome_class,
+                    "learning_eligible": learning_eligible,
+                    "reason": reason,
+                },
+            )
+            return None
+
+        learning_success = task_success and outcome_class != "agent_failure"
+        learning = self._update_hebbian_weights(
+            agent_name,
+            task_id,
+            learning_success,
+            task_type=(
+                task_context.get("routing_scope")
+                or task_context.get("required_capability")
+            ),
+            results=results,
+            duration_ms=duration_ms,
+        )
+        self._log_provenance_action(
+            task_context,
+            "learning_updated",
+            "hebbian_weights",
+            {
+                "task_id": task_id,
+                "agent": agent_name,
+                "outcome_class": outcome_class,
+                "task_type": learning.get("task_type"),
+                "delta": learning.get("delta"),
+                "weight": learning.get("weight"),
+                "sentinel_alert": learning.get("sentinel_alert", False),
+            },
+        )
+        return learning
+
+    @staticmethod
+    def _artifact_component(value: Any) -> str:
+        """Return a filesystem-safe, deterministic artifact-name component."""
+        normalized = "".join(
+            character if character.isalnum() or character in "-_." else "_"
+            for character in str(value)
+        ).strip("._")
+        return normalized or "unknown"
+
+    def _persist_agent_report(
+        self,
+        agent_name: str,
+        task_id: str,
+        task_context: Dict[str, Any],
+        results: Dict[str, Any],
+    ) -> bool:
+        """Persist the consumer-facing report and return whether it succeeded."""
+        report_results = dict(results)
+        compression = report_results.get("output_compression")
+        if isinstance(compression, dict) and compression.get("raw_artifact_persisted"):
+            report_results.pop("raw_output", None)
+
+        report_filename = (
+            f"{self._artifact_component(agent_name)}_Report_"
+            f"{self._artifact_component(task_id)}_{len(report_results)}.md"
+        )
+        report_md = self.obs_generator.generate_agent_report(
+            agent_name, task_id, report_results
+        )
+        report_path = f"{AGENT_OUTPUT_DIR}/{report_filename}"
+        try:
+            self.memory_bus.write_note_with_embedding(
+                report_path,
+                report_md,
+                metadata={
+                    "agent": agent_name,
+                    "task_id": task_id,
+                    "provenance_id": task_context.get("provenance_id"),
+                    "routing_scope": task_context.get("routing_scope"),
+                    "atp_action_type": task_context.get("atp_action_type"),
+                    "provider": results.get("provider"),
+                    "fallback_used": results.get("fallback_used"),
+                    "model": results.get("model"),
+                    "output_compression": compression,
+                },
+            )
+            self._log_provenance_action(
+                task_context,
+                "memory_persisted",
+                "memory_bus",
+                {"task_id": task_id, "path": report_path},
+            )
+            return True
+        except Exception:
+            logger.error(
+                "Failed to persist report for %s.",
+                _sanitize_for_log(agent_name),
+                exc_info=True,
+            )
+            return False
+
+    def _compress_long_exo_output(
+        self,
+        task_context: Dict[str, Any],
+        execution_context: Dict[str, Any],
+        results: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Archive and summarize a long successful Exo result via governed routing."""
+        threshold = int(
+            getattr(
+                self,
+                "exo_summary_threshold_chars",
+                DEFAULT_EXO_SUMMARY_THRESHOLD_CHARS,
+            )
+        )
+        raw_output = results.get("raw_output")
+        if (
+            threshold <= 0
+            or task_context.get("_skip_output_compression") is True
+            or results.get("status") == "failed"
+            or str(results.get("provider") or "").lower() != "exo"
+            or not isinstance(raw_output, str)
+            or len(raw_output) <= threshold
+        ):
+            return results
+
+        processed = dict(results)
+        task_id = str(task_context.get("task_id", "auto_generated"))
+        raw_sha256 = hashlib.sha256(raw_output.encode("utf-8")).hexdigest()
+        raw_path = (
+            f"{AGENT_OUTPUT_DIR}/"
+            f"{self._artifact_component(task_context.get('agent') or 'Exo')}_"
+            f"Raw_{self._artifact_component(task_id)}.txt"
+        )
+        raw_persisted = False
+        try:
+            self.memory_bus.write_note_with_embedding(
+                raw_path,
+                raw_output,
+                metadata={
+                    "artifact_kind": "raw_exo_output",
+                    "task_id": task_id,
+                    "provenance_id": task_context.get("provenance_id"),
+                    "provider": results.get("provider"),
+                    "model": results.get("model"),
+                    "content_length": len(raw_output),
+                    "content_sha256": raw_sha256,
+                },
+                embed=False,
+            )
+            raw_persisted = True
+            self._log_provenance_action(
+                task_context,
+                "raw_output_persisted",
+                "memory_bus",
+                {
+                    "task_id": task_id,
+                    "path": raw_path,
+                    "content_length": len(raw_output),
+                    "content_sha256": raw_sha256,
+                },
+            )
+        except Exception:
+            logger.error("Failed to persist long Exo output.", exc_info=True)
+
+        child_task_id = f"{task_id}:context-compression"
+        child_context: Dict[str, Any] = {
+            "task_id": child_task_id,
+            "title": f"Compress Exo output for {task_id}",
+            "required_capability": "text_summarization",
+            "routing_scope": CONTEXT_COMPRESSION_SCOPE,
+            "content": raw_output,
+            "system_prompt": (
+                "Compress the supplied model output for a follow-on agent. "
+                "Preserve decisions, constraints, evidence, identifiers, "
+                "uncertainties, and next actions. Highlight the most important "
+                "points and do not invent facts."
+            ),
+            "source_context": deepcopy(execution_context.get("source_context", {})),
+            "parent_task_id": task_id,
+            "provenance_id": task_context.get("provenance_id"),
+            "_capability_explicit": True,
+            "_skip_atp_resolution": True,
+            "_skip_memory_enrichment": True,
+            "_skip_output_compression": True,
+        }
+        decision = None
+        summarizer_agent = None
+        try:
+            if self.hebbian_routing_enabled:
+                decision = self.hebbian_router.route(child_context)
+                summarizer_agent = decision.agent_name
+            else:
+                summarizer_agent = self.agent_registry.route_task(child_context)
+            self.log_routing_decision(
+                child_context,
+                summarizer_agent,
+                decision=decision,
+                source="context_compression",
+            )
+            child_result = self.assign_and_execute_task(
+                summarizer_agent,
+                child_context,
+            )
+        except Exception:
+            logger.error("Governed context compression failed.", exc_info=True)
+            child_result = {
+                "status": "failed",
+                "summary": "Context compression failed; see server logs.",
+            }
+
+        child_summary = child_result.get("summary")
+        child_success = (
+            child_result.get("status") != "failed"
+            and isinstance(child_summary, str)
+            and bool(child_summary.strip())
+        )
+        if child_success:
+            compressed_context = child_summary.strip()
+            compression_status = "compressed"
+        else:
+            compressed_context = (
+                "Long Exo output was preserved for audit, but automatic context "
+                "compression failed."
+                if raw_persisted
+                else "Automatic context compression and durable raw-artifact "
+                "persistence failed; the full Exo output remains attached to "
+                "this result."
+            )
+            compression_status = "failed"
+
+        compression = {
+            "applied": child_success,
+            "status": compression_status,
+            "threshold_chars": threshold,
+            "raw_length": len(raw_output),
+            "raw_sha256": raw_sha256,
+            "raw_artifact_path": raw_path if raw_persisted else None,
+            "raw_artifact_persisted": raw_persisted,
+            "compressed_length": len(compressed_context),
+            "summarizer_task_id": child_task_id,
+            "summarizer_agent": summarizer_agent,
+            "summarizer_provider": child_result.get("provider"),
+            "summarizer_model": child_result.get("model"),
+            "summarizer_outcome_class": child_result.get("outcome_class"),
+            "routing_scope": CONTEXT_COMPRESSION_SCOPE,
+            "routing": decision.to_dict() if decision is not None else None,
+        }
+        processed["summary"] = compressed_context
+        processed["compressed_context"] = compressed_context
+        processed["output_compression"] = compression
+        self._log_provenance_action(
+            task_context,
+            "output_compressed" if child_success else "output_compression_failed",
+            "orchestrator",
+            {"task_id": task_id, **compression},
+        )
+        return processed
+
+    @staticmethod
+    def _remove_preserved_raw_output(
+        results: Dict[str, Any], *, report_persisted: bool
+    ) -> None:
+        """Drop raw text only after at least one durable copy was written."""
+        compression = results.get("output_compression")
+        if not isinstance(compression, dict):
+            return
+        compression["report_persisted"] = report_persisted
+        raw_is_durable = bool(
+            compression.get("raw_artifact_persisted") or report_persisted
+        )
+        compression["raw_output_returned"] = not raw_is_durable
+        if raw_is_durable:
+            results.pop("raw_output", None)
 
     def stream_route_and_execute(
         self,
@@ -871,12 +1175,13 @@ class Orchestrator:
             },
             f"Starting streaming task {task_id} with {agent_name}",
         )
+        execution_context = self._attach_source_context(
+            self._enrich_task_with_memory(task_context)
+        )
         try:
-            enriched_context = self._enrich_task_with_memory(task_context)
-
             stream_task = getattr(agent, "stream_task", None)
             if getattr(agent, "supports_streaming", False) and callable(stream_task):
-                for event in stream_task(enriched_context):
+                for event in stream_task(execution_context):
                     etype = event.get("type")
                     if etype == "token":
                         yield {"type": "token", "text": event.get("text", "")}
@@ -895,51 +1200,12 @@ class Orchestrator:
                 # Non-streaming agent: run synchronously, emit the whole
                 # response as a single token event so the UI animation is
                 # consistent.
-                results = agent.perform_task(enriched_context)
+                results = agent.perform_task(execution_context)
                 summary_text = str(results.get("summary", ""))
                 if summary_text:
                     yield {"type": "token", "text": summary_text}
 
             task_success = results.get("status") != "failed"
-
-            # Persist report (same path as assign_and_execute_task).
-            report_filename = (
-                f"{agent_name.replace(' ', '_')}_Report_{task_id}_{len(results)}.md"
-            )
-            report_md = self.obs_generator.generate_agent_report(
-                agent_name, task_id, results
-            )
-            report_path = f"{AGENT_OUTPUT_DIR}/{report_filename}"
-            try:
-                self.memory_bus.write_note_with_embedding(
-                    report_path,
-                    report_md,
-                    metadata={
-                        "agent": agent_name,
-                        "task_id": task_id,
-                        "provenance_id": task_context.get("provenance_id"),
-                        "routing_scope": task_context.get("routing_scope"),
-                        "atp_action_type": task_context.get("atp_action_type"),
-                    },
-                )
-                self._log_provenance_action(
-                    task_context,
-                    "memory_persisted",
-                    "memory_bus",
-                    {"task_id": task_id, "path": report_path},
-                )
-            except Exception:
-                # exc_info=True attaches the stack trace; agent_name omitted
-                # from the message to avoid user-controlled data flowing into
-                # log records (CodeQL py/log-injection).
-                logger.error("Failed to persist streaming report.", exc_info=True)
-
-            if original_task_note_path:
-                self.update_task_status_in_obsidian(
-                    original_task_note_path,
-                    "completed" if task_success else "failed",
-                    task_id,
-                )
 
         except Exception:  # noqa: BLE001
             # Same rationale as above -- exception detail is on exc_info,
@@ -953,38 +1219,16 @@ class Orchestrator:
                 "error": "Task execution failed; see server logs for details.",
                 "summary": "Task failed; see server logs for details.",
             }
-            if original_task_note_path:
-                self.update_task_status_in_obsidian(
-                    original_task_note_path, "failed", task_id
-                )
-
-        # Full learning update fires regardless of branch after the stream has
-        # reached a terminal result, matching the JSON executor's trail.
+        task_duration_ms = (time.perf_counter() - task_start_time) * 1000
         hebbian_error: Optional[str] = None
         try:
-            learning = self._update_hebbian_weights(
+            self._record_execution_learning(
                 agent_name,
                 task_id,
-                task_success,
-                task_type=(
-                    task_context.get("routing_scope")
-                    or task_context.get("required_capability")
-                ),
-                results=results,
-                duration_ms=(time.perf_counter() - task_start_time) * 1000,
-            )
-            self._log_provenance_action(
                 task_context,
-                "learning_updated",
-                "hebbian_weights",
-                {
-                    "task_id": task_id,
-                    "agent": agent_name,
-                    "task_type": learning.get("task_type"),
-                    "delta": learning.get("delta"),
-                    "weight": learning.get("weight"),
-                    "sentinel_alert": learning.get("sentinel_alert", False),
-                },
+                results,
+                task_success=task_success,
+                duration_ms=task_duration_ms,
             )
         except Exception:
             logger.error("Hebbian update failed in streaming executor.", exc_info=True)
@@ -995,6 +1239,23 @@ class Orchestrator:
             # report the failure inline. The task itself still completed
             # -- only the learning update was lost.
             hebbian_error = "Hebbian persistence failed; see server logs."
+
+        results = self._compress_long_exo_output(
+            task_context,
+            execution_context,
+            results,
+        )
+        report_persisted = self._persist_agent_report(
+            agent_name, task_id, task_context, results
+        )
+        self._remove_preserved_raw_output(results, report_persisted=report_persisted)
+
+        if original_task_note_path:
+            self.update_task_status_in_obsidian(
+                original_task_note_path,
+                "completed" if task_success else "failed",
+                task_id,
+            )
 
         # Compose the error field: prefer the agent-level error if any,
         # otherwise the Hebbian-update error, otherwise None.
@@ -1009,9 +1270,36 @@ class Orchestrator:
                 "agent": agent_name,
                 "status": "success" if task_success else "failed",
                 "error": complete_error,
+                "provider": results.get("provider"),
+                "model": results.get("model"),
+                "exo_request": results.get("exo_request"),
+                "output_compression": results.get("output_compression"),
+                "outcome_class": results.get("outcome_class"),
+                "learning_eligible": results.get("learning_eligible"),
             },
-            duration_ms=(time.perf_counter() - task_start_time) * 1000,
+            duration_ms=task_duration_ms,
         )
+
+        run_logger = _get_run_logger()
+        if run_logger:
+            run_logger.log_task_execution(
+                task_id=task_id,
+                agent_name=agent_name,
+                status="completed" if task_success else "failed",
+                duration_ms=task_duration_ms,
+                metadata={
+                    "capability": task_context.get("required_capability"),
+                    "routing_scope": task_context.get("routing_scope"),
+                    "summary": results.get("summary", "")[:100],
+                    "provider": results.get("provider"),
+                    "model": results.get("model"),
+                    "exo_request": results.get("exo_request"),
+                    "output_compression": results.get("output_compression"),
+                    "outcome_class": results.get("outcome_class"),
+                    "learning_eligible": results.get("learning_eligible"),
+                },
+                parent_prov_id=task_context.get("provenance_id"),
+            )
 
         yield {
             "type": "complete",
@@ -1023,6 +1311,14 @@ class Orchestrator:
             "error": complete_error,
             "provenance_id": task_context.get("provenance_id"),
             "atp": task_context.get("atp"),
+            "provider": results.get("provider"),
+            "fallback_used": results.get("fallback_used"),
+            "model": results.get("model"),
+            "outcome_class": results.get("outcome_class"),
+            "learning_eligible": results.get("learning_eligible"),
+            "exo_request": results.get("exo_request"),
+            "compressed_context": results.get("compressed_context"),
+            "output_compression": results.get("output_compression"),
         }
 
     def _update_hebbian_weights(
@@ -1409,6 +1705,9 @@ class Orchestrator:
         """
         Pull contextual memory for the task using the memory bus read hierarchy.
         """
+        if task_context.get("_skip_memory_enrichment") is True:
+            return task_context
+
         query = (
             task_context.get("content")
             or task_context.get("context")
@@ -1433,6 +1732,30 @@ class Orchestrator:
 
         enriched = dict(task_context)
         enriched["memory_context"] = retrievals
+        return enriched
+
+    @staticmethod
+    def _attach_source_context(task_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Attach an immutable-by-convention snapshot shared across a hand-off.
+
+        Primary executions snapshot their fully enriched context. Internal child
+        tasks carry that snapshot forward and receive a fresh deep copy, so an
+        agent cannot mutate the context observed by its collaborator.
+        """
+        enriched = dict(task_context)
+        if task_context.get("_skip_memory_enrichment") is True and isinstance(
+            task_context.get("source_context"), dict
+        ):
+            snapshot = deepcopy(task_context["source_context"])
+        else:
+            snapshot = deepcopy(
+                {
+                    key: value
+                    for key, value in task_context.items()
+                    if key != "source_context"
+                }
+            )
+        enriched["source_context"] = snapshot
         return enriched
 
     def show_hebbian_network_summary(self):

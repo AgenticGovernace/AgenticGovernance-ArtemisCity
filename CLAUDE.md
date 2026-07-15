@@ -734,8 +734,9 @@ Response:
 `pythonBridge.ts` walks up from its own location looking for
 `src/api_bridge.py`, so it works both under `ts-node-dev` and from the
 compiled `dist/` layout. Override with `ARTEMIS_REPO_ROOT` if you need to
-point it elsewhere. The Python interpreter is `python3` by default; override
-with `ARTEMIS_PYTHON`.
+point it elsewhere. The bridge prefers the repo's `.venv/bin/python` (or
+`.venv/Scripts/python.exe` on Windows), falls back to `python3`, and honors an
+explicit `ARTEMIS_PYTHON` override.
 
 ---
 
@@ -764,6 +765,14 @@ user instructions here. The response is `ExecuteInstructionResponse`:
 | `routing` | `dict \| None` | `HebbianRouter.RoutingDecision.to_dict()` shape: selected agent, capability, routing scope, ATP action, blend settings, fallback, and `candidates[]` (including Hebbian/trust scores plus observational Sentinel fields). `None` when the caller pinned `agent` explicitly. |
 | `atp` | `dict \| None` | Canonical ATP headers and validation context when the instruction used ATP. |
 | `provenance_id` | `str \| None` | Parent provenance event linking routing, execution, memory, learning, and completion. |
+| `provider` | `str \| None` | Attempted/actual provider. Verified output and explicit Exo failures use `exo`; a failed Exo call also carries `fallback_used: false` and never emits substitute model text. Opt-in local baselines use their own provider names. |
+| `fallback_used` | `bool \| None` | `false` for real Exo success/failure paths; `true` only for an explicitly enabled, visibly degraded local baseline. |
+| `model` | `str \| None` | Requested Exo model identifier. The observed response model is also recorded in `exo_request`. |
+| `outcome_class` | `str \| None` | Learning classification such as `success`, `provider_failure`, `degraded_success`, or `agent_failure`. |
+| `learning_eligible` | `bool \| None` | Whether this outcome was allowed to update Hebbian/trust state. |
+| `exo_request` | `dict \| None` | Redacted wire evidence: request/response IDs, concrete endpoint, HTTP status, latency, actual response model, attempts, and output length/SHA-256. |
+| `compressed_context` | `str \| None` | Follow-on context produced when a long Exo result is summarized. |
+| `output_compression` | `dict \| None` | Raw-artifact hash/path plus Hebbian summarizer route, chosen summarizer, scope, lengths, and compression status. |
 
 Behaviorally: when the request lacks an `agent`, the handler calls
 `orchestrator.hebbian_router.route(task_data)` to capture the decision
@@ -776,6 +785,26 @@ pin a capability, the action type/target zone selects one and the learning key
 becomes `atp:<action>:<capability>`; agents are still filtered by the underlying
 capability. The headers are removed from agent-visible `content`. ATP prompts
 fail closed if `data/run_logs.db` cannot accept their parent provenance event.
+
+Successful Exo results preserve the complete normalized model text as `raw_output` inside the
+Python execution result. When it exceeds
+`ARTEMIS_EXO_SUMMARY_THRESHOLD_CHARS`, the orchestrator writes that exact text
+to a non-embedded raw artifact, then routes a child task through the
+`text_summarization` capability under the
+`system:context_compression:text_summarization` learning scope. The requesting
+agent and summarizer receive independent deep copies of the same enriched
+`source_context`. The terminal result uses the compressed text for follow-on
+work and exposes the raw artifact's path/hash instead of duplicating its body.
+The child dispatch follows the normal sandbox, provenance, persistence,
+Hebbian, registry, and trust path, allowing summarizer candidates to compete.
+
+Provider availability and agent quality are separate outcomes. Exo 429,
+connect/read timeout, 502/503/504, cancellation, and explicitly enabled local
+baselines do not mutate agent Hebbian weights or trust. A genuine agent failure
+remains eligible for negative learning. Built-in synthetic fallbacks are off by
+default; when explicitly enabled, they are labelled degraded and cannot claim
+`provider: exo`. Failed streaming calls terminate as failures without emitting
+a locally generated token.
 
 The router blends three signals — composite score, Hebbian-learned
 weight, and trust score — as
@@ -793,6 +822,14 @@ env:
 | `ARTEMIS_HEBBIAN_SENTINEL_WINDOW` | `50` | Number of recent outcomes used for sign-change stability analysis. |
 | `ARTEMIS_HEBBIAN_SENTINEL_THRESHOLD` | `0.4` | Alert when the rolling sign-change rate exceeds this value after warmup. |
 | `ARTEMIS_HEBBIAN_SENTINEL_WARMUP` | `10` | Minimum samples required before Sentinel can alert. |
+| `EXO_CONNECT_TIMEOUT_SECONDS` | `10` | Connection-establishment timeout. |
+| `EXO_READ_TIMEOUT_SECONDS` | `900` | Maximum wait for Exo generation; `0` means no read deadline. |
+| `EXO_MAX_RETRIES` | `2` | Additional attempts for connect failures and HTTP 429/502/503/504. Read timeouts and partial streams are not replayed. |
+| `EXO_RETRY_BACKOFF_SECONDS` | `1` | Base exponential retry delay when Exo does not send `Retry-After`. |
+| `EXO_RETRY_MAX_DELAY_SECONDS` | `60` | Maximum delay for exponential or `Retry-After` backoff. |
+| `ARTEMIS_EXO_SUMMARY_THRESHOLD_CHARS` | `12000` | Character threshold for raw preservation plus governed context compression; `0` disables. |
+| `ARTEMIS_SYNTHETIC_AGENT_FALLBACK` | `0` | Opt in to visibly degraded local baselines; these outcomes never update Hebbian/trust. |
+| `ARTEMIS_SSE_HEARTBEAT_SECONDS` | `15` | Heartbeat interval while a long Exo stream has not produced a frame. |
 
 `TrustInterface` is instantiated for every orchestrator so completed outcomes
 always update `data/trust_scores.db`, even when `beta == 0` and trust is not a
@@ -826,7 +863,7 @@ this event sequence:
 |---|---|---|
 | `routing` | `{decision, agent_name, task_id, atp, provenance_id}` | First frame. `decision` is the same `RoutingDecision.to_dict()` blob; `null` when the user pinned an `agent` explicitly. |
 | `token` | `{text}` | Zero or more frames as the agent produces output. For `LLMAgent` these are real Exo SSE deltas; for non-streaming agents a single frame carries the full summary. |
-| `complete` | `{task_id, agent_name, status, summary, note_path, error, atp, provenance_id}` | Terminal on success. Mirrors `ExecuteInstructionResponse`. |
+| `complete` | `{task_id, agent_name, status, summary, note_path, error, atp, provenance_id, provider, fallback_used, model, outcome_class, learning_eligible, exo_request, compressed_context, output_compression}` | Terminal on success. Mirrors `ExecuteInstructionResponse`. |
 | `error` | `{error}` | Terminal on failure (routing error, agent crash, etc.). |
 
 Streaming is opt-in per request — `Executor.tsx` exposes it as a
@@ -834,6 +871,10 @@ Streaming is opt-in per request — `Executor.tsx` exposes it as a
 unchecked. The orchestrator's post-flow (memory bus persist, Hebbian
 update, Obsidian status update) runs after the stream completes, so
 both endpoints leave the same trail.
+SSE comment heartbeats keep the connection alive while Exo is still thinking;
+they are not token events. Raw Exo token deltas may be rendered live, while the
+terminal `complete.summary` carries compressed follow-on context when the
+threshold was crossed.
 
 Agents declare streaming support via `supports_streaming = True` plus a
 `stream_task(task_context) -> Iterator[dict]` method that yields
@@ -916,6 +957,12 @@ already used there.
 naming, marker conventions). Don't restate it here. To run the suite
 locally: `make test` (calls `pytest src/tests/`). CI runs the same on
 Python 3.12 plus a config-validation step.
+
+The repository-root `conftest.py` is a safety boundary: it redirects every
+pytest session to disposable data, log, and vault roots before application
+modules import. Do not bypass or weaken it. Tests must never mutate the live
+`data/`, `logs/`, or configured Obsidian vault, even when exercising default
+constructors or subprocess entrypoints.
 
 ### Environment variables and secrets
 

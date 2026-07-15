@@ -8,9 +8,7 @@
  * Version: 1.0.0
  */
 
-// Load app/api/.env into process.env BEFORE any other import. The auth
-// middleware reads process.env at module-load time (loadApiKeys()), so any
-// later side-effecting import would see an empty env.
+// Load app/api/.env before auth/rate configuration is evaluated.
 import 'dotenv/config';
 
 import express, { Express, Request, Response } from 'express';
@@ -30,13 +28,23 @@ import {
 } from './v1';
 
 // Middleware
-import { authMiddleware } from './middleware/auth';
+import { authMiddleware, rateLimit } from './middleware/auth';
 import { errorHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/logger';
 
 // Config
 const PORT = process.env.API_PORT || 4000;
 const API_VERSION = 'v1';
+
+function positiveInteger(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+const apiRateLimit = rateLimit({
+  windowMs: positiveInteger(process.env.ARTEMIS_API_RATE_LIMIT_WINDOW_MS, 60_000),
+  maxRequests: positiveInteger(process.env.ARTEMIS_API_RATE_LIMIT_MAX_REQUESTS, 100),
+});
 
 // Initialize Express app
 const app: Express = express();
@@ -60,13 +68,13 @@ app.use('/health', healthRoutes);
 app.use(`/api/${API_VERSION}/health`, healthRoutes);
 
 // Protected routes (require auth)
-app.use(`/api/${API_VERSION}/agents`, authMiddleware, agentRoutes);
-app.use(`/api/${API_VERSION}/registry`, authMiddleware, registryRoutes);
-app.use(`/api/${API_VERSION}/governance`, authMiddleware, governanceRoutes);
-app.use(`/api/${API_VERSION}/memory`, authMiddleware, memoryRoutes);
-app.use(`/api/${API_VERSION}/atp`, authMiddleware, atpRoutes);
-app.use(`/api/${API_VERSION}/trust`, authMiddleware, trustRoutes);
-app.use(`/api/${API_VERSION}/llm`, authMiddleware, llmRoutes);
+app.use(`/api/${API_VERSION}/agents`, authMiddleware, apiRateLimit, agentRoutes);
+app.use(`/api/${API_VERSION}/registry`, authMiddleware, apiRateLimit, registryRoutes);
+app.use(`/api/${API_VERSION}/governance`, authMiddleware, apiRateLimit, governanceRoutes);
+app.use(`/api/${API_VERSION}/memory`, authMiddleware, apiRateLimit, memoryRoutes);
+app.use(`/api/${API_VERSION}/atp`, authMiddleware, apiRateLimit, atpRoutes);
+app.use(`/api/${API_VERSION}/trust`, authMiddleware, apiRateLimit, trustRoutes);
+app.use(`/api/${API_VERSION}/llm`, authMiddleware, apiRateLimit, llmRoutes);
 
 // API documentation endpoint
 app.get(`/api/${API_VERSION}`, (req: Request, res: Response) => {
@@ -75,7 +83,7 @@ app.get(`/api/${API_VERSION}`, (req: Request, res: Response) => {
     version: '1.0.0',
     apiVersion: API_VERSION,
     runtime: 'TypeScript Express boundary backed by src/api_bridge.py for Python core operations',
-    bridgeBehavior: 'Exposed /api/v1 registry, memory, ATP, trust, and Hebbian routes call Python bridge commands',
+    bridgeBehavior: 'Public registry, memory, ATP, trust, Hebbian, and LLM routes delegate to the Python source of truth',
     endpoints: {
       health: '/health',
       agents: `/api/${API_VERSION}/agents`,
@@ -84,9 +92,9 @@ app.get(`/api/${API_VERSION}`, (req: Request, res: Response) => {
       memory: `/api/${API_VERSION}/memory`,
       atp: `/api/${API_VERSION}/atp`,
       trust: `/api/${API_VERSION}/trust`,
-      llm: `/api/${API_VERSION}/llm`
+      llm: `/api/${API_VERSION}/llm`,
     },
-    documentation: `/api/${API_VERSION}/docs`
+    documentation: `/api/${API_VERSION}/docs`,
   });
 });
 
@@ -95,7 +103,7 @@ app.use((req: Request, res: Response) => {
   res.status(404).json({
     success: false,
     error: 'Endpoint not found',
-    path: req.path
+    path: req.path,
   });
 });
 
@@ -106,11 +114,6 @@ app.use(errorHandler);
 // Server Start
 // ============================================================================
 
-/**
- * Start the Express API server and log the public endpoints.
- *
- * @returns Nothing. The operation completes through side effects.
- */
 export function startServer(): void {
   app.listen(PORT, () => {
     console.log('='.repeat(50));

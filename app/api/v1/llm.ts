@@ -1,357 +1,175 @@
 /**
- * LLM API Routes
+ * Canonical LLM routes.
  *
- * Endpoints for interacting with LLM providers (Claude, OpenAI, etc.)
+ * Every supported inference call crosses the JSON bridge into the Python
+ * LLMAgent. Unsupported demo-era operations fail explicitly; this module
+ * never generates model text, embeddings, usage, or provider state locally.
  */
 
-import {Request, Response, Router} from 'express';
-import {LLMController} from '../controllers';
-import {authMiddleware} from '../middleware/auth';
+import { Request, Response, Router } from 'express';
+
+import { callBridge } from '../lib/pythonBridge';
 
 const router = Router();
-const controller = new LLMController();
-router.use(authMiddleware);
 
-// Explicit allowlist of providers the controller actually knows about.
-// The env-var name is derived from the provider string, so anything
-// outside this list must be rejected before the process.env lookup --
-// otherwise a request-controlled provider name could probe arbitrary
-// `<NAME>_API_KEY` environment variables (js/remote-property-injection).
-export const ALLOWED_PROVIDERS = new Set(['anthropic', 'openai', 'local']);
-
-function resolveProviderApiKey(provider: string): string | undefined {
-  const normalized = provider.trim().toLowerCase();
-  if (!ALLOWED_PROVIDERS.has(normalized)) {
-    return undefined;
-  }
-  const providerUpper = normalized.toUpperCase().replace(/[^A-Z0-9]/g, '_');
-
-  const candidatesByProvider: Record<string, string[]> = {
-    anthropic: ['ANTHROPIC_API_KEY', 'ARTEMIS_ANTHROPIC_API_KEY', 'CLAUDE_API_KEY'],
-    openai: ['OPENAI_API_KEY', 'ARTEMIS_OPENAI_API_KEY'],
-    local: [],
-  };
-
-  const providerCandidates = candidatesByProvider[normalized] ?? [];
-  const genericCandidates = [
-    `${providerUpper}_API_KEY`,
-    `ARTEMIS_${providerUpper}_API_KEY`,
-    'ARTEMIS_LLM_API_KEY',
-  ];
-
-  for (const keyName of [...providerCandidates, ...genericCandidates]) {
-    const value = process.env[keyName];
-    if (value && value.trim()) {
-      return value.trim();
-    }
-  }
-
-  return undefined;
-}
-
-/**
- * Strip `apiKey` from a provider config before serialization.
- *
- * `POST /provider` resolves the upstream LLM key from the server
- * environment (OPENAI_API_KEY, ANTHROPIC_API_KEY, ...), then stores it
- * inside the LLMController's in-memory provider map so the chat path
- * can reuse it. Returning that full config to the caller -- whether via
- * the POST response or a later `GET /providers` -- would leak the
- * server-side env secret to anyone holding the dashboard's
- * X-API-Key. Replace the key with a sentinel and signal whether one is
- * configured upstream.
- */
-type SerializableProvider = Record<string, unknown> & {
-  apiKey?: undefined;
-  apiKeyConfigured?: boolean;
+type LLMBridgeResult = {
+  status: 'success' | 'failed';
+  summary: string;
+  raw: string | null;
+  provider: string | null;
+  model: string | null;
+  error: string | null;
+  exo_request: Record<string, unknown> | null;
+  bridge_code?: string;
+  upstream_status_code?: number | null;
+  retry_after_seconds?: number | null;
+  [key: string]: unknown;
 };
-function redactProvider<T extends { apiKey?: string }>(
-  provider: T
-): SerializableProvider {
-  const { apiKey, ...rest } = provider;
-  return {
-    ...rest,
-    apiKeyConfigured: typeof apiKey === 'string' && apiKey.length > 0,
-  };
+
+type LLMBridgeConfig = {
+  source: 'configured';
+  default_model: string;
+  models: Array<Record<string, unknown>>;
+  providers: Array<Record<string, unknown>>;
+};
+
+const PROVIDER_STATUS_BY_CODE: Record<string, number> = {
+  RATE_LIMITED: 429,
+  TIMEOUT: 504,
+  SERVICE_UNAVAILABLE: 503,
+  PROVIDER_ERROR: 502,
+};
+
+function sendBridgeFailure(res: Response, result: LLMBridgeResult): void {
+  const code = result.bridge_code || 'PROVIDER_ERROR';
+  const statusCode = PROVIDER_STATUS_BY_CODE[code] || 502;
+  const retryAfter = Number(result.retry_after_seconds);
+  if (code === 'RATE_LIMITED' && Number.isFinite(retryAfter) && retryAfter > 0) {
+    res.setHeader('Retry-After', String(Math.min(86_400, Math.ceil(retryAfter))));
+  }
+  res.status(statusCode).json({
+    success: false,
+    error: result.error || result.summary,
+    code,
+    data: result,
+  });
 }
 
-/**
- * POST /api/v1/llm/chat
- * Send a chat completion request
- */
+function sendRouteError(res: Response, error: unknown): void {
+  const candidate = error as { statusCode?: unknown; code?: unknown; message?: unknown };
+  const statusCode = Number.isInteger(candidate?.statusCode)
+    ? Number(candidate.statusCode)
+    : 500;
+  const code = typeof candidate?.code === 'string' ? candidate.code : 'INTERNAL_ERROR';
+  const message =
+    typeof candidate?.message === 'string' ? candidate.message : 'LLM request failed';
+  res.status(statusCode).json({ success: false, error: message, code });
+}
+
+function notImplemented(res: Response, operation: string, replacement: string): void {
+  res.status(501).json({
+    success: false,
+    error: `${operation} is not implemented by the production Exo bridge.`,
+    code: 'NOT_IMPLEMENTED',
+    replacement,
+  });
+}
+
 router.post('/chat', async (req: Request, res: Response) => {
   try {
     const { messages, model, options } = req.body;
-
-    if (!messages || !Array.isArray(messages)) {
+    if (!Array.isArray(messages) || messages.length === 0) {
       res.status(400).json({
         success: false,
-        error: 'messages array is required'
+        error: 'messages must be a non-empty array',
+        code: 'INVALID_REQUEST',
       });
       return;
     }
 
-    const result = await controller.chat(messages, model, options);
-    res.json({
-      success: true,
-      data: result
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    const result = (await callBridge('llm.chat', {
+      messages,
+      model,
+      options,
+    })) as LLMBridgeResult;
+    if (result.status === 'failed') {
+      sendBridgeFailure(res, result);
+      return;
+    }
+    res.json({ success: true, data: result });
+  } catch (error: unknown) {
+    sendRouteError(res, error);
   }
 });
 
-/**
- * POST /api/v1/llm/complete
- * Send a text completion request
- */
 router.post('/complete', async (req: Request, res: Response) => {
   try {
     const { prompt, model, options } = req.body;
-
-    if (!prompt) {
+    if (typeof prompt !== 'string' || !prompt.trim()) {
       res.status(400).json({
         success: false,
-        error: 'prompt is required'
+        error: 'prompt must be a non-empty string',
+        code: 'INVALID_REQUEST',
       });
       return;
     }
 
-    const result = await controller.complete(prompt, model, options);
-    res.json({
-      success: true,
-      data: result
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/**
- * POST /api/v1/llm/embed
- * Generate embeddings for text
- */
-router.post('/embed', async (req: Request, res: Response) => {
-  try {
-    const { text, model } = req.body;
-
-    if (!text) {
-      res.status(400).json({
-        success: false,
-        error: 'text is required'
-      });
+    const result = (await callBridge('llm.complete', {
+      prompt,
+      model,
+      options,
+    })) as LLMBridgeResult;
+    if (result.status === 'failed') {
+      sendBridgeFailure(res, result);
       return;
     }
-
-    const result = await controller.embed(text, model);
-    res.json({
-      success: true,
-      data: result
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    res.json({ success: true, data: result });
+  } catch (error: unknown) {
+    sendRouteError(res, error);
   }
 });
 
-/**
- * POST /api/v1/llm/stream
- * Stream a chat completion (SSE)
- */
-router.post('/stream', async (req: Request, res: Response) => {
+router.post('/embed', (_req: Request, res: Response) => {
+  notImplemented(res, 'Embedding generation', '/api/v1/memory/write');
+});
+
+router.post('/stream', (_req: Request, res: Response) => {
+  notImplemented(res, 'Express LLM streaming', '/api/cli/execute/stream');
+});
+
+router.get('/models', async (_req: Request, res: Response) => {
   try {
-    const { messages, model, options } = req.body;
-
-    if (!messages || !Array.isArray(messages)) {
-      res.status(400).json({
-        success: false,
-        error: 'messages array is required'
-      });
-      return;
-    }
-
-    // Set up SSE headers
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-
-    await controller.streamChat(messages, model, options, (chunk) => {
-      res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+    const config = (await callBridge('llm.config')) as LLMBridgeConfig;
+    res.json({
+      success: true,
+      data: config.models,
+      source: config.source,
+      default_model: config.default_model,
     });
-
-    res.write('data: [DONE]\n\n');
-    res.end();
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+  } catch (error: unknown) {
+    sendRouteError(res, error);
   }
 });
 
-/**
- * GET /api/v1/llm/models
- * List available models
- */
-router.get('/models', async (req: Request, res: Response) => {
+router.get('/providers', async (_req: Request, res: Response) => {
   try {
-    const models = await controller.listModels();
-    res.json({
-      success: true,
-      data: models
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    const config = (await callBridge('llm.config')) as LLMBridgeConfig;
+    res.json({ success: true, data: config.providers, source: config.source });
+  } catch (error: unknown) {
+    sendRouteError(res, error);
   }
 });
 
-/**
- * GET /api/v1/llm/providers
- * List configured providers
- */
-router.get('/providers', (req: Request, res: Response) => {
-  try {
-    const providers = controller.getProviders().map(redactProvider);
-    res.json({
-      success: true,
-      data: providers
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
+router.post('/provider', (_req: Request, res: Response) => {
+  notImplemented(res, 'Runtime provider mutation', 'EXO_* environment settings');
 });
 
-/**
- * POST /api/v1/llm/provider
- * Configure a provider using API keys loaded from environment variables
- */
-router.post('/provider', async (req: Request, res: Response) => {
-  try {
-    const { provider, baseUrl, options } = req.body;
-
-    if (!provider) {
-      res.status(400).json({
-        success: false,
-        error: 'provider is required'
-      });
-      return;
-    }
-
-    const providerName = String(provider).trim().toLowerCase();
-    if (!ALLOWED_PROVIDERS.has(providerName)) {
-      res.status(400).json({
-        success: false,
-        error: `Unsupported provider. Allowed: ${[...ALLOWED_PROVIDERS].join(', ')}`
-      });
-      return;
-    }
-    const apiKeyFromEnv = resolveProviderApiKey(providerName);
-    const isLocalProvider = providerName === 'local';
-
-    if (!isLocalProvider && !apiKeyFromEnv) {
-      res.status(400).json({
-        success: false,
-        error: `No API key configured in environment for provider '${providerName}'`
-      });
-      return;
-    }
-
-    // Strip any client-supplied apiKey so it cannot override the
-    // env-resolved key after the spread. Same for baseUrl, which is
-    // already taken from the top-level body field. Guard that `options`
-    // is a plain object first -- req.body comes from arbitrary JSON, so
-    // a client could send a string/number/array and the destructure
-    // would otherwise iterate string indices or array elements.
-    const optionsObj: Record<string, unknown> =
-      options && typeof options === 'object' && !Array.isArray(options)
-        ? (options as Record<string, unknown>)
-        : {};
-    const { apiKey: _strippedApiKey, baseUrl: _strippedBaseUrl, ...safeOptions } = optionsObj;
-    void _strippedApiKey;
-    void _strippedBaseUrl;
-    const result = await controller.configureProvider(providerName, {
-      ...safeOptions,
-      apiKey: apiKeyFromEnv,
-      baseUrl
-    });
-    res.json({
-      success: true,
-      data: redactProvider(result),
-      message: `Provider ${providerName} configured successfully`
-    });
-  } catch (error: any) {
-    res.status(400).json({
-      success: false,
-      error: error.message
-    });
-  }
+router.post('/atp', (_req: Request, res: Response) => {
+  notImplemented(res, 'Direct LLM ATP processing', '/api/v1/atp/route');
 });
 
-/**
- * POST /api/v1/llm/atp
- * Process an ATP message through LLM
- */
-router.post('/atp', async (req: Request, res: Response) => {
-  try {
-    const { atpMessage, model, agentId } = req.body;
-
-    if (!atpMessage) {
-      res.status(400).json({
-        success: false,
-        error: 'atpMessage is required'
-      });
-      return;
-    }
-
-    const result = await controller.processATP(atpMessage, model, agentId);
-    res.json({
-      success: true,
-      data: result
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/**
- * GET /api/v1/llm/usage
- * Get token usage statistics
- */
-router.get('/usage', async (req: Request, res: Response) => {
-  try {
-    const { startDate, endDate, provider } = req.query;
-    const usage = await controller.getUsage({
-      startDate: startDate as string,
-      endDate: endDate as string,
-      provider: provider as string
-    });
-    res.json({
-      success: true,
-      data: usage
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
+router.get('/usage', (_req: Request, res: Response) => {
+  notImplemented(res, 'In-memory usage estimates', '/api/db/runs');
 });
 
 export default router;

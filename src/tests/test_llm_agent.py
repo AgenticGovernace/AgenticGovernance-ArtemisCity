@@ -244,7 +244,8 @@ class TestLLMAgent:
             result = agent.perform_task({"prompt": "test prompt"})
 
         assert result["status"] == "failed"
-        assert result["provider"] == "fallback"
+        assert result["provider"] == "exo"
+        assert result["fallback_used"] is False
         assert "LLM execution unavailable" in result["summary"]
         assert "test-model" in result["summary"]
 
@@ -287,8 +288,8 @@ class TestLLMAgent:
         assert finals[0]["result"]["model_url"] == "http://localhost:52415/v1"
         assert post.call_args.args[0] == "http://localhost:52415/v1/chat/completions"
 
-    def test_stream_task_falls_back_when_exo_errors(self):
-        """When Exo raises mid-stream, a fallback token + final event are emitted."""
+    def test_stream_task_reports_failure_without_fake_tokens(self):
+        """When Exo raises mid-stream, only a failed final event is emitted."""
         agent = LLMAgent(base_url="http://localhost:52415", model_id="test-model")
         with patch(
             "src.agents.llm_agent.requests.post",
@@ -299,12 +300,11 @@ class TestLLMAgent:
         tokens = [e["text"] for e in events if e["type"] == "token"]
         finals = [e for e in events if e["type"] == "final"]
         assert len(finals) == 1
-        assert finals[0]["result"]["provider"] == "fallback"
+        assert finals[0]["result"]["provider"] == "exo"
+        assert finals[0]["result"]["fallback_used"] is False
         assert finals[0]["result"]["status"] == "failed"
         assert "LLM execution unavailable" in finals[0]["result"]["summary"]
-        # Single fallback token so the UI animation still renders.
-        assert len(tokens) == 1
-        assert tokens[0] == finals[0]["result"]["summary"]
+        assert tokens == []
 
     def test_stream_task_empty_payload_fails_fast(self):
         """No prompt -> single final event with failed status, no tokens."""

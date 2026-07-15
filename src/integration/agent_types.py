@@ -13,7 +13,7 @@ Date: 2024
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Literal, NotRequired, Optional, TypedDict, Union
+from typing import Any, Dict, List, Literal, NotRequired, TypedDict, Union
 
 # =============================================================================
 # Task-Related Types
@@ -37,6 +37,8 @@ class TaskContext(TypedDict, total=False):
         query: Search or lookup query string.
         request_feedback: Whether to request feedback after completion.
         memory_context: Enriched context from memory bus retrieval.
+        source_context: Immutable-by-convention snapshot shared with governed
+            child tasks so they do not repeat memory retrieval.
         status: Current task status.
 
     Example:
@@ -58,6 +60,7 @@ class TaskContext(TypedDict, total=False):
     query: NotRequired[str]
     request_feedback: NotRequired[bool]
     memory_context: NotRequired[List[Dict[str, Any]]]
+    source_context: NotRequired[Dict[str, Any]]
     status: NotRequired[str]
 
 
@@ -77,6 +80,15 @@ class TaskResult(TypedDict, total=False):
         persona_context: Persona-specific context data.
         recent_context: Recent context window data.
         data: Additional structured data.
+        provider: Inference provider that produced the output.
+        model: Provider model identifier.
+        raw_output: Exact provider output before governed compression.
+        compressed_context: Governed bounded representation of a long output.
+        output_compression: Audit metadata for long-output persistence and
+            compression.
+        exo_request: Structured Exo request/response transport metadata.
+        outcome_class: Stable learning outcome classification.
+        learning_eligible: Whether the result may update Hebbian/trust state.
 
     Example:
         >>> result: TaskResult = {
@@ -95,6 +107,16 @@ class TaskResult(TypedDict, total=False):
     persona_context: NotRequired[Dict[str, Any]]
     recent_context: NotRequired[List[str]]
     data: NotRequired[Dict[str, Any]]
+    provider: NotRequired[str]
+    model: NotRequired[str]
+    raw_output: NotRequired[str]
+    compressed_context: NotRequired[str]
+    output_compression: NotRequired[Dict[str, Any]]
+    exo_request: NotRequired[Dict[str, Any]]
+    outcome_class: NotRequired[str]
+    learning_eligible: NotRequired[bool]
+    failure_kind: NotRequired[str]
+    retryable: NotRequired[bool]
 
 
 class ExecutionSummary(TypedDict):

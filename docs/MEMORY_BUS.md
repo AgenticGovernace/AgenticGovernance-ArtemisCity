@@ -94,6 +94,27 @@ All memory mutations follow strict write-through ordering:
   "estimated_sync_completion": "2026-02-21T10:30:00.300Z"
 }
 ```
+
+### Raw Exo artifacts and compressed context
+
+Long Exo generations use two related writes:
+
+1. The complete normalized provider text is written under `Agent Outputs/` with
+   `artifact_kind: raw_exo_output`, its length, SHA-256, model, task, and parent
+   provenance ID. This write sets `embed=False` so oversized raw text is not
+   inserted into semantic recall.
+2. A Hebbian-routed summarizer produces bounded follow-on context. The normal
+   agent report is written through the Memory Bus and may be embedded for
+   retrieval.
+
+`output_compression` links both layers with the raw path/hash, durability state,
+chosen summarizer, full routing decision, learning scope, and lengths. If both
+raw-artifact and report persistence fail, the caller retains `raw_output`; the
+system never discards the only remaining copy.
+
+Provider failure/degraded-baseline results are still available to run
+provenance, but their `learning_eligible: false` classification prevents them
+from changing Hebbian or trust stores.
 ## Read Protocol
 ### Hierarchical Read Strategy
 Reads use a cascading approach to balance latency and accuracy:

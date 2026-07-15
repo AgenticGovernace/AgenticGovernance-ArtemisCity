@@ -236,6 +236,14 @@ export interface ExecuteStreamHandlers {
     error: string | null;
     atp: Record<string, unknown> | null;
     provenance_id: string | null;
+    provider: string | null;
+    fallback_used: boolean | null;
+    model: string | null;
+    outcome_class: string | null;
+    learning_eligible: boolean | null;
+    exo_request: Record<string, unknown> | null;
+    compressed_context: string | null;
+    output_compression: Record<string, unknown> | null;
   }) => void;
   onError?: (message: string) => void;
 }
@@ -248,7 +256,8 @@ export interface ExecuteStreamHandlers {
  * ``X-API-Key`` for the FastAPI auth dependency.
  *
  * Returns an abort controller — call ``.abort()`` to cancel the stream
- * (the FastAPI side will see the client disconnect and stop emitting).
+ * delivery. The FastAPI worker still finalizes persistence and learning for
+ * an already-dispatched task, while discarding further client frames.
  */
 export const executeInstructionStream = (
   data: {
@@ -283,6 +292,7 @@ export const executeInstructionStream = (
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let terminalSeen = false;
 
       // Parse SSE: events are separated by a blank line; each frame may
       // contain "event: <name>" and one or more "data: <line>" lines.
@@ -303,8 +313,13 @@ export const executeInstructionStream = (
         }
         if (event === 'routing') handlers.onRouting?.(payload);
         else if (event === 'token') handlers.onToken?.(payload.text ?? '');
-        else if (event === 'complete') handlers.onComplete?.(payload);
-        else if (event === 'error') handlers.onError?.(payload.error ?? String(payload));
+        else if (event === 'complete') {
+          terminalSeen = true;
+          handlers.onComplete?.(payload);
+        } else if (event === 'error') {
+          terminalSeen = true;
+          handlers.onError?.(payload.error ?? String(payload));
+        }
       };
 
       while (true) {
@@ -320,6 +335,9 @@ export const executeInstructionStream = (
         }
       }
       if (buffer.trim()) flush(buffer);
+      if (!terminalSeen && !controller.signal.aborted) {
+        handlers.onError?.('Execution stream ended before a terminal event.');
+      }
     } catch (err: any) {
       if (err?.name === 'AbortError') return;
       handlers.onError?.(err?.message || String(err));
