@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from src.runtime_paths import data_path
-from src.utils.helpers import logger
+from src.utils.helpers import logger, sanitize_for_log
 
 # Lazy import to avoid circular dependency
 _run_logger = None
@@ -176,7 +176,7 @@ class LocalVectorStore:
 
         latency_ms = (time.perf_counter() - start_time) * 1000
         logger.debug(
-            "Upserted doc_id=%s into vector store (%.2fms)", doc_id, latency_ms
+            "Upserted doc_id=%s into vector store (%.2fms)", sanitize_for_log(doc_id), latency_ms
         )
 
         # Log to run logger
@@ -228,7 +228,7 @@ class LocalVectorStore:
             conn.commit()
 
         latency_ms = (time.perf_counter() - start_time) * 1000
-        logger.debug("Deleted doc_id=%s from vector store (%.2fms)", doc_id, latency_ms)
+        logger.debug("Deleted doc_id=%s from vector store (%.2fms)", sanitize_for_log(doc_id), latency_ms)
 
         # Log to run logger
         run_logger = _get_run_logger()

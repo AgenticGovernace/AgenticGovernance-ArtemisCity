@@ -346,8 +346,8 @@ class HebbianRouter:
             logger.info(
                 "Hebbian routing FALLBACK (%r -> capability %r, "
                 "alpha=%.2f beta=%.2f) -> %s",
-                fell_back_from,
-                capability,
+                sanitize_for_log(fell_back_from),
+                sanitize_for_log(capability),
                 self.alpha,
                 self.beta,
                 best.name,

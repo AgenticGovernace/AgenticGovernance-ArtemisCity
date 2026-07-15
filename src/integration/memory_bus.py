@@ -160,7 +160,7 @@ class MemoryBus:
                     Exception
                 ) as rollback_exc:  # pragma: no cover - best-effort rollback
                     logger.warning(
-                        f"MemoryBus rollback failed for {doc_id}: {rollback_exc}"
+                        "MemoryBus rollback failed for %s: %s", sanitize_for_log(doc_id), sanitize_for_log(rollback_exc)
                     )
             # Governance fires for every failed Obsidian write, including
             # embed=False — otherwise repeated no-embed failures would

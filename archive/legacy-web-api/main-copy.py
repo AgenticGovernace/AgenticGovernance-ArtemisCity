@@ -54,12 +54,17 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+_cors_origins_raw = os.environ.get("FASTAPI_CORS_ORIGINS", "")
+_cors_origins = [
+    o.strip() for o in _cors_origins_raw.split(",") if o.strip() and o.strip() != "*"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins for development. Restrict in production.
+    allow_origins=_cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key"],
 )
 
 # --- Orchestrator Instance ---
@@ -260,7 +265,9 @@ async def execute_pending_task(task_path: Dict[str, str]):
 
         return {"message": "Task executed successfully", "results": results}
     except ValueError as ve:
-        orchestrator.update_task_status_in_obsidian(relative_note_path, "failed", task_data.get("task_id"))  # type: ignore
+        orchestrator.update_task_status_in_obsidian(
+            relative_note_path, "failed", task_data.get("task_id")
+        )  # type: ignore
         logger.error("Task validation error: %s", _sanitize_for_log(ve))
         raise HTTPException(status_code=400, detail="Invalid task payload.")
     except HTTPException:
@@ -268,7 +275,9 @@ async def execute_pending_task(task_path: Dict[str, str]):
     except Exception as e:
         # If task_data and relative_note_path are available, update status to failed
         if "task_data" in locals() and "relative_note_path" in locals():
-            orchestrator.update_task_status_in_obsidian(relative_note_path, "failed", task_data.get("task_id"))  # type: ignore
+            orchestrator.update_task_status_in_obsidian(
+                relative_note_path, "failed", task_data.get("task_id")
+            )  # type: ignore
         logger.error(
             "Error executing task from %s: %s",
             _sanitize_for_log(relative_note_path),

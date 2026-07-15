@@ -52,12 +52,17 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+_cors_origins_raw = os.environ.get("FASTAPI_CORS_ORIGINS", "")
+_cors_origins = [
+    o.strip() for o in _cors_origins_raw.split(",") if o.strip() and o.strip() != "*"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins for development. Restrict in production.
+    allow_origins=_cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key"],
 )
 
 # --- Orchestrator Instance ---
