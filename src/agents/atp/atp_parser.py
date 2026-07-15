@@ -125,8 +125,8 @@ class ATPParser:
         # Remove headers from content
         content = pattern.sub("", text)
 
-        # Clean up separator lines (---)
-        content = re.sub(r"\n\s*-{3,}\s*\n", "\n\n", content)
+        # Clean up separator lines (---) securely
+        content = re.sub(r"\n *-{3,} *\n", "\n\n", content)
 
         return headers, content
 

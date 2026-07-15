@@ -183,9 +183,9 @@ class AgentSandbox:
         """Record a violation and return a denial result."""
         logger.warning(
             "[SANDBOX_VIOLATION] agent=%s type=%s reason=%s",
-            self.agent_name,
-            violation_type,
-            reason,
+            sanitize_for_log(self.agent_name),
+            sanitize_for_log(violation_type),
+            sanitize_for_log(reason),
         )
         if self.violation_recorder is not None:
             self.violation_recorder(self.agent_name, violation_type, details)

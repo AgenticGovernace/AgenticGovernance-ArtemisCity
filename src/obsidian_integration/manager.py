@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 
-from src.mcp.config import OBSIDIAN_VAULT_PATH
 
 from ..utils.helpers import logger, sanitize_for_log
 
@@ -20,13 +19,11 @@ class ObsidianManager:
         self.vault_path = Path(vault_path)
         if not self.vault_path.is_dir():
             logger.error(
-                "Obsidian vault path does not exist: %s",
-                sanitize_for_log(self.vault_path),
+                "Obsidian vault path does not exist"
             )
             raise FileNotFoundError(f"Obsidian vault path not found: {self.vault_path}")
         logger.info(
-            "Obsidian Manager initialized for vault: %s",
-            sanitize_for_log(self.vault_path),
+            "Obsidian Manager initialized"
         )
 
     def _get_full_path(self, relative_path: str) -> Path:
@@ -56,7 +53,7 @@ class ObsidianManager:
         """
         full_path = self._get_full_path(relative_path)
         if not full_path.is_file():
-            logger.warning("Note not found: %s", sanitize_for_log(full_path))
+            logger.warning("Note not found: %s", sanitize_for_log(relative_path))
             return None
         with open(full_path, "r", encoding="utf-8") as f:
             content = f.read()
