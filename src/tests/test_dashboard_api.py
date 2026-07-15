@@ -652,6 +652,12 @@ def test_live_agents_tasks_reports_and_creation(
         {"name": "Alpha", "capabilities": []},
         {"name": "Zed", "capabilities": ["reasoning"]},
     ]
+
+    # Path traversal attempt should return 400
+    traversal = client.get("/api/reports/%2E%2E%2Fsecret.md")
+    assert traversal.status_code == 400
+    assert traversal.json() == {"detail": "Invalid report filename."}
+
     tasks = client.get("/api/tasks").json()
     assert tasks[0]["title"] == "Live"
     assert tasks[0]["task_id"].startswith("task_")

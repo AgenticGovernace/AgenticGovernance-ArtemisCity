@@ -642,6 +642,12 @@ async def get_report_content(filename: str, _key: None = Depends(_require_api_ke
         content = report_path.read_text(encoding="utf-8")
         return {"filename": filename, "content": content}
     try:
+        # Prevent path traversal vulnerabilities by enforcing output dir containment
+        output_dir = Path(AGENT_OUTPUT_DIR).resolve()
+        report_path = (output_dir / filename).resolve()
+        if not report_path.is_relative_to(output_dir):
+            raise ValueError("path escapes report output directory")
+
         relative_path = os.path.join(AGENT_OUTPUT_DIR, filename)
         content = orchestrator.obs_manager.read_note(relative_path)
         if content is None:
