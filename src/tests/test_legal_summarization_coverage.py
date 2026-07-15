@@ -13,11 +13,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import src.Experiments.legal_summarization.batch_runner as batch_runner_module
+import src.Experiments.legal_summarization.dataset_loader as dataset_loader_module
 from src.Experiments.legal_summarization import main as cli
 from src.Experiments.legal_summarization.batch_runner import BatchRunner
 from src.Experiments.legal_summarization.dataset_loader import (
     JudgmentRecord,
     LegalDatasetLoader,
+    huggingface_runtime_status,
     resolve_hf_token,
 )
 from src.Experiments.legal_summarization.legal_summarizer_agent import (
@@ -241,19 +244,48 @@ def test_hub_loader_translates_dataset_errors(
         LegalDatasetLoader(source="hub").load(limit=1)
 
 
-def test_hub_loader_reports_missing_dependency(monkeypatch: pytest.MonkeyPatch) -> None:
-    real_import = builtins.__import__
+@pytest.mark.parametrize("dependency", ["datasets", "pyarrow"])
+def test_hub_loader_reports_exact_dependency_and_interpreter(
+    monkeypatch: pytest.MonkeyPatch, dependency: str
+) -> None:
+    real_import_module = dataset_loader_module.importlib.import_module
 
-    def reject_datasets(name, *args, **kwargs):
-        if name == "datasets":
-            raise ImportError("missing")
-        return real_import(name, *args, **kwargs)
+    def reject_dependency(name, package=None):
+        if name == dependency:
+            raise ModuleNotFoundError(
+                f"No module named '{dependency}'", name=dependency
+            )
+        return real_import_module(name, package)
 
-    monkeypatch.delitem(sys.modules, "datasets", raising=False)
-    monkeypatch.setattr(builtins, "__import__", reject_datasets)
+    monkeypatch.delitem(sys.modules, dependency, raising=False)
+    monkeypatch.setattr(
+        dataset_loader_module.importlib,
+        "import_module",
+        reject_dependency,
+    )
 
-    with pytest.raises(RuntimeError, match="requires `datasets` and `pyarrow`"):
+    with pytest.raises(RuntimeError, match="Hugging Face runtime check") as exc_info:
         LegalDatasetLoader(source="hub").load(limit=1)
+
+    message = str(exc_info.value)
+    assert dependency in message
+    assert sys.executable in message
+    assert "make legal-summarization" in message
+
+
+def test_huggingface_runtime_status_is_actionable_and_secret_safe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("HF_TOKEN", "hf_do_not_emit_this_value")
+
+    status = huggingface_runtime_status()
+    serialized = json.dumps(status)
+
+    assert status["ready"] is True
+    assert status["python"]["executable"] == sys.executable
+    assert status["python"]["required"] == ">=3.12,<3.13"
+    assert status["environment_file"]["token_source"] == "HF_TOKEN"
+    assert "hf_do_not_emit_this_value" not in serialized
 
 
 def test_summarization_config_prompts_and_round_trip() -> None:
@@ -399,6 +431,25 @@ def test_batch_runner_empty_and_logger_paths(tmp_path) -> None:
     assert batch_result["status"] == "completed"
 
 
+def test_batch_runner_does_not_initialize_agent_before_dataset_load(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    loader = MagicMock()
+    loader.load.side_effect = RuntimeError("dataset dependency failed")
+    agent_factory = MagicMock()
+    monkeypatch.setattr(
+        batch_runner_module,
+        "LegalSummarizerAgent",
+        agent_factory,
+    )
+
+    runner = BatchRunner(loader=loader, store=MagicMock())
+    with pytest.raises(RuntimeError, match="dataset dependency failed"):
+        runner.run()
+
+    agent_factory.assert_not_called()
+
+
 def test_run_store_queries_migration_guard_and_missing_report(tmp_path) -> None:
     store = RunStore(str(tmp_path / "runs.db"), str(tmp_path / "reports"))
     store.start_run("one", "{}", "summary_en", "test", 0)
@@ -477,6 +528,33 @@ def test_cli_inspection_commands(monkeypatch: pytest.MonkeyPatch, capsys) -> Non
     _CliStore.compared = [{"run_id": "r1", "status": "completed"}]
     cli.main(["--compare", "r1"])
     assert "--- r1 ---" in capsys.readouterr().out
+
+
+def test_cli_dependency_check_exits_before_loader_creation(
+    monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    status = {
+        "ready": True,
+        "python": {"executable": "/repo/.venv/bin/python"},
+        "environment_file": {"token_configured": True, "token_source": "HF_TOKEN"},
+    }
+    loader = MagicMock()
+    monkeypatch.setattr(cli, "huggingface_runtime_status", lambda: status)
+    monkeypatch.setattr(cli, "LegalDatasetLoader", loader)
+
+    cli.main(["--doctor"])
+
+    assert json.loads(capsys.readouterr().out) == status
+    loader.assert_not_called()
+
+    monkeypatch.setattr(
+        cli,
+        "huggingface_runtime_status",
+        lambda: {**status, "ready": False},
+    )
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(["--check-dependencies"])
+    assert exc_info.value.code == 1
 
 
 def test_cli_run_success_and_failure(monkeypatch: pytest.MonkeyPatch, capsys) -> None:

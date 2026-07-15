@@ -11,12 +11,12 @@
 # Default target
 .DEFAULT_GOAL := help
 
-PYTHON_VERSION ?= 3.12
-VENV ?= .venv
-PYTHON ?= $(VENV)/bin/python
-UV ?= uv
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 ROOT_DIR := $(abspath $(MAKEFILE_DIR)/../..)
+PYTHON_VERSION ?= 3.12
+VENV ?= $(ROOT_DIR)/.venv
+PYTHON ?= $(VENV)/bin/python
+UV ?= uv
 
 # ============================================
 # HELP
@@ -34,18 +34,14 @@ help: ## Show this help message
 # INSTALLATION
 # ============================================
 
-venv: ## Create the Python 3.12 virtual environment with uv
-	$(UV) venv --python $(PYTHON_VERSION) $(VENV)
+venv: ## Create the canonical root Python 3.12 environment
+	$(MAKE) -C "$(ROOT_DIR)" venv
 
-install:  ## Install runtime dependencies with uv
-	echo "Installing Python dependencies..."
-	uv pip install  -r requirements.txt
-	echo "Installation complete!"
+install: ## Install runtime dependencies into the canonical root environment
+	$(MAKE) -C "$(ROOT_DIR)" install
 
-install-dev:  ## Install runtime and development dependencies with uv
-	echo "Installing development dependencies..."
-	uv pip install -r requirements.txt -r requirements-dev.txt
-	@echo "Development dependencies installed!"
+install-dev: ## Install development dependencies into the canonical root environment
+	$(MAKE) -C "$(ROOT_DIR)" install-dev
 
 setup-hooks: venv ## Install pre-commit hooks into the uv-managed virtual environment
 	@echo "Installing pre-commit hooks..."

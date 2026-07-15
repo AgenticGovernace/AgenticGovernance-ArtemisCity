@@ -39,9 +39,16 @@ class BatchRunner:
         run_logger=None,
     ):
         self.loader = loader or LegalDatasetLoader()
-        self.agent = agent or LegalSummarizerAgent()
+        self._agent = agent
         self.store = store or RunStore()
         self._run_logger = run_logger  # Optional core RunLogger for event integration
+
+    @property
+    def agent(self) -> LegalSummarizerAgent:
+        """Create the model agent only after dataset loading has succeeded."""
+        if self._agent is None:
+            self._agent = LegalSummarizerAgent()
+        return self._agent
 
     # ------------------------------------------------------------------
     # Public API

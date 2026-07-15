@@ -3,34 +3,37 @@ r"""CLI entry point for the legal-judgment summarization experiment.
 
 Examples:
 
+    # Verify the active Python and Hugging Face dependencies (no network call)
+    .venv/bin/python -m src.Experiments.legal_summarization.main --check-dependencies
+
     # Inspect five streamed records from the default public Hub dataset
-    python -m src.Experiments.legal_summarization.main --describe --streaming
+    .venv/bin/python -m src.Experiments.legal_summarization.main --describe --streaming
 
     # Evaluate 10 English judgments with the extractive baseline
-    python -m src.Experiments.legal_summarization.main \
+    .venv/bin/python -m src.Experiments.legal_summarization.main \
         --mode extractive --limit 10
 
     # Summarize Urdu judgments for a general audience
-    python -m src.Experiments.legal_summarization.main \\
+    .venv/bin/python -m src.Experiments.legal_summarization.main \\
         --task-filter summary_ur --audience general_public --limit 20
 
     # Load a gated/private dataset using HF_TOKEN from .env (or prompt hidden)
-    python -m src.Experiments.legal_summarization.main \
+    .venv/bin/python -m src.Experiments.legal_summarization.main \
         --dataset-id owner/private-dataset --prompt-for-hf-token --describe
 
     # Aggregated batch summary across 5 judgments
-    python -m src.Experiments.legal_summarization.main \\
+    .venv/bin/python -m src.Experiments.legal_summarization.main \\
         --config summary_en --aggregation batch --limit 5
 
     # List previous runs
-    python -m src.Experiments.legal_summarization.main --list-runs
+    .venv/bin/python -m src.Experiments.legal_summarization.main --list-runs
 
     # Compare two runs side-by-side
-    python -m src.Experiments.legal_summarization.main \\
+    .venv/bin/python -m src.Experiments.legal_summarization.main \\
         --compare 20260327_120000 20260327_130000
 
     # Describe the dataset without running summarization
-    python -m src.Experiments.legal_summarization.main --describe
+    .venv/bin/python -m src.Experiments.legal_summarization.main --describe
 """
 
 from __future__ import annotations
@@ -58,6 +61,7 @@ else:
 from src.Experiments.legal_summarization.batch_runner import BatchRunner  # noqa: E402
 from src.Experiments.legal_summarization.dataset_loader import (  # noqa: E402
     LegalDatasetLoader,
+    huggingface_runtime_status,
 )
 from src.Experiments.legal_summarization.run_store import RunStore  # noqa: E402
 from src.Experiments.legal_summarization.summarization_config import (  # noqa: E402
@@ -199,6 +203,16 @@ def build_parser() -> argparse.ArgumentParser:
     # --- Inspection commands ---
     info = p.add_argument_group("Inspection")
     info.add_argument(
+        "--check-dependencies",
+        "--doctor",
+        dest="check_dependencies",
+        action="store_true",
+        help=(
+            "Print active Python, Hugging Face package, and token-source status "
+            "without making a network request"
+        ),
+    )
+    info.add_argument(
         "--describe",
         action="store_true",
         help="Print dataset metadata and exit",
@@ -234,6 +248,13 @@ def main(argv: list[str] | None = None) -> None:
         None: This function does not return a value.
     """
     args = build_parser().parse_args(argv)
+
+    if args.check_dependencies:
+        status = huggingface_runtime_status()
+        print(json.dumps(status, indent=2))
+        if not status["ready"]:
+            raise SystemExit(1)
+        return
 
     loader = LegalDatasetLoader(
         local_path=args.dataset_path,

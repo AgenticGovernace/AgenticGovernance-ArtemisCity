@@ -1,13 +1,11 @@
-<p><a target="_blank" href="https://app.eraser.io/workspace/D4T5ItN4GRuMmDAiXpjx" id="edit-in-eraser-github-link"><img alt="Edit in Eraser" src="https://firebasestorage.googleapis.com/v0/b/second-petal-295822.appspot.com/o/images%2Fgithub%2FOpen%20in%20Eraser.svg?alt=media&amp;token=968381c8-a7e7-472a-8ed6-4a6626da5501"></a></p>
-
-
-
 # Artemis City - Living Agent Ecosystem
+
 Welcome to **Artemis City**, where agents aren't just code—they're **citizens** of a thriving, living ecosystem!
 
 ## The City Metaphor
 Artemis City transforms technical operations into a vibrant urban experience:
 
+``` lua
 | Technical Term | City Metaphor | Who Handles It |
 | ----- | ----- | ----- |
 | Memory Operations | Mail Delivery | Pack Rat (Postal Service) |
@@ -21,6 +19,9 @@ Artemis City transforms technical operations into a vibrant urban experience:
 | Agent Registry | Citizen Registry | 📋 City Hall Records |
 | Memory Bus | Postal Routes | 🚌 Transit System |
 | Governance Monitor | City Watch | 👁️ Oversight Office |
+
+```
+
 ## Citizens of Artemis City
 ### Artemis (Mayor)
 - **Role**: Governance, oversight, and orchestration

@@ -14,10 +14,13 @@ caller explicitly requests one.
 from __future__ import annotations
 
 import getpass
+import importlib
 import logging
 import os
+import platform
 import sys
 from dataclasses import dataclass
+from importlib import metadata
 from pathlib import Path
 from typing import Callable, Iterator, Optional
 
@@ -26,6 +29,105 @@ logger = logging.getLogger("legal_summarization.dataset_loader")
 HF_REPO_ID = "amjadali070/legal-judgements-en-ur-sd"
 HF_REVISION = "main"
 TOKEN_ENV_VARS = ("HF_TOKEN", "HUGGINGFACE_API_KEY")
+PYTHON_REQUIREMENT = ">=3.12,<3.13"
+HF_RUNTIME_DEPENDENCIES = (
+    ("datasets", "datasets"),
+    ("pyarrow", "pyarrow"),
+    ("huggingface_hub", "huggingface-hub"),
+)
+DOTENV_DEPENDENCY = ("dotenv", "python-dotenv")
+
+
+def _dependency_status(module_name: str, distribution_name: str) -> dict:
+    """Return import and version evidence without exposing environment values."""
+    try:
+        version = metadata.version(distribution_name)
+    except metadata.PackageNotFoundError:
+        version = None
+
+    try:
+        importlib.import_module(module_name)
+    except Exception as exc:
+        detail = " ".join(str(exc).split()) or "no error detail"
+        return {
+            "distribution": distribution_name,
+            "version": version,
+            "importable": False,
+            "error": f"{type(exc).__name__}: {detail}",
+        }
+
+    return {
+        "distribution": distribution_name,
+        "version": version,
+        "importable": True,
+        "error": None,
+    }
+
+
+def huggingface_runtime_status() -> dict:
+    """Describe the active Hugging Face runtime without printing token values."""
+    python_supported = (3, 12) <= sys.version_info[:2] < (3, 13)
+    dependencies = {
+        module_name: _dependency_status(module_name, distribution_name)
+        for module_name, distribution_name in HF_RUNTIME_DEPENDENCIES
+    }
+    dotenv = _dependency_status(*DOTENV_DEPENDENCY)
+    token, token_source = resolve_hf_token()
+    repo_root = Path(__file__).resolve().parents[3]
+    repo_interpreter = (
+        repo_root
+        / ".venv"
+        / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    )
+
+    return {
+        "ready": python_supported
+        and all(item["importable"] for item in dependencies.values()),
+        "python": {
+            "executable": sys.executable,
+            "version": platform.python_version(),
+            "supported": python_supported,
+            "required": PYTHON_REQUIREMENT,
+            "repo_interpreter": str(repo_interpreter),
+        },
+        "dependencies": dependencies,
+        "environment_file": {
+            "python_dotenv": dotenv,
+            "token_configured": token is not None,
+            "token_source": token_source,
+        },
+    }
+
+
+def require_huggingface_runtime() -> dict:
+    """Fail with the exact interpreter and broken imports when Hub use is unsafe."""
+    status = huggingface_runtime_status()
+    if status["ready"]:
+        return status
+
+    python = status["python"]
+    problems = []
+    if not python["supported"]:
+        problems.append(
+            f"Python {python['version']} is unsupported; required {python['required']}"
+        )
+
+    failed_imports = [
+        f"{name} ({details['error']})"
+        for name, details in status["dependencies"].items()
+        if not details["importable"]
+    ]
+    if failed_imports:
+        problems.append("dependency import failures: " + "; ".join(failed_imports))
+
+    detail = ". ".join(problems)
+    raise RuntimeError(
+        "Hugging Face runtime check failed under "
+        f"'{python['executable']}' ({detail}). Run `make install` from the repository "
+        'root, then launch with `make legal-summarization ARGS="--dataset-source '
+        'hub --streaming --describe"`. Do not use bare `python` or `python3`, '
+        "which may select a different interpreter."
+    )
 
 
 @dataclass(frozen=True)
@@ -275,13 +377,8 @@ class LegalDatasetLoader:
         split: str,
         limit: Optional[int],
     ) -> Iterator[JudgmentRecord]:
-        try:
-            from datasets import load_dataset
-        except ImportError as exc:
-            raise RuntimeError(
-                "Hugging Face loading requires `datasets` and `pyarrow`. "
-                "Install the repository dependencies with `make install`."
-            ) from exc
+        require_huggingface_runtime()
+        load_dataset = importlib.import_module("datasets").load_dataset
 
         self._resolved_dataset_name = self.dataset_name
 

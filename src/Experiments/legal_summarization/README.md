@@ -7,26 +7,38 @@ change agent trust.
 
 ## Quick start
 
+Install into the repository's supported Python 3.12 environment, then verify
+the Hugging Face imports and token source without making a network call:
+
+```bash
+make install
+make legal-summarization-check
+```
+
 Inspect five streamed rows without running inference:
 
 ```bash
-python3 -m src.Experiments.legal_summarization.main \
-  --dataset-source hub --streaming --describe
+make legal-summarization ARGS="--dataset-source hub --streaming --describe"
 ```
 
-Run the dependency-free extractive baseline over ten rows:
+Run the Exo-free extractive baseline over ten rows (Hub loading still uses the
+installed Hugging Face dependencies):
 
 ```bash
-python3 -m src.Experiments.legal_summarization.main \
-  --dataset-source hub --streaming --mode extractive --limit 10
+make legal-summarization \
+  ARGS="--dataset-source hub --streaming --mode extractive --limit 10"
 ```
 
 Run Exo-backed abstractive evaluation:
 
 ```bash
-python -m src.Experiments.legal_summarization.main \
-  --dataset-source hub --streaming --mode abstractive --limit 10
+make legal-summarization \
+  ARGS="--dataset-source hub --streaming --mode abstractive --limit 10"
 ```
+
+Avoid bare `python` and `python3` for this experiment. They may resolve to a
+system interpreter outside `.venv`; the Make targets always use the repository
+environment.
 
 ## Hugging Face authentication
 
@@ -40,9 +52,8 @@ HF_TOKEN=hf_your_read_token
 Or request hidden terminal input without persisting the token:
 
 ```bash
-python3 -m src.Experiments.legal_summarization.main \
-  --dataset-id owner/private-dataset \
-  --prompt-for-hf-token --describe
+make legal-summarization \
+  ARGS="--dataset-id owner/private-dataset --prompt-for-hf-token --describe"
 ```
 
 The legacy `HUGGINGFACE_API_KEY` variable remains a compatibility fallback.
@@ -67,10 +78,8 @@ For example, a dataset using `document` and `summary` columns can be inspected
 with:
 
 ```bash
-python -m src.Experiments.legal_summarization.main \
-  --dataset-id owner/corpus --dataset-name default \
-  --input-column document --reference-column summary \
-  --task-filter '' --streaming --describe
+make legal-summarization \
+  ARGS="--dataset-id owner/corpus --dataset-name default --input-column document --reference-column summary --task-filter= --streaming --describe"
 ```
 
 ## Outputs and metrics

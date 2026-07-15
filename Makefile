@@ -6,7 +6,7 @@
 
 .PHONY: help venv install install-dev setup-hooks lint lint-fix format check security secrets \
         test test-cov pre-commit pre-commit-update clean clean-env run cli demo server \
-        frontend build docs docs-serve all ci
+        frontend api legal-summarization legal-summarization-check build docs docs-serve all ci
 
 # Default target
 .DEFAULT_GOAL := help
@@ -38,17 +38,20 @@ help: ## Show this help message
 # ============================================
 
 venv: ## Create the Python 3.12 virtual environment with uv
-	$(UV) venv --python $(PYTHON_VERSION) $(VENV)
+	@if [ ! -x "$(PYTHON)" ]; then \
+		$(UV) venv --python $(PYTHON_VERSION) $(VENV); \
+	else \
+		echo "Using existing environment: $(PYTHON)"; \
+	fi
 
-install:  ## Install runtime dependencies with uv
-	echo "Installing Python dependencies..."
-	UV add -r ./requirements.txt 
-	echo "Installation complete!"
+install: venv ## Install locked runtime dependencies into the repo environment
+	@echo "Installing Python dependencies into $(PYTHON)..."
+	$(UV) sync --locked --python $(PYTHON)
+	@echo "Installation complete!"
 
-install-dev:  ## Install runtime and development dependencies with uv
-	echo "Installing development dependencies..."
-	uv pip install -r requirements.txt -r requirements-dev.txt
-	uv pip install -e . 
+install-dev: venv ## Install locked runtime and optional development dependencies
+	@echo "Installing development dependencies into $(PYTHON)..."
+	$(UV) sync --locked --all-extras --python $(PYTHON)
 	@echo "Development dependencies installed!"
 
 setup-hooks: venv ## Install pre-commit hooks into the uv-managed virtual environment
@@ -196,6 +199,12 @@ frontend: ## Start the web frontend dev server (needs `make api` running separat
 api: ## Start the FastAPI dashboard backend on :8000 (paired with `make frontend`)
 	@echo "Starting FastAPI dashboard backend on http://localhost:8000 ..."
 	uvicorn app.api.main:app --reload --host 0.0.0.0 --port 8000
+
+legal-summarization: venv ## Run legal summarization with ARGS="..."
+	@$(PYTHON) -m src.Experiments.legal_summarization.main $(ARGS)
+
+legal-summarization-check: venv ## Check the legal evaluation's HF runtime (offline)
+	@$(PYTHON) -m src.Experiments.legal_summarization.main --check-dependencies
 
 # ============================================
 # BUILD & PACKAGE

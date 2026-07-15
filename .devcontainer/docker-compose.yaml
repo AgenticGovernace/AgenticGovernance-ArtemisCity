@@ -10,9 +10,7 @@ services:
     depends_on:
       - db
       
-    # Overrides default command so things don't shut down after the process ends.
-    command: sleep infinity
-
+    
     # Runs app on the same network as the database container, allows "forwardPorts" in devcontainer.json function.
     networks:
       - devnet
@@ -30,7 +28,7 @@ services:
     environment:
       # Local-only dev database. Use a simple password for dev only.
       # Never use 'trust' auth in production.
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ostgres
       POSTGRES_USER: postgres
       POSTGRES_DB: artemis_dev
     # Add "forwardPorts": ["5432"] to **devcontainer.json** to forward PostgreSQL locally.
