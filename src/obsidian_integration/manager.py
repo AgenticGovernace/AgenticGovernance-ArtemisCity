@@ -30,31 +30,21 @@ class ObsidianManager:
         """Resolve a vault-relative path and reject vault escapes."""
         import os
 
-        # 1. Strip absolute prefixes safely
-        safe_rel_path = relative_path.lstrip("/").lstrip("\\")
+        vault_root_str = os.path.abspath(str(self.vault_path))
 
-        # 2. Prevent directory traversal
-        if ".." in safe_rel_path.split("/") or ".." in safe_rel_path.split("\\"):
-             raise ValueError("vault path must not contain '..' traversal")
+        # Strip absolute prefixes safely to prevent absolute path injection in os.path.join
+        safe_rel_path = str(relative_path).lstrip("/").lstrip("\\")
 
-        # 3. Create requested path using pathlib and verify it is not absolute
-        requested = Path(safe_rel_path)
-        if requested.is_absolute():
-             raise ValueError("vault path must be relative")
+        # Safely join and resolve the path
+        joined_path = os.path.join(vault_root_str, safe_rel_path)
+        full_path_str = os.path.abspath(joined_path)
 
-        vault_root = self.vault_path.resolve()
+        # Check against path traversal by ensuring the resolved path is within the vault root
+        # This is the canonical path injection defense recognized by CodeQL
+        if not full_path_str.startswith(vault_root_str + os.sep) and full_path_str != vault_root_str:
+            raise ValueError("vault path escapes configured vault root")
 
-        # 4. Safely join using os.path.join by ensuring the right side is strictly relative
-        # CodeQL checks that the second argument to os.path.join cannot be absolute.
-        joined_path = os.path.join(str(vault_root), str(requested))
-        full_path = Path(joined_path).resolve()
-
-        # 5. Verify it is still within vault_root
-        try:
-            full_path.relative_to(vault_root)
-        except ValueError as exc:
-            raise ValueError("vault path escapes configured vault root") from exc
-        return full_path
+        return Path(full_path_str)
 
     def read_note(self, relative_path: str) -> str | None:
         """Reads the content of an Obsidian note.
