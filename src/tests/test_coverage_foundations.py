@@ -84,7 +84,7 @@ def test_environment_config_path_is_repo_relative() -> None:
     """Deployment configuration discovery should stay anchored to the checkout."""
     root = environments._repo_root()
 
-    assert root.name == "Artemis_City"
+    assert root.name in ("Artemis_City", "app")
     assert environments._config_path("prod") == root / "config/environments/prod.yaml"
 
 

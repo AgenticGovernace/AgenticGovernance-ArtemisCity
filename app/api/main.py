@@ -1053,11 +1053,13 @@ async def get_hebbian_sentinel_status(
         if task_type:
             clauses.append("task_type = ?")
             params.append(task_type)
-        where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+        query = "SELECT * FROM hebbian_sentinel_state"
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        query += " ORDER BY updated_at DESC LIMIT ?"
         params.append(limit)
         rows = conn.execute(
-            "SELECT * FROM hebbian_sentinel_state"
-            f"{where} ORDER BY updated_at DESC LIMIT ?",
+            query,
             tuple(params),
         ).fetchall()
         results = [dict(row) for row in rows]
@@ -1082,9 +1084,12 @@ async def get_hebbian_sentinel_alerts(
         raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
     conn = _connect_db(HEBBIAN_DB)
     try:
-        where = " WHERE status = 'open'" if open_only else ""
+        query = "SELECT * FROM hebbian_sentinel_alerts"
+        if open_only:
+            query += " WHERE status = 'open'"
+        query += " ORDER BY id DESC LIMIT ?"
         rows = conn.execute(
-            f"SELECT * FROM hebbian_sentinel_alerts{where} ORDER BY id DESC LIMIT ?",
+            query,
             (limit,),
         ).fetchall()
         alerts = [dict(row) for row in rows]
