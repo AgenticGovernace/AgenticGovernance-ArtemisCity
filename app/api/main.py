@@ -642,13 +642,23 @@ async def get_report_content(filename: str, _key: None = Depends(_require_api_ke
         content = report_path.read_text(encoding="utf-8")
         return {"filename": filename, "content": content}
     try:
-        # Prevent path traversal vulnerabilities by enforcing output dir containment
-        output_dir = Path(AGENT_OUTPUT_DIR).resolve()
-        report_path = (output_dir / filename).resolve()
-        if not report_path.is_relative_to(output_dir):
+        # CodeQL fix: ensure the path is normalized and bounded.
+        # Check against commonpath to guarantee no traversal out of the output directory.
+        base_dir = os.path.abspath(AGENT_OUTPUT_DIR)
+        target_path = os.path.abspath(os.path.join(base_dir, filename))
+
+        if os.path.commonpath([base_dir, target_path]) != base_dir:
             raise ValueError("path escapes report output directory")
 
-        relative_path = os.path.join(AGENT_OUTPUT_DIR, filename)
+        # We also want to reject direct absolute path attempts or parent directory navigations
+        # early, just in case commonpath misses something due to symlinks on some platforms.
+        if ".." in filename or os.path.isabs(filename):
+            raise ValueError("path escapes report output directory")
+
+        # Pass the safe, normalized relative path to the internal reader
+        safe_relative = os.path.relpath(target_path, base_dir)
+        relative_path = os.path.join(AGENT_OUTPUT_DIR, safe_relative)
+
         content = orchestrator.obs_manager.read_note(relative_path)
         if content is None:
             raise HTTPException(status_code=404, detail="Report not found.")
