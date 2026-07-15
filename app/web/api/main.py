@@ -23,6 +23,7 @@ def _sanitize_for_log(value: Any) -> str:
     text = str(value)
     return text.replace("\r", "").replace("\n", "")
 
+
 import_error: Exception | None = None
 
 try:
@@ -36,7 +37,9 @@ except Exception as e:
     logger = logging.getLogger("mcp_dashboard_api")
     if not logger.handlers:
         logging.basicConfig(level=logging.INFO)
-    logger.warning("Orchestrator dependencies unavailable. SQLite-only mode enabled: %s", e)
+    logger.warning(
+        "Orchestrator dependencies unavailable. SQLite-only mode enabled: %s", e
+    )
 
 
 # --- Pydantic Models ---
@@ -160,8 +163,10 @@ app = FastAPI(
 )
 
 # Add CORS middleware
-_cors_origins_raw = os.environ.get("FASTAPI_CORS_ORIGINS", "http://localhost:3000,http://localhost:4000")
-_cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+_cors_origins_raw = os.environ.get("FASTAPI_CORS_ORIGINS", "")
+_cors_origins = [
+    o.strip() for o in _cors_origins_raw.split(",") if o.strip() and o.strip() != "*"
+]
 
 app.add_middleware(
     CORSMiddleware,
@@ -201,7 +206,9 @@ except Exception as e:
 @app.on_event("startup")
 async def startup_event():
     if import_error:
-        logger.warning("Startup in SQLite-only mode due to import error: %s", import_error)
+        logger.warning(
+            "Startup in SQLite-only mode due to import error: %s", import_error
+        )
     if orchestrator:
         logger.info("FastAPI application starting up. Orchestrator ready.")
     else:
@@ -310,12 +317,18 @@ async def get_report_content(filename: str, _key: None = Depends(_require_api_ke
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Error reading report %s: %s", _sanitize_for_log(filename), _sanitize_for_log(e))
+        logger.error(
+            "Error reading report %s: %s",
+            _sanitize_for_log(filename),
+            _sanitize_for_log(e),
+        )
         raise HTTPException(status_code=500, detail="Failed to read report.")
 
 
 @app.post("/api/execute-task")
-async def execute_pending_task(task_path: Dict[str, str], _key: None = Depends(_require_api_key)):
+async def execute_pending_task(
+    task_path: Dict[str, str], _key: None = Depends(_require_api_key)
+):
     """
     Executes a specific pending task identified by its relative_path in Obsidian.
     """
@@ -375,13 +388,17 @@ async def execute_pending_task(task_path: Dict[str, str], _key: None = Depends(_
         return {"message": "Task executed successfully", "results": results}
     except ValueError as ve:
         logger.error("Validation error executing task: %s", _sanitize_for_log(ve))
-        orchestrator.update_task_status_in_obsidian(relative_note_path, "failed", task_data.get("task_id"))  # type: ignore
+        orchestrator.update_task_status_in_obsidian(
+            relative_note_path, "failed", task_data.get("task_id")
+        )  # type: ignore
         raise HTTPException(status_code=400, detail="Invalid task data.")
     except HTTPException:
         raise
     except Exception as e:
         if "task_data" in locals() and "relative_note_path" in locals():
-            orchestrator.update_task_status_in_obsidian(relative_note_path, "failed", task_data.get("task_id"))  # type: ignore
+            orchestrator.update_task_status_in_obsidian(
+                relative_note_path, "failed", task_data.get("task_id")
+            )  # type: ignore
         logger.error(
             "Error executing task from %s: %s",
             _sanitize_for_log(relative_note_path),
@@ -494,7 +511,9 @@ async def get_hebbian_stats(_key: None = Depends(_require_api_key)):
 
 
 @app.get("/api/db/hebbian/connections", response_model=List[HebbianConnection])
-async def get_hebbian_connections(limit: int = 50, _key: None = Depends(_require_api_key)):
+async def get_hebbian_connections(
+    limit: int = 50, _key: None = Depends(_require_api_key)
+):
     """Get top Hebbian connections by weight."""
     if limit < 1:
         raise HTTPException(status_code=400, detail="limit must be >= 1")
@@ -523,19 +542,25 @@ async def get_hebbian_connections(limit: int = 50, _key: None = Depends(_require
                 activation_count=int(row["activation_count"]),
                 success_count=int(row["success_count"]),
                 failure_count=int(row["failure_count"]),
-                success_rate=_safe_rate(int(row["success_count"]), int(row["activation_count"])),
+                success_rate=_safe_rate(
+                    int(row["success_count"]), int(row["activation_count"])
+                ),
             )
             for row in rows
         ]
     except Exception as e:
         logger.error("Error fetching Hebbian connections: %s", _sanitize_for_log(e))
-        raise HTTPException(status_code=500, detail="Failed to fetch Hebbian connections.")
+        raise HTTPException(
+            status_code=500, detail="Failed to fetch Hebbian connections."
+        )
     finally:
         conn.close()
 
 
 @app.get("/api/db/hebbian/agent/{agent_name}")
-async def get_agent_hebbian_stats(agent_name: str, _key: None = Depends(_require_api_key)):
+async def get_agent_hebbian_stats(
+    agent_name: str, _key: None = Depends(_require_api_key)
+):
     """Get Hebbian statistics for a specific agent."""
     conn = _connect_db(HEBBIAN_DB)
     try:
@@ -575,12 +600,15 @@ async def get_agent_hebbian_stats(agent_name: str, _key: None = Depends(_require
             "average_weight": avg_weight,
             "success_rate": _safe_rate(total_successes, total_activations),
             "strongest_connections": [
-                {"target": row["target_node"], "weight": float(row["weight"])} for row in top_rows
+                {"target": row["target_node"], "weight": float(row["weight"])}
+                for row in top_rows
             ],
         }
     except Exception as e:
         logger.error("Error fetching agent Hebbian stats: %s", _sanitize_for_log(e))
-        raise HTTPException(status_code=500, detail="Failed to fetch agent Hebbian stats.")
+        raise HTTPException(
+            status_code=500, detail="Failed to fetch agent Hebbian stats."
+        )
     finally:
         conn.close()
 
@@ -612,7 +640,9 @@ async def get_vector_stats(_key: None = Depends(_require_api_key)):
 
 
 @app.get("/api/db/vectors/list")
-async def list_vectors(limit: int = 100, offset: int = 0, _key: None = Depends(_require_api_key)):
+async def list_vectors(
+    limit: int = 100, offset: int = 0, _key: None = Depends(_require_api_key)
+):
     """List vectors in the store with pagination."""
     if limit < 1:
         raise HTTPException(status_code=400, detail="limit must be >= 1")
@@ -688,7 +718,9 @@ async def get_runs(limit: int = 20, _key: None = Depends(_require_api_key)):
 
 
 @app.get("/api/db/runs/{run_id}/events")
-async def get_run_events_endpoint(run_id: str, event_type: str | None = None, _key: None = Depends(_require_api_key)):
+async def get_run_events_endpoint(
+    run_id: str, event_type: str | None = None, _key: None = Depends(_require_api_key)
+):
     """Get events for a specific run."""
     conn = _connect_db(RUN_LOG_DB)
     try:
@@ -734,7 +766,9 @@ async def get_run_events_endpoint(run_id: str, event_type: str | None = None, _k
 
 
 @app.post("/api/cli/execute", response_model=ExecuteInstructionResponse)
-async def execute_instruction(request: ExecuteInstructionRequest, _key: None = Depends(_require_api_key)):
+async def execute_instruction(
+    request: ExecuteInstructionRequest, _key: None = Depends(_require_api_key)
+):
     """
     Execute a CLI-style instruction with optional agent/capability specification.
     Mimics the behavior of: python main.py -i "instruction" -c "capability" --agent "agent_name"
@@ -747,7 +781,6 @@ async def execute_instruction(request: ExecuteInstructionRequest, _key: None = D
 
     try:
         from datetime import datetime
-        import time
 
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         task_id = f"user_instruction_{timestamp}"
@@ -785,7 +818,9 @@ async def execute_instruction(request: ExecuteInstructionRequest, _key: None = D
         note_path = None
         try:
             note_path = orchestrator.create_new_task_in_obsidian(task_data)
-            orchestrator.update_task_status_in_obsidian(note_path, "in progress", task_id)
+            orchestrator.update_task_status_in_obsidian(
+                note_path, "in progress", task_id
+            )
         except Exception as e:
             logger.error("Failed to create task in Obsidian: %s", _sanitize_for_log(e))
 
@@ -808,7 +843,9 @@ async def execute_instruction(request: ExecuteInstructionRequest, _key: None = D
         except Exception as e:
             logger.error("Error executing instruction: %s", _sanitize_for_log(e))
             if note_path:
-                orchestrator.update_task_status_in_obsidian(note_path, "failed", task_id)
+                orchestrator.update_task_status_in_obsidian(
+                    note_path, "failed", task_id
+                )
             return ExecuteInstructionResponse(
                 task_id=task_id,
                 status="failed",
