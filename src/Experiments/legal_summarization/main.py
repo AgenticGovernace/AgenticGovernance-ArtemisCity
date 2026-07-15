@@ -41,15 +41,64 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
+import sys
 from pathlib import Path
-from sys import path
 
 # Ensure repo root is importable so ``src.*`` resolves when running this
 # module directly (python src/Experiments/.../main.py) outside an installed
 # package context.
 _repo_root = Path(__file__).resolve().parents[3]
-if str(_repo_root) not in path:
-    path.insert(0, str(_repo_root))
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
+
+
+def _handoff_to_repo_runtime() -> None:
+    """Re-launch a direct CLI invocation with the repository environment.
+
+    IDE run configurations and bare ``python`` commands commonly select a
+    system interpreter even after ``make install`` populated ``.venv``.  The
+    experiment must use the locked repository runtime so compiled packages
+    such as PyArrow and the Hugging Face stack are loaded as one compatible
+    set.  Imports of this module are intentionally unaffected.
+    """
+    repo_environment = _repo_root / ".venv"
+    try:
+        active_environment = Path(sys.prefix).resolve()
+        expected_environment = repo_environment.resolve()
+    except OSError:
+        return
+
+    if active_environment == expected_environment:
+        return
+
+    executable_name = "python.exe" if os.name == "nt" else "python"
+    repo_python = repo_environment / ("Scripts" if os.name == "nt" else "bin")
+    repo_python /= executable_name
+    if not repo_python.is_file():
+        return
+
+    command = [
+        str(repo_python),
+        "-m",
+        "src.Experiments.legal_summarization.main",
+        *sys.argv[1:],
+    ]
+    print(
+        f"Re-launching legal evaluation with repository Python: {repo_python}",
+        file=sys.stderr,
+        flush=True,
+    )
+    try:
+        os.execv(str(repo_python), command)
+    except OSError as exc:
+        raise SystemExit(
+            f"Unable to launch the repository Python at {repo_python}: {exc}"
+        ) from exc
+
+
+if __name__ == "__main__":
+    _handoff_to_repo_runtime()
 
 try:
     from dotenv import load_dotenv

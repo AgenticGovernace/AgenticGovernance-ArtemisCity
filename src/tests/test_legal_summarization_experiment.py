@@ -2,6 +2,7 @@ import json
 import sqlite3
 import sys
 import types
+from pathlib import Path
 
 import pytest
 
@@ -99,7 +100,7 @@ def test_huggingface_loader_passes_current_options_and_maps_columns(
         "revision": "abc123",
         "token": "secret-token",
         "streaming": True,
-        "cache_dir": "/tmp/hf-cache",
+        "cache_dir": str(Path("/tmp/hf-cache").resolve()),
         "data_files": ["data/*.parquet"],
     }
     assert records == [

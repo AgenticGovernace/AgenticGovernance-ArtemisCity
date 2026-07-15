@@ -36,9 +36,10 @@ make legal-summarization \
   ARGS="--dataset-source hub --streaming --mode abstractive --limit 10"
 ```
 
-Avoid bare `python` and `python3` for this experiment. They may resolve to a
-system interpreter outside `.venv`; the Make targets always use the repository
-environment.
+The Make targets synchronize the locked dependencies before each run. Direct
+CLI or IDE launches also hand off automatically to the repository `.venv` when
+it exists, so a system `python` cannot accidentally bypass the installed
+Hugging Face stack. Run `make install` once if `.venv` has not been created.
 
 ## Hugging Face authentication
 
@@ -68,11 +69,17 @@ Important options:
 - `--dataset-name`: named Hub subset/configuration.
 - `--revision`: branch, tag, or commit SHA.
 - `--data-file`: file/glob within the repository; repeat as needed.
+- `--cache-dir`: explicit Hugging Face datasets cache directory.
 - `--streaming`: iterate without downloading the complete dataset.
 - `--input-column`, `--reference-column`, `--instruction-column`: schema map.
 - `--task-column` and `--task-filter`: optional row filter. Pass
   `--task-filter ''` when the dataset has no task column.
 - `--dataset-path`: local Parquet file or directory for offline runs.
+
+The datasets cache defaults to `data/huggingface/`, alongside the other
+canonical repository runtime data. Set `HF_DATASETS_CACHE` or pass
+`--cache-dir` when a container or specialized deployment needs an explicit
+location.
 
 For example, a dataset using `document` and `summary` columns can be inspected
 with:

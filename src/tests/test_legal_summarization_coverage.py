@@ -23,10 +23,10 @@ from src.Experiments.legal_summarization.dataset_loader import (
     huggingface_runtime_status,
     resolve_hf_token,
 )
+from src.Experiments.legal_summarization.evaluation import evaluate_summary
 from src.Experiments.legal_summarization.legal_summarizer_agent import (
     LegalSummarizerAgent,
 )
-from src.Experiments.legal_summarization.evaluation import evaluate_summary
 from src.Experiments.legal_summarization.run_store import RunStore
 from src.Experiments.legal_summarization.summarization_config import (
     AggregationLevel,
@@ -49,6 +49,55 @@ def test_cli_direct_file_bootstrap_adds_repo_root(
     assert isolated_path[0] == repo_root
 
 
+def test_cli_hands_bare_python_invocation_to_repo_environment(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    repo_root = tmp_path / "repo"
+    binary_dir = "Scripts" if cli.os.name == "nt" else "bin"
+    executable = "python.exe" if cli.os.name == "nt" else "python"
+    repo_python = repo_root / ".venv" / binary_dir / executable
+    repo_python.parent.mkdir(parents=True)
+    repo_python.touch()
+    execv = MagicMock()
+
+    monkeypatch.setattr(cli, "_repo_root", repo_root)
+    monkeypatch.setattr(cli.sys, "prefix", str(tmp_path / "system-python"))
+    monkeypatch.setattr(cli.sys, "argv", ["main.py", "--doctor"])
+    monkeypatch.setattr(cli.os, "execv", execv)
+
+    cli._handoff_to_repo_runtime()
+
+    execv.assert_called_once_with(
+        str(repo_python),
+        [
+            str(repo_python),
+            "-m",
+            "src.Experiments.legal_summarization.main",
+            "--doctor",
+        ],
+    )
+
+
+def test_cli_does_not_relaunch_inside_repo_environment(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    repo_root = tmp_path / "repo"
+    binary_dir = "Scripts" if cli.os.name == "nt" else "bin"
+    executable = "python.exe" if cli.os.name == "nt" else "python"
+    repo_python = repo_root / ".venv" / binary_dir / executable
+    repo_python.parent.mkdir(parents=True)
+    repo_python.touch()
+    execv = MagicMock()
+
+    monkeypatch.setattr(cli, "_repo_root", repo_root)
+    monkeypatch.setattr(cli.sys, "prefix", str(repo_root / ".venv"))
+    monkeypatch.setattr(cli.os, "execv", execv)
+
+    cli._handoff_to_repo_runtime()
+
+    execv.assert_not_called()
+
+
 def _record(index: int = 0, *, reference: str = "reference") -> JudgmentRecord:
     return JudgmentRecord(
         index=index,
@@ -59,6 +108,17 @@ def _record(index: int = 0, *, reference: str = "reference") -> JudgmentRecord:
         config="summary_en",
         split="test",
     )
+
+
+def test_dataset_cache_defaults_to_canonical_data_directory(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    monkeypatch.setenv("ARTEMIS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.delenv("HF_DATASETS_CACHE", raising=False)
+
+    loader = LegalDatasetLoader(source="hub")
+
+    assert loader.cache_dir == str(tmp_path / "data" / "huggingface")
 
 
 def test_token_resolution_covers_explicit_legacy_none_and_empty_prompt(

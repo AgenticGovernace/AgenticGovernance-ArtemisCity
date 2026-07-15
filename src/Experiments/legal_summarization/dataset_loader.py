@@ -24,6 +24,8 @@ from importlib import metadata
 from pathlib import Path
 from typing import Callable, Iterator, Optional
 
+from src.runtime_paths import data_path
+
 logger = logging.getLogger("legal_summarization.dataset_loader")
 
 HF_REPO_ID = "amjadali070/legal-judgements-en-ur-sd"
@@ -230,7 +232,11 @@ class LegalDatasetLoader:
         self.revision = (
             revision or os.getenv("LEGAL_DATASET_REVISION") or HF_REVISION
         ).strip()
-        self.cache_dir = cache_dir or os.getenv("HF_DATASETS_CACHE") or None
+        self.cache_dir = data_path(
+            "huggingface",
+            cache_dir,
+            env_var="HF_DATASETS_CACHE",
+        )
         self.data_files = list(data_files or []) or None
         self.streaming = bool(streaming)
         self._explicit_token = token

@@ -30,7 +30,7 @@
     "8000": "ignore",
     "5432": "ignore"
   },
-  "postCreateCommand": "bash -c 'cd /workspaces && uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -r requirements-dev.txt && npm install --prefer-offline 2>/dev/null || true'",
+  "postCreateCommand": "bash -c 'cd /workspaces && make install-dev && npm install --prefer-offline'",
   "remoteUser": "root",
   "customizations": {
     "vscode": {
