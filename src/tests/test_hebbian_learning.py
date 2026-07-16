@@ -2,6 +2,7 @@
 Tests for Hebbian learning implementation.
 """
 
+import copy
 import math
 import os
 import tempfile
@@ -455,6 +456,47 @@ def test_hebbian_snapshot_includes_sentinel_tables(hebbian_manager):
     snapshot = hebbian_manager.export_snapshot()
     assert "hebbian_sentinel_state" in snapshot["tables"]
     assert "hebbian_sentinel_alerts" in snapshot["tables"]
+
+
+def test_hebbian_snapshot_restores_legacy_partial_rows(hebbian_manager):
+    snapshot = {
+        "schema_version": 1,
+        "tables": {
+            "node_connections": [
+                {"origin_node": "legacy-agent", "target_node": "legacy-task"}
+            ]
+        },
+    }
+
+    restored = hebbian_manager.restore_snapshot(snapshot)
+
+    assert restored["node_connections"] == 1
+    connection = hebbian_manager.get_connection_stats("legacy-agent", "legacy-task")
+    assert connection is not None
+    assert connection["weight"] == 0.0
+    assert connection["activation_count"] == 0
+    assert connection["last_delta"] == 0.0
+    assert connection["last_performance"] == 0.0
+    assert hebbian_manager.export_snapshot()["tables"]["hebbian_engine_state"] == [
+        {
+            "singleton": 1,
+            "last_agent": None,
+            "last_performance": None,
+            "updated_at": None,
+        }
+    ]
+
+
+def test_hebbian_snapshot_rejects_unknown_columns_atomically(hebbian_manager):
+    hebbian_manager.strengthen_connection("agent", "task")
+    before = copy.deepcopy(hebbian_manager.export_snapshot())
+    invalid = copy.deepcopy(before)
+    invalid["tables"]["node_connections"][0]["unsafe,column"] = "blocked"
+
+    with pytest.raises(ValueError, match="unknown columns"):
+        hebbian_manager.restore_snapshot(invalid)
+
+    assert hebbian_manager.export_snapshot() == before
 
 
 @pytest.mark.integration

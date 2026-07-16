@@ -43,6 +43,228 @@ SENTINEL_THRESHOLD = 0.4
 
 
 @dataclass(frozen=True)
+class _SnapshotTableSpec:
+    columns: Tuple[str, ...]
+    select_sql: str
+    delete_sql: str
+    insert_sql: str
+    defaults: Dict[str, object]
+
+
+_SNAPSHOT_TABLE_SPECS: Dict[str, _SnapshotTableSpec] = {
+    "node_connections": _SnapshotTableSpec(
+        columns=(
+            "id",
+            "origin_node",
+            "target_node",
+            "weight",
+            "activation_count",
+            "success_count",
+            "failure_count",
+            "last_updated",
+            "created_at",
+            "last_delta",
+            "last_performance",
+        ),
+        select_sql="SELECT * FROM node_connections",
+        delete_sql="DELETE FROM node_connections",
+        insert_sql=(
+            "INSERT INTO node_connections "
+            "(id, origin_node, target_node, weight, activation_count, "
+            "success_count, failure_count, last_updated, created_at, "
+            "last_delta, last_performance) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        ),
+        defaults={
+            "id": None,
+            "weight": 0.0,
+            "activation_count": 0,
+            "success_count": 0,
+            "failure_count": 0,
+            "last_updated": None,
+            "created_at": None,
+            "last_delta": 0.0,
+            "last_performance": 0.0,
+        },
+    ),
+    "agent_pair_weights": _SnapshotTableSpec(
+        columns=(
+            "previous_agent",
+            "current_agent",
+            "weight",
+            "activation_count",
+            "success_count",
+            "failure_count",
+            "last_delta",
+            "last_updated",
+            "created_at",
+        ),
+        select_sql="SELECT * FROM agent_pair_weights",
+        delete_sql="DELETE FROM agent_pair_weights",
+        insert_sql=(
+            "INSERT INTO agent_pair_weights "
+            "(previous_agent, current_agent, weight, activation_count, "
+            "success_count, failure_count, last_delta, last_updated, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        ),
+        defaults={
+            "weight": 0.0,
+            "activation_count": 0,
+            "success_count": 0,
+            "failure_count": 0,
+            "last_delta": 0.0,
+        },
+    ),
+    "agent_timing_samples": _SnapshotTableSpec(
+        columns=(
+            "id",
+            "agent_name",
+            "task_type",
+            "duration_ms",
+            "performance",
+            "created_at",
+        ),
+        select_sql="SELECT * FROM agent_timing_samples",
+        delete_sql="DELETE FROM agent_timing_samples",
+        insert_sql=(
+            "INSERT INTO agent_timing_samples "
+            "(id, agent_name, task_type, duration_ms, performance, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)"
+        ),
+        defaults={"id": None, "duration_ms": None},
+    ),
+    "agent_timing_metrics": _SnapshotTableSpec(
+        columns=(
+            "agent_name",
+            "task_type",
+            "sample_count",
+            "avg_duration_ms",
+            "avg_performance",
+            "timing_score",
+            "updated_at",
+        ),
+        select_sql="SELECT * FROM agent_timing_metrics",
+        delete_sql="DELETE FROM agent_timing_metrics",
+        insert_sql=(
+            "INSERT INTO agent_timing_metrics "
+            "(agent_name, task_type, sample_count, avg_duration_ms, "
+            "avg_performance, timing_score, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)"
+        ),
+        defaults={
+            "sample_count": 0,
+            "avg_duration_ms": None,
+            "avg_performance": 0.0,
+            "timing_score": 0.5,
+        },
+    ),
+    "hebbian_engine_state": _SnapshotTableSpec(
+        columns=("singleton", "last_agent", "last_performance", "updated_at"),
+        select_sql="SELECT * FROM hebbian_engine_state",
+        delete_sql="DELETE FROM hebbian_engine_state",
+        insert_sql=(
+            "INSERT INTO hebbian_engine_state "
+            "(singleton, last_agent, last_performance, updated_at) "
+            "VALUES (?, ?, ?, ?)"
+        ),
+        defaults={
+            "singleton": 1,
+            "last_agent": None,
+            "last_performance": None,
+            "updated_at": None,
+        },
+    ),
+    "hebbian_learning_events": _SnapshotTableSpec(
+        columns=(
+            "id",
+            "agent_name",
+            "task_id",
+            "task_type",
+            "success",
+            "performance",
+            "delta",
+            "resulting_weight",
+            "pair_delta",
+            "duration_ms",
+            "individual_information",
+            "pair_information",
+            "timing_information",
+            "routing_intelligence",
+            "created_at",
+        ),
+        select_sql="SELECT * FROM hebbian_learning_events",
+        delete_sql="DELETE FROM hebbian_learning_events",
+        insert_sql=(
+            "INSERT INTO hebbian_learning_events "
+            "(id, agent_name, task_id, task_type, success, performance, delta, "
+            "resulting_weight, pair_delta, duration_ms, individual_information, "
+            "pair_information, timing_information, routing_intelligence, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        ),
+        defaults={
+            "id": None,
+            "task_type": None,
+            "pair_delta": 0.0,
+            "duration_ms": None,
+            "individual_information": 0.0,
+            "pair_information": 0.0,
+            "timing_information": 0.0,
+            "routing_intelligence": 0.0,
+        },
+    ),
+    "hebbian_sentinel_state": _SnapshotTableSpec(
+        columns=(
+            "agent_name",
+            "task_type",
+            "sample_count",
+            "sign_changes",
+            "oscillation_rate",
+            "alert_active",
+            "threshold",
+            "window_size",
+            "updated_at",
+        ),
+        select_sql="SELECT * FROM hebbian_sentinel_state",
+        delete_sql="DELETE FROM hebbian_sentinel_state",
+        insert_sql=(
+            "INSERT INTO hebbian_sentinel_state "
+            "(agent_name, task_type, sample_count, sign_changes, oscillation_rate, "
+            "alert_active, threshold, window_size, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        ),
+        defaults={
+            "sample_count": 0,
+            "sign_changes": 0,
+            "oscillation_rate": 0.0,
+            "alert_active": 0,
+        },
+    ),
+    "hebbian_sentinel_alerts": _SnapshotTableSpec(
+        columns=(
+            "id",
+            "agent_name",
+            "task_type",
+            "oscillation_rate",
+            "sample_count",
+            "threshold",
+            "status",
+            "created_at",
+            "resolved_at",
+        ),
+        select_sql="SELECT * FROM hebbian_sentinel_alerts",
+        delete_sql="DELETE FROM hebbian_sentinel_alerts",
+        insert_sql=(
+            "INSERT INTO hebbian_sentinel_alerts "
+            "(id, agent_name, task_type, oscillation_rate, sample_count, threshold, "
+            "status, created_at, resolved_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        ),
+        defaults={"id": None, "status": "open", "resolved_at": None},
+    ),
+}
+
+
+@dataclass(frozen=True)
 class HebbianUpdate:
     """Serializable result of one full Hebbian outcome update."""
 
@@ -785,13 +1007,15 @@ class HebbianWeightManager:
         if task_type:
             clauses.append("task_type = ?")
             params.append(task_type)
-        where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+        query = "SELECT * FROM hebbian_sentinel_state"
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        query += " ORDER BY updated_at DESC LIMIT ?"
         params.append(max(1, int(limit)))
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
-                "SELECT * FROM hebbian_sentinel_state"
-                f"{where} ORDER BY updated_at DESC LIMIT ?",
+                query,
                 params,
             ).fetchall()
         results = [dict(row) for row in rows]
@@ -806,12 +1030,14 @@ class HebbianWeightManager:
         limit: int = 100,
     ) -> List[dict]:
         """List persisted sentinel alert transitions."""
-        where = " WHERE status = 'open'" if open_only else ""
+        query = "SELECT * FROM hebbian_sentinel_alerts"
+        if open_only:
+            query += " WHERE status = 'open'"
+        query += " ORDER BY id DESC LIMIT ?"
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
-                "SELECT * FROM hebbian_sentinel_alerts"
-                f"{where} ORDER BY id DESC LIMIT ?",
+                query,
                 (max(1, int(limit)),),
             ).fetchall()
         return [dict(row) for row in rows]
@@ -1263,37 +1489,18 @@ class HebbianWeightManager:
 
     def export_snapshot(self) -> dict:
         """Return all Hebbian-owned tables as a JSON-serializable snapshot."""
-        tables = (
-            "node_connections",
-            "agent_pair_weights",
-            "agent_timing_samples",
-            "agent_timing_metrics",
-            "hebbian_engine_state",
-            "hebbian_learning_events",
-            "hebbian_sentinel_state",
-            "hebbian_sentinel_alerts",
-        )
         snapshot = {"schema_version": 1, "tables": {}}
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
-            for table in tables:
+            for table, spec in _SNAPSHOT_TABLE_SPECS.items():
                 snapshot["tables"][table] = [
-                    dict(row) for row in conn.execute(f"SELECT * FROM {table}")
+                    dict(row) for row in conn.execute(spec.select_sql)
                 ]
         return snapshot
 
     def restore_snapshot(self, snapshot: dict) -> dict:
         """Atomically restore a snapshot produced by :meth:`export_snapshot`."""
-        expected_tables = (
-            "node_connections",
-            "agent_pair_weights",
-            "agent_timing_samples",
-            "agent_timing_metrics",
-            "hebbian_engine_state",
-            "hebbian_learning_events",
-            "hebbian_sentinel_state",
-            "hebbian_sentinel_alerts",
-        )
+        expected_tables = tuple(_SNAPSHOT_TABLE_SPECS)
         tables = snapshot.get("tables") if isinstance(snapshot, dict) else None
         if not isinstance(tables, dict):
             raise ValueError("Hebbian snapshot must contain a tables object")
@@ -1303,31 +1510,29 @@ class HebbianWeightManager:
             conn.row_factory = sqlite3.Row
             conn.execute("BEGIN IMMEDIATE")
             for table in reversed(expected_tables):
-                conn.execute(f"DELETE FROM {table}")
+                conn.execute(_SNAPSHOT_TABLE_SPECS[table].delete_sql)
             for table in expected_tables:
+                spec = _SNAPSHOT_TABLE_SPECS[table]
                 rows = tables.get(table, [])
                 if not isinstance(rows, list):
                     raise ValueError(f"Hebbian table {table!r} must be a list")
-                columns = [
-                    row[1] for row in conn.execute(f"PRAGMA table_info({table})")
-                ]
                 for row in rows:
                     if not isinstance(row, dict):
                         raise ValueError(
                             f"Hebbian table {table!r} rows must be objects"
                         )
-                    unknown = set(row) - set(columns)
+                    unknown = set(row) - set(spec.columns)
                     if unknown:
                         raise ValueError(
                             f"Hebbian table {table!r} has unknown columns: "
                             f"{sorted(unknown)}"
                         )
-                    selected = [column for column in columns if column in row]
-                    placeholders = ", ".join("?" for _ in selected)
                     conn.execute(
-                        f"INSERT INTO {table} ({', '.join(selected)}) "
-                        f"VALUES ({placeholders})",
-                        [row[column] for column in selected],
+                        spec.insert_sql,
+                        [
+                            row[column] if column in row else spec.defaults.get(column)
+                            for column in spec.columns
+                        ],
                     )
                 restored[table] = len(rows)
             if not tables.get("hebbian_engine_state"):

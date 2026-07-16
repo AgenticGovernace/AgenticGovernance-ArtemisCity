@@ -766,50 +766,69 @@ def _update_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(updates, dict):
         raise BridgeError("updates must be an object", code="INVALID_REQUEST")
     store = _store(payload)
-    if store.get_agent_record(name) is None:
+    record = store.get_agent_record(name)
+    if record is None:
         raise BridgeError(f"agent not found: {name}", code="NOT_FOUND")
 
-    set_parts = ["updated_at = ?"]
-    params: list[Any] = [time.time()]
-
+    capabilities = record["capabilities"]
     if "capabilities" in updates:
-        set_parts.append("capabilities = ?")
-        params.append(json.dumps(_optional_string_list(updates, "capabilities") or []))
+        capabilities = _optional_string_list(updates, "capabilities") or []
+    description = record["description"]
     if "description" in updates or "role" in updates:
         description = (
             updates["description"] if "description" in updates else updates.get("role")
         )
         if description is not None and not isinstance(description, str):
             raise BridgeError("description must be a string", code="INVALID_REQUEST")
-        set_parts.append("description = ?")
-        params.append(description)
+    scores = {key: record[key] for key in ("alignment", "accuracy", "efficiency")}
+    trust_score = record["trust_score"]
     for key in ("alignment", "accuracy", "efficiency", "trust_score"):
         if key in updates:
-            set_parts.append(f"{key} = ?")
-            params.append(_optional_float(updates, key, None, 0.0, 1.0))
+            value = _optional_float(updates, key, None, 0.0, 1.0)
+            if key == "trust_score":
+                trust_score = value
+            else:
+                scores[key] = value
     if "trustLevel" in updates and "trust_score" not in updates:
-        set_parts.append("trust_score = ?")
-        params.append(_optional_float(updates, "trustLevel", None, 0.0, 1.0))
+        trust_score = _optional_float(updates, "trustLevel", None, 0.0, 1.0)
+    trust_tier = record["trust_tier"]
     if "trust_tier" in updates:
         tier = updates["trust_tier"]
         if tier not in ("auto", "monitored", "human"):
             raise BridgeError(
                 "trust_tier must be auto, monitored, or human", "INVALID_REQUEST"
             )
-        set_parts.append("trust_tier = ?")
-        params.append(tier)
+        trust_tier = tier
+    status = record["status"]
     if "status" in updates:
         status = updates["status"]
         if status not in ("active", "suspended", "quarantined"):
             raise BridgeError(
                 "status must be active, suspended, or quarantined", "INVALID_REQUEST"
             )
-        set_parts.append("status = ?")
-        params.append(status)
 
-    params.append(name)
     with sqlite3.connect(store.db_path) as conn:
-        conn.execute(f"UPDATE agents SET {', '.join(set_parts)} WHERE name = ?", params)
+        conn.execute(
+            """
+            UPDATE agents
+            SET capabilities = ?, description = ?, alignment = ?, accuracy = ?,
+                efficiency = ?, trust_score = ?, trust_tier = ?, status = ?,
+                updated_at = ?
+            WHERE name = ?
+            """,
+            (
+                json.dumps(capabilities),
+                description,
+                scores["alignment"],
+                scores["accuracy"],
+                scores["efficiency"],
+                trust_score,
+                trust_tier,
+                status,
+                time.time(),
+                name,
+            ),
+        )
         conn.commit()
     return store.get_agent_record(name) or {}
 

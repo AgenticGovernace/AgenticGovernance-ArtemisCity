@@ -19,6 +19,21 @@ from urllib.error import HTTPError, URLError
 from src.mcp import config as _mcp_config  # noqa: F401
 
 
+def _validated_http_url(value: str) -> str:
+    """Return a well-formed HTTP(S) URL or reject unsafe urllib schemes."""
+    try:
+        parsed = urllib.parse.urlsplit(value)
+        hostname = parsed.hostname
+        _ = parsed.port
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise ValueError("MCP base URL must be a valid HTTP(S) URL") from exc
+    if parsed.scheme.lower() not in {"http", "https"} or not hostname:
+        raise ValueError("MCP base URL must use http or https and include a host")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("MCP base URL must not contain embedded credentials")
+    return value
+
+
 class MCPOperation(Enum):
     """MCP server operation types."""
 
@@ -107,7 +122,7 @@ class MemoryClient:
         self.timeout = timeout
 
         # Ensure base_url doesn't end with slash
-        self.base_url = self.base_url.rstrip("/")
+        self.base_url = _validated_http_url(self.base_url).rstrip("/")
 
         if not self.api_key:
             raise ValueError(
@@ -130,6 +145,7 @@ class MemoryClient:
             urllib.error.URLError: If request fails
         """
         url = f"{self.base_url}/api/{operation.value}"
+        _validated_http_url(url)
 
         # Prepare request
         headers = {
@@ -143,7 +159,11 @@ class MemoryClient:
         )
 
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as response:
+            # The URL is restricted to HTTP(S) immediately above. Bandit does
+            # not follow that validation through urllib's Request object.
+            with urllib.request.urlopen(  # nosec B310
+                req, timeout=self.timeout
+            ) as response:
                 response_data = json.loads(response.read().decode("utf-8"))
                 return MCPResponse.from_json(response_data, response.status)
 
@@ -317,9 +337,10 @@ class MemoryClient:
         """
         try:
             url = f"{self.base_url}/health"
+            _validated_http_url(url)
             req = urllib.request.Request(url, method="GET")
 
-            with urllib.request.urlopen(req, timeout=5) as response:
+            with urllib.request.urlopen(req, timeout=5) as response:  # nosec B310
                 return response.status == 200
         except Exception:
             # Catch all exceptions during health check (network, timeout, etc.)

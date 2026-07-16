@@ -135,6 +135,31 @@ class TestMemoryClientConstruction:
         c = MemoryClient(base_url="http://localhost", api_key="key")
         assert c.timeout == 30
 
+    @pytest.mark.parametrize(
+        "base_url",
+        [
+            "file:///etc/passwd",
+            "ftp://example.test",
+            "data:text/plain,secret",
+            "//example.test",
+            "localhost:3000",
+            "http:///missing-host",
+            "http://user:secret@example.test",
+        ],
+    )
+    def test_rejects_non_http_or_malformed_base_urls(self, base_url):
+        with pytest.raises(ValueError, match="MCP base URL"):
+            MemoryClient(base_url=base_url, api_key="key")
+
+    @pytest.mark.parametrize(
+        "base_url",
+        ["http://localhost", "https://memory.example.test/prefix", "HTTP://LOCALHOST"],
+    )
+    def test_accepts_http_and_https_base_urls(self, base_url):
+        client = MemoryClient(base_url=base_url, api_key="key")
+
+        assert client.base_url == base_url
+
 
 # ---------------------------------------------------------------------------
 # _make_request mocking

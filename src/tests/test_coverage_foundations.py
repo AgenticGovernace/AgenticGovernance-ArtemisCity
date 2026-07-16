@@ -11,6 +11,7 @@ import importlib
 import pytest
 
 from src.integration.agent_types import TaskContext, TaskResult
+from src.mcp import config as mcp_config
 from src.utils import environments
 
 
@@ -86,6 +87,31 @@ def test_environment_config_path_is_repo_relative() -> None:
 
     assert root.name == "Artemis_City"
     assert environments._config_path("prod") == root / "config/environments/prod.yaml"
+
+
+def test_agent_folder_config_normalizes_legacy_absolute_paths(tmp_path) -> None:
+    """Legacy absolute folder values are accepted only inside the vault."""
+    vault = tmp_path / "vault"
+    input_dir = vault / "Agent Inputs"
+    input_dir.mkdir(parents=True)
+
+    assert (
+        mcp_config._vault_relative_dir(str(input_dir), vault_path=str(vault))
+        == "Agent Inputs"
+    )
+    assert (
+        mcp_config._vault_relative_dir("nested/outputs", vault_path=str(vault))
+        == "nested/outputs"
+    )
+
+
+@pytest.mark.parametrize("folder", ["../outside", "/tmp/outside"])
+def test_agent_folder_config_rejects_vault_escapes(tmp_path, folder: str) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+
+    with pytest.raises(ValueError, match="within the Obsidian vault"):
+        mcp_config._vault_relative_dir(folder, vault_path=str(vault))
 
 
 def test_legacy_kernel_package_reexports_maintained_classes() -> None:

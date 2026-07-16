@@ -44,14 +44,23 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 try:  # repo root on path (tests / app)
-    from src.utils.helpers import logger
+    from src.utils.helpers import logger, sanitize_for_log
 except ImportError:  # pragma: no cover - benchmark/bare layouts
     try:
-        from utils.helpers import logger
+        from utils.helpers import logger, sanitize_for_log
     except ImportError:
         import logging
 
         logger = logging.getLogger("artemis.hebbian_router")
+
+        def sanitize_for_log(value: object, max_length: int = 200) -> str:
+            """Provide a log-injection-safe fallback for bare benchmark layouts."""
+            text = str(value).replace("\r", " ").replace("\n", " ").replace("\t", " ")
+            text = "".join(ch if ch.isprintable() else " " for ch in text)
+            if len(text) > max_length:
+                return text[:max_length] + "…"
+            return text
+
 
 # Agents in these governance states are ineligible for routing.
 _BLOCKED_STATUSES = ("quarantined", "suspended")
@@ -350,7 +359,7 @@ class HebbianRouter:
                 sanitize_for_log(capability),
                 self.alpha,
                 self.beta,
-                best.name,
+                sanitize_for_log(best.name),
             )
         else:
             logger.info(
@@ -359,7 +368,7 @@ class HebbianRouter:
                 "over %d candidate(s)",
                 self.alpha,
                 self.beta,
-                best.name,
+                sanitize_for_log(best.name),
                 best.blended,
                 best.composite,
                 best.hebbian_weight,

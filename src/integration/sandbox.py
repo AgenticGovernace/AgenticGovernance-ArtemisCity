@@ -15,7 +15,7 @@ import fnmatch
 from dataclasses import dataclass, field
 from typing import Callable, Iterable, List, Optional
 
-from src.utils.helpers import logger
+from src.utils.helpers import logger, sanitize_for_log
 
 # Violation types mirror VIOLATION_TYPES in agent_registry / GOVERNANCE.md.
 VIOLATION_UNAUTHORIZED_TOOL = "unauthorized_tool"

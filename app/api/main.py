@@ -343,6 +343,22 @@ def _list_markdown_files(folder: Path) -> List[str]:
     )
 
 
+def _resolve_report_target(filename: str, vault_path: Path) -> tuple[Path, str]:
+    """Resolve a report filename strictly inside the configured output folder."""
+    requested = Path(filename)
+    if requested.is_absolute() or ".." in requested.parts:
+        raise ValueError("invalid report filename")
+
+    vault_root = vault_path.resolve()
+    output_dir = (vault_root / AGENT_OUTPUT_DIR).resolve()
+    report_path = (output_dir / requested).resolve()
+    try:
+        report_path.relative_to(output_dir)
+    except ValueError as exc:
+        raise ValueError("report path escapes output directory") from exc
+    return report_path, report_path.relative_to(vault_root).as_posix()
+
+
 def _parse_task_note(content: str) -> Dict[str, Any] | None:
     """Parse task Markdown through the canonical Obsidian parser."""
     return ObsidianParser().parse_task_note(content)
@@ -625,24 +641,25 @@ async def get_report_content(filename: str, _key: None = Depends(_require_api_ke
     Returns:
         dict[str, str]: Report filename and rendered markdown content.
     """
+    manager_vault = getattr(
+        getattr(orchestrator, "obs_manager", None), "vault_path", None
+    )
+    vault_path = (
+        Path(manager_vault)
+        if isinstance(manager_vault, (str, os.PathLike))
+        else _get_vault_path()
+    )
+    try:
+        report_path, relative_path = _resolve_report_target(filename, vault_path)
+    except (ValueError, OSError):
+        raise HTTPException(status_code=400, detail="Invalid report filename.")
+
     if not orchestrator:
-        vault_path = _get_vault_path()
-        output_dir = (vault_path / AGENT_OUTPUT_DIR).resolve()
-        # Resolve the joined path and require containment in the output
-        # directory so `..` / absolute segments cannot escape the vault.
-        # Do not echo the resolved path back to the client.
-        try:
-            report_path = (output_dir / filename).resolve()
-            if not report_path.is_relative_to(output_dir):
-                raise ValueError("path escapes report output directory")
-        except (ValueError, OSError):
-            raise HTTPException(status_code=400, detail="Invalid report filename.")
         if not report_path.is_file():
             raise HTTPException(status_code=404, detail="Report not found.")
         content = report_path.read_text(encoding="utf-8")
         return {"filename": filename, "content": content}
     try:
-        relative_path = os.path.join(AGENT_OUTPUT_DIR, filename)
         content = orchestrator.obs_manager.read_note(relative_path)
         if content is None:
             raise HTTPException(status_code=404, detail="Report not found.")
@@ -1053,11 +1070,13 @@ async def get_hebbian_sentinel_status(
         if task_type:
             clauses.append("task_type = ?")
             params.append(task_type)
-        where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+        query = "SELECT * FROM hebbian_sentinel_state"
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        query += " ORDER BY updated_at DESC LIMIT ?"
         params.append(limit)
         rows = conn.execute(
-            "SELECT * FROM hebbian_sentinel_state"
-            f"{where} ORDER BY updated_at DESC LIMIT ?",
+            query,
             tuple(params),
         ).fetchall()
         results = [dict(row) for row in rows]
@@ -1082,9 +1101,12 @@ async def get_hebbian_sentinel_alerts(
         raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
     conn = _connect_db(HEBBIAN_DB)
     try:
-        where = " WHERE status = 'open'" if open_only else ""
+        query = "SELECT * FROM hebbian_sentinel_alerts"
+        if open_only:
+            query += " WHERE status = 'open'"
+        query += " ORDER BY id DESC LIMIT ?"
         rows = conn.execute(
-            f"SELECT * FROM hebbian_sentinel_alerts{where} ORDER BY id DESC LIMIT ?",
+            query,
             (limit,),
         ).fetchall()
         alerts = [dict(row) for row in rows]

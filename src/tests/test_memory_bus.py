@@ -93,6 +93,39 @@ def test_vector_write_rolls_back_on_file_failure(tmp_path):
     vector_store.delete.assert_called_once()
 
 
+def test_rollback_failure_preserves_original_write_error_and_sanitizes_log(
+    tmp_path, caplog
+):
+    """A failed best-effort rollback must not mask the storage failure."""
+    write_error = OSError("disk full")
+
+    class FailingManager:
+        def __init__(self, vault_root):
+            self.vault_path = vault_root
+
+        def write_note(self, *args, **kwargs):
+            raise write_error
+
+    vector_store = MagicMock()
+    vector_store.delete.side_effect = OSError("rollback failed\r\nforged record")
+    bus = MemoryBus(FailingManager(tmp_path), vector_store)
+
+    with caplog.at_level("WARNING"), pytest.raises(OSError) as raised:
+        bus.write_note_with_embedding("notes/untrusted\nname.md", "content")
+
+    assert raised.value is write_error
+    vector_store.delete.assert_called_once_with("notes/untrusted\nname.md")
+    rollback_messages = [
+        record.getMessage()
+        for record in caplog.records
+        if "MemoryBus rollback failed" in record.getMessage()
+    ]
+    assert len(rollback_messages) == 1
+    assert "\r" not in rollback_messages[0]
+    assert "\n" not in rollback_messages[0]
+    assert "forged record" in rollback_messages[0]
+
+
 def test_governance_alert_on_repeated_failures(tmp_path):
     """Test that governance alert on repeated failures.
 
