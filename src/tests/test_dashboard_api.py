@@ -34,12 +34,16 @@ def dashboard_module(tmp_path_factory: pytest.TempPathFactory):
     patch = pytest.MonkeyPatch()
     patch.setenv("ARTEMIS_DATA_DIR", str(root / "data"))
     patch.setenv("OBSIDIAN_VAULT_PATH", str(vault))
+    patch.setenv("AGENT_INPUT_DIR", "Agent Inputs")
+    patch.setenv("AGENT_OUTPUT_DIR", "Agent Outputs")
     patch.setenv("ANACONDA_AGENT_PORTS", "")
     patch.setenv("FASTAPI_CORS_ORIGINS", "https://one.example, https://two.example ,")
     patch.delenv("FASTAPI_API_KEY", raising=False)
     patch.delenv("MCP_API_KEY", raising=False)
     sys.modules.pop("app.api.main", None)
     module = importlib.import_module("app.api.main")
+    module.AGENT_INPUT_DIR = "Agent Inputs"
+    module.AGENT_OUTPUT_DIR = "Agent Outputs"
     yield module
     module.app.dependency_overrides.clear()
     patch.undo()
@@ -65,8 +69,7 @@ def dashboard_db(tmp_path: Path, dashboard, monkeypatch: pytest.MonkeyPatch) -> 
     """Create the complete dashboard-facing SQLite schema with representative data."""
     db_path = tmp_path / "dashboard.db"
     conn = sqlite3.connect(db_path)
-    conn.executescript(
-        """
+    conn.executescript("""
         CREATE TABLE agents (
             name TEXT,
             capabilities TEXT,
@@ -131,8 +134,7 @@ def dashboard_db(tmp_path: Path, dashboard, monkeypatch: pytest.MonkeyPatch) -> 
             parent_prov_id TEXT,
             created_at TEXT
         );
-        """
-    )
+        """)
     conn.execute(
         "INSERT INTO agents VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (
@@ -397,8 +399,7 @@ def test_helpers_cover_sanitization_parsing_rates_and_task_notes(
     assert dashboard._safe_rate(3, 4) == 0.75
     assert dashboard._safe_rate(1, 0) == 0.0
 
-    note = dashboard._parse_task_note(
-        """---
+    note = dashboard._parse_task_note("""---
 task_id: T-1
 status: pending
 ---
@@ -407,8 +408,7 @@ Context: Case facts
 plain text that is intentionally ignored
 - [ ] first
 - [x] second
-"""
-    )
+""")
     assert note == {
         "task_id": "T-1",
         "status": "pending",
@@ -597,6 +597,7 @@ def test_fallback_tasks_reports_and_safe_report_reads(
     (output_dir / "Alpha_Report_T1_2.md").write_text("# report", encoding="utf-8")
     (output_dir / "odd.md").write_text("odd", encoding="utf-8")
     (vault / "secret.md").write_text("secret", encoding="utf-8")
+    (output_dir / "linked").symlink_to(vault, target_is_directory=True)
     monkeypatch.setattr(dashboard, "OBSIDIAN_VAULT_PATH", str(vault))
 
     with TestClient(dashboard.app) as test_client:
@@ -632,6 +633,9 @@ def test_fallback_tasks_reports_and_safe_report_reads(
         traversal = test_client.get("/api/reports/%2E%2E%2Fsecret.md")
         assert traversal.status_code == 400
         assert traversal.json() == {"detail": "Invalid report filename."}
+        symlink_escape = test_client.get("/api/reports/linked/secret.md")
+        assert symlink_escape.status_code == 400
+        assert symlink_escape.json() == {"detail": "Invalid report filename."}
 
 
 def test_live_agents_tasks_reports_and_creation(
@@ -664,6 +668,11 @@ def test_live_agents_tasks_reports_and_creation(
     assert reports[0]["task_id"] == "T9"
     assert reports[1]["agent"] == "unknown_agent"
     assert client.get("/api/reports/live.md").json()["content"] == "# live report"
+    orch.obs_manager.read_note.assert_called_with("Agent Outputs/live.md")
+    orch.obs_manager.read_note.reset_mock()
+    traversal = client.get("/api/reports/%2E%2E%2Fsecret.md")
+    assert traversal.status_code == 400
+    orch.obs_manager.read_note.assert_not_called()
 
     created = client.post(
         "/api/tasks",
@@ -829,6 +838,11 @@ def test_database_inspection_success_contracts(dashboard_db: Path, client: TestC
     ).json()
     assert signals["total"] == 1
     assert signals["signals"][0]["alert_active"] is True
+    injected_filter = client.get(
+        "/api/db/hebbian/sentinel",
+        params={"agent_name": "Alpha' OR 1=1 --", "limit": 5},
+    ).json()
+    assert injected_filter == {"signals": [], "total": 0}
     alerts = client.get("/api/db/hebbian/sentinel/alerts?open_only=true&limit=5").json()
     assert alerts["total"] == 1
     assert alerts["alerts"][0]["status"] == "open"

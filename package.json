@@ -44,9 +44,5 @@
   },
   "allowScripts": {
     "esbuild@0.21.5": true
-  },
-  "dependencies": {
-    "artemis-city-workspace": "link:",
-    "requirements": "^4.0.2"
   }
 }

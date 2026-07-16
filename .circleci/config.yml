@@ -128,6 +128,9 @@ jobs:
             print("env configs OK:", VALID_ENVIRONMENTS)
             PY
       - run:
+          name: Reject undefined Python names
+          command: .venv/bin/ruff check src app/api/main.py --select F821
+      - run:
           name: Run pytest with coverage
           command: |
             mkdir -p test-results
@@ -180,6 +183,9 @@ jobs:
       - run:
           name: Jest tests
           command: npm test
+      - run:
+          name: Dependency vulnerability gate
+          command: npm audit --audit-level=high
       - run:
           name: "Advisory: ESLint"
           command: npm run lint || true

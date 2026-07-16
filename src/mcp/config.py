@@ -53,10 +53,53 @@ OBSIDIAN_VAULT_PATH = os.getenv(
     str(_REPO_ROOT / "obsidian_vault"),
 )
 
+
+def _vault_relative_dir(
+    value: str, *, vault_path: str, legacy_name: str | None = None
+) -> str:
+    """Normalize a configured folder to a safe vault-relative path.
+
+    Older local ``.env`` files used absolute input/output paths. Preserve that
+    configuration only when the path is genuinely inside the configured
+    vault; paths outside the vault and parent traversals fail closed.
+    """
+    requested = Path(value).expanduser()
+    vault_root = Path(vault_path).expanduser().resolve()
+    if requested.is_absolute():
+        candidate = requested.resolve()
+    else:
+        if ".." in requested.parts:
+            raise ValueError("agent folder paths must remain within the Obsidian vault")
+        candidate = (vault_root / requested).resolve()
+    try:
+        relative = candidate.relative_to(vault_root)
+    except ValueError as exc:
+        # Test/deployment harnesses commonly override only the vault root while
+        # a legacy .env still holds the old absolute default folder. Redirect
+        # that exact known folder name into the new vault; never retain the
+        # outside absolute location.
+        if requested.is_absolute() and legacy_name and requested.name == legacy_name:
+            return legacy_name
+        raise ValueError(
+            "agent folder paths must remain within the Obsidian vault"
+        ) from exc
+    if not relative.parts:
+        raise ValueError("agent folder paths must name a folder within the vault")
+    return relative.as_posix()
+
+
 # Vault-relative folder names. Callers MUST NOT join these onto
 # OBSIDIAN_VAULT_PATH themselves; pass them straight to ObsidianManager methods.
-AGENT_INPUT_DIR = os.getenv("AGENT_INPUT_DIR", "Agent Inputs")
-AGENT_OUTPUT_DIR = os.getenv("AGENT_OUTPUT_DIR", "Agent Outputs")
+AGENT_INPUT_DIR = _vault_relative_dir(
+    os.getenv("AGENT_INPUT_DIR", "Agent Inputs"),
+    vault_path=OBSIDIAN_VAULT_PATH,
+    legacy_name="Agent Inputs",
+)
+AGENT_OUTPUT_DIR = _vault_relative_dir(
+    os.getenv("AGENT_OUTPUT_DIR", "Agent Outputs"),
+    vault_path=OBSIDIAN_VAULT_PATH,
+    legacy_name="Agent Outputs",
+)
 
 # --- EXO cluster (local LLM inference) --------------------------------------
 EXO_BASE_URL = os.getenv("EXO_BASE_URL", "http://localhost:52415")

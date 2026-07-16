@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 
-
 from ..utils.helpers import logger, sanitize_for_log
 
 
@@ -18,33 +17,25 @@ class ObsidianManager:
             vault_path = _vault
         self.vault_path = Path(vault_path)
         if not self.vault_path.is_dir():
-            logger.error(
-                "Obsidian vault path does not exist"
-            )
+            logger.error("Obsidian vault path does not exist")
             raise FileNotFoundError(f"Obsidian vault path not found: {self.vault_path}")
-        logger.info(
-            "Obsidian Manager initialized"
-        )
+        logger.info("Obsidian Manager initialized")
 
     def _get_full_path(self, relative_path: str) -> Path:
         """Resolve a vault-relative path and reject vault escapes."""
-        import os
+        requested = Path(relative_path)
+        if requested.is_absolute() or ".." in requested.parts:
+            raise ValueError(
+                "vault path must be relative and remain within the vault root"
+            )
 
-        vault_root_str = os.path.abspath(str(self.vault_path))
-
-        # Strip absolute prefixes safely to prevent absolute path injection in os.path.join
-        safe_rel_path = str(relative_path).lstrip("/").lstrip("\\")
-
-        # Safely join and resolve the path
-        joined_path = os.path.join(vault_root_str, safe_rel_path)
-        full_path_str = os.path.abspath(joined_path)
-
-        # Check against path traversal by ensuring the resolved path is within the vault root
-        # This is the canonical path injection defense recognized by CodeQL
-        if not full_path_str.startswith(vault_root_str + os.sep) and full_path_str != vault_root_str:
-            raise ValueError("vault path escapes configured vault root")
-
-        return Path(full_path_str)
+        vault_root = self.vault_path.resolve()
+        full_path = (vault_root / requested).resolve()
+        try:
+            full_path.relative_to(vault_root)
+        except ValueError as exc:
+            raise ValueError("vault path escapes configured vault root") from exc
+        return full_path
 
     def read_note(self, relative_path: str) -> str | None:
         """Reads the content of an Obsidian note.
@@ -115,7 +106,9 @@ class ObsidianManager:
         """
         full_path = self._get_full_path(relative_folder_path)
         if not full_path.is_dir():
-            logger.warning("Folder not found: %s", sanitize_for_log(relative_folder_path))
+            logger.warning(
+                "Folder not found: %s", sanitize_for_log(relative_folder_path)
+            )
             return []
         notes = [
             str(f.relative_to(full_path))
@@ -151,7 +144,9 @@ class ObsidianManager:
         """
         full_path = self._get_full_path(relative_path)
         if not full_path.exists():
-            logger.warning("Note not found for delete: %s", sanitize_for_log(relative_path))
+            logger.warning(
+                "Note not found for delete: %s", sanitize_for_log(relative_path)
+            )
             return False
         if not full_path.is_file():
             raise ValueError("vault path is not a file")

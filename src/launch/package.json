@@ -24,8 +24,5 @@
     "python"
   ],
   "author": "Prinston Palmer",
-  "license": "MIT",
-  "dependencies": {
-    "requirements": "^4.0.2"
-  }
+  "license": "MIT"
 }

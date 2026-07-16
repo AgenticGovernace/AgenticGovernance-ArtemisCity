@@ -260,15 +260,121 @@ class AgentRegistryStore:
             "learning_updated_at": learning_updated_at,
         }
 
-    _RECORD_COLUMNS = (
-        "name, capabilities, description, alignment, accuracy, efficiency, "
-        "trust_tier, status, violation_count, quarantined_at, trust_score, "
-        "execution_count, successful_executions, failed_executions, "
-        "hebbian_weight, hebbian_delta, hebbian_activations, "
-        "hebbian_success_rate, hebbian_task_type, hebbian_pair_bonus, "
-        "hebbian_timing_score, routing_intelligence, hebbian_oscillation_rate, "
-        "hebbian_sentinel_alert, hebbian_sentinel_samples, learning_updated_at"
+    _LIST_RECORDS_SQL = """
+        SELECT name, capabilities, description, alignment, accuracy, efficiency,
+               trust_tier, status, violation_count, quarantined_at, trust_score,
+               execution_count, successful_executions, failed_executions,
+               hebbian_weight, hebbian_delta, hebbian_activations,
+               hebbian_success_rate, hebbian_task_type, hebbian_pair_bonus,
+               hebbian_timing_score, routing_intelligence,
+               hebbian_oscillation_rate, hebbian_sentinel_alert,
+               hebbian_sentinel_samples, learning_updated_at
+        FROM agents
+        ORDER BY name ASC
+    """
+    _GET_RECORD_SQL = """
+        SELECT name, capabilities, description, alignment, accuracy, efficiency,
+               trust_tier, status, violation_count, quarantined_at, trust_score,
+               execution_count, successful_executions, failed_executions,
+               hebbian_weight, hebbian_delta, hebbian_activations,
+               hebbian_success_rate, hebbian_task_type, hebbian_pair_bonus,
+               hebbian_timing_score, routing_intelligence,
+               hebbian_oscillation_rate, hebbian_sentinel_alert,
+               hebbian_sentinel_samples, learning_updated_at
+        FROM agents
+        WHERE name = ?
+    """
+    _AGENT_SNAPSHOT_COLUMNS = (
+        "id",
+        "name",
+        "capabilities",
+        "description",
+        "alignment",
+        "accuracy",
+        "efficiency",
+        "created_at",
+        "updated_at",
+        "trust_tier",
+        "status",
+        "violation_count",
+        "quarantined_at",
+        "trust_score",
+        "execution_count",
+        "successful_executions",
+        "failed_executions",
+        "hebbian_weight",
+        "hebbian_delta",
+        "hebbian_activations",
+        "hebbian_success_rate",
+        "hebbian_task_type",
+        "hebbian_pair_bonus",
+        "hebbian_timing_score",
+        "routing_intelligence",
+        "hebbian_oscillation_rate",
+        "hebbian_sentinel_alert",
+        "hebbian_sentinel_samples",
+        "learning_updated_at",
     )
+    _AGENT_SNAPSHOT_DEFAULTS = {
+        "id": None,
+        "capabilities": "[]",
+        "description": None,
+        "alignment": None,
+        "accuracy": None,
+        "efficiency": None,
+        "created_at": None,
+        "updated_at": None,
+        "trust_tier": "monitored",
+        "status": "active",
+        "violation_count": 0,
+        "quarantined_at": None,
+        "trust_score": None,
+        "execution_count": 0,
+        "successful_executions": 0,
+        "failed_executions": 0,
+        "hebbian_weight": None,
+        "hebbian_delta": 0.0,
+        "hebbian_activations": 0,
+        "hebbian_success_rate": 0.0,
+        "hebbian_task_type": None,
+        "hebbian_pair_bonus": 0.0,
+        "hebbian_timing_score": None,
+        "routing_intelligence": 0.0,
+        "hebbian_oscillation_rate": 0.0,
+        "hebbian_sentinel_alert": 0,
+        "hebbian_sentinel_samples": 0,
+        "learning_updated_at": None,
+    }
+    _AGENT_SNAPSHOT_INSERT_SQL = """
+        INSERT INTO agents (
+            id, name, capabilities, description, alignment, accuracy, efficiency,
+            created_at, updated_at, trust_tier, status, violation_count,
+            quarantined_at, trust_score, execution_count, successful_executions,
+            failed_executions, hebbian_weight, hebbian_delta, hebbian_activations,
+            hebbian_success_rate, hebbian_task_type, hebbian_pair_bonus,
+            hebbian_timing_score, routing_intelligence, hebbian_oscillation_rate,
+            hebbian_sentinel_alert, hebbian_sentinel_samples, learning_updated_at
+        ) VALUES (
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?
+        )
+    """
+    _VIOLATION_SNAPSHOT_COLUMNS = (
+        "violation_id",
+        "agent_name",
+        "timestamp",
+        "violation_type",
+        "details",
+        "action_taken",
+        "cleared",
+    )
+    _VIOLATION_SNAPSHOT_DEFAULTS = {"cleared": 0}
+    _VIOLATION_SNAPSHOT_INSERT_SQL = """
+        INSERT INTO violations (
+            violation_id, agent_name, timestamp, violation_type,
+            details, action_taken, cleared
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    """
 
     def list_agent_records(self) -> List[dict]:
         """Return full persisted records for all agents, ordered by name.
@@ -277,9 +383,7 @@ class AgentRegistryStore:
             List[dict]: Persisted agent records sorted by agent name.
         """
         with sqlite3.connect(self.db_path) as conn:
-            rows = conn.execute(
-                f"SELECT {self._RECORD_COLUMNS} FROM agents ORDER BY name ASC"
-            ).fetchall()
+            rows = conn.execute(self._LIST_RECORDS_SQL).fetchall()
         return [self._row_to_record(row) for row in rows]
 
     def get_agent_record(self, name: str) -> Optional[dict]:
@@ -293,7 +397,7 @@ class AgentRegistryStore:
         """
         with sqlite3.connect(self.db_path) as conn:
             row = conn.execute(
-                f"SELECT {self._RECORD_COLUMNS} FROM agents WHERE name = ?",
+                self._GET_RECORD_SQL,
                 (name,),
             ).fetchone()
         return self._row_to_record(row) if row else None
@@ -711,24 +815,40 @@ class AgentRegistryStore:
 
             # Only release quarantine; a 'suspended' status was set for
             # reasons unrelated to violations and must not be cleared here.
-            update_fields = [
-                "violation_count = 0",
-                "trust_score = ?",
-                "status = CASE WHEN status = 'quarantined' THEN 'active' "
-                "ELSE status END",
-                "quarantined_at = NULL",
-                "updated_at = ?",
-            ]
-            params: list = [cleared_trust, time.time()]
-            if override_tier is not None:
-                update_fields.insert(-1, "trust_tier = ?")
-                params.insert(-1, override_tier)
-            params.append(agent_name)
-
-            conn.execute(
-                f"UPDATE agents SET {', '.join(update_fields)} WHERE name = ?",
-                params,
-            )
+            timestamp = time.time()
+            if override_tier is None:
+                conn.execute(
+                    """
+                    UPDATE agents
+                    SET violation_count = 0,
+                        trust_score = ?,
+                        status = CASE
+                            WHEN status = 'quarantined' THEN 'active'
+                            ELSE status
+                        END,
+                        quarantined_at = NULL,
+                        updated_at = ?
+                    WHERE name = ?
+                    """,
+                    (cleared_trust, timestamp, agent_name),
+                )
+            else:
+                conn.execute(
+                    """
+                    UPDATE agents
+                    SET violation_count = 0,
+                        trust_score = ?,
+                        status = CASE
+                            WHEN status = 'quarantined' THEN 'active'
+                            ELSE status
+                        END,
+                        quarantined_at = NULL,
+                        trust_tier = ?,
+                        updated_at = ?
+                    WHERE name = ?
+                    """,
+                    (cleared_trust, override_tier, timestamp, agent_name),
+                )
             conn.commit()
 
         logger.info(
@@ -829,37 +949,50 @@ class AgentRegistryStore:
 
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
-            agent_columns = [
-                row[1] for row in conn.execute("PRAGMA table_info(agents)")
-            ]
-            violation_columns = [
-                row[1] for row in conn.execute("PRAGMA table_info(violations)")
-            ]
 
-            def _restore_rows(table: str, columns: list[str], rows: list[dict]) -> None:
-                for row in rows:
-                    if not isinstance(row, dict):
-                        raise ValueError(f"{table} snapshot rows must be objects")
-                    unknown = set(row) - set(columns)
-                    if unknown:
-                        raise ValueError(
-                            f"{table} snapshot contains unknown columns: {sorted(unknown)}"
-                        )
-                    selected = [column for column in columns if column in row]
-                    if not selected:
-                        raise ValueError(f"{table} snapshot row is empty")
-                    placeholders = ", ".join("?" for _ in selected)
-                    conn.execute(
-                        f"INSERT INTO {table} ({', '.join(selected)}) "
-                        f"VALUES ({placeholders})",
-                        [row[column] for column in selected],
+            def _snapshot_values(
+                table: str,
+                columns: tuple[str, ...],
+                defaults: dict,
+                row: dict,
+            ) -> list:
+                if not isinstance(row, dict):
+                    raise ValueError(f"{table} snapshot rows must be objects")
+                unknown = set(row) - set(columns)
+                if unknown:
+                    raise ValueError(
+                        f"{table} snapshot contains unknown columns: {sorted(unknown)}"
                     )
+                if not row:
+                    raise ValueError(f"{table} snapshot row is empty")
+                return [
+                    row[column] if column in row else defaults.get(column)
+                    for column in columns
+                ]
 
             conn.execute("BEGIN IMMEDIATE")
             conn.execute("DELETE FROM violations")
             conn.execute("DELETE FROM agents")
-            _restore_rows("agents", agent_columns, agents)
-            _restore_rows("violations", violation_columns, violations)
+            for row in agents:
+                conn.execute(
+                    self._AGENT_SNAPSHOT_INSERT_SQL,
+                    _snapshot_values(
+                        "agents",
+                        self._AGENT_SNAPSHOT_COLUMNS,
+                        self._AGENT_SNAPSHOT_DEFAULTS,
+                        row,
+                    ),
+                )
+            for row in violations:
+                conn.execute(
+                    self._VIOLATION_SNAPSHOT_INSERT_SQL,
+                    _snapshot_values(
+                        "violations",
+                        self._VIOLATION_SNAPSHOT_COLUMNS,
+                        self._VIOLATION_SNAPSHOT_DEFAULTS,
+                        row,
+                    ),
+                )
             conn.commit()
         return {"agents": len(agents), "violations": len(violations)}
 

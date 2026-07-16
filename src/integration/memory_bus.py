@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from src.obsidian_integration import ObsidianManager
-from src.utils.helpers import logger
+from src.utils.helpers import logger, sanitize_for_log
 
 from ..mcp.vector_store import LocalVectorStore
 from .memory_decay import MemoryDecayService, MemoryNode
@@ -160,7 +160,9 @@ class MemoryBus:
                     Exception
                 ) as rollback_exc:  # pragma: no cover - best-effort rollback
                     logger.warning(
-                        "MemoryBus rollback failed for %s: %s", sanitize_for_log(doc_id), sanitize_for_log(rollback_exc)
+                        "MemoryBus rollback failed for %s: %s",
+                        sanitize_for_log(doc_id),
+                        sanitize_for_log(rollback_exc),
                     )
             # Governance fires for every failed Obsidian write, including
             # embed=False — otherwise repeated no-embed failures would

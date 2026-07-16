@@ -97,6 +97,25 @@ def test_registry_snapshot_round_trip_restores_learning_and_governance(tmp_path)
     assert violations[0]["cleared"] is False
 
 
+def test_registry_snapshot_restores_legacy_partial_agent_defaults(tmp_path):
+    registry = AgentRegistry(db_path=str(tmp_path / "registry.db"))
+    snapshot = {
+        "schema_version": 1,
+        "agents": [{"name": "Legacy", "capabilities": '["research"]'}],
+        "violations": [],
+    }
+
+    assert registry.restore_snapshot(snapshot) == {"agents": 1, "violations": 0}
+
+    record = registry.store.get_agent_record("Legacy")
+    assert record is not None
+    assert record["capabilities"] == ["research"]
+    assert record["trust_tier"] == "monitored"
+    assert record["status"] == "active"
+    assert record["violation_count"] == 0
+    assert record["hebbian_delta"] == 0.0
+
+
 @pytest.mark.parametrize(
     "invalid_snapshot",
     [
