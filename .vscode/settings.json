@@ -1,5 +1,5 @@
 {
-    "circleci.filters.branchFilter": "default",
+    "circleci.filters.branchFilter": "allBranches",
     "yaml.disableSchemaDetection": [],
     "yaml.schemas": {
         "https://www.schemastore.org/circleciconfig.json": "file:///Users/prinstono.palmer/git/repository/Artemis_City/.circleci/config.yml",
@@ -709,5 +709,9 @@
         "https://github.com/fbecart/zinoma/releases/latest/download/zinoma-schema.json": "file:///Users/prinstono.palmer/git/repository/Artemis_City/.circleci/config.yml",
         "https://raw.githubusercontent.com/woodruffw/zizmor/main/support/zizmor.schema.json": "file:///Users/prinstono.palmer/git/repository/Artemis_City/.circleci/config.yml",
         "https://www.schemastore.org/zuul.json": "file:///Users/prinstono.palmer/git/repository/Artemis_City/.circleci/config.yml"
-    }
+    },
+    "circleci.persistedProjectSelection": [
+        "gh/AgenticGovernace/Artemis_City",
+        "gh/AgenticGovernace/ramble_on"
+    ]
 }

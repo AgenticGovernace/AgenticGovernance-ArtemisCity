@@ -7,7 +7,7 @@ name = "artemis-city"
 version = "0.7.0"
 description = "Governed multi-agent orchestration with trust-aware routing and Obsidian-backed memory."
 readme = "README.md"
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.12,<3.16"
 license = { text = "Apache-2.0" }
 authors = [
     { name = "Prinston Palmer", email = "prinstonpalmer879@gmail.com" },
@@ -295,20 +295,24 @@ dependencies = [
     "yapf==0.43.0",
     "yarl==1.24.2",
     "zipp==4.1.0",
-]
-
-[project.optional-dependencies]
-dashboard = [
+    "ipykernel (>=7.3.0,<8.0.0)",
+    "pandas-stubs~=3.0.3",
+    "scikit-learn>=1.9.0",
+    "sklearn",
+    "scikit",
+    "sci-kit",
     "fastapi>=0.109.1",
     "python-multipart>=0.0.27",
     "uvicorn[standard]>=0.15.0",
-]
-data = [
     "datasets>=2.18.0",
     "numpy>=1.24.0",
     "pandas>=1.5.0",
     "pyarrow>=23.0.1",
-    "scikit-learn>=1.4.0",
+    "scikit_learn>=1.4.0",
+    "pyenv",
+    "pip",
+    "pipx",
+    "npx",
 ]
 db = [
     "alembic>=1.7.0",
