@@ -19,7 +19,6 @@ import pytest
 import src.api_bridge as bridge
 from src.api_bridge import BridgeError, dispatch
 
-
 ATP_MESSAGE = (
     "#Mode: Build\n"
     "#Context: Exercise the bridge\n"
@@ -273,8 +272,7 @@ class TestATPReadAndRoutingCoverage:
         db_path = tmp_path / "nested" / "legacy_atp.db"
         db_path.parent.mkdir()
         with sqlite3.connect(db_path) as conn:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE atp_messages (
                     message_id TEXT PRIMARY KEY,
                     raw_message TEXT NOT NULL,
@@ -286,8 +284,7 @@ class TestATPReadAndRoutingCoverage:
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
-                """
-            )
+                """)
 
         result = dispatch("atp.queue", {"atp_db_path": str(db_path)})
         assert result["total"] == 0

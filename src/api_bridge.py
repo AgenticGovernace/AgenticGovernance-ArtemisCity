@@ -49,11 +49,7 @@ from src.integration.hebbian_router import HebbianRouter
 from src.integration.learning_governance import LearningGovernanceCoordinator
 from src.integration.memory_bus import MemoryBus
 from src.integration.sandbox import AgentSandbox
-from src.integration.trust_interface import (
-    TRUST_THRESHOLDS,
-    TrustInterface,
-    TrustLevel,
-)
+from src.integration.trust_interface import TRUST_THRESHOLDS, TrustInterface, TrustLevel
 from src.mcp.hebbian_weights import HebbianWeightManager
 from src.mcp.vector_store import LocalVectorStore
 from src.obsidian_integration.manager import ObsidianManager

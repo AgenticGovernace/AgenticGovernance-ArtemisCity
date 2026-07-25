@@ -160,26 +160,32 @@ class LLMAgent(base_agent.BaseAgent):
             10,
             max(
                 0,
-                int(max_retries)
-                if max_retries is not None
-                else _env_int("EXO_MAX_RETRIES", DEFAULT_EXO_MAX_RETRIES),
+                (
+                    int(max_retries)
+                    if max_retries is not None
+                    else _env_int("EXO_MAX_RETRIES", DEFAULT_EXO_MAX_RETRIES)
+                ),
             ),
         )
         self.retry_backoff_seconds = max(
             0.0,
-            float(retry_backoff_seconds)
-            if retry_backoff_seconds is not None
-            else _env_float(
-                "EXO_RETRY_BACKOFF_SECONDS", DEFAULT_EXO_RETRY_BACKOFF_SECONDS
+            (
+                float(retry_backoff_seconds)
+                if retry_backoff_seconds is not None
+                else _env_float(
+                    "EXO_RETRY_BACKOFF_SECONDS", DEFAULT_EXO_RETRY_BACKOFF_SECONDS
+                )
             ),
         )
         self.retry_max_delay_seconds = max(
             0.0,
-            float(retry_max_delay_seconds)
-            if retry_max_delay_seconds is not None
-            else _env_float(
-                "EXO_RETRY_MAX_DELAY_SECONDS",
-                DEFAULT_EXO_RETRY_MAX_DELAY_SECONDS,
+            (
+                float(retry_max_delay_seconds)
+                if retry_max_delay_seconds is not None
+                else _env_float(
+                    "EXO_RETRY_MAX_DELAY_SECONDS",
+                    DEFAULT_EXO_RETRY_MAX_DELAY_SECONDS,
+                )
             ),
         )
         self.api_key = os.getenv("EXO_API_KEY", "").strip()

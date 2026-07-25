@@ -88,7 +88,7 @@ npm install
 ```bash
 make test
 make run
-python -m app.kernel.cli "system status"
+python3.12 -m app.kernel.cli "system status"
 ```
 
 ## Common Commands

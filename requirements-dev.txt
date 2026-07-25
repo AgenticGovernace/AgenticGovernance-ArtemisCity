@@ -4,9 +4,6 @@ pytest>=9.0.3
 python-dotenv>=1.2.2
 
 # FastAPI stack
-fastapi>=0.109.1
-uvicorn[standard]>=0.15.0
-python-multipart>=0.0.27
 pydantic>=2.4.0
 
 # Database
@@ -35,8 +32,6 @@ bandit>=1.7.0
 safety>=2.3.0
 
 # Data science (optional, for demos)
-numpy>=1.24.0
-pandas>=1.5.0
 
 # CLI/Development
 click>=8.1.0

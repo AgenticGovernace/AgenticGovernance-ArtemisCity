@@ -1,5 +1,4 @@
-
-#!/bin/bash
+#!/usr/bin/env bash
 
 echo "--- System Health Check (Sandbox City - Watchtower) ---"
 

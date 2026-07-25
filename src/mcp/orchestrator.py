@@ -24,7 +24,7 @@ from ..integration.memory_decay import MemoryDecayService
 from ..integration.sandbox import AgentSandbox
 from ..mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
 from ..mcp.hebbian_weights import HebbianWeightManager
-from ..mcp.vector_store import LocalVectorStore
+from ..mcp.vector_store import create_vector_store
 
 # Lazy import to avoid circular dependency
 _run_logger = None
@@ -96,9 +96,14 @@ class Orchestrator:
         >>> summary = orchestrator.execute_all_pending_tasks()
     """
 
-    def __init__(self) -> None:
+    def __init__(self, vector_store=None) -> None:
         """
         Initialize the Orchestrator with all required subsystems.
+
+        Args:
+            vector_store: Optional pre-built vector store (any object matching
+                the LocalVectorStore interface). When omitted, the backend is
+                selected by ARTEMIS_VECTOR_BACKEND via create_vector_store().
 
         Creates and configures:
         - Obsidian integration (manager, parser, generator)
@@ -119,8 +124,11 @@ class Orchestrator:
         # Initialize Hebbian learning layer
         self.hebbian = HebbianWeightManager()
 
-        # Initialize hybrid memory layer (vector + explicit Obsidian)
-        self.vector_store = LocalVectorStore()
+        # Initialize hybrid memory layer (vector + explicit Obsidian);
+        # backend selected by ARTEMIS_VECTOR_BACKEND (sqlite default, supabase opt-in)
+        self.vector_store = (
+            vector_store if vector_store is not None else create_vector_store()
+        )
         self.governance_monitor = GovernanceMonitor()
         memory_decay_enabled = os.getenv(
             "ARTEMIS_MEMORY_DECAY_ENABLED", "1"

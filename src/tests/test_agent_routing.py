@@ -308,22 +308,23 @@ class TestOrchestratorRouting:
 
             # Mock only vault/vector dependencies. The real learning and
             # registry stores are exercised inside the isolated temp data dir.
+            mock_vector_store_instance = Mock()
+            mock_vector_store_instance.count.return_value = 0
+
             with (
                 patch("src.mcp.orchestrator.ObsidianParser"),
                 patch("src.mcp.orchestrator.ObsidianGenerator"),
-                patch("src.mcp.orchestrator.LocalVectorStore") as MockVectorStore,
                 patch("src.mcp.orchestrator.MemoryBus") as MockMemoryBus,
             ):
-                mock_vector_store_instance = MockVectorStore.return_value
-                mock_vector_store_instance.count.return_value = 0
-
                 mock_memory_bus_instance = MockMemoryBus.return_value
                 mock_memory_bus_instance.write_note_with_embedding.return_value = {
                     "status": "success"
                 }
                 mock_memory_bus_instance.read.return_value = []
 
-                self.orchestrator = Orchestrator()
+                self.orchestrator = Orchestrator(
+                    vector_store=mock_vector_store_instance
+                )
 
         yield  # Run the test
 

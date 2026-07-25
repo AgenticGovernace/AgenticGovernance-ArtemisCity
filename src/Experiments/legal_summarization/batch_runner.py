@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Optional
 
 from .dataset_loader import JudgmentRecord, LegalDatasetLoader
+from .eval_harness import LegalEvalHarness
 from .evaluation import aggregate_metrics, evaluate_summary
 from .legal_summarizer_agent import LegalSummarizerAgent
 from .run_store import RunStore
@@ -175,6 +176,7 @@ class BatchRunner:
         failed = 0
         metric_items: list[dict[str, float]] = []
 
+        harness = LegalEvalHarness()
         for i, rec in enumerate(records):
             logger.info(
                 "[%d/%d] Summarizing record %d (%d chars)...",
@@ -203,11 +205,23 @@ class BatchRunner:
             status = result.get("status", "failed")
             generated = result.get("summary", "")
             mode = result.get("mode", "unknown")
-            metrics = (
-                evaluate_summary(generated, rec.output_text, rec.input_text)
-                if status == "success" and rec.output_text
-                else {}
-            )
+
+            eval_res = None
+            metrics = {}
+            if status == "success":
+                eval_obj = harness.evaluate_record(
+                    generated_summary=generated,
+                    source_text=rec.input_text,
+                    reference_summary=rec.output_text if rec.output_text else None,
+                    config=config,
+                )
+                eval_res = eval_obj.to_dict()
+                metrics = (
+                    evaluate_summary(generated, rec.output_text, rec.input_text)
+                    if rec.output_text
+                    else {}
+                )
+                metrics["overall_eval_score"] = eval_obj.overall_score
 
             self.store.store_result(
                 run_id=run_id,
@@ -219,6 +233,7 @@ class BatchRunner:
                 status=status,
                 inference_ms=inference_ms,
                 metrics=metrics,
+                eval_result=eval_res,
             )
 
             if status == "success":
@@ -238,6 +253,7 @@ class BatchRunner:
                         "mode": mode,
                         "input_chars": len(rec.input_text),
                         "metrics": metrics,
+                        "eval_grade": eval_res.get("grade") if eval_res else None,
                         "dataset": self.loader.last_load_info,
                     },
                 )
@@ -280,11 +296,21 @@ class BatchRunner:
             record.output_text for record in records if record.output_text
         )
         source = "\n\n".join(texts)
-        metrics = (
-            evaluate_summary(generated, reference, source)
-            if status == "success" and reference
-            else {}
-        )
+
+        eval_res = None
+        metrics = {}
+        if status == "success":
+            eval_obj = LegalEvalHarness().evaluate_record(
+                generated_summary=generated,
+                source_text=source,
+                reference_summary=reference if reference else None,
+                config=config,
+            )
+            eval_res = eval_obj.to_dict()
+            metrics = (
+                evaluate_summary(generated, reference, source) if reference else {}
+            )
+            metrics["overall_eval_score"] = eval_obj.overall_score
 
         # Store as a single result with index -1 to mark it as batch
         self.store.store_result(
@@ -297,6 +323,7 @@ class BatchRunner:
             status=status,
             inference_ms=inference_ms,
             metrics=metrics,
+            eval_result=eval_res,
         )
 
         if status == "success":

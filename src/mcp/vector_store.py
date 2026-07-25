@@ -176,7 +176,9 @@ class LocalVectorStore:
 
         latency_ms = (time.perf_counter() - start_time) * 1000
         logger.debug(
-            "Upserted doc_id=%s into vector store (%.2fms)", sanitize_for_log(doc_id), latency_ms
+            "Upserted doc_id=%s into vector store (%.2fms)",
+            sanitize_for_log(doc_id),
+            latency_ms,
         )
 
         # Log to run logger
@@ -228,7 +230,11 @@ class LocalVectorStore:
             conn.commit()
 
         latency_ms = (time.perf_counter() - start_time) * 1000
-        logger.debug("Deleted doc_id=%s from vector store (%.2fms)", sanitize_for_log(doc_id), latency_ms)
+        logger.debug(
+            "Deleted doc_id=%s from vector store (%.2fms)",
+            sanitize_for_log(doc_id),
+            latency_ms,
+        )
 
         # Log to run logger
         run_logger = _get_run_logger()
@@ -372,3 +378,40 @@ class LocalVectorStore:
             cursor = conn.execute("SELECT COUNT(*) FROM vectors")
             (count,) = cursor.fetchone()
             return count
+
+
+def create_vector_store(
+    embedding_fn: Optional[Callable[[str], List[float]]] = None,
+):
+    """
+    Build the vector store selected by ``ARTEMIS_VECTOR_BACKEND``.
+
+    Backends:
+        ``sqlite`` (default) — LocalVectorStore, self-contained and offline.
+        ``supabase``         — SupabaseVectorStore over pgvector; requires
+                               ARTEMIS_SUPABASE_DB_URL (or SUPABASE_DB_URL).
+
+    The Supabase backend is best-effort at boot: if it cannot be constructed
+    (missing driver, missing DSN, unreachable database), the factory logs a
+    warning and falls back to the local SQLite store so the orchestrator
+    still comes up — mirroring how the trust signal degrades rather than
+    blocking routing.
+    """
+    backend = os.getenv("ARTEMIS_VECTOR_BACKEND", "sqlite").strip().lower()
+    if backend in ("", "sqlite", "local"):
+        return LocalVectorStore(embedding_fn=embedding_fn)
+    if backend == "supabase":
+        try:
+            from src.mcp.supabase_vector_store import SupabaseVectorStore
+
+            return SupabaseVectorStore(embedding_fn=embedding_fn)
+        except Exception as exc:
+            logger.warning(
+                "Supabase vector backend unavailable (%s); "
+                "falling back to local SQLite vector store",
+                sanitize_for_log(str(exc)),
+            )
+            return LocalVectorStore(embedding_fn=embedding_fn)
+    raise ValueError(
+        f"Unknown ARTEMIS_VECTOR_BACKEND: {backend!r} (expected 'sqlite' or 'supabase')"
+    )

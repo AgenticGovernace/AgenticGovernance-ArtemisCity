@@ -109,7 +109,12 @@ class RunStore:
             self._ensure_columns(
                 conn,
                 "results",
-                {"metrics_json": "TEXT"},
+                {
+                    "metrics_json": "TEXT",
+                    "eval_grade": "TEXT",
+                    "eval_score": "REAL",
+                    "eval_review_json": "TEXT",
+                },
             )
             conn.commit()
 
@@ -236,6 +241,7 @@ class RunStore:
         status: str,
         inference_ms: float,
         metrics: Optional[dict] = None,
+        eval_result: Optional[dict] = None,
     ) -> None:
         """Store result.
 
@@ -248,18 +254,35 @@ class RunStore:
             mode (str): Execution or summarization mode to apply.
             status (str): Status value to persist or return.
             inference_ms (float): Inference ms value used by this operation.
+            metrics (Optional[dict]): Quantitative metrics dict.
+            eval_result (Optional[dict]): Automatic evaluation & review payload.
 
         Returns:
             None: This function does not return a value.
         """
         preview = input_text[:300] + "..." if len(input_text) > 300 else input_text
+        merged_metrics = dict(metrics or {})
+        eval_grade = None
+        eval_score = None
+        eval_review_json = None
+
+        if eval_result:
+            eval_grade = eval_result.get("grade")
+            eval_score = eval_result.get("overall_score")
+            eval_review_json = json.dumps(
+                eval_result.get("review") or {}, sort_keys=True
+            )
+            merged_metrics["overall_eval_score"] = eval_score
+            merged_metrics["eval_grade"] = eval_grade
+
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 """INSERT INTO results
                    (run_id, record_index, input_preview, reference_summary,
                     generated_summary, mode, status, inference_ms,
-                    input_chars, output_chars, metrics_json, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    input_chars, output_chars, metrics_json, eval_grade,
+                    eval_score, eval_review_json, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     run_id,
                     record_index,
@@ -271,7 +294,10 @@ class RunStore:
                     inference_ms,
                     len(input_text),
                     len(generated_summary),
-                    json.dumps(metrics or {}, sort_keys=True),
+                    json.dumps(merged_metrics, sort_keys=True),
+                    eval_grade,
+                    eval_score,
+                    eval_review_json,
                     time.time(),
                 ),
             )
@@ -388,41 +414,74 @@ class RunStore:
             json.dumps(config, indent=2),
             "```",
             "",
-            "## Aggregate Metrics",
+            "## Aggregate Metrics & Automatic Evaluation",
             "",
             "```json",
             json.dumps(metrics, indent=2, sort_keys=True),
             "```",
             "",
-            "## Results",
+            "## Results & Grade Summary",
             "",
-            "| # | Status | Mode | Input Chars | Output Chars | Inference ms | ROUGE-1 F1 |",
-            "|---|--------|------|-------------|--------------|--------------|------------|",
+            "| # | Status | Mode | Input Chars | Output Chars | Inference ms | ROUGE-1 F1 | Eval Score | Grade |",
+            "|---|--------|------|-------------|--------------|--------------|------------|------------|-------|",
         ]
 
         for r in results:
             row_metrics = json.loads(r.get("metrics_json") or "{}")
             rouge1 = row_metrics.get("rouge1_f1")
             rouge1_display = f"{rouge1:.3f}" if rouge1 is not None else "N/A"
+            eval_score = r.get("eval_score") or row_metrics.get("overall_eval_score")
+            eval_grade = r.get("eval_grade") or row_metrics.get("eval_grade") or "N/A"
+            score_display = f"{eval_score:.1f}" if eval_score is not None else "N/A"
+
             lines.append(
                 f"| {r['record_index']} | {r['status']} | {r['mode']} "
                 f"| {r['input_chars']} | {r['output_chars']} "
-                f"| {r.get('inference_ms', 0):.0f} | {rouge1_display} |"
+                f"| {r.get('inference_ms', 0):.0f} | {rouge1_display} "
+                f"| {score_display} | {eval_grade} |"
             )
 
-        # Sample outputs (first 3)
+        # Sample outputs (first 3) with reviews
         if results:
             lines.append("")
-            lines.append("## Sample Summaries")
+            lines.append("## Sample Summaries & Automated Review")
             for r in results[:3]:
                 lines.append("")
                 lines.append(f"### Record {r['record_index']}")
+                eval_score = r.get("eval_score")
+                eval_grade = r.get("eval_grade")
+                if eval_grade:
+                    lines.append(
+                        f"**Automatic Grade:** {eval_grade} ({eval_score:.1f}/100)"
+                    )
                 lines.append("")
-                lines.append("**Generated:**")
+                lines.append("**Generated Summary:**")
                 lines.append(f"> {(r['generated_summary'] or '')[:500]}")
+
+                if r.get("eval_review_json"):
+                    try:
+                        rev = json.loads(r["eval_review_json"])
+                        lines.append("")
+                        lines.append("**Review Findings:**")
+                        lines.append(f"- **Verdict:** {rev.get('verdict', 'N/A')}")
+                        if rev.get("strengths"):
+                            lines.append(
+                                f"- **Strengths:** {'; '.join(rev['strengths'])}"
+                            )
+                        if rev.get("weaknesses"):
+                            lines.append(
+                                f"- **Weaknesses:** {'; '.join(rev['weaknesses'])}"
+                            )
+                        if rev.get("recommendations"):
+                            lines.append(
+                                f"- **Recommendations:** {'; '.join(rev['recommendations'])}"
+                            )
+                    except Exception:
+                        pass
+
                 if r.get("reference_summary"):
                     lines.append("")
-                    lines.append("**Reference:**")
+                    lines.append("**Reference Summary:**")
                     lines.append(f"> {r['reference_summary'][:500]}")
 
         lines.append("")

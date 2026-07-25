@@ -283,6 +283,20 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="RUN_ID",
         help="Compare two or more runs side-by-side",
     )
+    info.add_argument(
+        "--grade-run",
+        type=str,
+        default=None,
+        help="Run the automatic evaluation harness & reviewer on a past run ID and print feedback",
+    )
+    info.add_argument(
+        "--eval-harness",
+        "--auto-grade",
+        dest="eval_harness",
+        action="store_true",
+        default=True,
+        help="Run automatic multi-aspect rubric evaluation & review (default: enabled)",
+    )
 
     return p
 
@@ -365,6 +379,42 @@ def main(argv: list[str] | None = None) -> None:
         for r in runs:
             print(f"\n--- {r['run_id']} ---")
             print(json.dumps(r, indent=2))
+        return
+
+    if args.grade_run:
+        run = store.get_run(args.grade_run)
+        if not run:
+            print(f"Run '{args.grade_run}' not found.")
+            return
+        results = store.get_results(args.grade_run)
+        if not results:
+            print(f"No results found for run '{args.grade_run}'.")
+            return
+
+        from src.Experiments.legal_summarization.eval_harness import LegalEvalHarness
+
+        harness = LegalEvalHarness()
+        eval_reports = []
+        for r in results:
+            eval_res = harness.evaluate_record(
+                generated_summary=r.get("generated_summary", ""),
+                source_text=r.get("input_preview", ""),
+                reference_summary=r.get("reference_summary"),
+            )
+            eval_reports.append(
+                {
+                    "record_index": r["record_index"],
+                    "score": eval_res.overall_score,
+                    "grade": eval_res.grade,
+                    "verdict": eval_res.review["verdict"],
+                    "strengths": eval_res.review["strengths"],
+                    "weaknesses": eval_res.review["weaknesses"],
+                    "recommendations": eval_res.review["recommendations"],
+                }
+            )
+
+        print(f"=== Automatic Evaluation & Review for Run: {args.grade_run} ===")
+        print(json.dumps(eval_reports, indent=2))
         return
 
     # --- Summarization run ---

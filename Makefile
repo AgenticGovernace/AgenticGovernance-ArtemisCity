@@ -14,13 +14,7 @@
 # Load root .env values for local Python entry points. The setup script writes
 # the Python core's MCP_API_KEY/MCP_BASE_URL there, but make does not export
 # .env files automatically.
-LOAD_ENV = set -a; [ ! -f .env ] || . ./.env; set +a;
-PYTHON_VERSION ?= 3.12
-VENV ?= .venv
-PYTHON ?= $(VENV)/bin/python
-UV ?= uv
-ROOT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-
+LOAD_ENV = set -a; [ ! -f .env ] || . ./.env; set
 # ============================================
 # HELP
 # ============================================
@@ -44,12 +38,12 @@ venv: ## Create the Python 3.12 virtual environment with uv
 		echo "Using existing environment: $(PYTHON)"; \
 	fi
 
-install: venv ## Install locked runtime dependencies into the repo environment
+install:  ## Install locked runtime dependencies into the repo environment
 	@echo "Installing Python dependencies into $(PYTHON)..."
-	$(UV) sync --locked --python $(PYTHON)
+	uv add -r requirements-dev.txt
 	@echo "Installation complete!"
 
-install-dev: venv ## Install locked runtime and optional development dependencies
+install-dev:  ## Install locked runtime and optional development dependencies
 	@echo "Installing development dependencies into $(PYTHON)..."
 	$(UV) sync --locked --all-extras --python $(PYTHON)
 	@echo "Development dependencies installed!"
@@ -201,7 +195,7 @@ api: ## Start the FastAPI dashboard backend on :8000 (paired with `make frontend
 	uvicorn app.api.main:app --reload --host 0.0.0.0 --port 8000
 
 legal-summarization: install ## Run legal summarization with ARGS="..."
-	@$(PYTHON) -m src.Experiments.legal_summarization.main $(ARGS)
+	python3.12 -m src.Experiments.legal_summarization.main $(ARGS)
 
 legal-summarization-check: install ## Check the legal evaluation's HF runtime (offline)
 	@$(PYTHON) -m src.Experiments.legal_summarization.main --check-dependencies

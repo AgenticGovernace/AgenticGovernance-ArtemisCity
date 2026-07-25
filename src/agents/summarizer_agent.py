@@ -129,7 +129,5 @@ class SummarizerAgent(BaseAgent):
         }
         result.update(degraded_metadata("extractive_fallback", reason))
         if llm_result is not None:
-            result["delegate_failure"] = llm_result.get(
-                "delegate_failure", llm_result
-            )
+            result["delegate_failure"] = llm_result.get("delegate_failure", llm_result)
         return result

@@ -533,11 +533,6 @@ class TestHebbianIntegration:
         monkeypatch.setattr(orchestrator_module, "AGENT_OUTPUT_DIR", "Agent Outputs")
         monkeypatch.setattr(
             orchestrator_module,
-            "LocalVectorStore",
-            lambda: MagicMock(count=lambda: 0),
-        )
-        monkeypatch.setattr(
-            orchestrator_module,
             "MemoryBus",
             lambda *args, **kwargs: MagicMock(
                 write_note_with_embedding=lambda *a, **k: {"status": "success"},
@@ -555,7 +550,9 @@ class TestHebbianIntegration:
         """
         import src.mcp.orchestrator as orchestrator_module
 
-        orchestrator = orchestrator_module.Orchestrator()
+        orchestrator = orchestrator_module.Orchestrator(
+            vector_store=MagicMock(count=lambda: 0)
+        )
         assert orchestrator.hebbian is not None
         assert isinstance(orchestrator.hebbian, HebbianWeightManager)
 
@@ -567,7 +564,9 @@ class TestHebbianIntegration:
         """
         import src.mcp.orchestrator as orchestrator_module
 
-        orchestrator = orchestrator_module.Orchestrator()
+        orchestrator = orchestrator_module.Orchestrator(
+            vector_store=MagicMock(count=lambda: 0)
+        )
         artemis = orchestrator.agent_registry.get_agent("Artemis Agent")
         artemis.perform_task = MagicMock(
             return_value={

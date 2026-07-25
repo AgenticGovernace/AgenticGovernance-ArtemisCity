@@ -7,9 +7,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from src.integration import postal_service
 from src.integration.context_loader import ContextEntry
 from src.integration.memory_client import MCPResponse
-from src.integration import postal_service
 from src.integration.postal_service import MailPacket, PostOffice
 
 

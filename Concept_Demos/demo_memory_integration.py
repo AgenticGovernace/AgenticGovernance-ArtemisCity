@@ -12,12 +12,7 @@ _repo_root_str = str(_repo_root)
 if _repo_root_str not in sys.path:
     sys.path.insert(0, _repo_root_str)
 
-from src.integration import (
-    ContextLoader,
-    MemoryClient,
-    TrustInterface,
-    get_trust_interface,
-)
+import src.integration
 
 
 def demo_memory_client():
@@ -31,7 +26,7 @@ def demo_memory_client():
     print("=" * 70)
 
     try:
-        client = MemoryClient()
+        client = src.integration.MemoryClient()
         print("\n✓ Memory client initialized")
         print(f"  Base URL: {client.base_url}")
         print(f"  API Key: {'*' * 20} (hidden)")
@@ -56,7 +51,7 @@ def demo_trust_interface():
     print("DEMO 2: Trust Interface")
     print("=" * 70)
 
-    trust: TrustInterface = get_trust_interface()
+    trust: src.integration.TrustInterface = src.integration.get_trust_interface()
 
     # Show initialized agents
     print("\n[Pre-configured Agent Trust Scores]")
@@ -120,7 +115,7 @@ def demo_trust_interface():
     print()
 
 
-def demo_context_loader(client: MemoryClient):
+def demo_context_loader(client: src.integration.MemoryClient):
     """Demonstrate context loading from Obsidian.
 
     Args:
@@ -133,7 +128,7 @@ def demo_context_loader(client: MemoryClient):
     print("DEMO 3: Context Loader (Obsidian Vault)")
     print("=" * 70)
 
-    loader = ContextLoader(client)
+    loader = src.integration.ContextLoader(client)
 
     # Search context
     print("\n[Searching Vault]")
@@ -179,7 +174,7 @@ def demo_context_loader(client: MemoryClient):
     print()
 
 
-def demo_integrated_workflow(client: MemoryClient):
+def demo_integrated_workflow(client: src.integration.MemoryClient):
     """Demonstrate integrated agent-memory workflow.
 
     Args:
@@ -192,8 +187,8 @@ def demo_integrated_workflow(client: MemoryClient):
     print("DEMO 4: Integrated Agent-Memory Workflow")
     print("=" * 70)
 
-    trust = get_trust_interface()
-    loader = ContextLoader(client)
+    trust = src.integration.get_trust_interface()
+    loader = src.integration.ContextLoader(client)
 
     # Scenario: Artemis agent wants to store reflection
     print("\n[Scenario: Artemis Storing Reflection]")
@@ -258,7 +253,7 @@ def demo_trust_decay():
     print("DEMO 5: Trust Decay Model")
     print("=" * 70)
 
-    trust = get_trust_interface()
+    trust = src.integration.get_trust_interface()
 
     print("\n[Trust Decay Simulation]")
     print("  Note: Decay is applied based on days since last update")

@@ -75,3 +75,17 @@ def aggregate_metrics(items: list[dict[str, float]]) -> dict[str, float]:
         return {}
     keys = sorted(set().union(*(item.keys() for item in items)))
     return {key: fmean(item[key] for item in items if key in item) for key in keys}
+
+
+def evaluate_summary_with_review(
+    generated: str,
+    source: str,
+    reference: str | None = None,
+    config: Any = None,
+) -> dict[str, Any]:
+    """Evaluate summary output and generate automated grade and review feedback."""
+    from .eval_harness import LegalEvalHarness
+
+    harness = LegalEvalHarness()
+    result = harness.evaluate_record(generated, source, reference, config)
+    return result.to_dict()

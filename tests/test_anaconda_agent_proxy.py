@@ -17,10 +17,7 @@ from src.integration.anaconda_agent_proxy import (
     parse_port_map,
     parse_sse_chat_completion,
 )
-from src.integration.anaconda_stack import (
-    DEFAULT_CAPABILITIES,
-    register_anaconda_stack,
-)
+from src.integration.anaconda_stack import DEFAULT_CAPABILITIES, register_anaconda_stack
 
 # ---------------------------------------------------------------------------
 # parse_port_map

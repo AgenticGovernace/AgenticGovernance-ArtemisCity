@@ -61,8 +61,7 @@ def test_global_logger_is_lazy_and_explicit_initialization_replaces_it(
 def test_initialization_migrates_legacy_event_table(tmp_path: Path):
     db_path = tmp_path / "legacy.db"
     with sqlite3.connect(db_path) as conn:
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE event_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 run_id TEXT NOT NULL,
@@ -74,8 +73,7 @@ def test_initialization_migrates_legacy_event_table(tmp_path: Path):
                 duration_ms REAL,
                 created_at REAL NOT NULL
             )
-            """
-        )
+            """)
 
     logger = RunLogger(
         log_dir=str(tmp_path / "logs"),
@@ -168,12 +166,10 @@ def test_vector_and_database_write_logs_capture_both_preview_shapes(tmp_path: Pa
     logger.log_db_write("plain.db", "records", "DELETE", data=None)
 
     with sqlite3.connect(logger.db_path) as conn:
-        long_vector = conn.execute(
-            """
+        long_vector = conn.execute("""
             SELECT content_preview, embedding_dim, embedding_sample, metadata
             FROM vector_log WHERE doc_id = 'long-doc'
-            """
-        ).fetchone()
+            """).fetchone()
         short_vector = conn.execute(
             "SELECT content_preview, embedding_sample FROM vector_log "
             "WHERE doc_id = 'short-doc'"
@@ -252,12 +248,10 @@ def test_specialized_log_helpers_preserve_context(tmp_path: Path):
     }
 
     with sqlite3.connect(logger.db_path) as conn:
-        mirror = conn.execute(
-            """
+        mirror = conn.execute("""
             SELECT operation, record_id, data_preview
             FROM db_write_log WHERE table_name = 'node_connections'
-            """
-        ).fetchone()
+            """).fetchone()
     assert mirror[0:2] == ("UPSERT", "Research Agent→summary")
     assert json.loads(mirror[2]) == {"weight": 0.8, "operation": "strengthen"}
 

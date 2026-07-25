@@ -63,7 +63,7 @@ index 1d03512..be836fa 100644
      print("Pack Rat is initiating secure transfer...")
 -    time.sleep(random.uniform(0.5, 1.5))
 +    time.sleep(random.uniform(0.5, 1.5))  # nosec B311
- 
+
 -    if random.random() < 0.1:  # 10% chance of failure
 +    # Simulate a 10% transfer failure (non-cryptographic)
 +    if random.random() < 0.1:  # nosec B311
@@ -96,7 +96,7 @@ index a11cf0e..c0034e1 100644
 +                    # Skip unreadable/corrupt note files; search is best-effort.
                      continue
          return results
- 
+
 diff --git a/pyproject.toml b/pyproject.toml
 index 675571e..e2518f7 100644
 --- a/pyproject.toml
@@ -128,20 +128,20 @@ index f913ba0..ca4ffa7 100644
 --- a/src/Experiments/legal_summarization/dataset_loader.py
 +++ b/src/Experiments/legal_summarization/dataset_loader.py
 @@ -28,6 +28,11 @@
- 
+
  HF_REPO_ID = "amjadali070/legal-judgements-en-ur-sd"
- 
+
 +# Pin the dataset revision so a moving ``main`` branch cannot silently swap the
 +# data (or any executed loader script) underneath us. Override with a specific
 +# commit SHA via ``LEGAL_DATASET_REVISION`` for fully reproducible loads.
 +HF_REVISION = os.getenv("LEGAL_DATASET_REVISION", "main")
 +
- 
+
  @dataclass(frozen=True)
  class JudgmentRecord:
 @@ -222,7 +227,12 @@ def _iter_huggingface(
              return
- 
+
          # The repo exposes a single 'default' config; we filter by task column.
 -        ds = load_dataset(HF_REPO_ID, split=split, trust_remote_code=True)
 +        ds = load_dataset(
@@ -150,9 +150,9 @@ index f913ba0..ca4ffa7 100644
 +            revision=HF_REVISION,
 +            trust_remote_code=True,
 +        )
- 
+
          task_label = self._TASK_LABEL_MAP.get(config, config)
- 
+
 @@ -240,7 +250,8 @@ def _iter_huggingface(
                              )
                              task_label = t
@@ -161,7 +161,7 @@ index f913ba0..ca4ffa7 100644
 +            except Exception:  # nosec B110
 +                # Label discovery is best-effort/debug-only; ignore any failure.
                  pass
- 
+
          count = 0
 diff --git a/src/agents/artemis/persona.py b/src/agents/artemis/persona.py
 index bc1600f..1378380 100755
@@ -175,7 +175,7 @@ index bc1600f..1378380 100755
 +            # Cosmetic phrase variety, not a security/crypto context.
 +            return random.choice(self.RESPONSE_PATTERNS[mode]["opening_phrases"])  # nosec B311
          return ""
- 
+
      def get_transition_phrase(self, mode: Optional[ResponseMode] = None) -> str:
 @@ -182,7 +183,8 @@ def get_transition_phrase(self, mode: Optional[ResponseMode] = None) -> str:
          """
@@ -185,7 +185,7 @@ index bc1600f..1378380 100755
 +            # Cosmetic phrase variety, not a security/crypto context.
 +            return random.choice(self.RESPONSE_PATTERNS[mode]["transition_phrases"])  # nosec B311
          return ""
- 
+
      def get_closing_phrase(self, mode: Optional[ResponseMode] = None) -> str:
 @@ -196,7 +198,8 @@ def get_closing_phrase(self, mode: Optional[ResponseMode] = None) -> str:
          """
@@ -195,7 +195,7 @@ index bc1600f..1378380 100755
 +            # Cosmetic phrase variety, not a security/crypto context.
 +            return random.choice(self.RESPONSE_PATTERNS[mode]["closing_phrases"])  # nosec B311
          return ""
- 
+
      def should_be_verbose(self, context: Dict) -> bool:
 diff --git a/src/agents/research_agent.py b/src/agents/research_agent.py
 index 270a940..c78858d 100755
@@ -204,16 +204,16 @@ index 270a940..c78858d 100755
 @@ -62,8 +62,8 @@ def perform_task(self, task_context: dict) -> dict:
          self.report_status(f"Starting research on '{topic}' with depth '{depth}'...")
          self.report_status(f"Keywords: {', '.join(keywords)}")
- 
+
 -        # Simulate research activity
 -        time.sleep(random.uniform(2, 5))
 +        # Simulate research activity (non-cryptographic jitter)
 +        time.sleep(random.uniform(2, 5))  # nosec B311
- 
+
          # Simulate findings
          findings = [
 @@ -74,8 +74,8 @@ def perform_task(self, task_context: dict) -> dict:
- 
+
          summary = (
              f"Initial research on '{topic}' has been completed. "
 -            f"Key findings indicate {random.choice(['significant progress', 'new challenges', 'interesting paradigms'])}. "
@@ -221,14 +221,14 @@ index 270a940..c78858d 100755
 +            f"Key findings indicate {random.choice(['significant progress', 'new challenges', 'interesting paradigms'])}. "  # nosec B311
 +            f"Further investigation into specific areas like {random.choice(keywords) or 'data analysis'} is recommended."  # nosec B311
          )
- 
+
          self.report_status("Research completed.")
 diff --git a/src/api_bridge.py b/src/api_bridge.py
 index 2b0c2e9..2fddc8c 100644
 --- a/src/api_bridge.py
 +++ b/src/api_bridge.py
 @@ -405,7 +405,9 @@ def _update_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
- 
+
      params.append(name)
      with sqlite3.connect(store.db_path) as conn:
 -        conn.execute(f"UPDATE agents SET {', '.join(set_parts)} WHERE name = ?", params)
@@ -237,7 +237,7 @@ index 2b0c2e9..2fddc8c 100644
 +        conn.execute(f"UPDATE agents SET {', '.join(set_parts)} WHERE name = ?", params)  # nosec
          conn.commit()
      return store.get_agent_record(name) or {}
- 
+
 diff --git a/src/integration/agent_registry.py b/src/integration/agent_registry.py
 index 103b3c2..23d8893 100644
 --- a/src/integration/agent_registry.py
@@ -252,7 +252,7 @@ index 103b3c2..23d8893 100644
 +                f"SELECT {self._RECORD_COLUMNS} FROM agents ORDER BY name ASC"  # nosec
              ).fetchall()
          return [self._row_to_record(row) for row in rows]
- 
+
 @@ -237,8 +238,9 @@ def get_agent_record(self, name: str) -> Optional[dict]:
              Optional[dict]: Persisted agent record when found; otherwise None.
          """
@@ -267,7 +267,7 @@ index 103b3c2..23d8893 100644
 @@ -510,8 +512,10 @@ def clear_violations(
                  params.insert(-1, override_tier)
              params.append(agent_name)
- 
+
 +            # update_fields are hardcoded column assignments; all values
 +            # (including override_tier and name) are bound via ? placeholders.
              conn.execute(
@@ -297,7 +297,7 @@ index f305454..6885899 100644
 @@ -18,6 +18,21 @@
  # the documented setup_secrets.sh flow.
  from src.mcp import config as _mcp_config  # noqa: F401
- 
+
 +# Only HTTP(S) endpoints are valid MCP servers. Validating the scheme up front
 +# prevents a misconfigured base URL from coercing urllib into opening a
 +# ``file://`` (local file disclosure) or other unexpected scheme.
@@ -313,13 +313,13 @@ index f305454..6885899 100644
 +        )
 +    return url
 +
- 
+
  class MCPOperation(Enum):
      """MCP server operation types."""
 @@ -109,6 +124,9 @@ def __init__(
          # Ensure base_url doesn't end with slash
          self.base_url = self.base_url.rstrip("/")
- 
+
 +        # Reject non-HTTP(S) schemes before any request is ever built.
 +        _ensure_http_url(self.base_url)
 +
@@ -328,18 +328,18 @@ index f305454..6885899 100644
                  "MCP_API_KEY required. Set via environment variable or constructor."
 @@ -143,7 +161,8 @@ def _make_request(
          )
- 
+
          try:
 -            with urllib.request.urlopen(req, timeout=self.timeout) as response:
 +            # base_url scheme is restricted to http/https in __init__ (validated).
 +            with urllib.request.urlopen(req, timeout=self.timeout) as response:  # nosec B310
                  response_data = json.loads(response.read().decode("utf-8"))
                  return MCPResponse.from_json(response_data, response.status)
- 
+
 @@ -319,7 +338,8 @@ def health_check(self) -> bool:
              url = f"{self.base_url}/health"
              req = urllib.request.Request(url, method="GET")
- 
+
 -            with urllib.request.urlopen(req, timeout=5) as response:
 +            # base_url scheme is restricted to http/https in __init__ (validated).
 +            with urllib.request.urlopen(req, timeout=5) as response:  # nosec B310
@@ -351,12 +351,12 @@ index 76bb5c5..6888a98 100644
 --- a/src/integration/postal_service.py
 +++ b/src/integration/postal_service.py
 @@ -122,12 +122,12 @@ def send_mail(
- 
+
          # Simulate Pack Rat handling
          print("\n    Pack Rat is securing the mail...")
 -        time.sleep(random.uniform(0.3, 0.8))
 +        time.sleep(random.uniform(0.3, 0.8))  # nosec B311
- 
+
 -        # Simulate potential delivery issues
 -        if random.random() < 0.05:  # 5% chance of delay
 +        # Simulate potential delivery issues (5% chance, non-cryptographic)
@@ -364,25 +364,25 @@ index 76bb5c5..6888a98 100644
              print("     Temporary postal delay detected...")
 -            time.sleep(random.uniform(0.5, 1.0))
 +            time.sleep(random.uniform(0.5, 1.0))  # nosec B311
- 
+
          # Deliver to City Archives
          vault_path: str = f"Postal/Agents/{recipient}/{packet.tracking_id}.md"
 @@ -193,7 +193,7 @@ def send_to_archives(
              )
- 
+
          print("\n    Pack Rat is processing archival request...")
 -        time.sleep(random.uniform(0.4, 0.9))
 +        time.sleep(random.uniform(0.4, 0.9))  # nosec B311
- 
+
          # Store in archives
          path: str = f"Archives/{archive_section}/{sender}_{title}.md"
 @@ -238,7 +238,7 @@ def request_from_archives(
              return []
- 
+
          print("\n    City Librarian is searching...")
 -        time.sleep(random.uniform(0.5, 1.0))
 +        time.sleep(random.uniform(0.5, 1.0))  # nosec B311
- 
+
          # Search archives
          search_query: str = query
 diff --git a/src/integration/run_logger.py b/src/integration/run_logger.py
@@ -411,6 +411,5 @@ index 6332499..13a21f0 100755
                      pass
              events.append(event_dict)
          return events
--- 
+--
 2.43.0
-

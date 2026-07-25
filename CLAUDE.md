@@ -830,6 +830,10 @@ env:
 | `ARTEMIS_EXO_SUMMARY_THRESHOLD_CHARS` | `12000` | Character threshold for raw preservation plus governed context compression; `0` disables. |
 | `ARTEMIS_SYNTHETIC_AGENT_FALLBACK` | `0` | Opt in to visibly degraded local baselines; these outcomes never update Hebbian/trust. |
 | `ARTEMIS_SSE_HEARTBEAT_SECONDS` | `15` | Heartbeat interval while a long Exo stream has not produced a frame. |
+| `ARTEMIS_VECTOR_BACKEND` | `sqlite` | Vector store backend: `sqlite` (local, default) or `supabase` (pgvector over direct Postgres). A Supabase backend that cannot be constructed at boot logs a warning and falls back to SQLite. |
+| `ARTEMIS_SUPABASE_DB_URL` | — | Postgres connection string for the Supabase vector backend (`SUPABASE_DB_URL` is honored as a fallback). |
+| `ARTEMIS_VECTOR_TABLE` | `artemis_vectors` | Supabase table holding vector records. |
+| `ARTEMIS_VECTOR_DIM` | `16` | pgvector embedding dimension; must match the embedding function in use. |
 
 `TrustInterface` is instantiated for every orchestrator so completed outcomes
 always update `data/trust_scores.db`, even when `beta == 0` and trust is not a
@@ -915,8 +919,9 @@ configured Exo endpoint, so a task cannot redirect inference to an arbitrary
 network target.
 
 Vector-memory decay is live through `MemoryBus`: saliency, last access, and
-archive state are stored in `data/vector_store.db`, reads restore archived
-records, and the orchestrator runs one decay cycle at boot. Disable only for
+archive state are stored in the configured vector backend (`data/vector_store.db`
+locally, or Supabase pgvector when `ARTEMIS_VECTOR_BACKEND=supabase`), reads
+restore archived records, and the orchestrator runs one decay cycle at boot. Disable only for
 diagnostics with `ARTEMIS_MEMORY_DECAY_ENABLED=0`.
 
 The Express governance boundary exposes authenticated checkpoint create/list/

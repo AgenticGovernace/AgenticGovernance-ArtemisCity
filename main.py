@@ -1,4 +1,4 @@
-def main():
+    def main():
     """Run the lightweight top-level entry point for the repository package.
 
     Returns:

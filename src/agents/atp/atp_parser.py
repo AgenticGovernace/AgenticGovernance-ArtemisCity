@@ -18,8 +18,9 @@ from typing import Dict, Optional, Tuple
 
 from prometheus_client import Counter, Histogram
 
-from .atp_models import ATPActionType, ATPMessage, ATPMode, ATPPriority
 from src.utils.prometheus_guard import safe_metric
+
+from .atp_models import ATPActionType, ATPMessage, ATPMode, ATPPriority
 
 # safe_metric is reimport-tolerant; without it, sys.modules.pop + reimport of
 # this module crashes with "Duplicated timeseries". Prometheus is a declared

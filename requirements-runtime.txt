@@ -28,4 +28,4 @@ requests>=2.33.0
 rich>=13.7.0
 sqlalchemy>=1.4.0
 uvicorn[standard]>=0.15.0
-vite>=1.5.2  -- omitted; see header
+vite>=1.5.2

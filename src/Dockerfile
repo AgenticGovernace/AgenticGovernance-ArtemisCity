@@ -66,4 +66,3 @@ CMD ["npm", "start"]
 # Healthcheck honors `API_PORT` overrides so the probe matches whatever
 # port app/api/index.ts is actually listening on (default 4000).
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD node -e "const p=process.env.API_PORT||4000; require('http').get('http://localhost:'+p+'/health', (res) => res.statusCode === 200 ? process.exit(0) : process.exit(1))"
-

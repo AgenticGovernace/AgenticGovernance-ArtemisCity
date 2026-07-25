@@ -41,6 +41,8 @@ _LAZY_EXPORTS = {
     "HebbianWeightManager": (".hebbian_weights", "HebbianWeightManager"),
     "LocalVectorStore": (".vector_store", "LocalVectorStore"),
     "VectorRecord": (".vector_store", "VectorRecord"),
+    "create_vector_store": (".vector_store", "create_vector_store"),
+    "SupabaseVectorStore": (".supabase_vector_store", "SupabaseVectorStore"),
 }
 
 

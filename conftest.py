@@ -15,10 +15,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-
-_PYTEST_RUNTIME_ROOT = Path(
-    tempfile.mkdtemp(prefix="artemis-city-pytest-")
-).resolve()
+_PYTEST_RUNTIME_ROOT = Path(tempfile.mkdtemp(prefix="artemis-city-pytest-")).resolve()
 _PYTEST_DATA_DIR = _PYTEST_RUNTIME_ROOT / "data"
 _PYTEST_LOG_DIR = _PYTEST_RUNTIME_ROOT / "logs"
 _PYTEST_VAULT_DIR = _PYTEST_RUNTIME_ROOT / "vault"
@@ -33,6 +30,14 @@ os.environ["ARTEMIS_DATA_DIR"] = str(_PYTEST_DATA_DIR)
 os.environ["ARTEMIS_LOG_DIR"] = str(_PYTEST_LOG_DIR)
 os.environ["OBSIDIAN_VAULT_PATH"] = str(_PYTEST_VAULT_DIR)
 os.environ["ARTEMIS_OBSIDIAN_VAULT_PATH"] = str(_PYTEST_VAULT_DIR)
+
+# Pin the vector store to the local SQLite backend and drop any Supabase
+# credentials so a test run from a Supabase-configured shell can never touch
+# a live hosted database. Tests that exercise the Supabase backend must mock
+# the connection layer explicitly.
+os.environ["ARTEMIS_VECTOR_BACKEND"] = "sqlite"
+os.environ.pop("ARTEMIS_SUPABASE_DB_URL", None)
+os.environ.pop("SUPABASE_DB_URL", None)
 
 
 @atexit.register

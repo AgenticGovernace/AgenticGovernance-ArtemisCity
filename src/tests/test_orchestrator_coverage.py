@@ -1221,7 +1221,6 @@ def test_boot_degrades_cleanly_when_optional_services_fail(monkeypatch):
         "ObsidianParser": Mock(),
         "ObsidianGenerator": Mock(),
         "HebbianWeightManager": Mock(),
-        "LocalVectorStore": Mock(),
         "GovernanceMonitor": Mock(),
         "MemoryDecayService": Mock(),
         "MemoryBus": Mock(return_value=memory_bus),
@@ -1248,7 +1247,7 @@ def test_boot_degrades_cleanly_when_optional_services_fail(monkeypatch):
         Mock(side_effect=RuntimeError("trust unavailable")),
     )
 
-    instance = Orchestrator()
+    instance = Orchestrator(vector_store=Mock())
 
     assert instance.trust_interface is None
     assert router_type.call_args.kwargs["alpha"] == pytest.approx(0.3)
