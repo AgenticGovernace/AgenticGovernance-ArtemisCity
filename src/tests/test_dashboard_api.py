@@ -608,6 +608,12 @@ def test_fallback_tasks_reports_and_safe_report_reads(
             "Agent Inputs/untagged.md",
         ]
         assert tasks.json()[1]["task_id"].startswith("task_")
+        task_detail = test_client.get("/api/tasks/T1")
+        assert task_detail.status_code == 200
+        assert task_detail.json()["relative_path"] == "Agent Inputs/task.md"
+        assert task_detail.json()["status"] == "pending"
+        assert test_client.get("/api/tasks/missing").status_code == 404
+        assert test_client.get("/api/tasks/%2E%2E%2Fsecret").status_code == 404
 
         reports = test_client.get("/api/reports")
         assert reports.status_code == 200
@@ -680,6 +686,31 @@ def test_live_agents_tasks_reports_and_creation(
     )
     assert created.status_code == 201
     assert created.json()["required_capability"] == "reasoning"
+
+
+def test_live_task_detail_finds_completed_task_by_exact_id(
+    dashboard, client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    orch = _Orchestrator()
+    orch.obs_manager.list_notes_in_folder.return_value = ["completed.md"]
+    orch.obs_manager.read_note.return_value = "---\ntask_id: T-done\nstatus: completed\n---\n# Done"
+    orch.obs_parser.parse_task_note.return_value = {
+        "task_id": "T-done",
+        "status": "completed",
+        "title": "Done",
+    }
+    monkeypatch.setattr(dashboard, "orchestrator", orch)
+
+    response = client.get("/api/tasks/T-done")
+    assert response.status_code == 200
+    assert response.json() == {
+        "task_id": "T-done",
+        "status": "completed",
+        "title": "Done",
+        "relative_path": "Agent Inputs/completed.md",
+    }
+    orch.obs_manager.read_note.assert_called_once_with("Agent Inputs/completed.md")
+    assert client.get("/api/tasks/missing").status_code == 404
 
 
 def test_live_endpoint_error_contracts(

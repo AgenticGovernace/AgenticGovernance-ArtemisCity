@@ -364,6 +364,46 @@ def _parse_task_note(content: str) -> Dict[str, Any] | None:
     return ObsidianParser().parse_task_note(content)
 
 
+def _list_all_task_records() -> list[dict[str, Any]]:
+    """Load parseable task notes in every status for exact-ID lookups.
+
+    ``GET /api/tasks`` intentionally remains the pending-task queue used by
+    the executor. Detail pages need a separate read path so a task remains
+    addressable after execution changes its status. The caller supplies only
+    a task identifier; this helper enumerates configured task notes and never
+    turns that identifier into a filesystem path.
+    """
+    if not orchestrator:
+        vault_path = _get_vault_path()
+        input_dir = vault_path / AGENT_INPUT_DIR
+        records: list[dict[str, Any]] = []
+        for filename in _list_markdown_files(input_dir):
+            relative_path = f"{AGENT_INPUT_DIR}/{filename}"
+            content = (input_dir / filename).read_text(encoding="utf-8")
+            data = _parse_task_note(content)
+            if not data:
+                continue
+            if "task_id" not in data:
+                data["task_id"] = f"task_{hash(relative_path) % 100000}"
+            records.append({**data, "relative_path": relative_path})
+        return records
+
+    records = []
+    note_filenames = orchestrator.obs_manager.list_notes_in_folder(AGENT_INPUT_DIR)
+    for filename in note_filenames:
+        relative_path = os.path.join(AGENT_INPUT_DIR, filename)
+        content = orchestrator.obs_manager.read_note(relative_path)
+        if not content:
+            continue
+        data = orchestrator.obs_parser.parse_task_note(content)
+        if not data:
+            continue
+        if "task_id" not in data:
+            data["task_id"] = f"task_{hash(relative_path) % 100000}"
+        records.append({**data, "relative_path": relative_path})
+    return records
+
+
 # --- FastAPI App Setup ---
 app = FastAPI(
     title="MCP Obsidian API",
@@ -540,6 +580,29 @@ async def get_tasks(_key: None = Depends(_require_api_key)):
     except Exception as e:
         logger.error("Error fetching tasks: %s", _sanitize_for_log(e))
         raise HTTPException(status_code=500, detail="Failed to fetch tasks.")
+
+
+@app.get("/api/tasks/{task_id}")
+async def get_task(task_id: str, _key: None = Depends(_require_api_key)):
+    """Return one task by exact task ID, regardless of execution status.
+
+    The identifier is compared with parsed task metadata only. It is never
+    concatenated with the vault root or passed to a note-read operation.
+    """
+    if not task_id or len(task_id) > 255:
+        raise HTTPException(status_code=404, detail="Task not found.")
+    try:
+        for task in _list_all_task_records():
+            if str(task.get("task_id")) == task_id:
+                return task
+    except Exception as e:
+        logger.error(
+            "Error fetching task %s: %s",
+            _sanitize_for_log(task_id),
+            _sanitize_for_log(e),
+        )
+        raise HTTPException(status_code=500, detail="Failed to fetch task.")
+    raise HTTPException(status_code=404, detail="Task not found.")
 
 
 @app.post("/api/tasks", status_code=201)

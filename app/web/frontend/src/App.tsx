@@ -9,6 +9,7 @@
 
 import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { routeSegments } from './router/paths';
 
 const Layout = lazy(() => import('./components/Layout.tsx'));
 const Dashboard = lazy(() => import('./pages/Dashboard.tsx'));
@@ -17,6 +18,9 @@ const Reports = lazy(() => import('./pages/Reports.tsx'));
 const Agents = lazy(() => import('./pages/Agents.tsx'));
 const Database = lazy(() => import('./pages/Database.tsx'));
 const Executor = lazy(() => import('./pages/Executor.tsx'));
+const TaskDetails = lazy(() => import('./pages/TaskDetails.tsx'));
+const ReportDetails = lazy(() => import('./pages/ReportDetails.tsx'));
+const NotFound = lazy(() => import('./pages/NotFound.tsx'));
 
 /**
  * Main application component with routing configuration.
@@ -38,11 +42,20 @@ function App() {
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
-            <Route path="tasks" element={<Tasks />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="agents" element={<Agents />} />
-            <Route path="database" element={<Database />} />
-            <Route path="executor" element={<Executor />} />
+            <Route path={routeSegments.tasks} element={<Tasks />} />
+            <Route
+              path={`${routeSegments.tasks}/${routeSegments.taskId}`}
+              element={<TaskDetails />}
+            />
+            <Route path={routeSegments.reports} element={<Reports />} />
+            <Route
+              path={`${routeSegments.reports}/${routeSegments.reportFilename}`}
+              element={<ReportDetails />}
+            />
+            <Route path={routeSegments.agents} element={<Agents />} />
+            <Route path={routeSegments.database} element={<Database />} />
+            <Route path={routeSegments.executor} element={<Executor />} />
+            <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
       </Suspense>

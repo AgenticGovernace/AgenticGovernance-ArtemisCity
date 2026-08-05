@@ -31,7 +31,9 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
+import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
 import { createNewTask, executePendingTask, fetchAgents, fetchTasks } from '../api';
+import { routePaths } from '../router/paths';
 
 interface Task {
   relative_path: string;
@@ -39,6 +41,7 @@ interface Task {
   agent: string;
   status: string;
   title: string;
+  required_capability?: string;
   context?: string;
   keywords?: string;
   target?: string;
@@ -49,12 +52,23 @@ interface Agent {
   name: string;
 }
 
+const STATUS_FILTERS = ['all', 'pending', 'in progress', 'completed', 'failed'] as const;
+
 const Tasks = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const requestedStatus = (searchParams.get('status') || 'all').toLowerCase();
+  const statusFilter = STATUS_FILTERS.includes(
+    requestedStatus as (typeof STATUS_FILTERS)[number]
+  )
+    ? requestedStatus
+    : 'all';
 
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [newTask, setNewTask] = useState<any>({
@@ -97,7 +111,7 @@ const Tasks = () => {
 
   const handleCreateTask = async () => {
     try {
-      await createNewTask(newTask);
+      const created = (await createNewTask(newTask)) as { task_id?: string };
       toast({
         title: 'Task created.',
         description: 'Your new task has been added to Obsidian.',
@@ -107,7 +121,11 @@ const Tasks = () => {
       });
       onClose();
       setNewTask({ agent: agents[0]?.name || '', title: '', context: '', keywords: '' });
-      loadTasks(); // Reload tasks to show the new one
+      if (created.task_id) {
+        navigate(routePaths.task(created.task_id));
+      } else {
+        await loadTasks();
+      }
     } catch (err) {
       toast({
         title: 'Error creating task.',
@@ -119,6 +137,21 @@ const Tasks = () => {
       console.error(err);
     }
   };
+
+  const handleStatusFilterChange = (value: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (value === 'all') {
+      nextParams.delete('status');
+    } else {
+      nextParams.set('status', value);
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  const visibleTasks =
+    statusFilter === 'all'
+      ? tasks
+      : tasks.filter((task) => task.status.toLowerCase() === statusFilter);
 
   const handleExecuteTask = async (task: Task) => {
     try {
@@ -163,14 +196,38 @@ const Tasks = () => {
 
   return (
     <Box>
-      <Flex justifyContent="space-between" alignItems="center" mb={4}>
+      <Flex
+        justifyContent="space-between"
+        alignItems={{ base: 'stretch', md: 'center' }}
+        gap={3}
+        mb={4}
+        flexWrap="wrap"
+      >
         <Heading as="h2" size="xl">
           Tasks
         </Heading>
-        <Button colorScheme="blue" onClick={onOpen}>
-          Create New Task
-        </Button>
+        <Flex align="center" gap={3}>
+          <Select
+            aria-label="Filter tasks by status"
+            value={statusFilter}
+            onChange={(event) => handleStatusFilterChange(event.target.value)}
+            maxW="190px"
+          >
+            {STATUS_FILTERS.map((status) => (
+              <option key={status} value={status}>
+                {status === 'all' ? 'All statuses' : status}
+              </option>
+            ))}
+          </Select>
+          <Button colorScheme="blue" onClick={onOpen}>
+            Create New Task
+          </Button>
+        </Flex>
       </Flex>
+
+      <Text color="gray.400" mb={4}>
+        Showing {visibleTasks.length} of {tasks.length} tasks
+      </Text>
 
       <Table variant="simple">
         <Thead>
@@ -183,35 +240,59 @@ const Tasks = () => {
           </Tr>
         </Thead>
         <Tbody>
-          {tasks.map((task) => (
-            <Tr key={task.relative_path}>
-              <Td>{task.title}</Td>
-              <Td>{task.agent}</Td>
-              <Td>
-                <Badge
-                  colorScheme={
-                    task.status === 'pending'
-                      ? 'yellow'
-                      : task.status === 'in progress'
-                        ? 'blue'
-                        : task.status === 'completed'
-                          ? 'green'
-                          : 'red'
-                  }
-                >
-                  {task.status}
-                </Badge>
-              </Td>
-              <Td>{task.task_id}</Td>
-              <Td>
-                {task.status === 'pending' && (
-                  <Button size="sm" colorScheme="green" onClick={() => handleExecuteTask(task)}>
-                    Execute
-                  </Button>
-                )}
+          {visibleTasks.length === 0 ? (
+            <Tr>
+              <Td colSpan={5}>
+                <Text color="gray.400">
+                  {tasks.length === 0 ? 'No tasks found.' : 'No tasks match this status.'}
+                </Text>
               </Td>
             </Tr>
-          ))}
+          ) : (
+            visibleTasks.map((task) => {
+              const normalizedStatus = task.status.toLowerCase();
+              return (
+                <Tr key={task.relative_path}>
+                  <Td>
+                    <RouterLink to={routePaths.task(task.task_id)}>{task.title}</RouterLink>
+                  </Td>
+                  <Td>{task.agent}</Td>
+                  <Td>
+                    <Badge
+                      colorScheme={
+                        normalizedStatus === 'pending'
+                          ? 'yellow'
+                          : normalizedStatus === 'in progress'
+                            ? 'blue'
+                            : normalizedStatus === 'completed'
+                              ? 'green'
+                              : 'red'
+                      }
+                    >
+                      {task.status}
+                    </Badge>
+                  </Td>
+                  <Td>{task.task_id}</Td>
+                  <Td>
+                    <Flex gap={2}>
+                      <Button as={RouterLink} to={routePaths.task(task.task_id)} size="sm">
+                        View
+                      </Button>
+                      {normalizedStatus === 'pending' && (
+                        <Button
+                          size="sm"
+                          colorScheme="green"
+                          onClick={() => handleExecuteTask(task)}
+                        >
+                          Execute
+                        </Button>
+                      )}
+                    </Flex>
+                  </Td>
+                </Tr>
+              );
+            })
+          )}
         </Tbody>
       </Table>
 

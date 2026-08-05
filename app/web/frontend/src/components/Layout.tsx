@@ -28,6 +28,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { GiHamburgerMenu } from 'react-icons/gi';
 import { themeTokens } from '../theme';
+import { routePaths } from '../router/paths';
 
 const { accents, fg, bg } = themeTokens;
 
@@ -259,10 +260,10 @@ const SidebarContent = ({ onClickItem }: { onClickItem?: () => void }) => (
       title="Operate"
       onClickItem={onClickItem}
       items={[
-        { to: '/', label: 'Dashboard', icon: <DashboardIcon /> },
-        { to: '/tasks', label: 'Tasks', icon: <TasksIcon /> },
-        { to: '/reports', label: 'Reports', icon: <ReportsIcon /> },
-        { to: '/executor', label: 'CLI Executor', icon: <ExecutorIcon /> },
+        { to: routePaths.dashboard, label: 'Dashboard', icon: <DashboardIcon /> },
+        { to: routePaths.tasks, label: 'Tasks', icon: <TasksIcon /> },
+        { to: routePaths.reports, label: 'Reports', icon: <ReportsIcon /> },
+        { to: routePaths.executor, label: 'CLI Executor', icon: <ExecutorIcon /> },
       ]}
     />
 
@@ -270,8 +271,8 @@ const SidebarContent = ({ onClickItem }: { onClickItem?: () => void }) => (
       title="Inspect"
       onClickItem={onClickItem}
       items={[
-        { to: '/agents', label: 'Agents', icon: <AgentsIcon /> },
-        { to: '/database', label: 'Database Viewer', icon: <DatabaseIcon /> },
+        { to: routePaths.agents, label: 'Agents', icon: <AgentsIcon /> },
+        { to: routePaths.database, label: 'Database Viewer', icon: <DatabaseIcon /> },
       ]}
     />
 

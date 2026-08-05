@@ -76,6 +76,15 @@ export const fetchAgents = () => apiFetch('/agents');
 export const fetchTasks = () => apiFetch('/tasks');
 
 /**
+ * Fetch one task by its server-issued identifier.
+ *
+ * The backend resolves the identifier against parsed task metadata so this
+ * call remains valid after a task leaves the pending execution queue.
+ */
+export const fetchTask = (taskId: string) =>
+  apiFetch(`/tasks/${encodeURIComponent(taskId)}`);
+
+/**
  * Create a new task in the Obsidian vault.
  *
  * @param taskData - Task data including agent, title, context, and keywords

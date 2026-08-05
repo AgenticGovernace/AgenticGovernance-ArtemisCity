@@ -9,6 +9,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test:routes": "tsx src/router/paths.test.ts",
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
