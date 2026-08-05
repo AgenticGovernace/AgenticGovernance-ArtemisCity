@@ -1,6 +1,4 @@
 import {
-  Alert,
-  AlertIcon,
   Badge,
   Box,
   Button,
@@ -10,28 +8,23 @@ import {
   List,
   ListItem,
   SimpleGrid,
-  Spinner,
   Text,
   useToast,
   VStack,
 } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 import { Link as RouterLink, useParams } from 'react-router-dom';
-import { executePendingTask, fetchTask } from '../api';
+import {
+  ApiError,
+  executePendingTask,
+  fetchTask,
+  getUserFacingErrorMessage,
+  isAbortError,
+  type TaskRecord,
+} from '../api';
+import RouteStatus from '../components/RouteStatus';
+import { useRequestController } from '../hooks/useRequestController';
 import { routePaths } from '../router/paths';
-
-interface Task {
-  relative_path: string;
-  task_id: string;
-  agent: string;
-  status: string;
-  title: string;
-  required_capability?: string;
-  context?: string;
-  keywords?: string;
-  target?: string;
-  subtasks?: Array<{ text: string; completed: boolean }> | null;
-}
 
 const statusColor = (status: string): string => {
   switch (status.toLowerCase()) {
@@ -48,16 +41,16 @@ const statusColor = (status: string): string => {
 
 const TaskDetails = () => {
   const { taskId } = useParams<{ taskId: string }>();
-  const [task, setTask] = useState<Task | null>(null);
+  const [task, setTask] = useState<TaskRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [executing, setExecuting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
+  const createController = useRequestController();
 
   useEffect(() => {
-    let cancelled = false;
-
     const loadTask = async () => {
+      const controller = createController();
       setLoading(true);
       setError(null);
       setTask(null);
@@ -69,38 +62,36 @@ const TaskDetails = () => {
       }
 
       try {
-        const found = (await fetchTask(taskId)) as Task;
-        if (!cancelled) {
-          if (found) {
-            setTask(found);
-          } else {
-            setError('Task not found.');
-          }
+        const found = await fetchTask(taskId, { signal: controller.signal });
+        if (found) {
+          setTask(found);
+        } else {
+          setError('Task not found.');
         }
-      } catch (err) {
-        if (!cancelled) {
-          const message = err instanceof Error ? err.message : '';
-          setError(message.includes('status: 404') ? 'Task not found.' : 'Failed to load this task.');
-        }
+      } catch (err: unknown) {
+        if (isAbortError(err)) return;
+        setError(
+          err instanceof ApiError && err.status === 404
+            ? 'Task not found.'
+            : getUserFacingErrorMessage(err, 'Failed to load this task.')
+        );
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
 
     void loadTask();
-    return () => {
-      cancelled = true;
-    };
-  }, [taskId]);
+  }, [createController, taskId]);
 
   const handleExecuteTask = async () => {
     if (!task || task.status.toLowerCase() !== 'pending' || executing) return;
 
     setExecuting(true);
+    const controller = createController();
     try {
       // Use the server-returned note path. The browser route parameter is
       // only an identifier used to select this task record.
-      await executePendingTask(task.relative_path);
+      await executePendingTask(task.relative_path, { signal: controller.signal });
       setTask((current) => (current ? { ...current, status: 'in progress' } : current));
       toast({
         title: 'Task execution initiated.',
@@ -109,10 +100,14 @@ const TaskDetails = () => {
         duration: 5000,
         isClosable: true,
       });
-    } catch {
+    } catch (err: unknown) {
+      if (isAbortError(err)) return;
       toast({
         title: 'Unable to execute task.',
-        description: 'The task could not be submitted to the dashboard API.',
+        description: getUserFacingErrorMessage(
+          err,
+          'The task could not be submitted to the dashboard API.'
+        ),
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -122,28 +117,17 @@ const TaskDetails = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <Box textAlign="center" mt={8}>
-        <Spinner size="xl" />
-        <Text>Loading task...</Text>
-      </Box>
-    );
-  }
+  if (loading) return <RouteStatus status="loading" message="Loading task…" />;
 
   if (error || !task) {
     return (
-      <VStack align="stretch" spacing={4} py={8}>
-        <Alert status={error === 'Task not found.' ? 'warning' : 'error'}>
-          <AlertIcon />
-          {error ?? 'Task not found.'}
-        </Alert>
-        <Box>
-          <Button as={RouterLink} to={routePaths.tasks} colorScheme="blue">
-            Back to tasks
-          </Button>
-        </Box>
-      </VStack>
+      <RouteStatus
+        status="error"
+        message={error ?? 'Task not found.'}
+        onRetry={() => window.location.reload()}
+        backTo={routePaths.tasks}
+        backLabel="Back to tasks"
+      />
     );
   }
 
@@ -191,6 +175,12 @@ const TaskDetails = () => {
             </Button>
           </Box>
         )}
+
+        <Box>
+          <Button as={RouterLink} to={routePaths.taskActivity(task.task_id)} variant="outline">
+            View activity &amp; provenance
+          </Button>
+        </Box>
 
         <Divider />
 

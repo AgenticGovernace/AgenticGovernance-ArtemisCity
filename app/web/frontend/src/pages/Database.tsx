@@ -38,7 +38,7 @@ import {
   SimpleGrid,
   Badge,
 } from '@chakra-ui/react';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   fetchAgentScores,
   fetchHebbianStats,
@@ -47,7 +47,10 @@ import {
   fetchVectors,
   fetchRuns,
   fetchRunEvents,
+  getUserFacingErrorMessage,
+  isAbortError,
 } from '../api.ts';
+import { useRequestController } from '../hooks/useRequestController';
 
 /**
  * Interface for agent score data
@@ -114,11 +117,14 @@ const AgentsTab = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCapability, setFilterCapability] = useState('');
   const [allCapabilities, setAllCapabilities] = useState<string[]>([]);
+  const createController = useRequestController();
 
-  const loadAgents = async () => {
+  const loadAgents = useCallback(async () => {
+    const controller = createController();
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      const data = await fetchAgentScores();
+      const data = await fetchAgentScores({ signal: controller.signal });
       setAgents(data);
 
       // Extract unique capabilities
@@ -127,17 +133,17 @@ const AgentsTab = () => {
         agent.capabilities.forEach((cap) => caps.add(cap));
       });
       setAllCapabilities(Array.from(caps).sort());
-    } catch (err) {
-      setError('Failed to fetch agent scores.');
-      console.error(err);
+    } catch (err: unknown) {
+      if (isAbortError(err)) return;
+      setError(getUserFacingErrorMessage(err, 'Failed to fetch agent scores.'));
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
-  };
+  }, [createController]);
 
   useEffect(() => {
-    loadAgents();
-  }, []);
+    void loadAgents();
+  }, [loadAgents]);
 
   const filteredAgents = agents.filter((agent) => {
     const matchesSearch =
@@ -245,27 +251,30 @@ const HebbianTab = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [limit, setLimit] = useState(50);
+  const createController = useRequestController();
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
+    const controller = createController();
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
       const [statsData, connectionsData] = await Promise.all([
-        fetchHebbianStats(),
-        fetchHebbianConnections(limit),
+        fetchHebbianStats({ signal: controller.signal }),
+        fetchHebbianConnections(limit, { signal: controller.signal }),
       ]);
       setStats(statsData);
       setConnections(connectionsData);
-    } catch (err) {
-      setError('Failed to fetch Hebbian data.');
-      console.error(err);
+    } catch (err: unknown) {
+      if (isAbortError(err)) return;
+      setError(getUserFacingErrorMessage(err, 'Failed to fetch Hebbian data.'));
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
-  };
+  }, [createController, limit]);
 
   useEffect(() => {
-    loadData();
-  }, [limit]);
+    void loadData();
+  }, [loadData]);
 
   const filteredConnections = connections.filter((conn) => {
     const searchLower = searchTerm.toLowerCase();
@@ -375,28 +384,31 @@ const VectorTab = () => {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const pageSize = 50;
+  const createController = useRequestController();
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
+    const controller = createController();
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
       const offset = (page - 1) * pageSize;
       const [statsData, vectorsData] = await Promise.all([
-        fetchVectorStats(),
-        fetchVectors(pageSize, offset),
+        fetchVectorStats({ signal: controller.signal }),
+        fetchVectors(pageSize, offset, { signal: controller.signal }),
       ]);
       setStats(statsData);
       setVectors(vectorsData);
-    } catch (err) {
-      setError('Failed to fetch vector data.');
-      console.error(err);
+    } catch (err: unknown) {
+      if (isAbortError(err)) return;
+      setError(getUserFacingErrorMessage(err, 'Failed to fetch vector data.'));
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
-  };
+  }, [createController, page]);
 
   useEffect(() => {
-    loadData();
-  }, [page]);
+    void loadData();
+  }, [loadData]);
 
   if (loading) {
     return (
@@ -490,19 +502,22 @@ const RunsTab = () => {
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
   const [runEvents, setRunEvents] = useState<{ [key: string]: any[] }>({});
   const [loadingEvents, setLoadingEvents] = useState<{ [key: string]: boolean }>({});
+  const createController = useRequestController();
 
-  const loadRuns = async () => {
+  const loadRuns = useCallback(async () => {
+    const controller = createController();
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      const data = await fetchRuns(20);
+      const data = await fetchRuns(20, { signal: controller.signal });
       setRuns(data);
-    } catch (err) {
-      setError('Failed to fetch runs.');
-      console.error(err);
+    } catch (err: unknown) {
+      if (isAbortError(err)) return;
+      setError(getUserFacingErrorMessage(err, 'Failed to fetch runs.'));
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
-  };
+  }, [createController]);
 
   const loadRunEvents = async (runId: string) => {
     if (runEvents[runId]) {
@@ -510,21 +525,23 @@ const RunsTab = () => {
       return;
     }
 
+    const controller = createController();
     try {
       setLoadingEvents((prev) => ({ ...prev, [runId]: true }));
-      const events = await fetchRunEvents(runId);
+      const events = await fetchRunEvents(runId, undefined, { signal: controller.signal });
       setRunEvents((prev) => ({ ...prev, [runId]: events }));
       setExpandedRun(runId);
-    } catch (err) {
-      console.error(err);
+    } catch (err: unknown) {
+      if (isAbortError(err)) return;
+      setError(getUserFacingErrorMessage(err, 'Failed to fetch run events.'));
     } finally {
       setLoadingEvents((prev) => ({ ...prev, [runId]: false }));
     }
   };
 
   useEffect(() => {
-    loadRuns();
-  }, []);
+    void loadRuns();
+  }, [loadRuns]);
 
   if (loading) {
     return (

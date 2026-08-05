@@ -1,6 +1,4 @@
 import {
-  Alert,
-  AlertIcon,
   Badge,
   Box,
   Button,
@@ -17,7 +15,6 @@ import {
   ModalHeader,
   ModalOverlay,
   Select,
-  Spinner,
   Table,
   Tbody,
   Td,
@@ -30,35 +27,38 @@ import {
   useToast,
   VStack,
 } from '@chakra-ui/react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
-import { createNewTask, executePendingTask, fetchAgents, fetchTasks } from '../api';
+import {
+  createNewTask,
+  executePendingTask,
+  fetchAgents,
+  fetchTasks,
+  getUserFacingErrorMessage,
+  isAbortError,
+  type AgentSummary,
+  type TaskRecord,
+} from '../api';
+import RouteStatus from '../components/RouteStatus';
+import { useRequestController } from '../hooks/useRequestController';
 import { routePaths } from '../router/paths';
 
-interface Task {
-  relative_path: string;
-  task_id: string;
+interface NewTask {
   agent: string;
-  status: string;
   title: string;
-  required_capability?: string;
-  context?: string;
-  keywords?: string;
-  target?: string;
-  subtasks?: Array<{ text: string; completed: boolean }>;
-}
-
-interface Agent {
-  name: string;
+  context: string;
+  keywords: string;
 }
 
 const STATUS_FILTERS = ['all', 'pending', 'in progress', 'completed', 'failed'] as const;
 
 const Tasks = () => {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [agents, setAgents] = useState<Agent[]>([]);
+  const [tasks, setTasks] = useState<TaskRecord[]>([]);
+  const [agents, setAgents] = useState<AgentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [executingTaskPath, setExecutingTaskPath] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -71,47 +71,58 @@ const Tasks = () => {
     : 'all';
 
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [newTask, setNewTask] = useState<any>({
+  const [newTask, setNewTask] = useState<NewTask>({
     agent: '',
     title: '',
     context: '',
     keywords: '',
   });
 
-  const loadTasks = async () => {
-    try {
-      setLoading(true);
-      const data = await fetchTasks();
-      setTasks(data);
-    } catch (err) {
-      setError('Failed to fetch tasks.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const createTaskRequestController = useRequestController();
+  const createAgentRequestController = useRequestController();
+  const createTaskCreationController = useRequestController();
+  const createTaskExecutionController = useRequestController();
 
-  const loadAgents = async () => {
+  const loadTasks = useCallback(async () => {
+    const controller = createTaskRequestController();
+    setLoading(true);
+    setError(null);
     try {
-      const data = await fetchAgents();
+      const data = await fetchTasks({ signal: controller.signal });
+      setTasks(data);
+    } catch (err: unknown) {
+      if (isAbortError(err)) return;
+      setError(getUserFacingErrorMessage(err, 'Failed to fetch tasks.'));
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
+  }, [createTaskRequestController]);
+
+  const loadAgents = useCallback(async () => {
+    const controller = createAgentRequestController();
+    try {
+      const data = await fetchAgents({ signal: controller.signal });
       setAgents(data);
       if (data.length > 0) {
-        setNewTask((prev: any) => ({ ...prev, agent: data[0].name }));
+        setNewTask((prev) => ({ ...prev, agent: data[0].name }));
       }
-    } catch (err) {
-      setError('Failed to fetch agents.');
-      console.error(err);
+    } catch (err: unknown) {
+      if (isAbortError(err)) return;
+      setError(getUserFacingErrorMessage(err, 'Failed to fetch agents.'));
     }
-  };
+  }, [createAgentRequestController]);
 
   useEffect(() => {
-    loadTasks();
-    loadAgents();
-  }, []);
+    void loadTasks();
+    void loadAgents();
+  }, [loadAgents, loadTasks]);
 
   const handleCreateTask = async () => {
+    if (creating) return;
+    const controller = createTaskCreationController();
+    setCreating(true);
     try {
-      const created = (await createNewTask(newTask)) as { task_id?: string };
+      const created = await createNewTask(newTask, { signal: controller.signal });
       toast({
         title: 'Task created.',
         description: 'Your new task has been added to Obsidian.',
@@ -126,15 +137,17 @@ const Tasks = () => {
       } else {
         await loadTasks();
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      if (isAbortError(err)) return;
       toast({
         title: 'Error creating task.',
-        description: (err as Error).message,
+        description: getUserFacingErrorMessage(err, 'The task could not be created.'),
         status: 'error',
         duration: 5000,
         isClosable: true,
       });
-      console.error(err);
+    } finally {
+      if (!controller.signal.aborted) setCreating(false);
     }
   };
 
@@ -153,9 +166,12 @@ const Tasks = () => {
       ? tasks
       : tasks.filter((task) => task.status.toLowerCase() === statusFilter);
 
-  const handleExecuteTask = async (task: Task) => {
+  const handleExecuteTask = async (task: TaskRecord) => {
+    if (executingTaskPath) return;
+    const controller = createTaskExecutionController();
+    setExecutingTaskPath(task.relative_path);
     try {
-      await executePendingTask(task.relative_path);
+      await executePendingTask(task.relative_path, { signal: controller.signal });
       toast({
         title: 'Task execution initiated.',
         description: `Task "${task.title}" is being processed by ${task.agent}.`,
@@ -163,35 +179,25 @@ const Tasks = () => {
         duration: 5000,
         isClosable: true,
       });
-      loadTasks(); // Reload tasks to see status change
-    } catch (err) {
+      await loadTasks();
+    } catch (err: unknown) {
+      if (isAbortError(err)) return;
       toast({
         title: 'Error executing task.',
-        description: (err as Error).message,
+        description: getUserFacingErrorMessage(err, 'The task could not be submitted.'),
         status: 'error',
         duration: 5000,
         isClosable: true,
       });
-      console.error(err);
+    } finally {
+      if (!controller.signal.aborted) setExecutingTaskPath(null);
     }
   };
 
-  if (loading) {
-    return (
-      <Box textAlign="center" mt={8}>
-        <Spinner size="xl" />
-        <Text>Loading tasks...</Text>
-      </Box>
-    );
-  }
+  if (loading) return <RouteStatus status="loading" message="Loading tasks…" />;
 
   if (error) {
-    return (
-      <Alert status="error" mt={8}>
-        <AlertIcon />
-        {error}
-      </Alert>
-    );
+    return <RouteStatus status="error" message={error} onRetry={() => void loadTasks()} />;
   }
 
   return (
@@ -283,6 +289,8 @@ const Tasks = () => {
                           size="sm"
                           colorScheme="green"
                           onClick={() => handleExecuteTask(task)}
+                          isLoading={executingTaskPath === task.relative_path}
+                          isDisabled={executingTaskPath !== null}
                         >
                           Execute
                         </Button>
@@ -342,7 +350,7 @@ const Tasks = () => {
           </ModalBody>
 
           <ModalFooter>
-            <Button colorScheme="blue" mr={3} onClick={handleCreateTask}>
+            <Button colorScheme="blue" mr={3} onClick={handleCreateTask} isLoading={creating}>
               Create
             </Button>
             <Button variant="ghost" onClick={onClose}>

@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:routes": "tsx src/router/paths.test.ts",
+    "test:api": "tsx src/api.test.ts",
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {

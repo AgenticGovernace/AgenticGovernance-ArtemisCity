@@ -713,6 +713,121 @@ def test_live_task_detail_finds_completed_task_by_exact_id(
     assert client.get("/api/tasks/missing").status_code == 404
 
 
+def test_task_activity_is_exact_governed_projection_with_server_report_link(
+    dashboard,
+    dashboard_db: Path,
+    client: TestClient,
+):
+    vault = dashboard._get_vault_path()
+    (vault / dashboard.AGENT_INPUT_DIR / "activity.md").write_text(
+        "---\ntask_id: T-activity\nstatus: completed\nagent: Alpha\n---\n# Activity task",
+        encoding="utf-8",
+    )
+    (vault / dashboard.AGENT_OUTPUT_DIR / "Alpha_Report_T-activity_4.md").write_text(
+        "# completed report", encoding="utf-8"
+    )
+
+    conn = sqlite3.connect(dashboard_db)
+    conn.executemany(
+        "INSERT INTO event_log VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        [
+            (
+                10,
+                "activity-run",
+                "2026-07-14T12:00:00",
+                "prompt_received",
+                "orchestrator",
+                "prompt accepted",
+                '{"task_id":"T-activity","required_capability":"reasoning","routing_scope":"task"}',
+                None,
+                "prov-root",
+                None,
+                "2026-07-14T12:00:00",
+            ),
+            (
+                11,
+                "activity-run",
+                "2026-07-14T12:00:01",
+                "routing_decision",
+                "hebbian_router",
+                "selected Alpha",
+                '{"task_id":"T-activity","chosen_agent":"Alpha","decision":{"agent_name":"Alpha","capability":"reasoning","routing_scope":"task","candidates":[{"name":"Alpha","blended":0.9}]}}',
+                None,
+                "prov-route",
+                "prov-root",
+                "2026-07-14T12:00:01",
+            ),
+            (
+                12,
+                "activity-run",
+                "2026-07-14T12:00:02",
+                "task_completed",
+                "orchestrator",
+                "task completed",
+                '{"task_id":"T-activity","agent":"Alpha","capability":"reasoning","status":"completed","provider":"exo","outcome_class":"success","learning_eligible":true}',
+                None,
+                "prov-complete",
+                "prov-root",
+                "2026-07-14T12:00:02",
+            ),
+            (
+                13,
+                "other-run",
+                "2026-07-14T12:00:03",
+                "task_completed",
+                "orchestrator",
+                "different task",
+                '{"task_id":"T-activity-other","agent":"Beta"}',
+                None,
+                "prov-other",
+                None,
+                "2026-07-14T12:00:03",
+            ),
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+    response = client.get("/api/tasks/T-activity/activity")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["task_id"] == "T-activity"
+    assert payload["task"]["status"] == "completed"
+    assert payload["status"] == "completed"
+    assert payload["provenance_id"] == "prov-root"
+    assert payload["agent_name"] == "Alpha"
+    assert payload["capability"] == "reasoning"
+    assert payload["provider"] == "exo"
+    assert payload["outcome_class"] == "success"
+    assert payload["learning_eligible"] is True
+    assert payload["routing"]["agent_name"] == "Alpha"
+    assert payload["reports"] == [
+        {
+            "filename": "Alpha_Report_T-activity_4.md",
+            "agent": "Alpha",
+            "task_id": "T-activity",
+            "timestamp": "N/A",
+        }
+    ]
+    assert len(payload["events"]) == 3
+    assert {event["metadata"]["task_id"] for event in payload["events"]} == {"T-activity"}
+    assert payload["events"][1]["parent_prov_id"] == "prov-root"
+
+    assert client.get("/api/tasks/unknown/activity").status_code == 404
+    assert client.get("/api/tasks/%2E%2E%2Fsecret/activity").status_code == 404
+
+
+def test_task_activity_requires_dashboard_api_key(
+    dashboard, dashboard_db: Path, client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(dashboard, "_FASTAPI_API_KEY", "secret")
+    assert client.get("/api/tasks/T-activity/activity").status_code == 401
+    assert (
+        client.get("/api/tasks/T-activity/activity", headers={"X-API-Key": "wrong"}).status_code
+        == 401
+    )
+
+
 def test_live_endpoint_error_contracts(
     dashboard,
     dashboard_db: Path,

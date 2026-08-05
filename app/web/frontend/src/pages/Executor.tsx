@@ -31,17 +31,22 @@ import {
   StatLabel,
   StatNumber,
 } from '@chakra-ui/react';
-import { useEffect, useRef, useState } from 'react';
-import { executeInstruction, executeInstructionStream, fetchAgents } from '../api.ts';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  executeInstruction,
+  executeInstructionStream,
+  fetchAgents,
+  getUserFacingErrorMessage,
+  isAbortError,
+  type AgentSummary,
+} from '../api.ts';
+import { useRequestController } from '../hooks/useRequestController';
+import { routePaths } from '../router/paths';
+import { Link as RouterLink } from 'react-router-dom';
 
 /**
  * Interface for agent data
  */
-interface Agent {
-  name: string;
-  capabilities?: string[];
-}
-
 /**
  * Per-candidate routing breakdown returned by the Hebbian router.
  */
@@ -79,8 +84,8 @@ interface ExecutionResult {
   task_id: string;
   status: string;
   summary: string;
-  note_path?: string;
-  error?: string;
+  note_path?: string | null;
+  error?: string | null;
   agent_name?: string | null;
   routing?: RoutingDecision | null;
   atp?: Record<string, unknown> | null;
@@ -102,7 +107,7 @@ interface ExecutionResult {
  * MCP executor with support for agent and capability selection.
  */
 const Executor = () => {
-  const [agents, setAgents] = useState<Agent[]>([]);
+  const [agents, setAgents] = useState<AgentSummary[]>([]);
   const [instruction, setInstruction] = useState('');
   const [selectedAgent, setSelectedAgent] = useState('');
   const [capability, setCapability] = useState('');
@@ -117,6 +122,8 @@ const Executor = () => {
   // ``complete`` SSE event we fold the final text into `result.summary`.
   const [streamBuffer, setStreamBuffer] = useState('');
   const streamAbortRef = useRef<AbortController | null>(null);
+  const createAgentController = useRequestController();
+  const createExecutionController = useRequestController();
 
   // Predefined capabilities
   const capabilities = [
@@ -131,21 +138,30 @@ const Executor = () => {
   ];
 
   // Load agents on mount
+  const loadAgents = useCallback(async () => {
+    const controller = createAgentController();
+    setLoadingAgents(true);
+    try {
+      const data = await fetchAgents({ signal: controller.signal });
+      setAgents(data);
+    } catch (err: unknown) {
+      if (isAbortError(err)) return;
+      setError(getUserFacingErrorMessage(err, 'Failed to load agents.'));
+    } finally {
+      if (!controller.signal.aborted) setLoadingAgents(false);
+    }
+  }, [createAgentController]);
+
   useEffect(() => {
-    const loadAgents = async () => {
-      try {
-        setLoadingAgents(true);
-        const data = await fetchAgents();
-        setAgents(data);
-      } catch (err) {
-        setError('Failed to load agents.');
-        console.error(err);
-      } finally {
-        setLoadingAgents(false);
-      }
-    };
-    loadAgents();
-  }, []);
+    void loadAgents();
+  }, [loadAgents]);
+
+  useEffect(
+    () => () => {
+      streamAbortRef.current?.abort();
+    },
+    []
+  );
 
   const handleExecute = async () => {
     if (!instruction.trim()) {
@@ -166,22 +182,23 @@ const Executor = () => {
     setStreamBuffer('');
 
     if (!streamingMode) {
+      const controller = createExecutionController();
       try {
-        const response = await executeInstruction(payload);
-        setResult(response);
+        const response = await executeInstruction(payload, { signal: controller.signal });
+        setResult(response as unknown as ExecutionResult);
         if (response.status === 'success') {
           setInstruction('');
           setSelectedAgent('');
           setCapability('');
           setTitle('');
         }
-      } catch (err) {
+      } catch (err: unknown) {
+        if (isAbortError(err)) return;
         setError(
-          `Execution failed: ${err instanceof Error ? err.message : 'Unknown error'}`
+          getUserFacingErrorMessage(err, 'Execution failed. Try again.')
         );
-        console.error(err);
       } finally {
-        setExecuting(false);
+        if (!controller.signal.aborted) setExecuting(false);
       }
       return;
     }
@@ -236,7 +253,7 @@ const Executor = () => {
         }
       },
       onError: (message) => {
-        setError(`Stream failed: ${message}`);
+        setError(message);
         setExecuting(false);
       },
     });
@@ -709,17 +726,15 @@ Or: Summarize the key findings from the reports folder"
                 >
                   New Task
                 </Button>
-                {result.note_path && (
+                {result.task_id && (
                   <Button
+                    as={RouterLink}
                     size="sm"
                     colorScheme="blue"
                     flex={1}
-                    onClick={() => {
-                      // In production, could navigate to task or open in editor
-                      console.log('Opening note:', result.note_path);
-                    }}
+                    to={routePaths.taskActivity(result.task_id)}
                   >
-                    View Result
+                    View activity &amp; result
                   </Button>
                 )}
               </Flex>

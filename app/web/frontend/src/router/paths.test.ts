@@ -7,6 +7,7 @@ const assertEqual = (actual: unknown, expected: unknown): void => {
 };
 
 assertEqual(routePaths.task('T 1'), '/tasks/T%201');
+assertEqual(routePaths.taskActivity('T 1'), '/tasks/T%201/activity');
 assertEqual(
   routePaths.report('Alpha_Report_T1_2.md'),
   '/reports/Alpha_Report_T1_2.md'

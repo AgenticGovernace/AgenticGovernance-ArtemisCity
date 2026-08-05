@@ -1,10 +1,7 @@
 import {
-  Alert,
-  AlertIcon,
   Box,
   Button,
   Heading,
-  Spinner,
   Table,
   Tbody,
   Td,
@@ -13,60 +10,47 @@ import {
   Thead,
   Tr,
 } from '@chakra-ui/react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { fetchReports } from '../api';
+import {
+  fetchReports,
+  getUserFacingErrorMessage,
+  isAbortError,
+  type ReportSummary,
+} from '../api';
+import RouteStatus from '../components/RouteStatus';
+import { useRequestController } from '../hooks/useRequestController';
 import { isSafeReportFilename, routePaths } from '../router/paths';
-
-interface ReportSummary {
-  filename: string;
-  agent: string;
-  task_id: string;
-  timestamp: string;
-}
 
 const Reports = () => {
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const createController = useRequestController();
+
+  const loadReports = useCallback(async () => {
+    const controller = createController();
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchReports({ signal: controller.signal });
+      setReports(data);
+    } catch (err: unknown) {
+      if (isAbortError(err)) return;
+      setError(getUserFacingErrorMessage(err, 'Failed to fetch reports.'));
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
+  }, [createController]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    const loadReports = async () => {
-      try {
-        setLoading(true);
-        const data = (await fetchReports()) as ReportSummary[];
-        if (!cancelled) setReports(data);
-      } catch {
-        if (!cancelled) setError('Failed to fetch reports.');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
     void loadReports();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  }, [loadReports]);
 
-  if (loading) {
-    return (
-      <Box textAlign="center" mt={8}>
-        <Spinner size="xl" />
-        <Text>Loading reports...</Text>
-      </Box>
-    );
-  }
+  if (loading) return <RouteStatus status="loading" message="Loading reports…" />;
 
   if (error) {
-    return (
-      <Alert status="error" mt={8}>
-        <AlertIcon />
-        {error}
-      </Alert>
-    );
+    return <RouteStatus status="error" message={error} onRetry={() => void loadReports()} />;
   }
 
   return (
@@ -76,7 +60,7 @@ const Reports = () => {
       </Heading>
 
       {reports.length === 0 ? (
-        <Text>No reports found.</Text>
+        <RouteStatus status="empty" message="No reports found." compact />
       ) : (
         <Table variant="simple">
           <Thead>
@@ -91,10 +75,23 @@ const Reports = () => {
             {reports.map((report) => {
               const safeFilename = isSafeReportFilename(report.filename);
               return (
-                <Tr key={report.filename}>
-                  <Td wordBreak="break-word">{report.filename}</Td>
-                  <Td>{report.agent}</Td>
-                  <Td>{report.task_id}</Td>
+              <Tr key={report.filename}>
+                <Td wordBreak="break-word">{report.filename}</Td>
+                <Td>{report.agent}</Td>
+                <Td>
+                  {report.task_id && report.task_id !== 'unknown_task' ? (
+                    <Button
+                      as={RouterLink}
+                      to={routePaths.taskActivity(report.task_id)}
+                      variant="link"
+                      size="sm"
+                    >
+                      {report.task_id}
+                    </Button>
+                  ) : (
+                    report.task_id
+                  )}
+                </Td>
                   <Td>
                     {safeFilename ? (
                       <Button

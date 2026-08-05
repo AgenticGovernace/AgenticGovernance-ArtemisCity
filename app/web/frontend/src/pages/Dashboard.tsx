@@ -22,7 +22,9 @@ import {
   fetchHebbianStats,
   fetchReports,
   fetchVectorStats,
+  getUserFacingErrorMessage,
 } from '../api';
+import { useRequestController } from '../hooks/useRequestController';
 import { themeTokens } from '../theme';
 
 const { accents, fg, bg } = themeTokens;
@@ -192,16 +194,17 @@ const Dashboard = () => {
   const [vectors, setVectors] = useState<{ total_docs: number } | null>(null);
   const [reportsCount, setReportsCount] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const createController = useRequestController();
 
   useEffect(() => {
-    let alive = true;
+    const controller = createController();
     Promise.allSettled([
-      fetchAgentScores(),
-      fetchHebbianStats(),
-      fetchVectorStats(),
-      fetchReports(),
+      fetchAgentScores({ signal: controller.signal }),
+      fetchHebbianStats({ signal: controller.signal }),
+      fetchVectorStats({ signal: controller.signal }),
+      fetchReports({ signal: controller.signal }),
     ]).then((results) => {
-      if (!alive) return;
+      if (controller.signal.aborted) return;
       const [a, h, v, r] = results;
       if (a.status === 'fulfilled') setAgents(a.value as AgentRow[]);
       if (h.status === 'fulfilled') setHebbian(h.value);
@@ -210,13 +213,17 @@ const Dashboard = () => {
 
       const fails = results.filter((x) => x.status === 'rejected');
       if (fails.length === results.length) {
-        setErr('Backend unreachable — start `make api` (FastAPI on :8000).');
+        const firstFailure = fails[0];
+        setErr(
+          getUserFacingErrorMessage(
+            firstFailure.status === 'rejected' ? firstFailure.reason : undefined,
+            'The dashboard service is unavailable. Try again shortly.'
+          )
+        );
       }
     });
-    return () => {
-      alive = false;
-    };
-  }, []);
+    return () => controller.abort();
+  }, [createController]);
 
   const loading = agents === null && hebbian === null && vectors === null;
 

@@ -9,6 +9,7 @@
 
 import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import RouteStatus from './components/RouteStatus';
 import { routeSegments } from './router/paths';
 
 const Layout = lazy(() => import('./components/Layout.tsx'));
@@ -19,6 +20,7 @@ const Agents = lazy(() => import('./pages/Agents.tsx'));
 const Database = lazy(() => import('./pages/Database.tsx'));
 const Executor = lazy(() => import('./pages/Executor.tsx'));
 const TaskDetails = lazy(() => import('./pages/TaskDetails.tsx'));
+const TaskActivity = lazy(() => import('./pages/TaskActivity.tsx'));
 const ReportDetails = lazy(() => import('./pages/ReportDetails.tsx'));
 const NotFound = lazy(() => import('./pages/NotFound.tsx'));
 
@@ -38,7 +40,7 @@ const NotFound = lazy(() => import('./pages/NotFound.tsx'));
 function App() {
   return (
     <Router>
-      <Suspense fallback={<div>Loading...</div>}>
+      <Suspense fallback={<RouteStatus status="loading" message="Loading dashboard page…" />}>
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
@@ -46,6 +48,10 @@ function App() {
             <Route
               path={`${routeSegments.tasks}/${routeSegments.taskId}`}
               element={<TaskDetails />}
+            />
+            <Route
+              path={`${routeSegments.tasks}/${routeSegments.taskId}/${routeSegments.taskActivity}`}
+              element={<TaskActivity />}
             />
             <Route path={routeSegments.reports} element={<Reports />} />
             <Route

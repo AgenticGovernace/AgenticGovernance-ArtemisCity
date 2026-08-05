@@ -10,6 +10,7 @@ export const routeSegments = {
   dashboard: '',
   tasks: 'tasks',
   taskId: ':taskId',
+  taskActivity: 'activity',
   reports: 'reports',
   reportFilename: ':filename',
   agents: 'agents',
@@ -25,6 +26,8 @@ export const routePaths = {
   database: `/${routeSegments.database}`,
   executor: `/${routeSegments.executor}`,
   task: (taskId: string) => `/${routeSegments.tasks}/${encodeURIComponent(taskId)}`,
+  taskActivity: (taskId: string) =>
+    `/${routeSegments.tasks}/${encodeURIComponent(taskId)}/${routeSegments.taskActivity}`,
   report: (filename: string) =>
     `/${routeSegments.reports}/${encodeURIComponent(filename)}`,
 } as const;

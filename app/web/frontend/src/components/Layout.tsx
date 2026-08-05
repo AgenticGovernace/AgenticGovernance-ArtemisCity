@@ -29,6 +29,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { GiHamburgerMenu } from 'react-icons/gi';
 import { themeTokens } from '../theme';
 import { routePaths } from '../router/paths';
+import RouteErrorBoundary from './RouteErrorBoundary';
 
 const { accents, fg, bg } = themeTokens;
 
@@ -169,14 +170,16 @@ type HealthState = { service: string; orchestrator: string } | null;
 const useHealth = (): HealthState => {
   const [state, setState] = useState<HealthState>(null);
   useEffect(() => {
-    let alive = true;
+    const controller = new AbortController();
     const tick = async () => {
       try {
         // /health is unauthenticated by design (see app/api/main.py).
-        const r = await fetch('/health');
+        const r = await fetch('/health', { signal: controller.signal });
         if (!r.ok) return;
         const data = await r.json();
-        if (alive) setState({ service: data.service, orchestrator: data.orchestrator });
+        if (!controller.signal.aborted) {
+          setState({ service: data.service, orchestrator: data.orchestrator });
+        }
       } catch {
         /* leave previous state */
       }
@@ -184,7 +187,7 @@ const useHealth = (): HealthState => {
     tick();
     const id = setInterval(tick, 8000);
     return () => {
-      alive = false;
+      controller.abort();
       clearInterval(id);
     };
   }, []);
@@ -344,7 +347,9 @@ const Layout = () => {
       </Drawer>
 
       <Box as="main" flex={1} p={{ base: '64px 20px 32px', md: '28px 32px 48px' }} minW={0}>
-        <Outlet />
+        <RouteErrorBoundary>
+          <Outlet />
+        </RouteErrorBoundary>
       </Box>
     </Flex>
   );

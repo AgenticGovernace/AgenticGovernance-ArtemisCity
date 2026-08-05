@@ -140,23 +140,39 @@
 **Files:**
 
 - Modify: `app/web/frontend/src/api.ts`
+- Create: `app/web/frontend/src/hooks/useRequestController.ts`
 - Create: `app/web/frontend/src/components/RouteStatus.tsx`
 - Create: `app/web/frontend/src/components/RouteErrorBoundary.tsx`
 - Modify: `app/web/frontend/src/App.tsx`
+- Modify: `app/web/frontend/src/components/Layout.tsx`
+- Modify: `app/web/frontend/src/pages/Agents.tsx`
 - Modify: `app/web/frontend/src/pages/Tasks.tsx`
 - Modify: `app/web/frontend/src/pages/Reports.tsx`
 - Modify: `app/web/frontend/src/pages/TaskDetails.tsx`
 - Modify: `app/web/frontend/src/pages/ReportDetails.tsx`
+- Modify: `app/web/frontend/src/pages/Dashboard.tsx`
+- Modify: `app/web/frontend/src/pages/Database.tsx`
+- Modify: `app/web/frontend/src/pages/Executor.tsx`
+- Create: `app/web/frontend/src/api.test.ts`
 
 **Implementation steps:**
 
-- Return typed API envelopes for task, report, and error responses while preserving the current endpoint shapes.
-- Add abort-aware fetch calls so an unmounted detail page cannot update state after a route transition.
-- Normalize 401, 403, 404, 409, and 5xx responses into user-safe messages while retaining server-side diagnostic logging.
-- Add route-level error boundaries around page content so one page failure does not blank the application shell.
-- Add tests for stale-request cancellation, unauthorized responses, and safe generic error copy.
+- [x] Return typed API envelopes for task, report, and error responses while preserving the current endpoint shapes.
+- [x] Add abort-aware fetch calls so an unmounted detail page cannot update state after a route transition.
+- [x] Normalize 401, 403, 404, 409, and 5xx responses into user-safe messages while retaining server-side diagnostic logging.
+- [x] Add route-level error boundaries around page content so one page failure does not blank the application shell.
+- [x] Add tests for stale-request cancellation, unauthorized responses, and safe generic error copy.
 
 **Gate:** TypeScript build, API tests, and a Playwright smoke test for direct navigation to task and report URLs.
+
+### Phase 2 completion record
+
+- `npm --prefix app/web/frontend run typecheck` — passed.
+- `npm --prefix app/web/frontend run build` — passed; route chunks include `TaskActivity`, `TaskDetails`, `ReportDetails`, and the shared request/error components.
+- `npm --prefix app/web/frontend run test:api` — passed; safe 401/403/404/409/5xx copy and abort-signal propagation are covered.
+- `npm --prefix app/web/frontend run test:routes` — passed; encoded task, activity, and report destinations are covered.
+- Playwright direct navigation to `/tasks/T-activity` rendered the routed shell and safe API-failure state; back navigation reached `/tasks`.
+- `npm --prefix app/web/frontend run lint` remains blocked before source linting by the existing `eslint-plugin-react-hooks` flat-config mismatch (`configs.flat.recommended` is undefined).
 
 ---
 
@@ -171,17 +187,25 @@
 - Modify: `app/web/frontend/src/pages/Reports.tsx`
 - Modify: `app/web/frontend/src/api.ts`
 - Modify: `app/api/main.py` only when a read-only task/provenance endpoint is needed
+- Modify: `app/web/frontend/src/router/paths.ts` and `app/web/frontend/src/App.tsx`
 - Add focused coverage in `src/tests/test_dashboard_api.py` and frontend route tests
 
 **Implementation steps:**
 
-- Add a read-only task activity view keyed by server-issued task ID and provenance ID.
-- Link a completed task to its report only from server-returned report metadata; do not guess report paths in the browser.
-- Display routing decision, selected agent, capability, provider, outcome class, and provenance identifiers using the existing response contract.
-- Keep execution actions permissioned by the existing API key and task status; disable duplicate execution while a request is in flight.
-- Add API tests that prove unknown task IDs and unauthorized activity requests do not expose vault data.
+- [x] Add a read-only task activity view keyed by server-issued task ID and provenance ID.
+- [x] Link a completed task to its report only from server-returned report metadata; do not guess report paths in the browser.
+- [x] Display routing decision, selected agent, capability, provider, outcome class, and provenance identifiers using the existing response contract.
+- [x] Keep execution actions permissioned by the existing API key and task status; disable duplicate execution while a request is in flight.
+- [x] Add API tests that prove unknown task IDs and unauthorized activity requests do not expose vault data.
 
 **Gate:** Live dashboard API contract tests, focused provenance tests, and a browser workflow from task creation to report link.
+
+### Phase 3 completion record
+
+- `GET /api/tasks/{task_id}/activity?limit=` returns exact-ID task metadata, filtered event records, routing/provenance summary, and server-derived report summaries.
+- `uv run pytest -q src/tests/test_dashboard_api.py` — `40 passed`.
+- Live FastAPI plus Vite/Playwright smoke verified `/tasks/user_instruction_20260724045647/activity`, displayed the persisted provenance timeline, followed the server-returned report link, and rendered `/reports/LLM_Agent_Report_user_instruction_20260724045647_11.md`.
+- Invalid task IDs and invalid/missing API keys remain rejected by focused tests.
 
 ---
 

@@ -20,12 +20,162 @@ const API_BASE_URL = '/api';
  * is fine — the FastAPI auth dependency is permissive in that case
  * (see `_require_api_key` in app/api/main.py).
  */
+const runtimeEnv = (import.meta as ImportMeta & {
+  env?: Record<string, string | undefined>;
+}).env ?? {};
+
 const API_KEY =
-  import.meta.env.FASTAPI_API_KEY ||
-  import.meta.env.MCP_API_KEY ||
-  import.meta.env.VITE_FASTAPI_API_KEY ||
-  import.meta.env.VITE_MCP_API_KEY ||
+  runtimeEnv.FASTAPI_API_KEY ||
+  runtimeEnv.MCP_API_KEY ||
+  runtimeEnv.VITE_FASTAPI_API_KEY ||
+  runtimeEnv.VITE_MCP_API_KEY ||
   '';
+
+export type ApiRequestOptions = Pick<RequestInit, 'signal' | 'headers'>;
+
+export interface AgentSummary {
+  name: string;
+  capabilities: string[];
+}
+
+export interface TaskRecord {
+  relative_path: string;
+  task_id: string;
+  agent: string;
+  status: string;
+  title: string;
+  required_capability?: string;
+  context?: string;
+  keywords?: string;
+  target?: string;
+  subtasks?: Array<{ text: string; completed: boolean }> | null;
+}
+
+export interface ReportSummary {
+  filename: string;
+  agent: string;
+  task_id: string;
+  timestamp: string;
+}
+
+export interface ReportContent {
+  filename: string;
+  content: string;
+}
+
+export interface RunSummary {
+  run_id: string;
+  start_time: string;
+  end_time: string;
+  total_events: number;
+}
+
+export interface RunEvent {
+  run_id?: string;
+  timestamp: string;
+  event_type: string;
+  component: string;
+  message: string;
+  metadata: Record<string, unknown>;
+  duration_ms: number | null;
+  prov_id: string | null;
+  parent_prov_id: string | null;
+}
+
+export interface AgentScore {
+  name: string;
+  capabilities: string[];
+  alignment: number;
+  accuracy: number;
+  efficiency: number;
+  composite_score: number;
+  [key: string]: unknown;
+}
+
+export interface HebbianStats {
+  total_connections: number;
+  avg_weight: number;
+  max_weight: number;
+  total_activations: number;
+  total_successes: number;
+  success_rate: number;
+}
+
+export interface HebbianConnection {
+  origin_node: string;
+  target_node: string;
+  weight: number;
+  activation_count: number;
+  success_count: number;
+  failure_count: number;
+  success_rate: number;
+}
+
+export interface VectorStoreStats {
+  total_docs: number;
+  avg_content_length: number;
+}
+
+export interface VectorRecord {
+  doc_id?: string;
+  metadata?: unknown;
+  content?: string | null;
+  [key: string]: unknown;
+}
+
+export interface TaskActivity {
+  task_id: string;
+  task: TaskRecord | null;
+  status: string | null;
+  provenance_id: string | null;
+  agent_name: string | null;
+  capability: string | null;
+  routing: Record<string, unknown> | null;
+  provider: string | null;
+  outcome_class: string | null;
+  learning_eligible: boolean | null;
+  reports: ReportSummary[];
+  events: RunEvent[];
+}
+
+export class ApiError extends Error {
+  readonly status: number;
+  readonly retryable: boolean;
+
+  constructor(status: number, message: string, retryable = status >= 500 || status === 429) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.retryable = retryable;
+  }
+}
+
+export const apiErrorMessageForStatus = (status: number): string => {
+  if (status === 401) return 'You are not authorized to access this dashboard resource.';
+  if (status === 403) return 'You do not have permission to access this dashboard resource.';
+  if (status === 404) return 'The requested dashboard resource was not found.';
+  if (status === 409) return 'The resource changed before the request completed. Refresh and try again.';
+  if (status === 429) return 'The dashboard is temporarily busy. Try again shortly.';
+  if (status >= 500) return 'The dashboard service could not complete the request. Try again.';
+  return 'The dashboard request could not be completed.';
+};
+
+export const isAbortError = (error: unknown): boolean =>
+  error instanceof DOMException
+    ? error.name === 'AbortError'
+    : typeof error === 'object' && error !== null && 'name' in error
+      ? (error as { name?: unknown }).name === 'AbortError'
+      : false;
+
+/** Convert transport failures into copy that is safe to render in the UI. */
+export const getUserFacingErrorMessage = (
+  error: unknown,
+  fallback = 'The dashboard could not load this data. Try again.'
+): string => {
+  if (isAbortError(error)) return '';
+  if (error instanceof ApiError) return error.message;
+  return fallback;
+};
 
 /**
  * Internal fetch wrapper that:
@@ -38,26 +188,37 @@ const API_KEY =
  * @param init - Optional fetch init (method, headers, body)
  * @returns Parsed JSON response
  */
-const apiFetch = async (path: string, init: RequestInit = {}): Promise<any> => {
-  const headers: Record<string, string> = {
-    ...(init.headers as Record<string, string> | undefined),
-  };
-  if (API_KEY && !('X-API-Key' in headers)) {
-    headers['X-API-Key'] = API_KEY;
+const apiFetch = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
+  const headers = new Headers(init.headers);
+  if (API_KEY && !headers.has('X-API-Key')) {
+    headers.set('X-API-Key', API_KEY);
   }
   const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    throw new ApiError(response.status, apiErrorMessageForStatus(response.status));
   }
-  return response.json();
+  if (response.status === 204) return undefined as T;
+  try {
+    return (await response.json()) as T;
+  } catch {
+    throw new ApiError(502, 'The dashboard returned an invalid response.', true);
+  }
 };
 
-const jsonPost = (path: string, body?: unknown): Promise<any> =>
-  apiFetch(path, {
+const jsonPost = <T>(
+  path: string,
+  body?: unknown,
+  options: ApiRequestOptions = {}
+): Promise<T> => {
+  const headers = new Headers(options.headers);
+  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  return apiFetch<T>(path, {
+    ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+};
 
 /**
  * Fetch all registered agents from the MCP server.
@@ -65,7 +226,8 @@ const jsonPost = (path: string, body?: unknown): Promise<any> =>
  * @returns Promise resolving to an array of agent objects
  * @throws Error if the request fails
  */
-export const fetchAgents = () => apiFetch('/agents');
+export const fetchAgents = (options?: ApiRequestOptions) =>
+  apiFetch<AgentSummary[]>('/agents', options);
 
 /**
  * Fetch all tasks from the Obsidian vault.
@@ -73,7 +235,8 @@ export const fetchAgents = () => apiFetch('/agents');
  * @returns Promise resolving to an array of task objects
  * @throws Error if the request fails
  */
-export const fetchTasks = () => apiFetch('/tasks');
+export const fetchTasks = (options?: ApiRequestOptions) =>
+  apiFetch<TaskRecord[]>('/tasks', options);
 
 /**
  * Fetch one task by its server-issued identifier.
@@ -81,8 +244,8 @@ export const fetchTasks = () => apiFetch('/tasks');
  * The backend resolves the identifier against parsed task metadata so this
  * call remains valid after a task leaves the pending execution queue.
  */
-export const fetchTask = (taskId: string) =>
-  apiFetch(`/tasks/${encodeURIComponent(taskId)}`);
+export const fetchTask = (taskId: string, options?: ApiRequestOptions) =>
+  apiFetch<TaskRecord>(`/tasks/${encodeURIComponent(taskId)}`, options);
 
 /**
  * Create a new task in the Obsidian vault.
@@ -91,7 +254,8 @@ export const fetchTask = (taskId: string) =>
  * @returns Promise resolving to the created task object
  * @throws Error if the request fails
  */
-export const createNewTask = (taskData: any) => jsonPost('/tasks', taskData);
+export const createNewTask = (taskData: unknown, options?: ApiRequestOptions) =>
+  jsonPost<{ task_id?: string }>('/tasks', taskData, options);
 
 /**
  * Fetch all available reports from the MCP server.
@@ -99,7 +263,8 @@ export const createNewTask = (taskData: any) => jsonPost('/tasks', taskData);
  * @returns Promise resolving to an array of report summary objects
  * @throws Error if the request fails
  */
-export const fetchReports = () => apiFetch('/reports');
+export const fetchReports = (options?: ApiRequestOptions) =>
+  apiFetch<ReportSummary[]>('/reports', options);
 
 /**
  * Fetch the content of a specific report.
@@ -108,8 +273,8 @@ export const fetchReports = () => apiFetch('/reports');
  * @returns Promise resolving to the report content object
  * @throws Error if the request fails
  */
-export const fetchReportContent = (filename: string) =>
-  apiFetch(`/reports/${encodeURIComponent(filename)}`);
+export const fetchReportContent = (filename: string, options?: ApiRequestOptions) =>
+  apiFetch<ReportContent>(`/reports/${encodeURIComponent(filename)}`, options);
 
 /**
  * Execute a single pending task by its relative path.
@@ -118,8 +283,12 @@ export const fetchReportContent = (filename: string) =>
  * @returns Promise resolving to the execution result
  * @throws Error if the request fails
  */
-export const executePendingTask = (relativePath: string) =>
-  jsonPost('/execute-task', { relative_path: relativePath });
+export const executePendingTask = (relativePath: string, options?: ApiRequestOptions) =>
+  jsonPost<{ message: string; results?: Record<string, unknown> }>(
+    '/execute-task',
+    { relative_path: relativePath },
+    options
+  );
 
 /**
  * Execute all pending tasks in batch.
@@ -127,7 +296,8 @@ export const executePendingTask = (relativePath: string) =>
  * @returns Promise resolving to a summary with completed, failed, and skipped counts
  * @throws Error if the request fails
  */
-export const executeAllPendingTasks = () => jsonPost('/execute-all-pending');
+export const executeAllPendingTasks = (options?: ApiRequestOptions) =>
+  jsonPost<Record<string, unknown>>('/execute-all-pending', undefined, options);
 
 /**
  * Fetch all agent scores with performance metrics.
@@ -135,7 +305,8 @@ export const executeAllPendingTasks = () => jsonPost('/execute-all-pending');
  * @returns Promise resolving to an array of agent score objects
  * @throws Error if the request fails
  */
-export const fetchAgentScores = () => apiFetch('/db/agents');
+export const fetchAgentScores = (options?: ApiRequestOptions) =>
+  apiFetch<AgentScore[]>('/db/agents', options);
 
 /**
  * Fetch Hebbian network statistics.
@@ -143,7 +314,8 @@ export const fetchAgentScores = () => apiFetch('/db/agents');
  * @returns Promise resolving to network stats (connections, weights, activation counts)
  * @throws Error if the request fails
  */
-export const fetchHebbianStats = () => apiFetch('/db/hebbian/stats');
+export const fetchHebbianStats = (options?: ApiRequestOptions) =>
+  apiFetch<HebbianStats>('/db/hebbian/stats', options);
 
 /**
  * Fetch top Hebbian network connections.
@@ -152,8 +324,8 @@ export const fetchHebbianStats = () => apiFetch('/db/hebbian/stats');
  * @returns Promise resolving to an array of connection objects
  * @throws Error if the request fails
  */
-export const fetchHebbianConnections = (limit: number = 50) =>
-  apiFetch(`/db/hebbian/connections?limit=${limit}`);
+export const fetchHebbianConnections = (limit: number = 50, options?: ApiRequestOptions) =>
+  apiFetch<HebbianConnection[]>(`/db/hebbian/connections?limit=${limit}`, options);
 
 /**
  * Fetch Hebbian statistics for a specific agent.
@@ -162,8 +334,11 @@ export const fetchHebbianConnections = (limit: number = 50) =>
  * @returns Promise resolving to agent-specific Hebbian stats
  * @throws Error if the request fails
  */
-export const fetchAgentHebbianStats = (agentName: string) =>
-  apiFetch(`/db/hebbian/agent/${encodeURIComponent(agentName)}`);
+export const fetchAgentHebbianStats = (agentName: string, options?: ApiRequestOptions) =>
+  apiFetch<Record<string, unknown>>(
+    `/db/hebbian/agent/${encodeURIComponent(agentName)}`,
+    options
+  );
 
 /**
  * Fetch vector store statistics.
@@ -171,7 +346,8 @@ export const fetchAgentHebbianStats = (agentName: string) =>
  * @returns Promise resolving to vector stats (total Documents, avg length)
  * @throws Error if the request fails
  */
-export const fetchVectorStats = () => apiFetch('/db/vectors/stats');
+export const fetchVectorStats = (options?: ApiRequestOptions) =>
+  apiFetch<VectorStoreStats>('/db/vectors/stats', options);
 
 /**
  * Fetch paginated vectors from the vector store.
@@ -181,8 +357,12 @@ export const fetchVectorStats = () => apiFetch('/db/vectors/stats');
  * @returns Promise resolving to an array of vector objects
  * @throws Error if the request fails
  */
-export const fetchVectors = (limit: number = 100, offset: number = 0) =>
-  apiFetch(`/db/vectors/list?limit=${limit}&offset=${offset}`);
+export const fetchVectors = (
+  limit: number = 100,
+  offset: number = 0,
+  options?: ApiRequestOptions
+) =>
+  apiFetch<VectorRecord[]>(`/db/vectors/list?limit=${limit}&offset=${offset}`, options);
 
 /**
  * Fetch recent run summaries from the run logs.
@@ -191,8 +371,8 @@ export const fetchVectors = (limit: number = 100, offset: number = 0) =>
  * @returns Promise resolving to an array of run summary objects
  * @throws Error if the request fails
  */
-export const fetchRuns = (limit: number = 20) =>
-  apiFetch(`/db/runs?limit=${limit}`);
+export const fetchRuns = (limit: number = 20, options?: ApiRequestOptions) =>
+  apiFetch<RunSummary[]>(`/db/runs?limit=${limit}`, options);
 
 /**
  * Fetch events for a specific run.
@@ -202,10 +382,25 @@ export const fetchRuns = (limit: number = 20) =>
  * @returns Promise resolving to an array of event objects
  * @throws Error if the request fails
  */
-export const fetchRunEvents = (runId: string, eventType?: string) => {
+export const fetchRunEvents = (
+  runId: string,
+  eventType?: string,
+  options?: ApiRequestOptions
+) => {
   const qs = eventType ? `?event_type=${encodeURIComponent(eventType)}` : '';
-  return apiFetch(`/db/runs/${encodeURIComponent(runId)}/events${qs}`);
+  return apiFetch<RunEvent[]>(`/db/runs/${encodeURIComponent(runId)}/events${qs}`, options);
 };
+
+/** Fetch the governed, read-only activity trail for one server-issued task ID. */
+export const fetchTaskActivity = (
+  taskId: string,
+  limit = 200,
+  options?: ApiRequestOptions
+) =>
+  apiFetch<TaskActivity>(
+    `/tasks/${encodeURIComponent(taskId)}/activity?limit=${limit}`,
+    options
+  );
 
 /**
  * Execute a CLI-style instruction through the executor.
@@ -220,7 +415,28 @@ export const executeInstruction = (data: {
   agent?: string;
   title?: string;
   atp_strict?: boolean;
-}) => jsonPost('/cli/execute', data);
+}, options?: ApiRequestOptions) =>
+  jsonPost<ExecuteInstructionResult>('/cli/execute', data, options);
+
+export interface ExecuteInstructionResult {
+  task_id: string;
+  status: string;
+  summary: string;
+  note_path: string | null;
+  error: string | null;
+  agent_name: string | null;
+  routing: Record<string, any> | null;
+  atp: Record<string, unknown> | null;
+  provenance_id: string | null;
+  provider: string | null;
+  fallback_used: boolean | null;
+  model: string | null;
+  outcome_class: string | null;
+  learning_eligible: boolean | null;
+  exo_request: Record<string, unknown> | null;
+  compressed_context: string | null;
+  output_compression: Record<string, unknown> | null;
+}
 
 /**
  * Handlers invoked as the streaming executor emits SSE events. Each is
@@ -294,8 +510,9 @@ export const executeInstructionStream = (
         signal: controller.signal,
       });
       if (!response.ok || !response.body) {
-        const text = await response.text().catch(() => '');
-        handlers.onError?.(text || `HTTP ${response.status}`);
+        handlers.onError?.(
+          apiErrorMessageForStatus(response.status || 502)
+        );
         return;
       }
       const reader = response.body.getReader();
@@ -327,7 +544,7 @@ export const executeInstructionStream = (
           handlers.onComplete?.(payload);
         } else if (event === 'error') {
           terminalSeen = true;
-          handlers.onError?.(payload.error ?? String(payload));
+          handlers.onError?.('The dashboard could not complete the execution.');
         }
       };
 
@@ -345,11 +562,13 @@ export const executeInstructionStream = (
       }
       if (buffer.trim()) flush(buffer);
       if (!terminalSeen && !controller.signal.aborted) {
-        handlers.onError?.('Execution stream ended before a terminal event.');
+        handlers.onError?.('The execution stream ended before completion. Try again.');
       }
-    } catch (err: any) {
-      if (err?.name === 'AbortError') return;
-      handlers.onError?.(err?.message || String(err));
+    } catch (err: unknown) {
+      if (isAbortError(err)) return;
+      handlers.onError?.(
+        getUserFacingErrorMessage(err, 'The dashboard could not complete the execution. Try again.')
+      );
     }
   })();
 

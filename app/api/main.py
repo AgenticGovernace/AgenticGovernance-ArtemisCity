@@ -605,6 +605,166 @@ async def get_task(task_id: str, _key: None = Depends(_require_api_key)):
     raise HTTPException(status_code=404, detail="Task not found.")
 
 
+@app.get("/api/tasks/{task_id}/activity")
+async def get_task_activity(
+    task_id: str,
+    limit: int = 200,
+    _key: None = Depends(_require_api_key),
+):
+    """Return the governed activity trail for one exact task identifier.
+
+    This is a read-only projection over task metadata, the canonical run log,
+    and server-generated report summaries. The browser supplies only the task
+    identifier; it cannot select a note path or report filename. Event
+    metadata is parsed and matched by exact ``task_id`` before it is returned,
+    so a similarly named task cannot borrow another task's provenance.
+    """
+    if not task_id or len(task_id) > 255:
+        raise HTTPException(status_code=404, detail="Task activity not found.")
+    if limit < 1 or limit > 500:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
+
+    try:
+        task = next(
+            (
+                record
+                for record in _list_all_task_records()
+                if str(record.get("task_id")) == task_id
+            ),
+            None,
+        )
+    except Exception as e:
+        logger.error(
+            "Error resolving task activity record %s: %s",
+            _sanitize_for_log(task_id),
+            _sanitize_for_log(e),
+        )
+        raise HTTPException(status_code=500, detail="Failed to load task activity.")
+
+    conn = _connect_db(RUN_LOG_DB)
+    try:
+        rows = conn.execute(
+            """
+            SELECT
+              run_id,
+              timestamp,
+              event_type,
+              component,
+              message,
+              metadata,
+              duration_ms,
+              prov_id,
+              parent_prov_id
+            FROM event_log
+            ORDER BY created_at ASC, id ASC
+            """
+        ).fetchall()
+    except Exception as e:
+        logger.error(
+            "Error fetching task activity %s: %s",
+            _sanitize_for_log(task_id),
+            _sanitize_for_log(e),
+        )
+        raise HTTPException(status_code=500, detail="Failed to load task activity.")
+    finally:
+        conn.close()
+
+    events: list[dict[str, Any]] = []
+    for row in rows:
+        metadata = _parse_json(row["metadata"], {})
+        if not isinstance(metadata, dict) or str(metadata.get("task_id")) != task_id:
+            continue
+        events.append(
+            {
+                "run_id": row["run_id"],
+                "timestamp": row["timestamp"],
+                "event_type": row["event_type"],
+                "component": row["component"],
+                "message": row["message"],
+                "metadata": metadata,
+                "duration_ms": row["duration_ms"],
+                "prov_id": row["prov_id"],
+                "parent_prov_id": row["parent_prov_id"],
+            }
+        )
+        if len(events) >= limit:
+            break
+
+    if task is None and not events:
+        raise HTTPException(status_code=404, detail="Task activity not found.")
+
+    routing: dict[str, Any] | None = None
+    provenance_id: str | None = None
+    agent_name: str | None = None
+    capability: str | None = None
+    provider: str | None = None
+    outcome_class: str | None = None
+    learning_eligible: bool | None = None
+    status = str(task.get("status")) if task else None
+
+    for event in events:
+        metadata = event["metadata"]
+        event_type = event["event_type"]
+        if event_type == "prompt_received" and event["prov_id"]:
+            provenance_id = str(event["prov_id"])
+        elif provenance_id is None and event["prov_id"]:
+            provenance_id = str(event["prov_id"])
+
+        if event_type == "routing_decision":
+            decision = metadata.get("decision")
+            if isinstance(decision, dict):
+                routing = decision
+            agent_name = str(
+                metadata.get("chosen_agent") or metadata.get("agent_name") or agent_name
+            )
+        if metadata.get("agent") or metadata.get("agent_name"):
+            agent_name = str(metadata.get("agent") or metadata.get("agent_name"))
+        if metadata.get("capability") or metadata.get("required_capability"):
+            capability = str(
+                metadata.get("capability") or metadata.get("required_capability")
+            )
+        if metadata.get("provider") is not None:
+            provider = str(metadata["provider"])
+        if metadata.get("outcome_class") is not None:
+            outcome_class = str(metadata["outcome_class"])
+        if metadata.get("learning_eligible") is not None:
+            learning_eligible = bool(metadata["learning_eligible"])
+        if metadata.get("status") is not None:
+            status = str(metadata["status"])
+
+    try:
+        report_models = await get_reports()
+        reports = [
+            report.model_dump()
+            for report in report_models
+            if report.task_id == task_id
+        ]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "Error linking reports for task activity %s: %s",
+            _sanitize_for_log(task_id),
+            _sanitize_for_log(e),
+        )
+        raise HTTPException(status_code=500, detail="Failed to load task reports.")
+
+    return {
+        "task_id": task_id,
+        "task": task,
+        "status": status,
+        "provenance_id": provenance_id,
+        "agent_name": agent_name,
+        "capability": capability,
+        "routing": routing,
+        "provider": provider,
+        "outcome_class": outcome_class,
+        "learning_eligible": learning_eligible,
+        "reports": reports,
+        "events": events,
+    }
+
+
 @app.post("/api/tasks", status_code=201)
 async def create_task(task_data: TaskData, _key: None = Depends(_require_api_key)):
     """Create a new task note and return its routing metadata.
