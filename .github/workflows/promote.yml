@@ -116,7 +116,10 @@ jobs:
           print("env configs OK")
           PY
       - name: Reject undefined Python names
-        run: .venv/bin/ruff check src app/api/main.py --select F821
+        # Jupyter/IDE virtual-document snapshots are not application source;
+        # some are plain Python exports with an .ipynb suffix and cannot be
+        # parsed as notebooks by Ruff.
+        run: .venv/bin/ruff check src app/api/main.py --select F821 --exclude '**/.virtual_documents/**'
       - name: Run tests
         run: .venv/bin/python -m pytest src/tests
 

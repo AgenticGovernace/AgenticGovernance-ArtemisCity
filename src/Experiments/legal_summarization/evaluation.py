@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections import Counter
 from statistics import fmean
+from typing import Any
 
 _TOKEN_RE = re.compile(r"\w+", flags=re.UNICODE)
 

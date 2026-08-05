@@ -6571,3 +6571,4 @@ obsidian_vault/Agent Outputs/Research_Agent_Report_T_NEW_RESEARCH_5.md
 *.db
 /.jupyter/desktop-workspaces/default-37a8.jupyterlab-workspace
 /.virtual_documents/hf.ipynb
+**/.virtual_documents/
