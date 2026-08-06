@@ -446,6 +446,7 @@ class TestOrchestratorRouting:
                     "task_id": "atp_no_provenance",
                     "content": (
                         "#Mode: Build\n"
+                        "#Context: Verify fail-closed provenance\n"
                         "#ActionType: Execute\n"
                         "#TargetZone: kernel\n\n"
                         "Run this task."

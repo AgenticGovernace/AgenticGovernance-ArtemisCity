@@ -31,7 +31,7 @@ logger = logging.getLogger("legal_summarization.dataset_loader")
 HF_REPO_ID = "amjadali070/legal-judgements-en-ur-sd"
 HF_REVISION = "main"
 TOKEN_ENV_VARS = ("HF_TOKEN", "HUGGINGFACE_API_KEY")
-PYTHON_REQUIREMENT = ">=3.09,<3.15"
+PYTHON_REQUIREMENT = ">=3.12,<3.13"
 HF_RUNTIME_DEPENDENCIES = (
     ("datasets", "datasets"),
     ("pyarrow", "pyarrow"),
@@ -68,7 +68,7 @@ def _dependency_status(module_name: str, distribution_name: str) -> dict:
 
 def huggingface_runtime_status() -> dict:
     """Describe the active Hugging Face runtime without printing token values."""
-    python_supported = (3, 10) <= sys.version_info[:2] < (3, 15)
+    python_supported = (3, 12) <= sys.version_info[:2] < (3, 13)
     dependencies = {
         module_name: _dependency_status(module_name, distribution_name)
         for module_name, distribution_name in HF_RUNTIME_DEPENDENCIES

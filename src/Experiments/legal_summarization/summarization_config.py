@@ -15,7 +15,7 @@ from enum import Enum
 from typing import Optional
 
 
-DEFAULT_LEGAL_SUMMARY_TOKENS = 20480
+DEFAULT_LEGAL_SUMMARY_TOKENS = 2048
 
 
 class SummarizationMode(str, Enum):
@@ -69,7 +69,7 @@ class SummarizationConfig:
     # tokens. Reasoning models also consume output budget before emitting that
     # answer, so 2048 leaves room for both phases without permitting runaway
     # legal summaries.
-    max_summary_tokens: int = 2048
+    max_summary_tokens: int = DEFAULT_LEGAL_SUMMARY_TOKENS
     temperature: float = 0.7
     system_prompt_override: Optional[str] = None
     custom_user_prompt: Optional[str] = None
