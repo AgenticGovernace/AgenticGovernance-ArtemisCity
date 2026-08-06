@@ -40,18 +40,18 @@ venv: ## Create the Python 3.12 virtual environment with uv
 
 install:  ## Install locked runtime dependencies into the repo environment
 	@echo "Installing Python dependencies into $(PYTHON)..."
-	uv add -r requirements-dev.txt
+	pipenv install -r requirements-dev.txt
 	@echo "Installation complete!"
 
 install-dev:  ## Install locked runtime and optional development dependencies
 	@echo "Installing development dependencies into $(PYTHON)..."
-	$(UV) sync --locked --all-extras --python $(PYTHON)
+		pipenv install -r requirements-dev.txt
 	@echo "Development dependencies installed!"
 
 setup-hooks: venv ## Install pre-commit hooks into the uv-managed virtual environment
 	@echo "Installing pre-commit hooks..."
 	$(UV) pip install --python $(PYTHON) pre-commit
-	$(PYTHON) -m pre_commit install
+	python  -m pre_commit install
 	@echo "Pre-commit hooks installed!"
 
 # ============================================
@@ -115,7 +115,7 @@ test: ## Run tests (when available)
 	@if [ ! -d src/tests ]; then \
 		echo "WARNING: No tests directory found"; \
 	else \
-		$(PYTHON) -m pytest src/tests/ -v; \
+	python -m pytest src/tests/ -v; \
 	fi
 
 test-cov: ## Run tests with coverage
@@ -123,7 +123,7 @@ test-cov: ## Run tests with coverage
 	@if [ ! -d src/tests ]; then \
 		echo "WARNING: No tests directory found"; \
 	else \
-		$(PYTHON) -m pytest src/tests/ --cov --cov-report=html --cov-report=term; \
+		python  -m pytest src/tests/ --cov --cov-report=html --cov-report=term; \
 	fi
 
 # ============================================
@@ -195,10 +195,10 @@ api: ## Start the FastAPI dashboard backend on :8000 (paired with `make frontend
 	uvicorn app.api.main:app --reload --host 0.0.0.0 --port 8000
 
 legal-summarization: install ## Run legal summarization with ARGS="..."
-	@$(PYTHON) -m src.Experiments.legal_summarization.main $(ARGS)
+	python  -m src.Experiments.legal_summarization.main $(ARGS)
 
 legal-summarization-check: install ## Check the legal evaluation's HF runtime (offline)
-	@$(PYTHON) -m src.Experiments.legal_summarization.main --check-dependencies
+	python -m src.Experiments.legal_summarization.main --check-dependencies
 
 # ============================================
 # BUILD & PACKAGE

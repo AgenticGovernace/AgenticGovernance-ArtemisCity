@@ -1,29 +1,32 @@
 {
   "name": "artemis-city-workspace",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Workspace coordinator for Artemis City JavaScript projects.",
   "keywords": [
     "ATP"
   ],
-  "homepage": "https://github.com/AgenticGovernace/AgenticGovernance-ArtemisCity#readme",
+  "homepage": "https://github.com/AgenticGovernace/ArtemisCity",
   "bugs": {
-    "url": "https://github.com/AgenticGovernace/AgenticGovernance-ArtemisCity/issues"
+    "url": "https://github.com/AgenticGovernace/ArtemisCity/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/AgenticGovernace/AgenticGovernance-ArtemisCity.git"
+    "url": "AgenticGovernace/ArtemisCity.git"
   },
   "license": "Apache-2.0",
   "author": "Prinston Palmer",
   "type": "commonjs",
   "directories": {
     "doc": "docs",
-    "example": "examples"
+    "example": "examples",
+    "app": "app",
+    "test": "src/tests"
   },
   "workspaces": [
     "app/api",
-    "app/web/frontend"
+    "app/web/frontend",
+    "src/"
   ],
   "scripts": {
     "api:build": "npm --prefix app/api run build",
@@ -40,7 +43,7 @@
     "test": "npm --prefix app/api run test"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
