@@ -7,8 +7,7 @@
 # Update hooks: pre-commit autoupdate
 
 # Global configuration
-default_language_version:
-  python: python3.11
+
 
 # Stop on first failure
 fail_fast: true
