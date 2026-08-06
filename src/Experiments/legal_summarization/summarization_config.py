@@ -15,6 +15,9 @@ from enum import Enum
 from typing import Optional
 
 
+DEFAULT_LEGAL_SUMMARY_TOKENS = 2048
+
+
 class SummarizationMode(str, Enum):
     """How the summary is produced."""
 
@@ -62,7 +65,11 @@ class SummarizationConfig:
     mode: SummarizationMode = SummarizationMode.ABSTRACTIVE
     aggregation: AggregationLevel = AggregationLevel.SINGLE
     audience: AudienceLevel = AudienceLevel.LEGAL_PROFESSIONAL
-    max_summary_tokens: int = 512
+    # Historical successful runs produced roughly 500-560 final-answer
+    # tokens. Reasoning models also consume output budget before emitting that
+    # answer, so 2048 leaves room for both phases without permitting runaway
+    # legal summaries.
+    max_summary_tokens: int = DEFAULT_LEGAL_SUMMARY_TOKENS
     temperature: float = 0.4
     system_prompt_override: Optional[str] = None
     custom_user_prompt: Optional[str] = None

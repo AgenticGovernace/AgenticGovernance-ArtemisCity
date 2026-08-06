@@ -373,11 +373,21 @@ def test_summarization_config_prompts_and_round_trip() -> None:
     assert evaluate_summary("one", "one two", "one two three")["rouge_l_f1"] > 0
 
 
+def test_summarization_config_uses_reasoning_safe_default_token_budget() -> None:
+    config = SummarizationConfig()
+
+    assert config.max_summary_tokens == 2048
+    assert "2048 tokens" in config.build_user_prompt("judgment")
+
+
 def test_legal_agent_delegates_governance_and_abstractive_execution() -> None:
     llm = MagicMock()
     llm.get_sandbox_policies.return_value = ["policy"]
     llm.get_sandbox_actions.return_value = [{"tool": "network"}]
-    llm.perform_task.return_value = {"status": "success", "summary": "generated"}
+    llm.perform_task.return_value = {
+        "status": "success",
+        "summary": "The court reviewed the appeal and affirmed the lower court judgment.",
+    }
     agent = LegalSummarizerAgent(llm_agent=llm)
 
     assert agent.get_sandbox_policies() == ["policy"]
@@ -395,11 +405,36 @@ def test_legal_agent_delegates_governance_and_abstractive_execution() -> None:
             ),
         }
     )
-    assert result["summary"] == "generated"
+    assert result["summary"] == (
+        "The court reviewed the appeal and affirmed the lower court judgment."
+    )
     assert result["mode"] == "abstractive"
     request = llm.perform_task.call_args.args[0]
     assert "[Judgment 1]\none" in request["prompt"]
     assert request["system_prompt"]
+    assert request["max_tokens"] == 2048
+
+
+def test_legal_agent_rejects_unusable_short_model_summary() -> None:
+    llm = MagicMock()
+    llm.perform_task.return_value = {
+        "status": "success",
+        "summary": "of",
+        "provider": "exo",
+    }
+    agent = LegalSummarizerAgent(llm_agent=llm)
+
+    result = agent.perform_task(
+        {
+            "content": "The court considered the appeal and dismissed it.",
+            "summarization_config": SummarizationConfig(),
+        }
+    )
+
+    assert result["status"] == "failed"
+    assert result["outcome_class"] == "provider_failure"
+    assert result["learning_eligible"] is False
+    assert result["summary"] == "Model returned an unusably short legal summary."
 
 
 def test_legal_agent_handles_empty_and_zero_length_extractive_input() -> None:

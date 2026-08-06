@@ -195,7 +195,7 @@ api: ## Start the FastAPI dashboard backend on :8000 (paired with `make frontend
 	uvicorn app.api.main:app --reload --host 0.0.0.0 --port 8000
 
 legal-summarization: install ## Run legal summarization with ARGS="..."
-	python3.12 -m src.Experiments.legal_summarization.main $(ARGS)
+	@$(PYTHON) -m src.Experiments.legal_summarization.main $(ARGS)
 
 legal-summarization-check: install ## Check the legal evaluation's HF runtime (offline)
 	@$(PYTHON) -m src.Experiments.legal_summarization.main --check-dependencies

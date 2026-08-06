@@ -11,6 +11,9 @@ from src.agents.llm_agent import LLMAgent
 from .summarization_config import SummarizationConfig, SummarizationMode
 
 
+MIN_LEGAL_SUMMARY_WORDS = 8
+
+
 class LegalSummarizerAgent(BaseAgent):
     """Evaluate legal summarization without mutating production routing state.
 
@@ -80,6 +83,20 @@ class LegalSummarizerAgent(BaseAgent):
                 "model_url": task_context.get("model_url"),
             }
         )
+        generated = str(result.get("summary") or "").strip()
+        if (
+            result.get("status") == "success"
+            and len(generated.split()) < MIN_LEGAL_SUMMARY_WORDS
+        ):
+            return {
+                **result,
+                "status": "failed",
+                "summary": "Model returned an unusably short legal summary.",
+                "error": generated or "empty model summary",
+                "mode": config.mode.value,
+                "outcome_class": "provider_failure",
+                "learning_eligible": False,
+            }
         return {
             **result,
             "mode": config.mode.value,

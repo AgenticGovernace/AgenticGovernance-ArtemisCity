@@ -662,6 +662,7 @@ def test_streaming_falls_back_to_responses_sse_without_duplicate_final_text(
             "data: [DONE]",
         ]
     )
+
     post = Mock(side_effect=[missing_chat, responses])
     monkeypatch.setattr(llm_module.requests, "post", post)
 
@@ -692,6 +693,32 @@ def test_streaming_falls_back_to_responses_sse_without_duplicate_final_text(
     assert post.call_args_list[1].kwargs["json"]["max_output_tokens"] == 12
     missing_chat.close.assert_called_once_with()
     responses.close.assert_called_once_with()
+
+
+def test_reasoning_only_response_is_not_reported_as_successful_summary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _agent(monkeypatch)
+    monkeypatch.setattr(
+        agent,
+        "_call_exo",
+        lambda *_args, **_kwargs: {
+            "content": (
+                "[Model hit max_tokens during reasoning — increase max_tokens "
+                "to get a final answer.]\n\nThinking about the judgment..."
+            ),
+            "exo_request": {"request_id": "req-1"},
+        },
+    )
+
+    result = agent.perform_task({"prompt": "Summarize this judgment."})
+
+    assert result["status"] == "failed"
+    assert result["outcome_class"] == "provider_failure"
+    assert result["learning_eligible"] is False
+    assert result["summary"] == (
+        "[Model hit max_tokens during reasoning; no final answer emitted.]"
+    )
 
 
 def test_streaming_responses_completed_event_can_supply_the_only_text(

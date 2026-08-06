@@ -289,3 +289,9 @@ def test_cli_exposes_generic_huggingface_options():
     assert args.task_filter == ""
     assert args.streaming is True
     assert args.prompt_for_hf_token is True
+
+
+def test_cli_uses_reasoning_safe_summary_token_default():
+    args = build_parser().parse_args([])
+
+    assert args.max_tokens == 2048

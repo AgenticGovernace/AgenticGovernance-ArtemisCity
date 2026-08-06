@@ -116,6 +116,7 @@ from src.Experiments.legal_summarization.run_store import RunStore  # noqa: E402
 from src.Experiments.legal_summarization.summarization_config import (  # noqa: E402
     AggregationLevel,
     AudienceLevel,
+    DEFAULT_LEGAL_SUMMARY_TOKENS,
     SummarizationConfig,
     SummarizationMode,
 )
@@ -178,8 +179,8 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument(
         "--max-tokens",
         type=int,
-        default=512,
-        help="Max summary tokens (default: 512)",
+        default=DEFAULT_LEGAL_SUMMARY_TOKENS,
+        help=f"Max summary tokens (default: {DEFAULT_LEGAL_SUMMARY_TOKENS})",
     )
     run.add_argument(
         "--temperature",

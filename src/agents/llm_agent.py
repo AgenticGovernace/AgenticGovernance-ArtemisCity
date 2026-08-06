@@ -243,6 +243,15 @@ class LLMAgent(base_agent.BaseAgent):
                 messages, model, temperature, max_tokens, model_url
             )
             exo_request = response["exo_request"]
+            incomplete_summary = self._incomplete_summary_result(
+                response.get("content", ""), exo_request, model, model_url
+            )
+            if incomplete_summary is not None:
+                self.report_status(
+                    "Exo response did not contain a final answer; marking the "
+                    "provider result incomplete."
+                )
+                return incomplete_summary
             self.report_status(
                 "Exo response received "
                 f"(request_id={exo_request['request_id']}, "
@@ -790,6 +799,36 @@ class LLMAgent(base_agent.BaseAgent):
             return text  # empty, but at least typed correctly
 
         return str(first.get("text", "")).strip()
+
+    @staticmethod
+    def _incomplete_summary_result(
+        content: typing.Any,
+        exo_request: dict[str, typing.Any],
+        model: str,
+        model_url: str,
+    ) -> typing.Optional[dict[str, typing.Any]]:
+        """Reject reasoning-only output before it reaches downstream agents."""
+        if not isinstance(content, str):
+            return None
+        if not content.startswith(
+            (
+                "[Model hit max_tokens during reasoning",
+                "[Model reasoning only — no final content emitted.]",
+            )
+        ):
+            return None
+        return {
+            "status": "failed",
+            "summary": "[Model hit max_tokens during reasoning; no final answer emitted.]",
+            "provider": "exo",
+            "fallback_used": False,
+            "outcome_class": "provider_failure",
+            "learning_eligible": False,
+            "model": model,
+            "model_url": model_url,
+            "error": content,
+            "exo_request": exo_request,
+        }
 
     # --- Streaming -----------------------------------------------------
     # Optional capability: the orchestrator's streaming executor checks for
