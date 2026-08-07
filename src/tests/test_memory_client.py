@@ -9,7 +9,8 @@ sys.modules.pop("src.integration.memory_client", None)
 
 import pytest
 
-from src.integration.memory_client import MCPOperation, MCPResponse, MemoryClient
+from src.integration.memory_client import (MCPOperation, MCPResponse,
+                                           MemoryClient)
 
 
 # ---------------------------------------------------------------------------

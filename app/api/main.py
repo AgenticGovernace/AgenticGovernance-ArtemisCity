@@ -46,7 +46,8 @@ def _sanitize_for_log(value: Any) -> str:
 import_error: Exception | None = None
 
 try:
-    from src.mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
+    from src.mcp.config import (AGENT_INPUT_DIR, AGENT_OUTPUT_DIR,
+                                OBSIDIAN_VAULT_PATH)
     from src.mcp.orchestrator import Orchestrator
     from src.utils.helpers import logger
 except Exception as e:
@@ -643,8 +644,7 @@ async def get_task_activity(
 
     conn = _connect_db(RUN_LOG_DB)
     try:
-        rows = conn.execute(
-            """
+        rows = conn.execute("""
             SELECT
               run_id,
               timestamp,
@@ -657,8 +657,7 @@ async def get_task_activity(
               parent_prov_id
             FROM event_log
             ORDER BY created_at ASC, id ASC
-            """
-        ).fetchall()
+            """).fetchall()
     except Exception as e:
         logger.error(
             "Error fetching task activity %s: %s",
@@ -735,9 +734,7 @@ async def get_task_activity(
     try:
         report_models = await get_reports()
         reports = [
-            report.model_dump()
-            for report in report_models
-            if report.task_id == task_id
+            report.model_dump() for report in report_models if report.task_id == task_id
         ]
     except HTTPException:
         raise

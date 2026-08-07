@@ -75,9 +75,7 @@ def main():
     venv_bin_path = venv_dir / bin_dir
     venv_python = venv_bin_path / ("python.exe" if os.name == "nt" else "python")
     if not venv_python.is_file():
-        raise RuntimeError(
-            f"make install-all completed without creating {venv_python}"
-        )
+        raise RuntimeError(f"make install-all completed without creating {venv_python}")
 
     # Put the venv first for later setup subprocesses, while still passing the
     # exact interpreter to uv so nested/system environments cannot be selected.

@@ -2,25 +2,16 @@
 
 import pytest
 
-from src.integration.exceptions import (
-    AgentCapabilityError,
-    AgentError,
-    AgentNotFoundError,
-    AgentRegistrationError,
-    ArtemisError,
-    ConfigurationError,
-    GovernanceError,
-    GovernanceThresholdError,
-    GovernanceViolationError,
-    MemoryBusError,
-    MemorySystemError,
-    ObsidianConnectionError,
-    TaskError,
-    TaskExecutionError,
-    TaskRoutingError,
-    TaskValidationError,
-    VectorStoreError,
-)
+from src.integration.exceptions import (AgentCapabilityError, AgentError,
+                                        AgentNotFoundError,
+                                        AgentRegistrationError, ArtemisError,
+                                        ConfigurationError, GovernanceError,
+                                        GovernanceThresholdError,
+                                        GovernanceViolationError,
+                                        MemoryBusError, MemorySystemError,
+                                        ObsidianConnectionError, TaskError,
+                                        TaskExecutionError, TaskRoutingError,
+                                        TaskValidationError, VectorStoreError)
 
 
 # ---------------------------------------------------------------------------

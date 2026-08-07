@@ -10,7 +10,6 @@ from src.agents.llm_agent import LLMAgent
 
 from .summarization_config import SummarizationConfig, SummarizationMode
 
-
 MIN_LEGAL_SUMMARY_WORDS = 8
 
 

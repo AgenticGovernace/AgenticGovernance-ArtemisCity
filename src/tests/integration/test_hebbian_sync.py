@@ -6,7 +6,8 @@ and ``BatchResult`` as defined in ``src/integration/hebbian_sync.py``.
 
 import pytest
 
-from src.integration.hebbian_sync import BatchResult, HebbianSyncService, WeightUpdate
+from src.integration.hebbian_sync import (BatchResult, HebbianSyncService,
+                                          WeightUpdate)
 
 # ---------------------------------------------------------------------------
 # WeightUpdate

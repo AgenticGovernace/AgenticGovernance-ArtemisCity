@@ -693,7 +693,9 @@ def test_live_task_detail_finds_completed_task_by_exact_id(
 ):
     orch = _Orchestrator()
     orch.obs_manager.list_notes_in_folder.return_value = ["completed.md"]
-    orch.obs_manager.read_note.return_value = "---\ntask_id: T-done\nstatus: completed\n---\n# Done"
+    orch.obs_manager.read_note.return_value = (
+        "---\ntask_id: T-done\nstatus: completed\n---\n# Done"
+    )
     orch.obs_parser.parse_task_note.return_value = {
         "task_id": "T-done",
         "status": "completed",
@@ -810,7 +812,9 @@ def test_task_activity_is_exact_governed_projection_with_server_report_link(
         }
     ]
     assert len(payload["events"]) == 3
-    assert {event["metadata"]["task_id"] for event in payload["events"]} == {"T-activity"}
+    assert {event["metadata"]["task_id"] for event in payload["events"]} == {
+        "T-activity"
+    }
     assert payload["events"][1]["parent_prov_id"] == "prov-root"
 
     assert client.get("/api/tasks/unknown/activity").status_code == 404
@@ -823,7 +827,9 @@ def test_task_activity_requires_dashboard_api_key(
     monkeypatch.setattr(dashboard, "_FASTAPI_API_KEY", "secret")
     assert client.get("/api/tasks/T-activity/activity").status_code == 401
     assert (
-        client.get("/api/tasks/T-activity/activity", headers={"X-API-Key": "wrong"}).status_code
+        client.get(
+            "/api/tasks/T-activity/activity", headers={"X-API-Key": "wrong"}
+        ).status_code
         == 401
     )
 

@@ -14,7 +14,6 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Optional
 
-
 DEFAULT_LEGAL_SUMMARY_TOKENS = 2048
 
 

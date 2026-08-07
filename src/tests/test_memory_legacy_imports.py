@@ -1,9 +1,12 @@
 """Regression tests for legacy memory package import paths."""
 
 from memory.integration import ContextLoader, MCPOperation, MemoryClient
-from memory.integration.context_loader import ContextLoader as SubmoduleContextLoader
-from memory.integration.memory_client import MemoryClient as SubmoduleMemoryClient
-from memory.integration.trust_interface import TrustInterface as SubmoduleTrustInterface
+from memory.integration.context_loader import \
+    ContextLoader as SubmoduleContextLoader
+from memory.integration.memory_client import \
+    MemoryClient as SubmoduleMemoryClient
+from memory.integration.trust_interface import \
+    TrustInterface as SubmoduleTrustInterface
 
 
 def test_memory_integration_reexports_canonical_symbols():

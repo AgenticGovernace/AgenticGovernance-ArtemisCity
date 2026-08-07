@@ -10,11 +10,8 @@ import sqlite3
 import pytest
 
 from src.agents.base_agent import BaseAgent
-from src.integration.agent_registry import (
-    QUARANTINE_THRESHOLD,
-    AgentRegistry,
-    AgentScore,
-)
+from src.integration.agent_registry import (QUARANTINE_THRESHOLD,
+                                            AgentRegistry, AgentScore)
 
 
 class _StubAgent(BaseAgent):

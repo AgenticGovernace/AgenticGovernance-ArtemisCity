@@ -12,7 +12,8 @@ from unittest.mock import Mock
 import pytest
 
 import src.agents.llm_agent as llm_module
-from src.agents.llm_agent import DEFAULT_EXO_MODEL_ID, LLMAgent, _MissingRequests
+from src.agents.llm_agent import (DEFAULT_EXO_MODEL_ID, LLMAgent,
+                                  _MissingRequests)
 
 
 class _HTTPError(RuntimeError):
