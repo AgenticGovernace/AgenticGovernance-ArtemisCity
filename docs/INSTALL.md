@@ -105,6 +105,7 @@ Keep dependency changes explicit and lock-backed:
 
 ```bash
 uv lock --upgrade-package <package>
+uv lock --upgrade
 make install-dev
 ```
 
