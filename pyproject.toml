@@ -1,10 +1,14 @@
+[build-system]
+requires = ["hatchling>=1.21.0"]
+build-backend = "hatchling.build"
+
 [project]
 name = "artemis-city"
 version = "1.0.0"
 description = "Governed multi-agent orchestration with trust-aware routing and Obsidian-backed memory."
 readme = "README.md"
-requires-python = ">=3.11.15"
-license = { text = "Apache-2.0" }
+requires-python = ">=3.12,<3.13"
+license = "Apache-2.0"
 authors = [
     { name = "Prinston Palmer", email = "prinstonpalmer879@gmail.com" },
 ]
@@ -19,7 +23,6 @@ keywords = [
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -29,23 +32,13 @@ classifiers = [
 dependencies = [
     "alembic>=1.7.0",
     "anthropic>=0.1.0",
-    "bandit>=1.7.0",
-    "black>=24.3.0",
     "click>=8.1.0",
     "datasets>=5.0.1",
     "fastapi>=0.109.1",
     "fastmcp>=0.1.0",
-    "flake8>=6.0.0",
     "httpx>=0.23.0",
     "huggingface-hub>=1.26.1",
-    "ipython>=8.18.0",
-    "isort>=5.12.0",
     "mcp[cli]>=1.29.0",
-    "mkdocs>=1.5.0",
-    "mkdocs-material>=9.0.0",
-    "mkdocs-mermaid2-plugin>=0.7.0",
-    "mkdocstrings[python]>=0.24.0",
-    "mypy>=1.5.0",
     "numpy>=1.24.0",
     "openai>=0.1.0",
     "pandas>=1.5.0",
@@ -54,34 +47,29 @@ dependencies = [
     "psycopg2-binary>=2.9.0",
     "pyarrow>=25.0.0",
     "pydantic>=2.4.0",
-    "pytest>=9.0.3,<9.1",
-    "pytest-asyncio>=0.16.0",
-    "pytest-cov>=3.0.0",
-    "pytest-mock>=3.7.0",
     "python-dotenv>=1.2.2",
     "python-multipart>=0.0.27",
     "pyyaml>=6.0.1",
     "redis>=4.0.0",
     "requests>=2.33.0",
     "rich>=13.7.0",
-    "safety>=2.3.0",
     "sqlalchemy>=1.4.0",
     "tensor>=0.0.0",
     "torch>=1.0.0",
+    "uvicorn[standard]>=0.15.0",
 ]
-db = [
-    "alembic>=1.7.0",
-    "psycopg2-binary>=2.9.0",
-    "redis>=4.0.0",
-]
+
+[project.optional-dependencies]
 dev = [
     "ipdb>=0.13.13",
+    "ipython>=8.18.0",
     "pdbpp>=0.10.3",
     "pre-commit>=3.5.0",
 ]
 docs = [
     "mkdocs>=1.5.0",
     "mkdocs-material>=9.0.0",
+    "mkdocs-mermaid2-plugin>=0.7.0",
     "mkdocstrings[python]>=0.24.0",
 ]
 lint = [
@@ -101,6 +89,7 @@ test = [
     "coverage>=7.0.0",
     "coverage-badge>=1.0.0",
     "faker>=18.0.0",
+    "packaging>=24.0",
     "pytest>=9.0.3,<9.1",
     "pytest-asyncio>=0.16.0",
     "pytest-cases>=3.7.0",
@@ -121,6 +110,10 @@ build = [
 
 [tool.poetry]
 package-mode = false
+
+[tool.hatch.build.targets.wheel]
+only-include = ["src", "app"]
+exclude = ["/app/api/**", "/app/scripts/**", "/app/web/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["src/tests"]

@@ -6,18 +6,15 @@ This guide covers the supported Artemis City setup path.
 
 - **Python**: 3.12
 - **uv**: required for Python dependency installation
-- **Node.js**: 18+ for TypeScript services and the standalone memory layer
+- **Node.js**: 20+ for the TypeScript API and React frontend
 - **Git**: for cloning the repository
 - **Obsidian**: with the Local REST API plugin when using vault-backed memory
 
-Artemis City supports only two local Python environment shapes:
-
-1. A `.venv` created by `uv`.
-2. A `.venv` created by `venv` or `virtualenv`, with dependencies installed by
-   `uv pip`.
-
-Do not use conda, poetry, pyenv range files, or direct pip-only installs for new
-repo setup instructions.
+Artemis City supports a root `.venv` created or validated by the root Makefile.
+An existing Python 3.12 environment may be selected with explicit `VENV` and
+`PYTHON` overrides, but dependency synchronization must still run through
+`make install` or `make install-dev`. Do not use conda, Poetry, Pipenv, pyenv
+range files, or direct pip-only installs for new repo setup instructions.
 
 ## Quick Install
 
@@ -49,38 +46,20 @@ Recommended:
 make install-dev
 ```
 
-Equivalent manual setup with uv:
+The root Makefile is the sole supported dependency installer. It creates or
+validates the Python 3.12 environment, then synchronizes the committed
+`uv.lock` in one transaction. To target an existing environment explicitly:
 
 ```bash
-uv venv --python 3.12 .venv
-source .venv/bin/activate
-uv pip install -r requirements.txt -r requirements-dev.txt
+VENV=/absolute/path/to/.venv PYTHON=/absolute/path/to/.venv/bin/python make install-dev
 ```
-
-Manual setup with an existing virtual environment tool:
-
-```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-uv pip install -r requirements.txt -r requirements-dev.txt
-```
-
-`virtualenv --python python3.12 .venv` is also supported when `virtualenv` is
-already installed.
 
 ### 4. Install Node Dependencies
 
-Root API/dashboard tooling:
+Install both root-managed web workspaces from their shared lock:
 
 ```bash
-npm install
-```
-
-Standalone Obsidian MCP memory layer:
-
-```bash
-cd "src/Artemis Agentic Memory Layer"
-npm install
+make install-web
 ```
 
 ### 5. Verify Installation
@@ -97,11 +76,13 @@ python3.12 -m app.kernel.cli "system status"
 |---|---|
 | Runtime dependencies | `make install` |
 | Dev dependencies | `make install-dev` |
+| API and frontend dependencies | `make install-web` |
+| All development dependencies | `make install-all` |
 | Tests | `make test` |
 | Tests with coverage | `make test-cov` |
 | FastAPI dashboard backend | `make api` |
 | React frontend | `make frontend` |
-| Standalone memory server | `make server` |
+| TypeScript Express API | `make express-api` |
 | Kernel CLI probe | `python -m app.kernel.cli "system status"` |
 
 ## Environment Variables
@@ -120,10 +101,11 @@ Never commit populated `.env` files.
 
 ## Updating Dependencies
 
-Keep dependency changes explicit and uv-backed:
+Keep dependency changes explicit and lock-backed:
 
 ```bash
-uv pip install --python .venv/bin/python -r requirements.txt -r requirements-dev.txt --upgrade
+uv lock --upgrade-package <package>
+make install-dev
 ```
 
 When changing package manifests or lock-style requirements, run the relevant
@@ -147,9 +129,9 @@ different interpreter:
 
 ```bash
 rm -rf .venv
-uv venv --python 3.12 .venv
+make venv
 source .venv/bin/activate
-uv pip install -r requirements.txt -r requirements-dev.txt
+make install-dev
 ```
 
 ### Missing uv
@@ -166,8 +148,8 @@ which python
 python -c "import src; print('src import OK')"
 ```
 
-Then reinstall with uv:
+Then reinstall through the root dependency owner:
 
 ```bash
-uv pip install -r requirements.txt -r requirements-dev.txt
+make install-dev
 ```

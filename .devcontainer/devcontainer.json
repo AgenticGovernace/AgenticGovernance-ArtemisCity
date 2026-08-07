@@ -30,7 +30,7 @@
     "8000": "ignore",
     "5432": "ignore"
   },
-  "postCreateCommand": "bash -c 'cd /workspaces && make install-dev && npm install --prefer-offline'",
+  "postCreateCommand": "bash -c 'cd /workspaces && make install-all'",
   "remoteUser": "root",
   "customizations": {
     "vscode": {

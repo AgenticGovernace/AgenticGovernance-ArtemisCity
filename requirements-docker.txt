@@ -1,6 +1,5 @@
 # Core dependencies from pyproject.toml
 mcp>=1.29.0
-pytest>=9.0.3,<9.1
 python-dotenv>=1.2.2
 
 # FastAPI stack

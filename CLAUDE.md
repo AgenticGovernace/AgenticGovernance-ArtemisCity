@@ -667,7 +667,7 @@ authoritative, what is in transition, and what is deliberately frozen.
 | FastAPI dashboard | `app/api/main.py` | `/api/*` dashboard backend, SQLite-only fallback | Edit for dashboard endpoints. Falls back to read-only SQLite if orchestrator imports fail. |
 | TS Express API | `app/api/index.ts`, `app/api/v1/*.ts`, `app/api/controllers/*.ts` | `/api/v1/*` public HTTP boundary | Boundary for new registry / governance / ATP endpoints. Spawns the bridge — do **not** reimplement Python logic in TS. |
 | Kernel layer | `app/kernel/` | In-process router with concrete `DaemonAgent`, `PlannerAgent` | Newer layer; growing toward orchestrator parity. Used by `app/kernel/cli.py` for local probing. |
-| Obsidian MCP server | `src/Artemis Agentic Memory Layer/` | Standalone TypeScript MCP for the vault | Self-contained TS project; `npm run dev` / Docker. Independent of the Python core. |
+| Obsidian MCP server shell | `src/Artemis Agentic Memory Layer/` | Historical placeholder for a standalone vault service | **Unavailable in this checkout**: no package manifest or Docker files are present. Restore the service and register it in the root workspace before treating it as runnable. |
 | Frontend (mixed) | `app/web/frontend/` | React/Vite client; also carries leftover TS controllers/middleware | **In transition**. Treat as a mixed client/server workspace per README §"Dashboard and web-facing code". |
 | Concept demos | `Concept_Demos/` | Prototype ground for agents and flows | Older but supported. Per the Agent Implementation Guide, work prototyped here graduates to `src/`. |
 
@@ -1041,16 +1041,20 @@ point.
 | Generate `.env` files | `./setup_secrets.sh` |
 | Install runtime deps | `make install` |
 | Install dev tooling | `make install-dev` |
+| Install API + frontend deps | `make install-web` |
+| Install all dev dependencies | `make install-all` |
 | Run tests | `make test` |
 | Run tests with coverage | `make test-cov` |
 | Lint | `make lint` (read-only) / `make lint-fix` (mutating) |
 | All quality checks | `make check` |
 | Security scans | `make security` |
-| Python CLI | `make run` (runs `src/launch/main.py`) |
+| Python CLI | `make cli` |
+| Orchestrator pipeline | `make orchestrator` (`make run` is an alias) |
 | Concept demos | `make demo` |
-| Obsidian MCP server | `make server` |
+| Obsidian MCP server | Unavailable; `make server` fails closed until its package is restored |
 | FastAPI dashboard backend (`:8000`) | `make api` |
 | Frontend dev server (`:5173`, proxies `/api` -> `:8000`) | `make frontend` |
+| TypeScript Express API (`:4000`) | `make express-api` |
 | Build wheel | `make build` |
 
 `make api` and `make frontend` are paired: the frontend's Vite proxy

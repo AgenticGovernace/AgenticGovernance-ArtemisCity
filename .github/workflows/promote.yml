@@ -101,10 +101,7 @@ jobs:
         with:
           enable-cache: true
       - name: Install deps
-        run: |
-          uv venv --python 3.12 .venv
-          uv pip install --python .venv/bin/python -r requirements.txt -r requirements-dev.txt
-          uv pip install --python .venv/bin/python pyyaml pytest
+        run: make install-dev
       - name: Validate environment configs
         run: |
           .venv/bin/python - <<'PY'
@@ -119,9 +116,11 @@ jobs:
         # Jupyter/IDE virtual-document snapshots are not application source;
         # some are plain Python exports with an .ipynb suffix and cannot be
         # parsed as notebooks by Ruff.
-        run: .venv/bin/ruff check src app/api/main.py --select F821 --exclude '**/.virtual_documents/**'
+        run: make lint
       - name: Run tests
-        run: .venv/bin/python -m pytest src/tests
+        run: make test
+      - name: Build documentation
+        run: make docs
 
   promote-staging:
     name: Promote dev -> staging

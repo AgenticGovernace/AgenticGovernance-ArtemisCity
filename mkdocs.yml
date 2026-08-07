@@ -1,0 +1,70 @@
+site_name: Artemis City
+site_description: >-
+  Governed multi-agent orchestration with trust-aware routing and
+  persistent memory.
+
+repo_url: https://github.com/AgenticGovernace/Artemis_City
+repo_name: AgenticGovernace/Artemis_City
+
+docs_dir: docs
+site_dir: dist/docs
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+
+plugins:
+  - search
+  - mermaid2
+  - mkdocstrings:
+      handlers:
+        python:
+          paths:
+            - .
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+
+exclude_docs: |
+  Archived/
+  _Index_of_docs.md
+
+nav:
+  - Home: index.md
+  - Overview: ARCHITECTURE.md
+  - Getting Started:
+      - Installation: INSTALL.md
+      - Project Boundaries: PROJECT_BOUNDARIES.md
+  - Architecture:
+      - Kernel: kernel.md
+      - Memory Bus: MEMORY_BUS.md
+      - Memory Integration: MEMORY_INTEGRATION.md
+      - Living City: LIVING_CITY.md
+  - Agents and APIs:
+      - Agent Implementation Guide: Agent Implementation Guide.md
+      - API Reference: API_REFERENCE.md
+      - Artemis Features: ARTEMIS_FEATURES.md
+      - Translator Protocol: translator_protocol.md
+      - Memory Lawyer: memory_lawyer.md
+  - Governance:
+      - Governance Framework: GOVERNANCE.md
+      - Trust Decay Model: trust_decay_model.md
+  - Development and Operations:
+      - Coding Standards: CODING_STANDARDS.md
+      - Test Plan: TEST_PLAN.md
+      - Environments: ENVIRONMENTS.md
+      - CI/CD: CICD.md
+      - Deployment: DEPLOYMENT.md
+      - Validation Simulations: validation_simulations.md
+      - Agent Activity Log: AGENT_ACTIVITY_LOG.md

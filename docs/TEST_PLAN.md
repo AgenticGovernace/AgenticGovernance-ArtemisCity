@@ -12,7 +12,7 @@
 3. [Unit Tests](#unit-tests)
 4. [Integration Tests](#integration-tests)
 5. [End-to-End Tests](#end-to-end-tests)
-6. [Test Fixtures & Utilities](#test-fixtures--utilities)
+6. [Test Fixtures & Utilities](#test-fixtures-utilities)
 7. [Running Tests](#running-tests)
 8. [Coverage Requirements](#coverage-requirements)
 

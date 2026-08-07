@@ -6,13 +6,13 @@
   "keywords": [
     "ATP"
   ],
-  "homepage": "https://github.com/AgenticGovernace/ArtemisCity",
+  "homepage": "https://github.com/AgenticGovernace/Artemis_City",
   "bugs": {
-    "url": "https://github.com/AgenticGovernace/ArtemisCity/issues"
+    "url": "https://github.com/AgenticGovernace/Artemis_City/issues"
   },
   "repository": {
     "type": "git",
-    "url": "AgenticGovernace/ArtemisCity.git"
+    "url": "AgenticGovernace/Artemis_City.git"
   },
   "license": "Apache-2.0",
   "author": "Prinston Palmer",
@@ -25,25 +25,24 @@
   },
   "workspaces": [
     "app/api",
-    "app/web/frontend",
-    "src/"
+    "app/web/frontend"
   ],
   "scripts": {
-    "api:build": "npm --prefix app/api run build",
-    "api:start": "npm --prefix app/api run start",
-    "api:dev": "npm --prefix app/api run dev",
-    "api:typecheck": "npm --prefix app/api run typecheck",
-    "frontend:build": "npm --prefix app/web/frontend run build",
-    "frontend:dev": "npm --prefix app/web/frontend run dev",
-    "frontend:typecheck": "npm --prefix app/web/frontend run typecheck",
+    "api:build": "npm --workspace app/api run build",
+    "api:start": "npm --workspace app/api run start",
+    "api:dev": "npm --workspace app/api run dev",
+    "api:typecheck": "npm --workspace app/api run typecheck",
+    "frontend:build": "npm --workspace app/web/frontend run build",
+    "frontend:dev": "npm --workspace app/web/frontend run dev",
+    "frontend:typecheck": "npm --workspace app/web/frontend run typecheck",
     "build": "npm run api:build && npm run frontend:build",
     "dev": "npm run api:dev",
     "lint": "eslint .",
     "typecheck": "npm run api:typecheck && npm run frontend:typecheck",
-    "test": "npm --prefix app/api run test"
+    "test": "npm --workspace app/api run test"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=20"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,

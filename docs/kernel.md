@@ -132,25 +132,13 @@ make install-dev
 python -m app.kernel.cli "system status"
 ```
 
-Equivalent manual setup:
+To target an existing Python 3.12 environment while keeping the root Makefile
+as the dependency owner:
 
 ```bash
-uv venv --python 3.12 .venv
-source .venv/bin/activate
-uv pip install -r requirements.txt -r requirements-dev.txt
+VENV=/absolute/path/to/.venv PYTHON=/absolute/path/to/.venv/bin/python make install-dev
 python -m app.kernel.cli "system status"
 ```
-
-If you prefer to create the environment yourself:
-
-```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-uv pip install -r requirements.txt -r requirements-dev.txt
-```
-
-`virtualenv --python python3.12 .venv` is also acceptable when `virtualenv` is
-already installed.
 
 ## 7. File Structure Mapping
 

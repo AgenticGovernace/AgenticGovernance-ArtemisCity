@@ -5,7 +5,7 @@ Artemis City is an agent-governance and memory-orchestration project built aroun
 - structured agent communication through the Artemis Transmission Protocol (ATP)
 - trust- and governance-aware task routing
 - an Obsidian-backed memory layer with semantic recall
-The repository is intentionally broader than a single service. It contains the authoritative Python orchestration core, API and dashboard surfaces, a standalone Obsidian MCP server, and static concept demos used to explore the platform’s behavior.
+The repository is intentionally broader than a single service. It contains the authoritative Python orchestration core, API and dashboard surfaces, a historical shell for a currently unavailable Obsidian MCP server, and static concept demos used to explore the platform’s behavior.
 
 ## Repository reality
 
@@ -14,7 +14,7 @@ New contributors should start with this mental model:
 - `src/`  is the authoritative Python core.
 - `app/`  contains HTTP and UI surfaces that sit on top of the Python core.
 - `Concept_Demos/`  contains static browser prototypes and compatibility shims; maintained Python walkthroughs live in `src/launch/`.
-- `src/Artemis Agentic Memory Layer/`  is a standalone TypeScript MCP server for Obsidian.
+- `src/Artemis Agentic Memory Layer/` is a historical service shell; its package and Docker files are not present in this checkout.
 Some scripts and historical files still reflect earlier layouts. Prefer the paths documented below over older references in legacy notes.
 
 This restructure phase follows the active `src/` plus `app/api` bridge architecture. It intentionally does not create `ts_service` or `python_service` directories; older alignment notes that proposed those layouts are historical context only.
@@ -91,17 +91,14 @@ This directory currently contains mixed frontend and server-side TypeScript surf
 
 Important note: this tree is still in transition. The checked-in package scripts are not a perfect reflection of the React/Vite client structure, so treat it as a mixed client/server workspace rather than a fully isolated frontend package.
 
-### Obsidian MCP server (`src/Artemis Agentic Memory Layer/`)
+### Obsidian MCP server shell (`src/Artemis Agentic Memory Layer/`)
 
-This is a standalone TypeScript service that exposes an Obsidian vault over HTTP for agent workflows.
-
-Responsibilities:
-
-- authenticates API requests with `MCP_API_KEY`
-- translates REST calls into Obsidian Local REST API operations
-- provides note read/write/search/update/delete and related utility endpoints
-- supports local development and Docker-based deployment
-Use this when you want a dedicated MCP-style memory service independent of the main Python orchestration runtime.
+This path is retained as a historical boundary, but the standalone service is
+not runnable in this checkout because its `package.json`, source tree, and
+Docker files are absent. The active Python memory integrations remain under
+`src/integration/` and `src/memory/`. If the standalone service is restored,
+register it in the root npm workspace and expose its lifecycle through the
+root Makefile before documenting it as available.
 
 ### Concept demos (`Concept_Demos/`)
 
@@ -142,7 +139,7 @@ Environment profiles live in `config/environments/`:
 Depending on which surface you run, the repository may depend on:
 
 - Python 3.12
-- Node.js 18+ for TypeScript services
+- Node.js 20+ for the TypeScript API and React frontend
 - Obsidian with the Local REST API plugin
 - SQLite databases and persistent runtime state under repo-root `data/`
 - human-readable process and per-run output under repo-root `logs/`
@@ -159,11 +156,10 @@ splitting authority with `logs/` or temporary vault paths.
 
 ### Containerization
 
-Containerization is currently focused on the standalone Obsidian MCP server:
-
-- `src/Artemis Agentic Memory Layer/Dockerfile`
-- `src/Artemis Agentic Memory Layer/docker-compose.yml`
-The root repository itself is not organized around a single top-level Docker deployment.
+The root `docker-compose.yaml` coordinates the active Python dashboard and
+TypeScript Express services. Their build definitions are `src/Dockerfile-python`
+and `src/Dockerfile`. The historical Obsidian MCP shell has no Docker assets in
+this checkout.
 
 ## Quick start
 
@@ -175,11 +171,11 @@ From the repository root:
 make venv
 source .venv/bin/activate
 make install-dev
+make install-web
 ```
 
-If you prefer to create the environment yourself, use `python3.12 -m venv .venv`
-or `virtualenv --python python3.12 .venv`, then install packages with
-`make install-dev` or `uv pip install -r requirements.txt -r requirements-dev.txt`.
+The root Makefile is the canonical dependency owner. To use an existing Python
+3.12 environment, override `VENV` and `PYTHON` when invoking `make install-dev`.
 
 ### 2. Configure environment files
 
@@ -224,20 +220,14 @@ make api
 
 This matches the proxy target configured in `app/web/frontend/vite.config.ts`.
 
-### 5. Start the standalone Obsidian MCP server (optional)
+### 5. Start the dashboard frontend
 
 ```bash
-cd "src/Artemis Agentic Memory Layer"
-npm install
-npm run dev
+make frontend
 ```
 
-Or run it with Docker:
-
-```bash
-cd "src/Artemis Agentic Memory Layer"
-docker-compose up --build
-```
+The frontend is installed from the root workspace lock by `make install-web`
+or `make install-all`; do not run a second package install inside its directory.
 
 ## Common developer workflows
 
@@ -247,7 +237,8 @@ docker-compose up --build
 make check
 ```
 
-This runs formatting checks, import sorting checks, Flake8, and MyPy.
+This runs the promotion Ruff gate, Black formatting checks, isort import checks,
+and MyPy.
 
 ### Run security checks
 
@@ -295,7 +286,7 @@ Then open `http://localhost:8080`.
 │   ├── obsidian_integration/       # Obsidian manager/parser/generator helpers
 │   ├── tests/                      # Primary Python tests
 │   ├── api_bridge.py               # JSON bridge for TS-to-Python calls
-│   └── Artemis Agentic Memory Layer/  # Standalone TypeScript MCP server
+│   └── Artemis Agentic Memory Layer/  # Historical, currently unavailable service shell
 ├── .env.example
 ├── pyproject.toml
 ├── requirements.txt
@@ -320,7 +311,8 @@ When the Python core starts, the orchestrator:
 - The TypeScript API exposes versioned `/api/v1/*`  routes and shells out to the Python bridge for Python-backed operations.
 - Express does not reimplement registry, memory, ATP, or trust logic in TypeScript. Exposed routes call `src/api_bridge.py` so state stays in Python-owned stores.
 - The React client consumes `/api`  endpoints and is configured to proxy those requests to the FastAPI backend during development.
-- The standalone Obsidian MCP server exposes vault operations over HTTP using bearer-style authentication.
+- The historical Obsidian MCP server contract describes bearer-authenticated
+  vault operations, but that standalone service is unavailable in this checkout.
 
 ### Package boundary
 
@@ -362,13 +354,14 @@ If you are new to the repo, start in this order:
 5. `app/api/main.py`
 6. `app/api/index.ts`
 7. `Concept_Demos/README.md`
-8. `src/Artemis Agentic Memory Layer/README.md`
-That path gives you the orchestration core first, then the public API surfaces, then the demo and standalone memory-server layers.
+8. `docs/PROJECT_BOUNDARIES.md`
+That path gives you the orchestration core first, then the public API surfaces,
+then the demo and current project-boundary status.
 
 ## Additional documentation
 
 - `Concept_Demos/README.md`  — demo-specific usage
-- `src/Artemis Agentic Memory Layer/README.md`  — standalone MCP server setup and API details
+- `docs/PROJECT_BOUNDARIES.md` — active, transitional, and unavailable project surfaces
 - `AGENTS.md`  — project-specific contributor guidance
 - `CLAUDE.md`  — implementation notes about the active code surfaces and bridge behavior
 
@@ -436,7 +429,7 @@ The project employs a "Living City" metaphor where:
 - **NG2**: Distributed deployment across multiple nodes (single-instance architecture)
 - **NG3**: Production-grade embedding models (uses deterministic hash-based stub embeddings)
 - **NG4**: Full Obsidian plugin integration (relies on Local REST API plugin)
-- **NG5**: Container orchestration for the main application (only standalone MCP server is containerized)
+- **NG5**: Distributed multi-node orchestration; the root Compose file is for local single-host services
 
 ---
 
@@ -995,7 +988,7 @@ Secrets are provisioned via `./setup_secrets.sh`:
 | `.env`  | Python core, FastAPI dashboard |
 | `app/api/.env`  | TypeScript Express API |
 | `src/.env`  | Memory-layer Python |
-| `src/Artemis Agentic Memory Layer/.env`  | Standalone MCP server |
+| `src/Artemis Agentic Memory Layer/.env` | Reserved for the unavailable standalone server; setup skips it when the directory is absent |
 **Generated Keys**:
 
 - `MCP_API_KEY`  - Shared across all components
@@ -1243,8 +1236,8 @@ artemis_agent_success_rate
 ```bash
 # Environment setup
 ./setup_secrets.sh
-make install
 make install-dev
+make install-web
 
 # Development
 make test
@@ -1252,10 +1245,11 @@ make lint
 make check
 
 # Running services
-make run              # Python CLI
-make server           # Obsidian MCP server
+make orchestrator     # Python orchestration pipeline
+make cli ARGS='--help' # Artemis City CLI
 make frontend         # React dashboard
 make api              # FastAPI
+make express-api      # TypeScript Express API
 ```
 
 ### 9.4 Related Documentation

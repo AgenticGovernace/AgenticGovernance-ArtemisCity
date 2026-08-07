@@ -1,18 +1,18 @@
 {
   "name": "artemis-city",
   "version": "0.1.0",
-  "description": "An architectural framework for agentic reasoning and transparent action.",
+  "description": "Legacy npm shim delegating Artemis City feature commands to the launch Makefile.",
   "main": "main.py",
   "scripts": {
-    "start": "python main.py",
-    "demo": "python demo_artemis.py",
-    "demo:memory": "python demo_memory_integration.py",
-    "sim:mail": "python sandbox_city/networked_scripts/mail_delivery_sim.py",
-    "pre-commit": "pre-commit run --all-files",
-    "pre-commit:install": "pre-commit install",
-    "pre-commit:uninstall": "pre-commit uninstall",
-    "pre-commit:autoupdate": "pre-commit autoupdate",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "make --no-print-directory run",
+    "cli": "make --no-print-directory cli",
+    "atp": "make --no-print-directory atp",
+    "orchestrator": "make --no-print-directory orchestrator",
+    "kernel": "make --no-print-directory kernel",
+    "demo": "make --no-print-directory demo",
+    "demo:artemis": "make --no-print-directory demo-artemis",
+    "demo:memory": "make --no-print-directory demo-memory",
+    "demo:postal": "make --no-print-directory demo-postal"
   },
   "keywords": [
     "agents",

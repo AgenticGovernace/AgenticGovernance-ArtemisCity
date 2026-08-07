@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Artemis City environment setup script.
 
-This script bootstraps the Python virtual environment, installs dependencies,
-provisions the local secrets configuration, and installs TypeScript service dependencies.
+Dependency installation is owned by the root Makefile. This wrapper delegates
+to that contract, provisions local secrets, and verifies the legal-evaluation
+runtime without maintaining a second installer.
 """
 
 import os
@@ -61,40 +62,21 @@ def main():
         branch = "unknown"
     print(f"-> Branch:    {branch}")
 
-    # The root uv lock is the single source of truth for Python dependencies.
-    # This script may itself be launched by any Python, so every environment
-    # operation explicitly targets the repository's Python 3.12 interpreter.
-    uv_executable = shutil.which("uv")
-    if uv_executable is None:
-        print("-> Installing uv")
-        run_checked(
-            [sys.executable, "-m", "pip", "install", "--quiet", "uv"],
-            cwd=repo_root,
-            operation="uv installation",
-        )
-        uv_executable = shutil.which("uv")
-        if uv_executable is None:
-            raise RuntimeError(
-                "uv was installed but is not available on PATH. Restart the shell "
-                "and rerun setup."
-            )
+    print("-> Installing dependencies through the root Makefile")
+    run_checked(
+        ["make", "install-all"],
+        cwd=repo_root,
+        operation="canonical dependency installation",
+    )
 
-    # Create virtual environment if it doesn't exist
+    # Use the environment created and validated by the root Makefile.
     venv_dir = repo_root / ".venv"
     bin_dir = "Scripts" if os.name == "nt" else "bin"
     venv_bin_path = venv_dir / bin_dir
     venv_python = venv_bin_path / ("python.exe" if os.name == "nt" else "python")
     if not venv_python.is_file():
-        if venv_dir.exists():
-            raise RuntimeError(
-                f"The repository environment at {venv_dir} is incomplete. "
-                "Run `make clean-env` and rerun setup."
-            )
-        print(f"-> Creating virtual environment at {venv_dir}")
-        run_checked(
-            [uv_executable, "venv", "--python", "3.12", str(venv_dir)],
-            cwd=repo_root,
-            operation="Python 3.12 virtual environment creation",
+        raise RuntimeError(
+            f"make install-all completed without creating {venv_python}"
         )
 
     # Put the venv first for later setup subprocesses, while still passing the
@@ -105,19 +87,6 @@ def main():
     )
     if "PYTHONHOME" in os.environ:
         del os.environ["PYTHONHOME"]
-
-    print(f"-> Installing locked Python dependencies into {venv_python}")
-    run_checked(
-        [
-            uv_executable,
-            "sync",
-            "--locked",
-            "--python",
-            str(venv_python),
-        ],
-        cwd=repo_root,
-        operation="locked Python dependency installation",
-    )
 
     # Run setup_secrets.sh
     setup_secrets = repo_root / "setup_secrets.sh"
@@ -158,21 +127,6 @@ def main():
         cwd=repo_root,
         operation="Hugging Face runtime verification",
     )
-
-    # TypeScript services setup
-    mcp_server_dir = repo_root / "src" / "Artemis Agentic Memory Layer"
-    if mcp_server_dir.is_dir():
-        print("-> Installing Obsidian MCP server deps")
-        res = subprocess.run("npm install", cwd=str(mcp_server_dir), shell=True)
-        if res.returncode != 0:
-            print("!! npm install failed in Artemis Agentic Memory Layer")
-
-    frontend_dir = repo_root / "app" / "web" / "frontend"
-    if frontend_dir.is_dir():
-        print("-> Installing dashboard frontend deps")
-        res = subprocess.run("npm install", cwd=str(frontend_dir), shell=True)
-        if res.returncode != 0:
-            print("!! npm install failed in app/web/frontend")
 
     print("==> Setup complete (see any '!!' lines above for skipped/failed steps).")
     print("    Lint/format/type-check: make check")

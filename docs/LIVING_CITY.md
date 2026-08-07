@@ -477,18 +477,18 @@ Experience the Artemis persona with ATP parsing and reflection engine.
 python3 src/launch/demo_artemis.py
 ```
 ### Option 5: Web Dashboard
-Run the TypeScript API and React frontend for a visual experience.
+Run the FastAPI dashboard backend and React frontend for a visual experience.
+The root Makefile owns both dependency installation and service launch.
 
 ```bash
-# Start the API server
-cd web/api
-npm install
-npm run dev
+# Install all web workspaces once from the root lock
+make install-web
+
+# Start the FastAPI dashboard backend
+make api
 
 # In another terminal, start the frontend
-cd web/frontend
-npm install
-npm run dev
+make frontend
 ```
 ## API Reference
 The city exposes REST endpoints for external integration:

@@ -204,22 +204,11 @@ export OBSIDIAN_API_KEY="your_obsidian_plugin_api_key"
 
 ### Starting the MCP Server
 
-```bash
-# Navigate to memory layer
-cd "Artemis Agentic Memory Layer"
-
-# Install dependencies (first time)
-npm install
-
-# Start in development mode
-npm run dev
-
-# Or build and run in production
-npm run build
-npm start
-```
-
-The server will start on `http://localhost:3000` (or configured PORT).
+The historical standalone MCP package is not present in this checkout (the
+directory has no `package.json`). Do not install dependencies inside that
+directory. If the package is restored, add it to the root npm workspace and
+expose its install and launch commands through the root Makefile before using
+the port-3000 examples below.
 
 ### Verifying Connection
 
@@ -558,7 +547,7 @@ Planned improvements aligned with the plan:
 
 ## References
 
-- **MCP Server Documentation**: See `Artemis Agentic Memory Layer/README.md`
+- **MCP Server Status**: See `PROJECT_BOUNDARIES.md`; the standalone package is unavailable in this checkout
 - **ATP Protocol**: See `agents/artemis_transmission_protocol (ATP)`
 - **Trust Decay Model**: See `memory/trust_decay_model.md`
 - **Agent Cards**: See `agents/*.md`

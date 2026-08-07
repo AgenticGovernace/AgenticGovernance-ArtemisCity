@@ -1,207 +1,61 @@
 # ============================================
-# ARTEMIS CITY - MAKEFILE
+# ARTEMIS CITY - APPLICATION FEATURE LAUNCHER
 # ============================================
-# Convenient commands for development tasks
-# Usage: make <target>
+# This Makefile intentionally owns feature execution only. Environments,
+# dependencies, tests, services, builds, and docs belong to the root Makefile.
 
-.PHONY: help venv install install-dev setup-hooks lint lint-fix format check security secrets \
-        test test-cov pre-commit pre-commit-update clean clean-env run demo server \
-        build docs docs-serve all ci
+.PHONY: help run cli atp orchestrator kernel demo demo-artemis demo-memory \
+        demo-postal hebbian agent-stats
 
-# Default target
 .DEFAULT_GOAL := help
 
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 ROOT_DIR := $(abspath $(MAKEFILE_DIR)/../..)
-PYTHON_VERSION ?= 3.12
-VENV ?= $(ROOT_DIR)/.venv
-PYTHON ?= $(VENV)/bin/python
-UV ?= uv
+PYTHON ?= $(ROOT_DIR)/.venv/bin/python
+ARGS ?=
+AGENT ?=
 
-# ============================================
-# HELP
-# ============================================
+LOAD_ENV = set -a; [ ! -f "$(ROOT_DIR)/.env" ] || . "$(ROOT_DIR)/.env"; set +a;
 
-help: ## Show this help message
-	@echo "Artemis City - Available Commands"
+help: ## Show application feature commands
+	@echo "Artemis City - Application Features"
 	@echo "="
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 
-# ============================================
-# INSTALLATION
-# ============================================
+run: orchestrator ## Run the maintained orchestrator entry point
 
-venv: ## Create the canonical root Python 3.12 environment
-	$(MAKE) -C "$(ROOT_DIR)" venv
+cli: ## Run the Artemis City kernel CLI
+	cd "$(ROOT_DIR)" && $(LOAD_ENV) $(PYTHON) -m src $(ARGS)
 
-install: ## Install runtime dependencies into the canonical root environment
-	$(MAKE) -C "$(ROOT_DIR)" install
+atp: ## Run the ATP-enabled CLI
+	cd "$(ROOT_DIR)" && $(LOAD_ENV) $(PYTHON) -m src --atp $(ARGS)
 
-install-dev: ## Install development dependencies into the canonical root environment
-	$(MAKE) -C "$(ROOT_DIR)" install-dev
+orchestrator: ## Run the MCP orchestrator pipeline
+	cd "$(ROOT_DIR)" && $(LOAD_ENV) $(PYTHON) -m src --orchestrator $(ARGS)
 
-setup-hooks: venv ## Install pre-commit hooks into the uv-managed virtual environment
-	@echo "Installing pre-commit hooks..."
-	$(UV) pip install --python $(PYTHON) pre-commit
-	$(PYTHON) -m pre_commit install
-	@echo "Pre-commit hooks installed!"
+kernel: ## Run the local kernel CLI
+	cd "$(ROOT_DIR)" && $(LOAD_ENV) $(PYTHON) -m app.kernel.cli $(ARGS)
 
-# ============================================
-# CODE QUALITY
-# ============================================
+demo: demo-artemis demo-memory demo-postal ## Run all maintained demonstrations
 
-lint: ## Run all linters
-	@echo "Running linters..."
-	@echo "\n--- Flake8 ---"
-	flake8 main.py interface/ || true
-	@echo "\n--- Pylint ---"
-	pylint main.py interface/ || true
-	@echo "\nLinting complete!"
+demo-artemis: ## Run the Artemis feature demonstration
+	cd "$(ROOT_DIR)" && $(LOAD_ENV) $(PYTHON) src/launch/demo_artemis.py
 
-lint-fix: ## Run linters with auto-fix
-	@echo "Running linters with auto-fix..."
-	@echo "\n--- Black (formatter) ---"
-	black .
-	@echo "\n--- isort (import sorter) ---"
-	isort .
-	@echo "\nAuto-fix complete!"
+demo-memory: ## Run the memory integration demonstration
+	cd "$(ROOT_DIR)" && $(LOAD_ENV) $(PYTHON) src/launch/demo_memory_integration.py
 
-format: lint-fix ## Format code (alias for lint-fix)
+demo-postal: ## Run the city postal demonstration
+	cd "$(ROOT_DIR)" && $(LOAD_ENV) $(PYTHON) src/launch/demo_city_postal.py
 
-check: ## Run all checks (format, lint, type)
-	@echo "Running all checks..."
-	@echo "\n--- Black (check only) ---"
-	black --check .
-	@echo "\n--- isort (check only) ---"
-	isort --check-only .
-	@echo "\n--- Flake8 ---"
-	flake8 .
-	@echo "\n--- MyPy (type checking) ---"
-	mypy . || true
-	@echo "\nAll checks complete!"
+hebbian: ## Show the orchestrator Hebbian network summary
+	cd "$(ROOT_DIR)" && $(LOAD_ENV) $(PYTHON) -m src --orchestrator --show-hebbian
 
-# ============================================
-# SECURITY
-# ============================================
-
-security: ## Run security checks
-	@echo "Running security checks..."
-	@echo "\n--- Bandit (security scanner) ---"
-	bandit -r . -c ../pyproject.toml || true
-	@echo "\n--- Safety (dependency vulnerabilities) ---"
-	safety check || true
-	@echo "\nSecurity checks complete!"
-
-secrets: ## Check for accidentally committed secrets
-	@echo "Checking for secrets..."
-	@git diff --cached --name-only | xargs grep -l "API_KEY\|SECRET\|PASSWORD" 2>/dev/null \
-		&& echo "WARNING: Potential secrets detected!" || echo "No secrets detected"
-
-# ============================================
-# TESTING
-# ============================================
-
-test: ## Run the canonical Python test suite
-	@echo "Running tests..."
-	@if [ ! -d "$(ROOT_DIR)/src/tests" ]; then \
-		echo "WARNING: No tests directory found"; \
-	else \
-		cd "$(ROOT_DIR)" && $(PYTHON) -m pytest src/tests/ -v; \
+agent-stats: ## Show Hebbian statistics for AGENT="<name>"
+	@if [ -z "$(AGENT)" ]; then \
+		echo 'ERROR: provide AGENT="<name>".' >&2; \
+		exit 2; \
 	fi
-
-test-cov: ## Run tests with coverage
-	@echo "Running tests with coverage..."
-	@if [ ! -d "$(ROOT_DIR)/src/tests" ]; then \
-		echo "WARNING: No tests directory found"; \
-	else \
-		cd "$(ROOT_DIR)" && $(PYTHON) -m pytest src/tests/ --cov --cov-report=html --cov-report=term; \
-	fi
-
-# ============================================
-# PRE-COMMIT
-# ============================================
-
-pre-commit: ## Run pre-commit hooks on all files
-	@echo "Running pre-commit hooks..."
-	pre-commit run --all-files
-
-pre-commit-update: ## Update pre-commit hooks
-	@echo "Updating pre-commit hooks..."
-	pre-commit autoupdate
-
-# ============================================
-# CLEANUP
-# ============================================
-
-clean: ## Remove build artifacts and cache files
-	@echo "Cleaning up..."
-	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name "*.pyc" -delete 2>/dev/null || true
-	find . -type f -name "*.pyo" -delete 2>/dev/null || true
-	find . -type f -name "*.coverage" -delete 2>/dev/null || true
-	rm -rf build/ dist/ .tox/ htmlcov/ .coverage
-	@echo "Cleanup complete!"
-
-clean-env: ## Remove virtual environment
-	@echo "Removing virtual environment..."
-	rm -rf .venv venv
-	@echo "Virtual environment removed!"
-
-# ============================================
-# DEVELOPMENT
-# ============================================
-
-run: ## Run the launch CLI interactively
-	@echo "Starting Artemis City launcher..."
-	python main.py
-
-demo: ## Run all demos
-	@echo "Running demos..."
-	@echo "\n--- Artemis Features Demo ---"
-	python demo_artemis.py
-	@echo "\n--- Memory Integration Demo ---"
-	python demo_memory_integration.py
-	@echo "\n--- City Postal Demo ---"
-	python demo_city_postal.py
-	@echo "\nDemos complete!"
-
-server: ## Start MCP server (Memory Layer)
-	@echo "Starting MCP server..."
-	cd "../Artemis Agentic Memory Layer" && npm run dev
-
-# ============================================
-# BUILD & PACKAGE
-# ============================================
-
-build: ## Build the package
-	@echo "Building package..."
-	python -m build
-	@echo "Build complete!"
-
-# ============================================
-# DOCUMENTATION
-# ============================================
-
-docs: ## Build documentation (if available)
-	@echo "Building documentation..."
-	mkdocs build || echo "WARNING: MkDocs not configured"
-
-docs-serve: ## Serve documentation locally
-	@echo "Serving documentation..."
-	mkdocs serve || echo "WARNING: MkDocs not configured"
-
-# ============================================
-# ALL-IN-ONE COMMANDS
-# ============================================
-	
-all: clean install-dev format lint security test ## Run all quality checks
-	@echo "All tasks complete!"
-
-ci: check test ## Run CI checks (format check, lint, test)
-	@echo "CI checks complete!"
+	cd "$(ROOT_DIR)" && $(LOAD_ENV) $(PYTHON) -m src --orchestrator --agent-stats "$(AGENT)"

@@ -7,7 +7,7 @@ compatibility shims; new Python agent work belongs in `src/`.
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)
-2. [Agent Types & Locations](#agent-types--locations)
+2. [Agent Types & Locations](#agent-types-locations)
 3. [Creating a New Agent](#creating-a-new-agent)
 4. [Implementation Checklist](#implementation-checklist)
 5. [Testing Your Agent](#testing-your-agent)

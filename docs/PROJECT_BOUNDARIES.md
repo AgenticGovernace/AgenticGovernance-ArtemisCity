@@ -14,7 +14,7 @@ breaking the Artemis City core.
 | FastAPI dashboard backend | `app/api/main.py` | Python/FastAPI | `make api`, `app/api/main.py` | Active dashboard surface | Split into `services/dashboard-api/` after imports are stable |
 | TypeScript Express API | `app/api/**/*.ts` | Node/TypeScript/Express | `app/api/package.json`, `app/api/tsconfig.json`, `app/api/index.ts` | Active public HTTP boundary | Ready for a later physical move to `services/express-api/` |
 | React dashboard frontend | `app/web/frontend/` | Node/TypeScript/React/Vite | `app/web/frontend/package.json`, `vite.config.ts` | Active frontend | Split into `apps/dashboard-web/` |
-| Launch demos and CLI walkthroughs | `src/launch/` | Python scripts, legacy npm shim | `src/launch/Makefile`, `src/launch/package.json` | Transitional | Keep scripts near the core; remove the npm shim once commands are Python-only |
+| Launch demos and CLI walkthroughs | `src/launch/` | Python scripts, feature-only npm compatibility shim | `src/launch/Makefile`, `src/launch/package.json` | Transitional | Keep scripts near the core; the shim delegates to the Makefile and can be retired in a separately approved cleanup |
 | Static concept demos | `Concept_Demos/` | Static HTML/browser demos | `Concept_Demos/README.md` | Supported prototype gallery | Split into `examples/concept-demos/` or keep as non-package docs assets |
 
 ## Incomplete Or Stale Project Shells

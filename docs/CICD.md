@@ -19,46 +19,30 @@ Artemis City deploys across three long-lived environment branches —
 `docs/ENVIRONMENTS.md` for the branch model; this document covers the
 pipeline that drives it.
 
-CircleCI (`.circleci/config.yml`) is the **primary CI/CD system**: it
-runs the docs-mirror check, the Python checks (single Python 3.12), the
-TypeScript API checks, secret scanning, and the per-environment deploy
-workflows with their approval gates.
+The active in-repository CI configuration is the GitHub Actions Promote
+workflow. This checkout has no `.circleci/config.yml`; CircleCI descriptions
+later in this document are historical until that configuration is restored.
 
-GitHub Actions retains a single workflow:
+GitHub Actions contains the promotion workflow:
 
 - **Promote** (`promote.yml`): the promotion cascade. A push to `dev`
   flows automatically to `staging` and then `prod` by fast-forwarding
-  the environment branches. Advancing an environment branch triggers
-  the corresponding CircleCI deploy workflow.
+  the environment branches after the mirrored-docs, environment, lint, test,
+  and MkDocs gates pass.
 
 ### Technology Stack
 
-- **CI Platform**: CircleCI (primary), GitHub Actions (promotion cascade only)
+- **CI Platform**: GitHub Actions Promote workflow
 - **Python Testing**: pytest (`src/tests`)
 - **Supported Python**: 3.12 (`requires-python = ">=3.12,<3.13"`)
 - **Environment model**: `dev -> staging -> prod` (see `docs/ENVIRONMENTS.md`)
 
 ## Workflows
 
-### 1. CircleCI (`.circleci/config.yml`) — primary CI/CD
+### 1. CircleCI (historical)
 
-**Jobs:**
-
-- **docs-mirror**: fails if `CLAUDE.md` and `AGENTS.md` are not
-  byte-for-byte identical.
-- **python-checks**: single supported interpreter, Python 3.12 —
-    - installs `requirements.txt` + `requirements-dev.txt`,
-
-    - validates every `config/environments/*.yaml` via
-      `src.utils.environments.load_environment`,
-    - runs `python -m pytest src/tests`.
-- **typescript-api**: Node 24 typecheck/tests for the Express API.
-- **secrets-check**: secret-scanning gate.
-- **deploy**: per-environment deploy job used by the `dev` / `staging` /
-  `prod` workflows, guarded by approval gates.
-
-Workflows: `dev`, `staging`, and `prod` (branch-filtered, with hold /
-approval steps before deploy) plus `pr-checks` for pull requests.
+No CircleCI configuration is present in this checkout. Do not treat the older
+CircleCI job and deployment descriptions in this document as executable proof.
 
 ### 2. Promote Workflow (`.github/workflows/promote.yml`)
 
@@ -79,8 +63,8 @@ The only remaining GitHub Actions workflow — the promotion cascade. See
    `git push` (no PR, no branch deletion).
 4. **promote-prod** — fast-forwards `prod` to the same commit.
 
-Deploys themselves happen in CircleCI: the branch advance triggers the
-matching CircleCI workflow, whose approval gates guard the rollout.
+This repository currently proves branch promotion only. Deployment automation
+must be verified separately in the environment that owns it.
 
 
 ## Pipeline Stages
@@ -211,7 +195,7 @@ gh secret set DOCKER_PASSWORD --body "your-token"
 
 ### Creating a Release
 
-**1. Update version in `src/pyproject.toml`:**
+**1. Update version in root `pyproject.toml`:**
 
 ```toml
 [project]
@@ -231,7 +215,7 @@ version = "1.0.0"
 **3. Commit changes:**
 
 ```bash
-git add src/pyproject.toml CHANGELOG.md
+git add pyproject.toml CHANGELOG.md
 git commit -m "Release v1.0.0"
 git push origin prod
 ```
@@ -294,7 +278,7 @@ Pre-release versions:
 
 #### 1. Linting Failures
 
-**Problem**: Black or Flake8 fails
+**Problem**: Ruff, Black, isort, or MyPy fails
 
 **Solution**:
 
@@ -320,11 +304,9 @@ make check
 **Solution**:
 
 ```bash
-# Run in clean environment
-uv venv --python 3.12 clean_env
-source clean_env/bin/activate
-uv pip install -r requirements.txt -r requirements-dev.txt
-python -m pytest src/tests
+# Run through the same root-owned install contract as Promote
+VENV=/tmp/artemis-clean-env PYTHON=/tmp/artemis-clean-env/bin/python make install-dev
+/tmp/artemis-clean-env/bin/python -m pytest src/tests
 ```
 
 #### 3. Build Failures
@@ -333,16 +315,16 @@ python -m pytest src/tests
 
 **Check**:
 
-- `src/pyproject.toml` syntax
-- Missing files in MANIFEST.in
+- root `pyproject.toml` syntax and Hatch target configuration
+- missing package files
 - Build dependencies
 
 **Solution**:
 
 ```bash
-# Test build locally
-python -m build
-twine check dist/*
+# Test the root-owned build locally
+make build
+.venv/bin/python -m twine check dist/*
 ```
 
 #### 4. Secret Scanning False Positives
@@ -368,8 +350,9 @@ paths = [
 **Solution**:
 
 ```bash
-# Update dependencies
-uv pip install --python .venv/bin/python -r requirements.txt -r requirements-dev.txt --upgrade
+# Refresh the lock explicitly, then exercise the canonical installer
+uv lock --upgrade-package <package>
+make install-dev
 ```
 
 ### Workflow Debugging
