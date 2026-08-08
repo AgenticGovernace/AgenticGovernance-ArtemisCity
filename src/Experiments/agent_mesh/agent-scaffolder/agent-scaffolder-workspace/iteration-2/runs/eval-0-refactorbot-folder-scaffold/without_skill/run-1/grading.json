@@ -1,0 +1,45 @@
+{
+  "expectations": [
+    {
+      "text": "Creates an AGENTS.md file",
+      "passed": false,
+      "evidence": "files: ['.gitignore', 'README.md', '__pycache__/refactorbot.cpython-310.pyc', 'config/refactorbot.toml', 'examples/sample_session.md', 'prompts/system_prompt.md', 'refactorbot.py', 'requirements.txt']"
+    },
+    {
+      "text": "Creates an index.md folder-context file",
+      "passed": false,
+      "evidence": "files: ['.gitignore', 'README.md', '__pycache__/refactorbot.cpython-310.pyc', 'config/refactorbot.toml', 'examples/sample_session.md', 'prompts/system_prompt.md', 'refactorbot.py', 'requirements.txt']"
+    },
+    {
+      "text": "Creates a .codex/instructions.md behavior file",
+      "passed": false,
+      "evidence": "files: ['.gitignore', 'README.md', '__pycache__/refactorbot.cpython-310.pyc', 'config/refactorbot.toml', 'examples/sample_session.md', 'prompts/system_prompt.md', 'refactorbot.py', 'requirements.txt']"
+    },
+    {
+      "text": "Agent Card uses the Role / Mission / Output Standards / Escalation layers",
+      "passed": false,
+      "evidence": "searched concatenated output text for the four layer labels"
+    },
+    {
+      "text": "Encodes the raw-diffs-only output rule",
+      "passed": true,
+      "evidence": "looked for 'diff' plus 'raw'/'only'/'unified'"
+    },
+    {
+      "text": "Encodes the non-casual / formal tone rule",
+      "passed": true,
+      "evidence": "looked for 'casual' or 'formal'"
+    },
+    {
+      "text": "Encodes the per-line performance-gain rule",
+      "passed": true,
+      "evidence": "looked for 'performance' plus 'per line/hunk/change'"
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 4,
+    "total": 7,
+    "pass_rate": 0.4286
+  }
+}

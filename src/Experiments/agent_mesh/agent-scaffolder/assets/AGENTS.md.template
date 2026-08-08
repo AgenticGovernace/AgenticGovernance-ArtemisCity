@@ -1,0 +1,32 @@
+# AGENTS.md
+Version: v1.0 — [date]
+
+[Insert the Agent Card here — built from agent-card.template.md (lean task agent) or
+audit-agent-card.template.md (monitoring / audit agent), with all applicable layers
+filled in. Include the Memory / Reflection-cadence / Audit layers only if the chosen
+persistence model supports them.]
+
+---
+
+## Persistence model
+[State the tier — Ephemeral / Session / File-based / External service — and where state
+lives. This is what justifies (or rules out) the Memory, Reflection-cadence, and Audit
+layers above.]
+
+[If the backend is a Notion knowledgebase: name the agent's Notion page (its memory +
+reflection home) and how it is reached — the ramble server's MCP when the app is running,
+otherwise the Notion MCP directly. See the agent-scaffolder skill's
+references/notion-memory.md for the structure and tool calls.]
+
+## Communication (multi-agent projects only)
+If this agent coordinates with other agents, it speaks over the Artemis Transmission
+Protocol (ATP): every message opens with an ATP header (Mode, Context, Priority, Action
+Type, TargetZone, Special Instructions). See the artemis-transmission-protocol skill for
+the full tag set and handshake rules. Delete this section for standalone agents.
+
+## Audit & provenance (only if action-level tracing is required)
+For line-item provenance — one parent `prov_id` per ATP prompt, a child entry per
+read / write / execute / tool call linked by `parent_prov_id` in `agent_logs`, and
+halt-and-alert if a log write fails — follow the atp-provenance-logging skill. It expects
+a reachable provenance service. Delete this section if the agent doesn't need traceable
+action logs.

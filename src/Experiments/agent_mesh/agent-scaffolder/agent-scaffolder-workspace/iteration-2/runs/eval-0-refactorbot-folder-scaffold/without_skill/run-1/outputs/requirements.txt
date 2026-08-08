@@ -1,0 +1,11 @@
+# RefactorBot dependencies.
+#
+# The core CLI (refactorbot.py) runs on the Python 3.9+ standard library alone.
+# The packages below are needed only for specific features:
+
+# TOML parsing on Python < 3.11 (3.11+ ships the stdlib `tomllib`).
+tomli>=2.0.1; python_version < "3.11"
+
+# Uncomment the client for whichever LLM backend you wire into call_model():
+# anthropic>=0.39.0
+# openai>=1.0.0

@@ -1,0 +1,4 @@
+# docs/
+
+The Writer authors documentation here. The Reviewer reads but never edits these
+files. See ../AGENTS.md for the coordination protocol.

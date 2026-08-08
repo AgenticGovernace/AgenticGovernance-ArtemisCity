@@ -1,0 +1,14 @@
+==atp_version== 0.3.1
+==from== Relay
+==to== scribe
+==ctx== ctx_240f39
+#Mode: Build
+#Context: Draft the v2 onboarding guide from the ramble notes
+#Priority: High
+#ActionType: Scaffold
+#TargetZone: ramble-stack/docs/onboarding
+#SpecialNotes: Source notes in the ramble inbox.
+==handoff==
+==expect== ==accept==
+---
+Cover install, first run, and the ATP handoff flow. Keep one H1.

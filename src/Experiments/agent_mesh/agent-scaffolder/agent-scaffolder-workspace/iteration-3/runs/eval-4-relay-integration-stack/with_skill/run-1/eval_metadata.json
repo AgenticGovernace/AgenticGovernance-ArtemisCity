@@ -1,0 +1,13 @@
+{
+  "eval_id": 4,
+  "eval_name": "relay-integration-stack",
+  "prompt": "Set up an agent called Relay that hands off tasks to other agents over our ATP protocol, persists its reflections to its own Notion page so they survive across sessions, and logs every action for audit. It runs as part of our ramble stack.",
+  "assertions": [
+    "Produces an AGENTS.md / agent card",
+    "References ATP / artemis-transmission-protocol for comms",
+    "Notion-backed memory & reflection",
+    "References the atp-provenance-logging skill for audit",
+    "States the persistence tier / where reflections persist",
+    "Routes through the ramble server (tier-1 MCP)"
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "Produces an AGENTS.md / agent card",
+      "passed": true,
+      "evidence": "['.codex/instructions.md', 'AGENTS.md', 'ATP_PROTOCOL.md', 'handoffs/inbox/.gitkeep', 'handoffs/inbox/reply_ctx_0572a5.atp', 'handoffs/inbox/reply_ctx_6177a0.atp', 'handoffs/inbox/reply_ctx_EXAMPLE.atp.example', 'handoffs/outbox/.gitkeep', 'handoffs/outbox/ctx_240f39.atp', 'handoffs/outbox/ctx_4df3a.atp.example', 'handoffs/outbox/ctx_6177a0.atp', 'index.md', 'logs/.gitkeep', 'logs/actions.log.jsonl', 'reflections/local-mirror.md', 'relay/__init__.py', 'relay/__main__.py', 'relay/__pycache__/__init__.cpython-310.pyc', 'relay/__pycache__/__main__.cpython-310.pyc', 'relay/__pycache__/agent.cpython-310.pyc', 'relay/__pycache__/atp.cpython-310.pyc', 'relay/__pycache__/audit.cpython-310.pyc', 'relay/__pycache__/memory.cpython-310.pyc', 'relay/agent.py', 'relay/atp.py', 'relay/audit.py', 'relay/memory.py', 'relay/registry.json', 'relay/relay.config.json', 'relay/system-prompt.md', 'requirements.txt']"
+    },
+    {
+      "text": "References ATP / artemis-transmission-protocol for comms",
+      "passed": true,
+      "evidence": "text"
+    },
+    {
+      "text": "Notion-backed memory & reflection",
+      "passed": true,
+      "evidence": "text"
+    },
+    {
+      "text": "References the atp-provenance-logging skill for audit",
+      "passed": false,
+      "evidence": "text"
+    },
+    {
+      "text": "States the persistence tier / where reflections persist",
+      "passed": true,
+      "evidence": "text"
+    },
+    {
+      "text": "Routes through the ramble server (tier-1 MCP)",
+      "passed": false,
+      "evidence": "text"
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 2,
+    "total": 6,
+    "pass_rate": 0.6667
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "eval_id": 1,
+  "eval_name": "finlit-system-prompt",
+  "prompt": "Write me a system prompt for a FinLit planner agent. It should be friendly, help users build budgets, but it must not give specific investment buy/sell advice.",
+  "assertions": [
+    "Produces a system-prompt / Agent Card markdown file",
+    "Includes a Role layer",
+    "Includes a Mission layer",
+    "Includes an Output Standards layer",
+    "Includes an Escalation Rules layer",
+    "Explicitly prohibits specific investment buy/sell advice",
+    "Specifies a friendly / warm tone"
+  ]
+}

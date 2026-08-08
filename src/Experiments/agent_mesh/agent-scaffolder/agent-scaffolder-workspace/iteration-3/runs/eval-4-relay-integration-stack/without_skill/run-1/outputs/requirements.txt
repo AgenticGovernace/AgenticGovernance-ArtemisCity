@@ -1,0 +1,4 @@
+# Relay runtime dependencies.
+# Only the Notion HTTP client is optional — without it, Relay falls back to the
+# local reflection mirror automatically.
+requests>=2.31  ; python_version >= "3.8"

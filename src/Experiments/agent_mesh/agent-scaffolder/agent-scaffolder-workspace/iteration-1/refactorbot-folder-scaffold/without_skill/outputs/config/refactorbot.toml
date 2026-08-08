@@ -1,0 +1,22 @@
+# RefactorBot runtime configuration.
+# These values are read by refactorbot.py at startup. All keys are optional;
+# documented defaults apply when a key or this file is absent.
+
+[refactorbot]
+
+# LLM model identifier passed to the backend integration.
+model = "claude-3-5-sonnet"
+
+# Number of unchanged context lines to include around each hunk in emitted
+# diffs. Standard unified-diff default is 3.
+diff_context_lines = 3
+
+# Minimum estimated multiplicative speedup a refactor must achieve before it is
+# proposed. 1.10 means "must be at least ~10% faster". Raise this to suppress
+# marginal changes; lower it to surface more aggressive proposals.
+min_speedup = 1.10
+
+# Enforce Rule 3 at the output stage: if true, a non-empty diff that lacks a
+# 'PERF:' annotation is rejected rather than emitted. Keep this true to
+# guarantee every change ships with a performance rationale.
+require_perf_annotations = true

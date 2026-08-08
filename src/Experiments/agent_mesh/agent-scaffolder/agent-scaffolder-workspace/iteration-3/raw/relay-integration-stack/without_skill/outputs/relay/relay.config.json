@@ -1,0 +1,24 @@
+{
+  "agent_name": "Relay",
+  "project": "ramble stack",
+  "atp_version": "0.3.1",
+  "max_handoff_retries": 2,
+  "ack_timeout_seconds": 120,
+  "paths": {
+    "registry": "relay/registry.json",
+    "outbox": "handoffs/outbox",
+    "inbox": "handoffs/inbox",
+    "audit_log": "logs/actions.log.jsonl",
+    "reflections_mirror": "reflections/local-mirror.md"
+  },
+  "notion": {
+    "reflections_page_title": "Relay — Reflections",
+    "reflections_page_id": "REPLACE_WITH_NOTION_PAGE_ID",
+    "auth_env_var": "NOTION_API_KEY",
+    "_comment": "reflections_page_id is the canonical, cross-session memory store. Set it once; do not commit a real token — read it from NOTION_API_KEY at runtime."
+  },
+  "audit": {
+    "halt_on_log_failure": true,
+    "append_only": true
+  }
+}

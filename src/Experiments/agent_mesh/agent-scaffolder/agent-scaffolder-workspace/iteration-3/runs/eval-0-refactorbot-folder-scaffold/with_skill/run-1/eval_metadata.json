@@ -1,0 +1,14 @@
+{
+  "eval_id": 0,
+  "eval_name": "refactorbot-folder-scaffold",
+  "prompt": "I'm starting a new folder for a CLI refactor bot called RefactorBot. It should only output raw diffs, never use a casual tone, and explain performance gains per line. Set it up for me.",
+  "assertions": [
+    "Creates an AGENTS.md file",
+    "Creates an index.md folder-context file",
+    "Creates a .codex/instructions.md behavior file",
+    "Agent Card uses Role / Mission / Output Standards / Escalation layers",
+    "Encodes the raw-diffs-only output rule",
+    "Encodes the non-casual / formal tone rule",
+    "Encodes the per-line performance-gain rule"
+  ]
+}

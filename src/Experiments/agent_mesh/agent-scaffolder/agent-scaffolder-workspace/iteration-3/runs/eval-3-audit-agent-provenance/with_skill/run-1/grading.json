@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "Produces an AGENTS.md / audit agent card",
+      "passed": true,
+      "evidence": "['CompSuite/.codex/instructions.md', 'CompSuite/AGENTS.md', 'CompSuite/index.md', 'CompSuite/logs/README.md', 'CompSuite/logs/agent_logs.jsonl', 'CompSuite/logs/daily-2026-06-16.md', 'CompSuite/logs/reflection.md']"
+    },
+    {
+      "text": "Encodes observe-and-log-only boundaries",
+      "passed": true,
+      "evidence": "text"
+    },
+    {
+      "text": "Sets an escalation threshold above Warning",
+      "passed": true,
+      "evidence": "text"
+    },
+    {
+      "text": "Declares file-based persistence with daily logs",
+      "passed": true,
+      "evidence": "text"
+    },
+    {
+      "text": "Specifies a reflection cadence (~50 actions / 12h)",
+      "passed": true,
+      "evidence": "text"
+    },
+    {
+      "text": "References the atp-provenance-logging skill",
+      "passed": true,
+      "evidence": "text"
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  }
+}

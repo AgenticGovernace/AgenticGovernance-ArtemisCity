@@ -1,0 +1,15 @@
+# [Folder / Location Name]
+
+> Purpose: this file is the README for this folder. It gives any agent that enters
+> immediate context — what this location is, what lives here, and how to use it.
+
+## What this is
+[One or two sentences on the role of this folder in the project.]
+
+## What's here
+- [key file or subfolder] — [what it's for]
+- [key file or subfolder] — [what it's for]
+
+## How to use it
+[Any retrieval or usage notes, e.g. "Extract `Chatlog_4-23-25.zip` only on request to
+preserve context space."]

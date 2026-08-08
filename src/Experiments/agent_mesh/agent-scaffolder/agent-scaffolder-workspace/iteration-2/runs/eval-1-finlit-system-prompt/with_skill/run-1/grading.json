@@ -1,0 +1,45 @@
+{
+  "expectations": [
+    {
+      "text": "Produces a system-prompt / Agent Card markdown file",
+      "passed": true,
+      "evidence": "files: ['.codex/instructions.md', 'AGENTS.md', 'finlit-planner-system-prompt.md', 'index.md']"
+    },
+    {
+      "text": "Includes a Role layer",
+      "passed": true,
+      "evidence": "searched output text"
+    },
+    {
+      "text": "Includes a Mission layer",
+      "passed": true,
+      "evidence": "searched output text"
+    },
+    {
+      "text": "Includes an Output Standards layer",
+      "passed": true,
+      "evidence": "searched output text"
+    },
+    {
+      "text": "Includes an Escalation Rules layer",
+      "passed": true,
+      "evidence": "searched output text"
+    },
+    {
+      "text": "Explicitly prohibits specific investment buy/sell advice",
+      "passed": true,
+      "evidence": "invest + negation"
+    },
+    {
+      "text": "Specifies a friendly / warm tone",
+      "passed": true,
+      "evidence": "friendly/warm/encouraging/supportive"
+    }
+  ],
+  "summary": {
+    "passed": 7,
+    "failed": 0,
+    "total": 7,
+    "pass_rate": 1.0
+  }
+}

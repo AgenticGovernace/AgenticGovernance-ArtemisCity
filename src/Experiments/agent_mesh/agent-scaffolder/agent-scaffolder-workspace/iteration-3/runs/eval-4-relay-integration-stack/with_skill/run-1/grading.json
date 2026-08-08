@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "Produces an AGENTS.md / agent card",
+      "passed": true,
+      "evidence": "['.codex/instructions.md', 'AGENTS.md', 'index.md', 'logs/README.md']"
+    },
+    {
+      "text": "References ATP / artemis-transmission-protocol for comms",
+      "passed": true,
+      "evidence": "text"
+    },
+    {
+      "text": "Notion-backed memory & reflection",
+      "passed": true,
+      "evidence": "text"
+    },
+    {
+      "text": "References the atp-provenance-logging skill for audit",
+      "passed": true,
+      "evidence": "text"
+    },
+    {
+      "text": "States the persistence tier / where reflections persist",
+      "passed": true,
+      "evidence": "text"
+    },
+    {
+      "text": "Routes through the ramble server (tier-1 MCP)",
+      "passed": true,
+      "evidence": "text"
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  }
+}

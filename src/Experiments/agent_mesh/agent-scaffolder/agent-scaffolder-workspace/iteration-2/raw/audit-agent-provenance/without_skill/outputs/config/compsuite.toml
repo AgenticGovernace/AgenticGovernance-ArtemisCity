@@ -1,0 +1,80 @@
+# CompSuite configuration.
+#
+# All runtime behavior that an operator might tune lives here, so the policy
+# (especially the classification rules and the escalation threshold) can be
+# adjusted without touching code.
+
+[compsuite]
+# Identifier for this deployment; appears in provenance records.
+agent_name = "CompSuite"
+
+# Directories CompSuite watches. Relative paths resolve against the directory
+# that contains this config file's parent (the project root). Absolute paths
+# are honored as-is.
+watch_roots = ["voice_logs", "outputs"]
+
+# Polling interval (seconds) for the default poll-based watcher. Lower = more
+# responsive, higher = cheaper. Ignored when the watchdog backend is enabled.
+poll_interval_seconds = 2.0
+
+# Watch backend: "poll" (no third-party deps) or "watchdog" (requires the
+# optional `watchdog` package; see requirements.txt).
+backend = "poll"
+
+[classification]
+# Extensions considered normal/expected per root. Anything not listed is at
+# least a Warning (see `warn_on_unknown_extension`).
+voice_logs_allowed_ext = [".wav", ".mp3", ".m4a", ".json", ".txt", ".vtt"]
+outputs_allowed_ext   = [".json", ".txt", ".md", ".csv", ".pdf", ".html", ".log"]
+
+# Extensions that are always an Error regardless of root (executable / risky).
+forbidden_ext = [".exe", ".sh", ".bat", ".dll", ".so", ".cmd", ".ps1", ".scr"]
+
+# Unknown (not-allowed, not-forbidden) extension → Warning when true.
+warn_on_unknown_extension = true
+
+# A zero-byte file is suspicious but not fatal → Warning.
+warn_on_zero_byte = true
+
+# A delete event on a watched file → Warning (outputs/voice data going missing
+# is worth noting, but not by itself an Error).
+warn_on_delete = true
+
+# An event whose resolved path is OUTSIDE every watch root → Error. This guards
+# against path-escape / symlink surprises.
+error_on_out_of_tree = true
+
+# If the classifier itself raises, the event is recorded as → Error (fail loud,
+# never silently downgrade).
+error_on_classifier_failure = true
+
+[escalation]
+# THE ESCALATION GATE.
+# CompSuite escalates a severity iff its rank is STRICTLY GREATER than the rank
+# of `threshold`. With the default "Warning", only "Error" (rank 2) escalates;
+# "Normal" (0) and "Warning" (1) never do. Do not set this below "Warning"
+# unless you intend Warnings to page someone.
+threshold = "Warning"
+
+# Where escalations go. "log" appends to logs/escalations.log. "command" runs
+# the `command` template (with {severity} {path} {detail} substituted). Both
+# may be combined.
+sinks = ["log"]
+
+# Optional shell command template for the "command" sink. Left empty by default.
+command = ""
+
+[reflection]
+# Emit a reflection summary roughly every N actions.
+every_n_actions = 50
+
+# Also emit a reflection on clean shutdown.
+on_shutdown = true
+
+[logging]
+# Directory (relative to project root) for all CompSuite output.
+log_dir = "logs"
+
+# Flush every record immediately for crash safety (slower, safer). Recommended
+# true for an unattended auditor.
+flush_each_record = true

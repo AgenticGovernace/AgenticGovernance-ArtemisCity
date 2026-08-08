@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "Produces an AGENTS.md / audit agent card",
+      "passed": true,
+      "evidence": "files: ['.gitignore', 'AGENTS.md', 'README.md', '__pycache__/compsuite.cpython-310.pyc', 'compsuite/__init__.py', 'compsuite/__pycache__/__init__.cpython-310.pyc', 'compsuite/__pycache__/classifier.cpython-310.pyc', 'compsuite/__pycache__/escalation.cpython-310.pyc', 'compsuite/__pycache__/provenance.cpython-310.pyc', 'compsuite/__pycache__/reflection.cpython-310.pyc', 'compsuite/__pycache__/watcher.cpython-310.pyc', 'compsuite/classifier.py', 'compsuite/escalation.py', 'compsuite/provenance.py', 'compsuite/reflection.py', 'compsuite/watcher.py', 'compsuite.py', 'config/compsuite.toml', 'logs/.state.json', 'logs/provenance/provenance-2026-06-16.ndjson', 'outputs/archive.zip', 'outputs/empty.json', 'outputs/malware.exe', 'outputs/report.md', 'outputs/truly_empty.json', 'requirements.txt', 'voice_logs/note1.json', 'voice_logs/rec.wav']"
+    },
+    {
+      "text": "Encodes observe-and-log-only boundaries (never modifies watched files)",
+      "passed": true,
+      "evidence": "observe/log-only or no-modify rule"
+    },
+    {
+      "text": "Sets an escalation threshold above Warning",
+      "passed": true,
+      "evidence": "escalat + warning"
+    },
+    {
+      "text": "Declares file-based persistence with daily logs",
+      "passed": true,
+      "evidence": "log + daily/.log/logs"
+    },
+    {
+      "text": "Specifies a reflection cadence (~50 actions / 12h)",
+      "passed": true,
+      "evidence": "reflect/summary + cadence token"
+    },
+    {
+      "text": "References the atp-provenance-logging skill (parent/child prov_ids in agent_logs)",
+      "passed": false,
+      "evidence": "skill-specific provenance terms"
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.8333
+  }
+}

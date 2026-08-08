@@ -1,0 +1,45 @@
+{
+  "expectations": [
+    {
+      "text": "Creates an AGENTS.md file",
+      "passed": true,
+      "evidence": "['.codex/instructions.md', 'AGENTS.md', 'index.md']"
+    },
+    {
+      "text": "Creates an index.md folder-context file",
+      "passed": true,
+      "evidence": "['.codex/instructions.md', 'AGENTS.md', 'index.md']"
+    },
+    {
+      "text": "Creates a .codex/instructions.md behavior file",
+      "passed": true,
+      "evidence": "['.codex/instructions.md', 'AGENTS.md', 'index.md']"
+    },
+    {
+      "text": "Agent Card uses Role / Mission / Output Standards / Escalation layers",
+      "passed": true,
+      "evidence": "text"
+    },
+    {
+      "text": "Encodes the raw-diffs-only output rule",
+      "passed": true,
+      "evidence": "text"
+    },
+    {
+      "text": "Encodes the non-casual / formal tone rule",
+      "passed": true,
+      "evidence": "text"
+    },
+    {
+      "text": "Encodes the per-line performance-gain rule",
+      "passed": true,
+      "evidence": "text"
+    }
+  ],
+  "summary": {
+    "passed": 7,
+    "failed": 0,
+    "total": 7,
+    "pass_rate": 1.0
+  }
+}
