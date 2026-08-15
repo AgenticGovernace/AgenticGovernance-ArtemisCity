@@ -5,12 +5,14 @@
 ### System Requirements
 
 **Hardware:**
+
 - CPU: 4+ cores recommended (2+ minimum)
 - Memory: 8GB recommended (4GB minimum)
 - Storage: 50GB free (SSD recommended)
 - Network: 100 Mbps stable connectivity
 
 **Software:**
+
 - Docker 20.10+ or Podman 3.0+
 - Docker Compose 1.29+
 - Python 3.12 (for CLI tools)
@@ -19,39 +21,40 @@
 ### Infrastructure Dependencies
 
 1. **Obsidian Vault** (persistent storage)
+
    - Local filesystem or network mount
    - At least 10GB initial capacity
    - Regular backup strategy
-
 2. **Vector Store** (semantic search)
+
    - Qdrant 1.0+ (recommended)
    - Weaviate 1.0+ (alternative)
    - Milvus 2.0+ (alternative)
    - Minimum 5GB storage
-
 3. **Message Broker** (async operations)
+
    - Redis 6.0+ (recommended)
    - RabbitMQ 3.8+ (alternative)
    - For Hebbian sync batching and task queuing
-
 4. **Monitoring Stack**
+
    - Prometheus 2.30+ (metrics)
    - Grafana 8.0+ (visualization)
    - Optional: Loki, Tempo for logs/traces
 
 ### Network Ports
 
-| Service | Port | Protocol | Status |
-|---------|------|----------|--------|
-| Kernel API (FastAPI dashboard, `app/api/main.py`) | 8000 | HTTP | shipped |
-| Express API (`/api/v1/*` boundary, `app/api/index.ts`) | 4000 | HTTP | shipped |
-| Memory Bus | 8001 | HTTP | **in-process inside `kernel`** — future split |
-| Agent Registry | 8002 | HTTP | **in-process inside `kernel`** — future split |
-| Prometheus | 9090 | HTTP | shipped |
-| Grafana | 3000 | HTTP | shipped |
-| Redis | 6379 | TCP | shipped |
-| Qdrant | 6333 | HTTP | shipped |
-| Obsidian | (file system) | N/A | shipped |
+| Service                                                    | Port          | Protocol | Status                                                 |
+| ---------------------------------------------------------- | ------------- | -------- | ------------------------------------------------------ |
+| Kernel API (FastAPI dashboard,`app/api/main.py`)         | 8000          | HTTP     | shipped                                                |
+| Express API (`/api/v1/*` boundary, `app/api/index.ts`) | 4000          | HTTP     | shipped                                                |
+| Memory Bus                                                 | 8001          | HTTP     | **in-process inside `kernel`** — future split |
+| Agent Registry                                             | 8002          | HTTP     | **in-process inside `kernel`** — future split |
+| Prometheus                                                 | 9090          | HTTP     | shipped                                                |
+| Grafana                                                    | 3000          | HTTP     | shipped                                                |
+| Redis                                                      | 6379          | TCP      | shipped                                                |
+| Qdrant                                                     | 6333          | HTTP     | shipped                                                |
+| Obsidian                                                   | (file system) | N/A      | shipped                                                |
 
 > Memory Bus and Agent Registry are currently library modules
 > (`src/integration/memory_bus.py`, `src/integration/agent_registry.py`)
@@ -244,6 +247,39 @@ networks:
 
 ### Environment Configuration
 
+The checked-in `.env.example` files are the complete variable contracts for
+each runtime location; the values below are the deployment defaults from this
+document. Do not infer completeness from an existing `.env` file. Run
+`./setup_secrets.sh` to backfill keys that were added after a local file was
+created.
+
+The provisioner uses four value classes:
+
+- **Owned secrets** (`MCP_API_KEY`, `FASTAPI_API_KEY`,
+  `ARTEMIS_API_KEY_DEFAULT`, `REDIS_PASSWORD`, `QDRANT_API_KEY`, and
+  `GRAFANA_PASSWORD`) are generated on first setup and rotated with
+  `./setup_secrets.sh --regenerate`. The shared/API secrets are propagated to
+  their declared runtime consumers.
+- **Derived values** such as `ARTEMIS_VECTOR_STORE_API_KEY` follow their
+  source secret (`QDRANT_API_KEY`) so container and application settings stay
+  aligned.
+- **Ordinary defaults** are copied from the matching runtime template only
+  when a key is absent or commented out. Existing non-secret values are
+  preserved, including local paths and service overrides.
+- **Provider credentials and optional values** (`OPENAI_API_KEY`, `EXO_API_KEY`,
+  `HF_TOKEN`, `OBSIDIAN_API_KEY`, and similar) remain blank until an operator
+  supplies them; the script never fabricates them.
+
+Runtime template locations are:
+
+| Runtime | Template |
+|---|---|
+| Python core, FastAPI, and Docker Compose | `.env.example` |
+| TypeScript Express API and bridge | `app/api/.env.example` |
+| Python source runtime | `src/.env.example` |
+| Optional standalone memory-layer MCP server | `src/Artemis Agentic Memory Layer/.env.example` |
+| Vite frontend-only overrides | `app/web/frontend/.env.example` |
+
 **Create `.env` file:**
 
 ```bash
@@ -325,6 +361,7 @@ docker-compose ps
 ```
 
 Expected output:
+
 ```
 NAME                COMMAND             STATUS              PORTS
 kernel              "python -m..."      Up (healthy)        8000->8000/tcp
@@ -400,21 +437,22 @@ scrape_configs:
 **Key Dashboards to Create:**
 
 1. **System Overview**
+
    - Kernel throughput (tasks/sec)
    - Agent availability
    - Error rates (p50/p95/p99)
-
 2. **Memory Bus Health**
+
    - Write latency (histogram)
    - Sync lag (Obsidian → Vector Store)
    - Cache hit ratio
-
 3. **Governance Metrics**
+
    - Approval times by tier
    - Sandbox violations
    - Rollback frequency
-
 4. **Agent Performance**
+
    - Per-agent success rate
    - Trust score trends
    - Hebbian weight distribution

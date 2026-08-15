@@ -1,24 +1,8 @@
 name: Promote
 
-# Automated promotion cascade: a push to `dev` flows all the way to `prod`
-# without anyone touching the staging/prod branches by hand.
-#
-#   push dev --> CI gate (matrix + docs mirror) --> ff staging --> ff prod
-
-#
-# Promotion advances the environment branches with a plain `git push` of the
-# tested commit. There is no promotion *pull request*, so `dev` is never
-# consumed as a PR head branch and is never auto-deleted — the source of the
-# old "I have to recreate dev after every promotion" pain.
-#
-# This workflow is the only remaining GitHub Actions pipeline: CI, tests, and
-# deploys live in CircleCI (.circleci/config.yml). Advancing an environment
-# branch here is what triggers the corresponding CircleCI deploy workflow,
-# whose approval gates guard the actual rollout.
-
 on:
   push:
-    branches: [dev]
+    branches: [dev, staging, prod]
   # Manual re-run of the cascade from the Actions tab. Regardless of which ref
   # the UI selects, the cascade always promotes the current `dev` tip (resolved
   # in the `resolve` job below) — never the default branch or an arbitrary ref.
@@ -33,7 +17,7 @@ concurrency:
   # Never cancel a promotion mid-flight: a cancelled run could leave staging
   # fast-forwarded but prod not, splitting the environments. Let an in-progress
   # cascade finish; a newer dev commit promotes on the next run.
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   # Resolve the exact commit to promote ONCE, so the gate tests and the branch
@@ -56,7 +40,7 @@ jobs:
           if [ "${{ github.event_name }}" = "push" ]; then
             sha="${{ github.sha }}"
           else
-            git fetch --no-tags origin dev
+            git fetch origin dev
             sha="$(git rev-parse FETCH_HEAD)"
           fi
           echo "Promoting dev commit: $sha"
@@ -137,7 +121,7 @@ jobs:
           # No --force: a non-fast-forward push fails loudly, which is the right
           # signal that someone diverged staging outside the cascade.
           git push origin "HEAD:refs/heads/staging"
-
+          
   promote-prod:
     name: Promote staging -> prod
     needs: [resolve, promote-staging]
