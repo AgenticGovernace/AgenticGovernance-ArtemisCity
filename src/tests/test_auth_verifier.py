@@ -61,6 +61,9 @@ _AUTHSTRUCTURE_URL_CASES = (
     ("https://auth.example.test./verify", False),
     ("https://-auth.example.test/verify", False),
     ("https://999.999.999.999/verify", False),
+    (" https://auth.example.test/verify", False),
+    ("https://auth.example.test/verify ", False),
+    ("https://auth.example.test:\u0661\u0662\u0663/verify", False),
 )
 
 _AUTHSTRUCTURE_IDENTIFIER_CASES = (
@@ -73,6 +76,8 @@ _AUTHSTRUCTURE_IDENTIFIER_CASES = (
     ("-leading-separator", False),
     ("name@namespace", False),
     ("a" * 256, False),
+    (" artemis-city", False),
+    ("artemis-city ", False),
 )
 
 
@@ -818,13 +823,39 @@ def test_authstructure_verify_rejects_signed_raw_request_echoes(
         "authorization",
         "Proxy-Authorization",
         "cookie",
+        "Set-Cookie",
+        "password",
+        "passphrase",
+        "credentials",
+        "clientSecret",
         "X-Api-Key",
         "apiKey",
         "apikey",
+        "bearerToken",
+        "accessToken",
+        "refreshToken",
+        "idToken",
         "X-Auth-Token",
+        "sessionToken",
+        "token",
+        "api-token",
+        "apitoken",
+        "authorization-code",
+        "authorizationcode",
+        "access-key",
+        "accesskey",
+        "secret-key",
+        "secretkey",
+        "client-credentials",
+        "clientcredentials",
+        "jwt",
+        "requestProof",
+        "DPoP",
         "X-Request-Signature",
         "X-Client-Proof",
         "Client-Certificate",
+        "certificatePem",
+        "privateKey",
     ],
 )
 def test_authstructure_verify_rejects_exact_sensitive_header_leaves(
@@ -869,6 +900,69 @@ def test_authstructure_verify_rejects_high_information_structured_proof_leaves(
     _assert_denial_is_safe(denied, "authentication_rejected")
 
 
+@pytest.mark.parametrize(
+    ("raw_target", "echoed_proof"),
+    [
+        (b"/v1/route?apiKey=shortsecret", "shortsecret"),
+        (b"/v1/route?proof=firstsecret&proof=secondsecret", "firstsecret"),
+    ],
+)
+def test_authstructure_verify_rejects_every_sensitive_query_occurrence(
+    raw_target: bytes,
+    echoed_proof: str,
+) -> None:
+    """Short values and duplicate sensitive query names remain transient."""
+    request = AuthenticationRequest(
+        transport="http",
+        request_id="request:1",
+        method="POST",
+        authority="routing.artemis.city",
+        raw_target=raw_target,
+        headers={},
+        body=b"{}",
+    )
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(_artifact(identity_overrides={"agent_id": echoed_proof})).verify(
+            request
+        )
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
+
+
+@pytest.mark.parametrize(
+    ("body", "echoed_proof"),
+    [
+        (b'{"password":"tiny"}', "tiny"),
+        (
+            b'{"proof":"duplicate-first-secret","proof":"second-secret"}',
+            "duplicate-first-secret",
+        ),
+    ],
+)
+def test_authstructure_verify_rejects_every_sensitive_json_occurrence(
+    body: bytes,
+    echoed_proof: str,
+) -> None:
+    """Duplicate-preserving JSON parsing protects every named proof value."""
+    request = AuthenticationRequest(
+        transport="http",
+        request_id="request:1",
+        method="POST",
+        authority="routing.artemis.city",
+        raw_target=b"/v1/route",
+        headers={},
+        body=body,
+    )
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(_artifact(identity_overrides={"agent_id": echoed_proof})).verify(
+            request
+        )
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
+
+
 def test_authstructure_verify_allows_benign_transport_collisions() -> None:
     """Common body, target, and metadata values are not credential proofs."""
     request = AuthenticationRequest(
@@ -890,18 +984,47 @@ def test_authstructure_verify_allows_benign_transport_collisions() -> None:
     assert receipt.source.receipt_id == "receipt:verified-1"
 
 
-def test_authstructure_verify_uses_exact_not_substring_proof_matching(
+def test_authstructure_verify_rejects_embedded_high_information_proof(
     authentication_request: AuthenticationRequest,
 ) -> None:
-    """Credential text embedded in a distinct leaf is not an exact echo."""
+    """A long credential remains proof when embedded in an admitted leaf."""
     embedded = f"credential-prefix::{RAW_AUTHORIZATION}::suffix"
 
-    receipt = _verifier(_artifact(identity_overrides={"agent_id": embedded})).verify(
-        authentication_request
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(_artifact(identity_overrides={"agent_id": embedded})).verify(
+            authentication_request
+        )
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
+
+
+@pytest.mark.parametrize(
+    ("metadata_name", "metadata_value"),
+    [
+        ("x-request-key-id", "request-key:1"),
+        ("token-key-id", "capability-key:1"),
+        ("certificate-serial", "serial:0123"),
+        ("certificate-thumbprint", "thumbprint:abc123"),
+    ],
+)
+def test_authstructure_verify_does_not_classify_security_metadata_as_proof(
+    metadata_name: str,
+    metadata_value: str,
+) -> None:
+    """Identifier metadata is not a credential-bearing full-name alias."""
+    request = AuthenticationRequest(
+        transport="http",
+        request_id="request:1",
+        method="POST",
+        authority="routing.artemis.city",
+        raw_target=b"/v1/route",
+        headers={metadata_name: (metadata_value,)},
+        body=b"{}",
     )
 
+    receipt = _verifier(_artifact()).verify(request)
+
     assert receipt.principal is not None
-    assert receipt.principal.identity.agent_id == embedded
 
 
 def test_authstructure_verify_rejects_raw_proof_added_to_canonical_output(
@@ -1208,6 +1331,40 @@ def _setup_secrets_fixture(tmp_path: Path, values: dict[str, str]) -> tuple[Path
     return script, root_env
 
 
+def _realistic_setup_fixture(
+    tmp_path: Path,
+    root_env_bytes: bytes | None,
+) -> tuple[Path, Path, tuple[Path, ...]]:
+    repository_root = Path(__file__).resolve().parents[2]
+    script = tmp_path / "setup_secrets.sh"
+    shutil.copy2(repository_root / "setup_secrets.sh", script)
+
+    pairs = (
+        (".env.example", ".env"),
+        ("app/api/.env.example", "app/api/.env"),
+        ("src/.env.example", "src/.env"),
+        (
+            "src/Artemis Agentic Memory Layer/.env.example",
+            "src/Artemis Agentic Memory Layer/.env",
+        ),
+    )
+    targets: list[Path] = []
+    for example_name, env_name in pairs:
+        source_example = repository_root / example_name
+        example = tmp_path / example_name
+        target = tmp_path / env_name
+        example.parent.mkdir(parents=True, exist_ok=True)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_example, example)
+        targets.append(target)
+        if env_name == ".env":
+            if root_env_bytes is not None:
+                target.write_bytes(root_env_bytes)
+        else:
+            target.write_bytes(f"SENTINEL_{env_name}=unchanged\n".encode())
+    return script, tmp_path / ".env", tuple(targets)
+
+
 def _valid_setup_values() -> dict[str, str]:
     return {
         "ARTEMIS_AUTHSTRUCTURE_URL": "https://auth.example.test/verify",
@@ -1228,6 +1385,7 @@ def _run_setup(script: Path, cwd: Path, mode: str) -> subprocess.CompletedProces
         cwd=cwd,
         capture_output=True,
         text=True,
+        input="y\n",
         check=False,
     )
 
@@ -1367,9 +1525,69 @@ def test_setup_mutating_modes_preserve_invalid_operator_configuration(
     assert "operator-secret" not in output
 
 
+@pytest.mark.parametrize("mode", ["sync", "regenerate"])
+def test_setup_preflight_never_creates_missing_runtime_environment(
+    tmp_path: Path,
+    mode: str,
+) -> None:
+    """Authstructure preflight must precede target creation and prompting."""
+    script, root_env, targets = _realistic_setup_fixture(tmp_path, None)
+    existing_before = {
+        target: target.read_bytes() for target in targets if target.exists()
+    }
+
+    result = _run_setup(script, tmp_path, mode)
+    output = result.stdout + result.stderr
+
+    assert result.returncode == 1
+    assert not root_env.exists()
+    assert all(
+        target.read_bytes() == content for target, content in existing_before.items()
+    )
+    assert "missing target" in output
+    assert "operator action required" in output
+    assert "Create from its .env.example?" not in output
+    assert "Setup complete." not in output
+
+
+@pytest.mark.parametrize("mode", ["sync", "regenerate"])
+def test_setup_preflight_prevents_every_write_for_malformed_configuration(
+    tmp_path: Path,
+    mode: str,
+) -> None:
+    """Invalid operator config blocks secret rotation and all reconciliation."""
+    original_secret = "owned-secret-must-not-rotate"
+    root_env_bytes = (
+        "ARTEMIS_AUTHSTRUCTURE_URL=https://operator-secret@auth.example.test/verify\n"
+        "ARTEMIS_AUTHSTRUCTURE_AUDIENCE=artemis-city\n"
+        "ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE=authstructure\n"
+        "ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID=receipt-key:production-1\n"
+        f"MCP_API_KEY={original_secret}\n"
+        f"FASTAPI_API_KEY={original_secret}\n"
+        f"ARTEMIS_API_KEY_DEFAULT={original_secret}:admin:read\n"
+        f"REDIS_PASSWORD={original_secret}\n"
+        f"QDRANT_API_KEY={original_secret}\n"
+        f"GRAFANA_PASSWORD={original_secret}\n"
+    ).encode()
+    script, root_env, targets = _realistic_setup_fixture(tmp_path, root_env_bytes)
+    before = {target: target.read_bytes() for target in targets}
+
+    result = _run_setup(script, tmp_path, mode)
+    output = result.stdout + result.stderr
+
+    assert result.returncode == 1
+    assert all(target.read_bytes() == content for target, content in before.items())
+    assert original_secret.encode() in root_env.read_bytes()
+    assert "malformed" in output
+    assert "operator action required" in output
+    assert "operator-secret" not in output
+    assert "Setup complete." not in output
+
+
 @pytest.mark.parametrize(("url", "accepted"), _AUTHSTRUCTURE_URL_CASES)
 def test_authstructure_url_grammar_matches_python_and_shell(
     tmp_path: Path,
+    monkeypatch,
     url: str,
     accepted: bool,
 ) -> None:
@@ -1386,12 +1604,22 @@ def test_authstructure_url_grammar_matches_python_and_shell(
             receipt_key_id=EXPECTED_RECEIPT_KEY_ID,
         )
     except AuthConfigurationError:
-        python_accepted = False
+        constructor_accepted = False
     else:
-        python_accepted = True
+        constructor_accepted = True
+
+    _set_valid_authstructure_environment(monkeypatch)
+    monkeypatch.setenv("ARTEMIS_AUTHSTRUCTURE_URL", url)
+    try:
+        AuthstructureConfig.from_environment("test")
+    except AuthConfigurationError:
+        environment_accepted = False
+    else:
+        environment_accepted = True
     shell_result = _run_setup(script, tmp_path, "check")
 
-    assert python_accepted is accepted
+    assert constructor_accepted is accepted
+    assert environment_accepted is accepted
     assert (shell_result.returncode == 0) is accepted
 
 
@@ -1406,6 +1634,7 @@ def test_authstructure_url_grammar_matches_python_and_shell(
 @pytest.mark.parametrize(("value", "accepted"), _AUTHSTRUCTURE_IDENTIFIER_CASES)
 def test_authstructure_identifier_grammar_matches_python_and_shell(
     tmp_path: Path,
+    monkeypatch,
     environment_key: str,
     config_field: str,
     value: str,
@@ -1426,10 +1655,20 @@ def test_authstructure_identifier_grammar_matches_python_and_shell(
     try:
         AuthstructureConfig(**config_values)
     except AuthConfigurationError:
-        python_accepted = False
+        constructor_accepted = False
     else:
-        python_accepted = True
+        constructor_accepted = True
+
+    _set_valid_authstructure_environment(monkeypatch)
+    monkeypatch.setenv(environment_key, value)
+    try:
+        AuthstructureConfig.from_environment("test")
+    except AuthConfigurationError:
+        environment_accepted = False
+    else:
+        environment_accepted = True
     shell_result = _run_setup(script, tmp_path, "check")
 
-    assert python_accepted is accepted
+    assert constructor_accepted is accepted
+    assert environment_accepted is accepted
     assert (shell_result.returncode == 0) is accepted

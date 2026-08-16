@@ -54,14 +54,10 @@ class AuthstructureConfig:
 
         del environment
         values = {
-            "url": os.getenv("ARTEMIS_AUTHSTRUCTURE_URL", "").strip(),
-            "audience": os.getenv("ARTEMIS_AUTHSTRUCTURE_AUDIENCE", "").strip(),
-            "signer_namespace": os.getenv(
-                "ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE", ""
-            ).strip(),
-            "receipt_key_id": os.getenv(
-                "ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID", ""
-            ).strip(),
+            "url": os.getenv("ARTEMIS_AUTHSTRUCTURE_URL", ""),
+            "audience": os.getenv("ARTEMIS_AUTHSTRUCTURE_AUDIENCE", ""),
+            "signer_namespace": os.getenv("ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE", ""),
+            "receipt_key_id": os.getenv("ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID", ""),
         }
         if not all(values.values()):
             raise AuthConfigurationError("auth_verifier_unavailable")
@@ -94,7 +90,7 @@ class AuthstructureConfig:
             raise ValueError
         if ":" in authority:
             hostname, port_text = authority.rsplit(":", 1)
-            if not port_text.isdigit():
+            if re.fullmatch(r"[0-9]{1,5}", port_text) is None:
                 raise ValueError
             port = int(port_text)
             if not 1 <= port <= 65535:

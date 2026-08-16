@@ -252,6 +252,46 @@ is_valid_authstructure_value() {
     esac
 }
 
+# Mutating modes must prove every declared Authstructure field is already
+# operator-supplied and valid before prompts, file creation, secret discovery,
+# rotation, or reconciliation. Diagnostics expose only the key and safe state.
+preflight_authstructure_for_mutation() {
+    local entry example target _label line key value state
+    local invalid=0
+
+    for entry in "${TARGETS[@]}"; do
+        IFS='|' read -r example target _label <<< "$entry"
+        [[ -f "$example" ]] || continue
+
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]] || continue
+            key="${BASH_REMATCH[1]}"
+            is_operator_authstructure_config "$key" || continue
+
+            state=""
+            if [[ ! -f "$target" ]]; then
+                state="missing target"
+            elif ! active_declares "$key" "$target"; then
+                state="missing"
+            else
+                value="$(read_env_value "$key" "$target")"
+                if [[ -z "$value" ]]; then
+                    state="blank"
+                elif ! is_valid_authstructure_value "$key" "$value"; then
+                    state="malformed"
+                fi
+            fi
+
+            if [[ -n "$state" ]]; then
+                echo -e "  $YELLOW""incomplete$NC $target — $key $state; operator action required"
+                invalid=1
+            fi
+        done < "$example"
+    done
+
+    return "$invalid"
+}
+
 should_create() {
     local target="$1"
     if [[ -f "$target" ]]; then
@@ -313,6 +353,11 @@ discover_secret() {
         generate_key
     fi
 }
+
+if [[ "$MODE" != "check" ]] && ! preflight_authstructure_for_mutation; then
+    echo -e "$RED""Setup incomplete:$NC operator-supplied configuration requires action."
+    exit 1
+fi
 
 # Discover canonical values before creating files so a partial checkout does
 # not cause a new key to replace a value that exists in another runtime file.

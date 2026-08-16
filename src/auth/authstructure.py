@@ -16,35 +16,78 @@ from .contracts import AuthReceiptV1
 from .verifier import AuthenticationDenied, AuthenticationRequest
 
 AUTHSTRUCTURE_RECEIPT_FORMAT = "authstructure.receipt/2"
-_SENSITIVE_PROOF_NAME_PARTS = frozenset(
+_SENSITIVE_PROOF_NAMES = frozenset(
     {
-        "authorization",
-        "certificate",
-        "cookie",
-        "key",
-        "proof",
-        "secret",
-        "signature",
-        "token",
-    }
-)
-_SENSITIVE_PROOF_COMBINED_NAMES = frozenset(
-    {
+        "access-token",
+        "access-key",
+        "accesskey",
         "accesstoken",
+        "api-key",
+        "api-token",
         "apikey",
+        "apitoken",
+        "auth-token",
+        "authorization",
+        "authorization-code",
+        "authorizationcode",
         "authtoken",
+        "bearer-token",
+        "bearertoken",
+        "certificate-pem",
+        "certificatepem",
+        "certificate",
+        "client-certificate",
+        "client-credentials",
+        "client-proof",
+        "client-secret",
         "clientcertificate",
+        "clientcredentials",
         "clientproof",
         "clientsecret",
+        "cookie",
+        "credential",
+        "credentials",
+        "dpo-p",
+        "dpop",
+        "id-token",
+        "idtoken",
+        "jwt",
+        "passphrase",
+        "password",
+        "private-key",
+        "privatekey",
+        "proof",
+        "proxy-authorization",
+        "refresh-token",
         "refreshtoken",
+        "request-proof",
+        "request-signature",
+        "requestproof",
         "requestsignature",
+        "secret",
+        "secret-key",
+        "secretkey",
+        "session-token",
+        "sessiontoken",
+        "set-cookie",
+        "signature",
+        "token",
+        "x-api-key",
+        "x-apikey",
+        "x-auth-token",
+        "x-client-proof",
+        "x-request-signature",
     }
 )
-# Header credentials are explicit proof regardless of length. JSON-body and
-# query-target values must be under a sensitive name and carry at least this
-# many characters before either the leaf or its complete structured container
-# is treated as proof. Admission compares exact receipt leaves, never substrings.
-_STRUCTURED_PROOF_MIN_LENGTH = 16
+# Every nonempty value under an exact sensitive alias is proof. Exact receipt
+# leaf matches always deny; sufficiently high-information values also deny when
+# contained in a larger receipt leaf, such as a prefixed Authorization echo.
+_PROOF_CONTAINMENT_MIN_LENGTH = 16
+
+
+@dataclass(frozen=True)
+class _DuplicatePreservingJsonObject:
+    pairs: tuple[tuple[str, object], ...]
 
 
 @dataclass(frozen=True, repr=False)
@@ -265,12 +308,26 @@ class AuthstructureVerifier:
         proof_leaves = cls._structured_proof_leaves(request)
         if not proof_leaves:
             return False
-        return any(value in proof_leaves for value in cls._string_leaves(receipt_dump))
+        return any(
+            receipt_leaf == proof_leaf
+            or (
+                len(proof_leaf) >= _PROOF_CONTAINMENT_MIN_LENGTH
+                and proof_leaf in receipt_leaf
+            )
+            for receipt_leaf in cls._string_leaves(receipt_dump)
+            for proof_leaf in proof_leaves
+        )
 
     @classmethod
     def _string_leaves(cls, value: object) -> Sequence[str]:
         if isinstance(value, str):
             return (value,)
+        if isinstance(value, _DuplicatePreservingJsonObject):
+            return tuple(
+                leaf
+                for _name, nested in value.pairs
+                for leaf in cls._string_leaves(nested)
+            )
         if isinstance(value, Mapping):
             return tuple(
                 leaf for nested in value.values() for leaf in cls._string_leaves(nested)
@@ -288,13 +345,18 @@ class AuthstructureVerifier:
 
         try:
             body_text = request.body.decode("utf-8")
-            body_value = json.loads(body_text)
+            body_value = json.loads(
+                body_text,
+                object_pairs_hook=lambda pairs: _DuplicatePreservingJsonObject(
+                    tuple(pairs)
+                ),
+            )
         except (UnicodeDecodeError, json.JSONDecodeError):
             pass
         else:
             body_leaves = cls._named_structured_proof_leaves(body_value)
             leaves.update(body_leaves)
-            if body_leaves and len(body_text) >= _STRUCTURED_PROOF_MIN_LENGTH:
+            if body_leaves:
                 leaves.add(body_text)
 
         try:
@@ -310,25 +372,20 @@ class AuthstructureVerifier:
             target_leaves = {
                 value
                 for name, value in query_pairs
-                if cls._is_sensitive_proof_name(name)
-                and len(value) >= _STRUCTURED_PROOF_MIN_LENGTH
+                if cls._is_sensitive_proof_name(name) and value
             }
             leaves.update(target_leaves)
-            if target_leaves and len(raw_target) >= _STRUCTURED_PROOF_MIN_LENGTH:
+            if target_leaves:
                 leaves.add(raw_target)
         return frozenset(leaves)
 
     @classmethod
     def _named_structured_proof_leaves(cls, value: object) -> frozenset[str]:
         leaves: set[str] = set()
-        if isinstance(value, Mapping):
-            for name, nested in value.items():
-                if isinstance(name, str) and cls._is_sensitive_proof_name(name):
-                    leaves.update(
-                        leaf
-                        for leaf in cls._string_leaves(nested)
-                        if len(leaf) >= _STRUCTURED_PROOF_MIN_LENGTH
-                    )
+        if isinstance(value, _DuplicatePreservingJsonObject):
+            for name, nested in value.pairs:
+                if cls._is_sensitive_proof_name(name):
+                    leaves.update(leaf for leaf in cls._string_leaves(nested) if leaf)
                 else:
                     leaves.update(cls._named_structured_proof_leaves(nested))
         elif isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
@@ -340,11 +397,4 @@ class AuthstructureVerifier:
     def _is_sensitive_proof_name(name: str) -> bool:
         camel_separated = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "-", name)
         normalized = re.sub(r"[^a-z0-9]+", "-", camel_separated.casefold()).strip("-")
-        name_parts = frozenset(normalized.split("-"))
-        return bool(
-            normalized
-            and (
-                _SENSITIVE_PROOF_NAME_PARTS.intersection(name_parts)
-                or _SENSITIVE_PROOF_COMBINED_NAMES.intersection(name_parts)
-            )
-        )
+        return normalized in _SENSITIVE_PROOF_NAMES
