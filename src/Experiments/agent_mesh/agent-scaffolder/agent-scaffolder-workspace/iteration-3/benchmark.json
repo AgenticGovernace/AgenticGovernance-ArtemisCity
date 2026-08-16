@@ -1,0 +1,563 @@
+{
+  "metadata": {
+    "skill_name": "agent-scaffolder",
+    "skill_path": "/sessions/busy-vibrant-tesla/mnt/outputs/agent-scaffolder",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-06-16T17:59:12Z",
+    "evals_run": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 0,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 125.3,
+        "tokens": 44311,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Creates an AGENTS.md file",
+          "passed": true,
+          "evidence": "['.codex/instructions.md', 'AGENTS.md', 'index.md']"
+        },
+        {
+          "text": "Creates an index.md folder-context file",
+          "passed": true,
+          "evidence": "['.codex/instructions.md', 'AGENTS.md', 'index.md']"
+        },
+        {
+          "text": "Creates a .codex/instructions.md behavior file",
+          "passed": true,
+          "evidence": "['.codex/instructions.md', 'AGENTS.md', 'index.md']"
+        },
+        {
+          "text": "Agent Card uses Role / Mission / Output Standards / Escalation layers",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "Encodes the raw-diffs-only output rule",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "Encodes the non-casual / formal tone rule",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "Encodes the per-line performance-gain rule",
+          "passed": true,
+          "evidence": "text"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 218.1,
+        "tokens": 44504,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Produces a system-prompt / Agent Card markdown file",
+          "passed": true,
+          "evidence": "['.codex/instructions.md', 'AGENTS.md', 'index.md', 'system-prompt.md']"
+        },
+        {
+          "text": "Includes a Role layer",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "Includes a Mission layer",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "Includes an Output Standards layer",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "Includes an Escalation Rules layer",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "Explicitly prohibits specific investment buy/sell advice",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "Specifies a friendly / warm tone",
+          "passed": true,
+          "evidence": "text"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 200.2,
+        "tokens": 54167,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Produces an AGENTS.md file",
+          "passed": true,
+          "evidence": "['.codex/instructions.md', 'AGENTS.md', 'drafts/README.md', 'handoff.md', 'index.md', 'logs/activity-reviewer.md', 'logs/activity-writer.md', 'logs/reflection-reviewer.md', 'logs/reflection-writer.md', 'reviews/README.md']"
+        },
+        {
+          "text": "Defines a Writer agent",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "Defines a Reviewer agent",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "Uses the Agent Card formula (Role + Mission)",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "References the ATP / artemis-transmission-protocol layer",
+          "passed": true,
+          "evidence": "text"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 193.0,
+        "tokens": 49856,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Produces an AGENTS.md / audit agent card",
+          "passed": true,
+          "evidence": "['CompSuite/.codex/instructions.md', 'CompSuite/AGENTS.md', 'CompSuite/index.md', 'CompSuite/logs/README.md', 'CompSuite/logs/agent_logs.jsonl', 'CompSuite/logs/daily-2026-06-16.md', 'CompSuite/logs/reflection.md']"
+        },
+        {
+          "text": "Encodes observe-and-log-only boundaries",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "Sets an escalation threshold above Warning",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "Declares file-based persistence with daily logs",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "Specifies a reflection cadence (~50 actions / 12h)",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "References the atp-provenance-logging skill",
+          "passed": true,
+          "evidence": "text"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 255.7,
+        "tokens": 59231,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Produces an AGENTS.md / agent card",
+          "passed": true,
+          "evidence": "['.codex/instructions.md', 'AGENTS.md', 'index.md', 'logs/README.md']"
+        },
+        {
+          "text": "References ATP / artemis-transmission-protocol for comms",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "Notion-backed memory & reflection",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "References the atp-provenance-logging skill for audit",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "States the persistence tier / where reflections persist",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "Routes through the ramble server (tier-1 MCP)",
+          "passed": true,
+          "evidence": "text"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 0,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4286,
+        "passed": 3,
+        "failed": 4,
+        "total": 7,
+        "time_seconds": 159.3,
+        "tokens": 36026,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Creates an AGENTS.md file",
+          "passed": false,
+          "evidence": "files: ['.gitignore', 'README.md', '__pycache__/refactorbot.cpython-310.pyc', 'config/refactorbot.toml', 'examples/sample_session.md', 'prompts/system_prompt.md', 'refactorbot.py', 'requirements.txt']"
+        },
+        {
+          "text": "Creates an index.md folder-context file",
+          "passed": false,
+          "evidence": "files: ['.gitignore', 'README.md', '__pycache__/refactorbot.cpython-310.pyc', 'config/refactorbot.toml', 'examples/sample_session.md', 'prompts/system_prompt.md', 'refactorbot.py', 'requirements.txt']"
+        },
+        {
+          "text": "Creates a .codex/instructions.md behavior file",
+          "passed": false,
+          "evidence": "files: ['.gitignore', 'README.md', '__pycache__/refactorbot.cpython-310.pyc', 'config/refactorbot.toml', 'examples/sample_session.md', 'prompts/system_prompt.md', 'refactorbot.py', 'requirements.txt']"
+        },
+        {
+          "text": "Agent Card uses the Role / Mission / Output Standards / Escalation layers",
+          "passed": false,
+          "evidence": "searched concatenated output text for the four layer labels"
+        },
+        {
+          "text": "Encodes the raw-diffs-only output rule",
+          "passed": true,
+          "evidence": "looked for 'diff' plus 'raw'/'only'/'unified'"
+        },
+        {
+          "text": "Encodes the non-casual / formal tone rule",
+          "passed": true,
+          "evidence": "looked for 'casual' or 'formal'"
+        },
+        {
+          "text": "Encodes the per-line performance-gain rule",
+          "passed": true,
+          "evidence": "looked for 'performance' plus 'per line/hunk/change'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5714,
+        "passed": 4,
+        "failed": 3,
+        "total": 7,
+        "time_seconds": 77.4,
+        "tokens": 25531,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Produces a system-prompt / Agent Card markdown file",
+          "passed": true,
+          "evidence": "files: ['finlit-planner-system-prompt.md']"
+        },
+        {
+          "text": "Includes a Role layer",
+          "passed": false,
+          "evidence": "searched output text"
+        },
+        {
+          "text": "Includes a Mission layer",
+          "passed": true,
+          "evidence": "searched output text"
+        },
+        {
+          "text": "Includes an Output Standards layer",
+          "passed": false,
+          "evidence": "searched output text"
+        },
+        {
+          "text": "Includes an Escalation Rules layer",
+          "passed": false,
+          "evidence": "searched output text"
+        },
+        {
+          "text": "Explicitly prohibits specific investment buy/sell advice",
+          "passed": true,
+          "evidence": "looked for 'invest' plus a negation token"
+        },
+        {
+          "text": "Specifies a friendly / warm tone",
+          "passed": true,
+          "evidence": "looked for friendly/warm/encouraging/supportive"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 135.8,
+        "tokens": 34477,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Produces an AGENTS.md file",
+          "passed": true,
+          "evidence": "files: ['AGENTS.md', 'STATE.md', 'agents/reviewer.md', 'agents/writer.md', 'docs/.gitkeep', 'review/feedback/README.md', 'review/queue.md', 'style-guide.md']"
+        },
+        {
+          "text": "Defines a Writer agent",
+          "passed": true,
+          "evidence": "searched output text"
+        },
+        {
+          "text": "Defines a Reviewer agent",
+          "passed": true,
+          "evidence": "searched output text"
+        },
+        {
+          "text": "Uses the Agent Card formula (Role + Mission)",
+          "passed": true,
+          "evidence": "searched output text"
+        },
+        {
+          "text": "References the ATP / artemis-transmission-protocol communication layer",
+          "passed": false,
+          "evidence": "looked for 'atp'/'artemis'/'transmission protocol'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8333,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 463.8,
+        "tokens": 80749,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Produces an AGENTS.md / audit agent card",
+          "passed": true,
+          "evidence": "files: ['.gitignore', 'AGENTS.md', 'README.md', '__pycache__/compsuite.cpython-310.pyc', 'compsuite/__init__.py', 'compsuite/__pycache__/__init__.cpython-310.pyc', 'compsuite/__pycache__/classifier.cpython-310.pyc', 'compsuite/__pycache__/escalation.cpython-310.pyc', 'compsuite/__pycache__/provenance.cpython-310.pyc', 'compsuite/__pycache__/reflection.cpython-310.pyc', 'compsuite/__pycache__/watcher.cpython-310.pyc', 'compsuite/classifier.py', 'compsuite/escalation.py', 'compsuite/provenance.py', 'compsuite/reflection.py', 'compsuite/watcher.py', 'compsuite.py', 'config/compsuite.toml', 'logs/.state.json', 'logs/provenance/provenance-2026-06-16.ndjson', 'outputs/archive.zip', 'outputs/empty.json', 'outputs/malware.exe', 'outputs/report.md', 'outputs/truly_empty.json', 'requirements.txt', 'voice_logs/note1.json', 'voice_logs/rec.wav']"
+        },
+        {
+          "text": "Encodes observe-and-log-only boundaries (never modifies watched files)",
+          "passed": true,
+          "evidence": "observe/log-only or no-modify rule"
+        },
+        {
+          "text": "Sets an escalation threshold above Warning",
+          "passed": true,
+          "evidence": "escalat + warning"
+        },
+        {
+          "text": "Declares file-based persistence with daily logs",
+          "passed": true,
+          "evidence": "log + daily/.log/logs"
+        },
+        {
+          "text": "Specifies a reflection cadence (~50 actions / 12h)",
+          "passed": true,
+          "evidence": "reflect/summary + cadence token"
+        },
+        {
+          "text": "References the atp-provenance-logging skill (parent/child prov_ids in agent_logs)",
+          "passed": false,
+          "evidence": "skill-specific provenance terms"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6667,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 612.9,
+        "tokens": 86251,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Produces an AGENTS.md / agent card",
+          "passed": true,
+          "evidence": "['.codex/instructions.md', 'AGENTS.md', 'ATP_PROTOCOL.md', 'handoffs/inbox/.gitkeep', 'handoffs/inbox/reply_ctx_0572a5.atp', 'handoffs/inbox/reply_ctx_6177a0.atp', 'handoffs/inbox/reply_ctx_EXAMPLE.atp.example', 'handoffs/outbox/.gitkeep', 'handoffs/outbox/ctx_240f39.atp', 'handoffs/outbox/ctx_4df3a.atp.example', 'handoffs/outbox/ctx_6177a0.atp', 'index.md', 'logs/.gitkeep', 'logs/actions.log.jsonl', 'reflections/local-mirror.md', 'relay/__init__.py', 'relay/__main__.py', 'relay/__pycache__/__init__.cpython-310.pyc', 'relay/__pycache__/__main__.cpython-310.pyc', 'relay/__pycache__/agent.cpython-310.pyc', 'relay/__pycache__/atp.cpython-310.pyc', 'relay/__pycache__/audit.cpython-310.pyc', 'relay/__pycache__/memory.cpython-310.pyc', 'relay/agent.py', 'relay/atp.py', 'relay/audit.py', 'relay/memory.py', 'relay/registry.json', 'relay/relay.config.json', 'relay/system-prompt.md', 'requirements.txt']"
+        },
+        {
+          "text": "References ATP / artemis-transmission-protocol for comms",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "Notion-backed memory & reflection",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "References the atp-provenance-logging skill for audit",
+          "passed": false,
+          "evidence": "text"
+        },
+        {
+          "text": "States the persistence tier / where reflections persist",
+          "passed": true,
+          "evidence": "text"
+        },
+        {
+          "text": "Routes through the ramble server (tier-1 MCP)",
+          "passed": false,
+          "evidence": "text"
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 198.46,
+        "stddev": 47.5588,
+        "min": 125.3,
+        "max": 255.7
+      },
+      "tokens": {
+        "mean": 50413.8,
+        "stddev": 6409.1842,
+        "min": 44311,
+        "max": 59231
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.66,
+        "stddev": 0.1666,
+        "min": 0.4286,
+        "max": 0.8333
+      },
+      "time_seconds": {
+        "mean": 289.84,
+        "stddev": 234.8029,
+        "min": 77.4,
+        "max": 612.9
+      },
+      "tokens": {
+        "mean": 52606.8,
+        "stddev": 28550.9507,
+        "min": 25531,
+        "max": 86251
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.34",
+      "time_seconds": "-91.4",
+      "tokens": "-2193"
+    }
+  },
+  "notes": [
+    "Integration eval (eval-4 'Relay') is the headline of iteration 3: with-skill tied the whole stack together \u2014 ATP comms + Notion-backed reflection + atp-provenance-logging + the ramble-server tier-1 routing (6/6). The no-skill baseline rebuilt ATP and audit from scratch (its own atp.py v0.3.1 + JSONL audit) and never referenced the atp-provenance-logging skill or the ramble server's 127.0.0.1:3748 / kb_write routing (4/6). Same lesson as eval-3, sharper: the skill keeps new agents ON the user's actual stack instead of reinventing it generically.",
+    "Consistency/variance holds across 5 evals: with-skill 100% +/-0 (time +/-48s); baseline 66% +/-17 (time +/-235s \u2014 one eval-4 baseline run took 613s / 86k tokens building a full Python Relay package). The skill bounds scope and cost; the baseline's spread is the risk it removes.",
+    "No regression from the doc tie-together: evals 0-3 with-skill still score 100% on the updated skill, and the simpler scaffolds stayed lean (RefactorBot still Ephemeral, FinLit still Session) \u2014 the added ecosystem / mcp-builder references didn't bloat or derail them.",
+    "Honest non-discriminators on eval-4 (both configs pass): produces AGENTS.md, references ATP generically, Notion-backed memory. The prompt names ATP/Notion/ramble, so a capable model covers those unaided. The skill's marginal value is the two the baseline misses \u2014 the atp-provenance-logging hand-off and the ramble-server tier-1 routing \u2014 i.e. wiring to the user's specific skills + server, not generic competence.",
+    "Method note: baselines for evals 0-3 are carried from iteration-2 (no-skill behavior is unchanged across doc-only iterations); eval-4 baseline is fresh; all with-skill runs were re-run fresh on the updated skill."
+  ]
+}

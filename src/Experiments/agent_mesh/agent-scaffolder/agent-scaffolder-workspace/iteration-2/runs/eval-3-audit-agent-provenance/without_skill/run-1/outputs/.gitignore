@@ -1,0 +1,14 @@
+# CompSuite runtime output — logs, provenance, reflections, checkpoint.
+logs/
+
+# The watched trees are data, not source.
+voice_logs/
+outputs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env

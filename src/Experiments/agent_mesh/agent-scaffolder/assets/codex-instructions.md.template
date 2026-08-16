@@ -1,0 +1,18 @@
+# In-folder behavior rules
+
+These rules govern how an agent behaves while working inside this folder. Keep them
+concrete and task-specific — this is the "current task + workspace" layer, distinct from
+global personality. Replace the examples below with rules that fit this folder.
+
+- [e.g., If the prompt involves Quarto, check `_quarto.yml` before suggesting changes.]
+- [e.g., Use R or Python code blocks depending on the file context.]
+- When unsure, ask for clarification instead of assuming.
+- Default tone = [e.g., mentor-teacher with occasional dry humor].
+- [e.g., Annotate all refactors with before/after diffs.]
+
+## Persistence & logging (only if this agent persists state)
+- State lives in: [none / session / files under <path> / external service].
+- Reflection: [inline self-check only] OR [write a summary to <reflection log> every
+  <N> actions / <T> hours].
+- Audit: [none] OR [log each action to <log destination>; for parent/child provenance
+  follow the atp-provenance-logging skill].

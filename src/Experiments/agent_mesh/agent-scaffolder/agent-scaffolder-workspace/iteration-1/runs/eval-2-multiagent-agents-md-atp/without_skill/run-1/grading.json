@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "Produces an AGENTS.md file",
+      "passed": true,
+      "evidence": "files: ['AGENTS.md', 'STATE.md', 'agents/reviewer.md', 'agents/writer.md', 'docs/.gitkeep', 'review/feedback/README.md', 'review/queue.md', 'style-guide.md']"
+    },
+    {
+      "text": "Defines a Writer agent",
+      "passed": true,
+      "evidence": "searched output text"
+    },
+    {
+      "text": "Defines a Reviewer agent",
+      "passed": true,
+      "evidence": "searched output text"
+    },
+    {
+      "text": "Uses the Agent Card formula (Role + Mission)",
+      "passed": true,
+      "evidence": "searched output text"
+    },
+    {
+      "text": "References the ATP / artemis-transmission-protocol communication layer",
+      "passed": false,
+      "evidence": "looked for 'atp'/'artemis'/'transmission protocol'"
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  }
+}

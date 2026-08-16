@@ -1,0 +1,9 @@
+==atp_version== 0.3.1
+==from== scribe
+==to== Relay
+==ctx== reply_ctx_EXAMPLE
+==accept==
+#Context: Draft the v2 onboarding guide from the ramble notes
+#SpecialNotes: ETA 1 cycle.
+---
+Accepted. Will deliver to ramble-stack/docs/onboarding/guide.md.

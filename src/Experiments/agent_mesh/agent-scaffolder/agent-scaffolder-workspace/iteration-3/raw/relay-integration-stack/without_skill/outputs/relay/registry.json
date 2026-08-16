@@ -1,0 +1,33 @@
+{
+  "_comment": "Downstream agents Relay may hand off to. Relay routes by matching a task to an agent's capabilities. Relay never invents an agent that is not listed here; no match => escalate to human.",
+  "agents": [
+    {
+      "name": "Scribe",
+      "capabilities": ["draft", "document", "summarize", "write", "scaffold"],
+      "accepts_modes": ["Build", "Synthesize", "Capture"],
+      "load_hint": 1,
+      "atp_address": "scribe"
+    },
+    {
+      "name": "Auditor",
+      "capabilities": ["review", "verify", "lint", "quality-check"],
+      "accepts_modes": ["Review"],
+      "load_hint": 1,
+      "atp_address": "auditor"
+    },
+    {
+      "name": "Forge",
+      "capabilities": ["code", "refactor", "execute", "build", "run"],
+      "accepts_modes": ["Build", "Commit"],
+      "load_hint": 2,
+      "atp_address": "forge"
+    },
+    {
+      "name": "Curator",
+      "capabilities": ["organize", "tag", "file", "index"],
+      "accepts_modes": ["Organize", "Capture"],
+      "load_hint": 1,
+      "atp_address": "curator"
+    }
+  ]
+}

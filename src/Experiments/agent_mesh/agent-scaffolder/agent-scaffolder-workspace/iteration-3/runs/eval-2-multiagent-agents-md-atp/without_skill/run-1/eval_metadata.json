@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "multiagent-agents-md-atp",
+  "prompt": "Set up an AGENTS.md for a multi-agent docs project where a Writer agent and a Reviewer agent need to coordinate with each other.",
+  "assertions": [
+    "Produces an AGENTS.md file",
+    "Defines a Writer agent",
+    "Defines a Reviewer agent",
+    "Uses the Agent Card formula (Role + Mission)",
+    "References the ATP / artemis-transmission-protocol communication layer"
+  ]
+}

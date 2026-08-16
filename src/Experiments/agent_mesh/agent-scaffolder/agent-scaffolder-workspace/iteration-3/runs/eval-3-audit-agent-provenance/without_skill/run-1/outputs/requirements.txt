@@ -1,0 +1,11 @@
+# CompSuite has no required third-party dependencies on Python 3.11+ — it uses
+# only the standard library (the default "poll" watch backend, hashlib, json,
+# uuid, dataclasses, tomllib).
+#
+# Optional extras:
+
+# TOML parsing on Python < 3.11 (3.11+ ships tomllib in the stdlib):
+# tomli>=2.0 ; python_version < "3.11"
+
+# OS-native filesystem events instead of polling (set backend = "watchdog"):
+# watchdog>=3.0

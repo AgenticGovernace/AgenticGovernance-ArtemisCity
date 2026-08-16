@@ -1,0 +1,35 @@
+{
+  "skill_name": "agent-scaffolder",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "I'm starting a new folder for a CLI refactor bot called RefactorBot. It should only output raw diffs, never use a casual tone, and explain performance gains per line. Set it up for me.",
+      "expected_output": "A folder scaffold (index.md, AGENTS.md with a filled-in Agent Card, .codex/instructions.md) reflecting the cold, diff-only behavior and the per-line performance rule.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "Write me a system prompt for a FinLit planner agent. It should be friendly, help users build budgets, but it must not give specific investment buy/sell advice.",
+      "expected_output": "An Agent Card / system prompt filling Role, Mission (with the investment-advice non-goal), Output Standards, and Escalation; Memory/Reflection included only if relevant.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Set up an AGENTS.md for a multi-agent docs project where a Writer agent and a Reviewer agent need to coordinate with each other.",
+      "expected_output": "AGENTS.md with agent card(s) plus a communication section referencing the artemis-transmission-protocol skill for the ATP header/handshake.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Set up an audit agent called CompSuite. It watches my voice_logs/ and outputs/ directories, classifies each file event as Normal / Warning / Error, and must only escalate above Warning. It runs unattended and writes daily logs, and I want a reflection summary every 50 actions or so. I also want full action-level provenance tracking so every read/write is traceable.",
+      "expected_output": "An audit/monitoring Agent Card + scaffold: observe-and-log-only boundaries (never modifies files), an escalation threshold above Warning, file-based persistence (daily logs in a logs/ dir), a reflection cadence (every ~50 actions / 12h), and a reference to the atp-provenance-logging skill for line-item parent/child provenance.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Set up an agent called Relay that hands off tasks to other agents over our ATP protocol, persists its reflections to its own Notion page so they survive across sessions, and logs every action for audit. It runs as part of our ramble stack.",
+      "expected_output": "An AGENTS.md / card that ties the stack together: an ATP communication section (artemis-transmission-protocol), Notion-backed memory + reflection write-ups (references/notion-memory.md; Notion MCP / ramble server), and an action-level audit hand-off to atp-provenance-logging; persistence tier = External (Notion KB).",
+      "files": []
+    }
+  ]
+}

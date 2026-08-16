@@ -1,0 +1,1 @@
+{"prov_id":"00000000-seed-root","parent_prov_id":null,"type":"prompt","action":"agent-start","target":"CompSuite scaffold","status":"ok","ts":"2026-06-16T00:00:00Z","note":"Root line item. Local mirror of the external agent_logs provenance store; external service is source of truth and halt-on-failure trigger. Paths/metadata only, never secrets or file contents."}

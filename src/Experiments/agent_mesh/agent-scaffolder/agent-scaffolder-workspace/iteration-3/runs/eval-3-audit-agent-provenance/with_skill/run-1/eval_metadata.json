@@ -1,0 +1,13 @@
+{
+  "eval_id": 3,
+  "eval_name": "audit-agent-provenance",
+  "prompt": "Set up an audit agent called CompSuite. It watches my voice_logs/ and outputs/ directories, classifies each file event as Normal / Warning / Error, and must only escalate above Warning. It runs unattended and writes daily logs, and I want a reflection summary every 50 actions or so. I also want full action-level provenance tracking so every read/write is traceable.",
+  "assertions": [
+    "Produces an AGENTS.md / audit agent card",
+    "Encodes observe-and-log-only boundaries",
+    "Sets an escalation threshold above Warning",
+    "Declares file-based persistence with daily logs",
+    "Specifies a reflection cadence (~50 actions / 12h)",
+    "References the atp-provenance-logging skill"
+  ]
+}
