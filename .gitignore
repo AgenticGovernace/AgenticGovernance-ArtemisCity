@@ -416,7 +416,6 @@ supabase/.env
 /.agents/.codex/
 /.agents/.eraser/
 apps/dashboard/dist/assets/app.js
-*.db 
 .ai/skills/accidental-data-loss-prevention/SKILL.md
 .ai/skills/bigquery-ai-ml/references/ai_agg.md
 .ai/skills/bigquery-ai-ml/references/ai_classify.md

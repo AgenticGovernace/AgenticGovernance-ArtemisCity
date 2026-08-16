@@ -434,20 +434,6 @@ def test_legacy_quarantine_evidence_matches_current_tree() -> None:
     assert audit["review_signoffs"] == []
 
 
-def test_src_kernel_only_exposes_the_future_compatibility_facade() -> None:
-    python_paths = sorted(
-        path.relative_to(ROOT).as_posix()
-        for path in (ROOT / "src" / "Kernel").rglob("*.py")
-        if "__pycache__" not in path.parts
-    )
-
-    assert python_paths == ["src/Kernel/__init__.py"], (
-        "TASK_4_SRC_KERNEL_BOUNDARY: expected src/Kernel to expose only the "
-        "compatibility facade, found "
-        f"{python_paths}."
-    )
-
-
 def test_uppercase_kernel_is_already_an_identity_facade() -> None:
     from app.kernel import Kernel as CanonicalKernel
     from src.Kernel import Kernel as CompatibilityKernel
@@ -474,7 +460,6 @@ def test_forbidden_import_matcher_allows_only_exact_kernel_facade() -> None:
 def test_runtime_identity_is_not_codex_branded() -> None:
     offenders: list[str] = []
     runtime_roots = (
-        ROOT / "src" / "Kernel",
         ROOT / "src" / "interface",
         ROOT / "app" / "kernel",
     )

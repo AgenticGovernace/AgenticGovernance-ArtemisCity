@@ -13,6 +13,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 MEMORY_LAYER = "src/Artemis Agentic Memory Layer"
 
 
+AUTHSTRUCTURE_CONFIG = (
+    "ARTEMIS_AUTHSTRUCTURE_URL=https://auth.example.test/verify\n"
+    "ARTEMIS_AUTHSTRUCTURE_AUDIENCE=artemis-city\n"
+    "ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE=artemis-signer\n"
+    "ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID=artemis-key-1\n"
+)
+
+
 def _copy_provisioner_fixture(tmp_path: Path) -> Path:
     fixture = tmp_path / "repo"
     fixture.mkdir()
@@ -28,6 +36,26 @@ def _copy_provisioner_fixture(tmp_path: Path) -> Path:
         target = fixture / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target)
+
+    root_example = fixture / ".env.example"
+    example_lines = root_example.read_text().splitlines()
+    updated_lines = []
+    for line in example_lines:
+        if line.startswith("ARTEMIS_AUTHSTRUCTURE_URL="):
+            updated_lines.append(
+                "ARTEMIS_AUTHSTRUCTURE_URL=https://auth.example.test/verify"
+            )
+        elif line.startswith("ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE="):
+            updated_lines.append(
+                "ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE=artemis-signer"
+            )
+        elif line.startswith("ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID="):
+            updated_lines.append(
+                "ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID=artemis-key-1"
+            )
+        else:
+            updated_lines.append(line)
+    root_example.write_text("\n".join(updated_lines) + "\n")
     return fixture
 
 
@@ -61,7 +89,8 @@ def test_sync_backfills_every_runtime_template_and_check_detects_drift(
 ) -> None:
     fixture = _copy_provisioner_fixture(tmp_path)
     (fixture / ".env").write_text(
-        "MCP_API_KEY=keep-mcp\n"
+        AUTHSTRUCTURE_CONFIG
+        + "MCP_API_KEY=keep-mcp\n"
         "ARTEMIS_API_KEY_DEFAULT=keep-ts:admin:read,write\n"
         "\n"
     )
@@ -105,7 +134,11 @@ def test_regenerate_rotates_owned_secrets_and_propagates_them(tmp_path: Path) ->
     for relative in (".env", "app/api/.env", "src/.env", f"{MEMORY_LAYER}/.env"):
         target = fixture / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(
+        content = (
+            AUTHSTRUCTURE_CONFIG
+            if relative == ".env"
+            else ""
+        ) + (
             "MCP_API_KEY=old-mcp\n"
             "FASTAPI_API_KEY=old-fastapi\n"
             "ARTEMIS_API_KEY_DEFAULT=old-ts:admin:read,write,delete,admin\n"
@@ -113,6 +146,7 @@ def test_regenerate_rotates_owned_secrets_and_propagates_them(tmp_path: Path) ->
             "QDRANT_API_KEY=old-qdr\n"
             "GRAFANA_PASSWORD=old-grafana\n"
         )
+        target.write_text(content)
 
     result = _run(fixture, "--regenerate")
 
@@ -133,7 +167,8 @@ def test_sync_preserves_operator_memory_database_urls(tmp_path: Path) -> None:
     """Sync must not replace database endpoints supplied by the operator."""
     fixture = _copy_provisioner_fixture(tmp_path)
     (fixture / ".env").write_text(
-        "ARTEMIS_MEMORY_DATABASE_URL=postgresql://runtime-operator/db\n"
+        AUTHSTRUCTURE_CONFIG
+        + "ARTEMIS_MEMORY_DATABASE_URL=postgresql://runtime-operator/db\n"
         "ARTEMIS_MEMORY_MIGRATION_DATABASE_URL=postgresql://migration-operator/db\n"
     )
     (fixture / "src").mkdir(exist_ok=True)
@@ -158,8 +193,9 @@ def test_sync_preserves_operator_memory_database_urls(tmp_path: Path) -> None:
 def test_first_setup_leaves_memory_database_urls_blank(tmp_path: Path) -> None:
     """New environment files must not fabricate a database endpoint."""
     fixture = _copy_provisioner_fixture(tmp_path)
+    (fixture / ".env").write_text(AUTHSTRUCTURE_CONFIG)
 
-    result = _run(fixture, input_text="y\ny\ny\ny\n")
+    result = _run(fixture, input_text="y\ny\ny\n")
 
     assert result.returncode == 0, result.stdout + result.stderr
     for relative in (".env", "src/.env", "app/api/.env"):
@@ -189,10 +225,15 @@ def test_regenerate_preserves_operator_memory_database_urls(tmp_path: Path) -> N
     for relative in (".env", "src/.env"):
         env_file = fixture / relative
         env_file.parent.mkdir(parents=True, exist_ok=True)
-        env_file.write_text(
+        content = (
+            AUTHSTRUCTURE_CONFIG
+            if relative == ".env"
+            else ""
+        ) + (
             "ARTEMIS_MEMORY_DATABASE_URL=postgresql://runtime-operator/db\n"
             "ARTEMIS_MEMORY_MIGRATION_DATABASE_URL=postgresql://migration-operator/db\n"
         )
+        env_file.write_text(content)
 
     result = _run(fixture, "--regenerate", input_text="y\ny\n")
 
@@ -205,6 +246,7 @@ def test_regenerate_preserves_operator_memory_database_urls(tmp_path: Path) -> N
         assert _env_value(env_file, "ARTEMIS_MEMORY_MIGRATION_DATABASE_URL") == (
             "postgresql://migration-operator/db"
         )
+
 
 
 def test_pytest_startup_clears_live_memory_database_urls_before_import() -> None:

@@ -18,7 +18,16 @@ def _check_ignore(
 
     reporting_flag = "--verbose" if verbose else "--quiet"
     return subprocess.run(
-        ["git", "check-ignore", "--no-index", reporting_flag, "--", path],
+        [
+            "git",
+            "-c",
+            "core.excludesfile=",
+            "check-ignore",
+            "--no-index",
+            reporting_flag,
+            "--",
+            path,
+        ],
         cwd=ROOT,
         check=False,
         capture_output=True,
