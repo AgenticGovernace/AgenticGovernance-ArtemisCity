@@ -22,6 +22,29 @@ authority:
   non_authority_statement: "retained root tests are evidence only and receive no collec\
     tion, runtime, import, routing, or release authority merely by remaining tracked"
 
+collection_baseline:
+  allowed_states:
+    clean:
+      return_code: 0
+      error_multiset: empty
+    pinned_baseline:
+      return_code: 2
+      error_multiset: exact
+  affected_modules:
+    - src/tests/test_instruction_coverage.py
+    - src/tests/test_instruction_loader.py
+  pinned_error_multiset:
+    count: 2
+    line_encoding: sorted UTF-8 error lines, one per line, terminal LF
+    line_sha256: e7ff932f982c0136366ef8da09c3a0fbe9c852d92b68d01310c0c84d68d2d4f6
+    entries:
+      - "src/tests/test_instruction_coverage.py|\
+        src/core/instructions/instruction_loader.py:48|\
+        IndentationError: expected an indented block after function definition on line 47"
+      - "src/tests/test_instruction_loader.py|\
+        src/core/instructions/instruction_loader.py:48|\
+        IndentationError: expected an indented block after function definition on line 47"
+
 retained_paths:
   all_tracked:
     count: 64

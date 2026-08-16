@@ -7,6 +7,7 @@ Tests the ``MemoryDecayService`` and ``MemoryNode`` classes from
 import builtins
 import logging
 import sys
+from datetime import UTC
 from pathlib import Path
 
 _repo = str(Path(__file__).resolve().parents[3])
@@ -277,7 +278,7 @@ class TestMemoryDecayService:
         monkeypatch,
         caplog,
     ):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         service.register_node(
             MemoryNode(
                 "n1", content="c", weight=1.0, last_access=now - timedelta(days=60)

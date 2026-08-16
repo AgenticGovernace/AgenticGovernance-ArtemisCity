@@ -45,6 +45,14 @@ EXPECTED_DIVERGENCE_COUNT = 18
 EXPECTED_DIVERGENCE_SHA = (
     "75c127e9281bd7da8f919be24da70ec946bdc8ac5e3f91346a58a84532a32704"
 )
+EXPECTED_COLLECTION_ERROR_COUNT = 2
+EXPECTED_COLLECTION_ERROR_SHA = (
+    "e7ff932f982c0136366ef8da09c3a0fbe9c852d92b68d01310c0c84d68d2d4f6"
+)
+AFFECTED_COLLECTION_MODULES = {
+    "src/tests/test_instruction_coverage.py",
+    "src/tests/test_instruction_loader.py",
+}
 AUDITED_TASK5_PARENT_COMMIT = (
     "7ec7e63d4f030b95bc90aea1dbf1fa05ca38dc99"
 )
@@ -291,7 +299,71 @@ def _current_canonical_nodes() -> set[str]:
     return nodes
 
 
-def _collect_nodes(*extra_args: str) -> tuple[int, set[str], set[str], str]:
+def _normalize_collection_errors(output: str) -> list[str]:
+    header_pattern = re.compile(
+        r"^_+\s+ERROR collecting (src/tests/.+?[.]py)\s+_+\s*$",
+        re.MULTILINE,
+    )
+    headers = list(header_pattern.finditer(output))
+    normalized: list[str] = []
+    header_modules: list[str] = []
+
+    for index, header in enumerate(headers):
+        module = header.group(1)
+        header_modules.append(module)
+        block_end = (
+            headers[index + 1].start()
+            if index + 1 < len(headers)
+            else len(output)
+        )
+        block = output[header.end() : block_end]
+        origin = re.search(
+            r'^E\s+File "[^\"]*?/(src/[^\"]+[.]py)", line ([0-9]+)$',
+            block,
+            re.MULTILINE,
+        )
+        exception = re.search(
+            r"^E\s+([A-Za-z_][\w.]+(?:Error|Exception): .+)$",
+            block,
+            re.MULTILINE,
+        )
+        if origin is None or exception is None:
+            normalized.append(f"{module}|<unparsed origin>|<unparsed exception>")
+            continue
+        normalized.append(
+            f"{module}|{origin.group(1)}:{origin.group(2)}|"
+            f"{exception.group(1)}"
+        )
+
+    summary_modules = re.findall(
+        r"^ERROR (src/tests/.+?[.]py)(?:\s+-.*)?$",
+        output,
+        re.MULTILINE,
+    )
+    unmatched_summaries = list(summary_modules)
+    for module in header_modules:
+        if module in unmatched_summaries:
+            unmatched_summaries.remove(module)
+        else:
+            normalized.append(f"{module}|<missing summary>|<unparsed exception>")
+    for module in unmatched_summaries:
+        normalized.append(f"{module}|<missing header>|<unparsed exception>")
+
+    reported_count = re.search(
+        r"Interrupted: ([0-9]+) errors? during collection",
+        output,
+    )
+    if reported_count is not None and int(reported_count.group(1)) != len(headers):
+        normalized.append(
+            "<collection>|<summary>|"
+            f"reported {reported_count.group(1)} errors for {len(headers)} headers"
+        )
+    return sorted(normalized)
+
+
+def _collect_nodes(
+    *extra_args: str,
+) -> tuple[int, set[str], set[str], list[str], str]:
     env = os.environ.copy()
     env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
     result = subprocess.run(
@@ -311,14 +383,18 @@ def _collect_nodes(*extra_args: str) -> tuple[int, set[str], set[str], str]:
         text=True,
         env=env,
     )
+    combined_output = "\n".join(
+        part for part in (result.stdout, result.stderr) if part
+    )
     node_pattern = re.compile(r"^(src/tests|tests)/.+\.py(?:::.+)?$")
     nodes = {
         line.strip()
-        for line in result.stdout.splitlines()
+        for line in combined_output.splitlines()
         if node_pattern.match(line.strip())
     }
     root_nodes = {node for node in nodes if node.startswith("tests/")}
-    return result.returncode, nodes, root_nodes, result.stderr
+    errors = _normalize_collection_errors(combined_output)
+    return result.returncode, nodes, root_nodes, errors, combined_output
 
 
 def test_root_test_retention_audit_freezes_the_retained_tree() -> None:
@@ -357,6 +433,26 @@ def test_root_test_retention_audit_freezes_the_retained_tree() -> None:
             "remaining tracked"
         ),
     }
+    collection = audit["collection_baseline"]
+    pinned_errors = collection["pinned_error_multiset"]
+    assert collection["allowed_states"] == {
+        "clean": {"return_code": 0, "error_multiset": "empty"},
+        "pinned_baseline": {"return_code": 2, "error_multiset": "exact"},
+    }
+    assert collection["affected_modules"] == sorted(
+        AFFECTED_COLLECTION_MODULES
+    )
+    assert pinned_errors["count"] == EXPECTED_COLLECTION_ERROR_COUNT
+    assert pinned_errors["line_sha256"] == EXPECTED_COLLECTION_ERROR_SHA
+    assert len(pinned_errors["entries"]) == EXPECTED_COLLECTION_ERROR_COUNT
+    assert (
+        _canonical_line_sha(pinned_errors["entries"])
+        == EXPECTED_COLLECTION_ERROR_SHA
+    )
+    pinned_modules = {
+        error.split("|", 1)[0] for error in pinned_errors["entries"]
+    }
+    assert pinned_modules == AFFECTED_COLLECTION_MODULES
     assert all_root["count"] == EXPECTED_ALL_ROOT_COUNT
     assert all_root["line_sha256"] == EXPECTED_ALL_ROOT_SHA
     assert duplicate["count"] == EXPECTED_DUPLICATE_COUNT
@@ -493,16 +589,53 @@ def test_root_test_retention_pyproject_and_collection_cutover_match() -> None:
 
     assert pytest_options["testpaths"] == ["src/tests"]
 
-    default_rc, default_nodes, default_root_nodes, default_stderr = _collect_nodes()
+    (
+        default_rc,
+        default_nodes,
+        default_root_nodes,
+        default_errors,
+        default_output,
+    ) = _collect_nodes()
     (
         explicit_rc,
         explicit_nodes,
         explicit_root_nodes,
-        explicit_stderr,
+        explicit_errors,
+        explicit_output,
     ) = _collect_nodes("src/tests")
-    assert default_rc == 0, default_stderr
-    assert explicit_rc == 0, explicit_stderr
     assert default_nodes == explicit_nodes
+    assert default_errors == explicit_errors
+    pinned_errors = sorted(
+        _load_audit()["collection_baseline"]["pinned_error_multiset"]["entries"]
+    )
+    collections = (
+        ("default", default_rc, default_nodes, default_errors, default_output),
+        (
+            "explicit",
+            explicit_rc,
+            explicit_nodes,
+            explicit_errors,
+            explicit_output,
+        ),
+    )
+    for label, return_code, nodes, errors, output in collections:
+        if errors:
+            assert return_code == 2, f"{label} unexpected rc={return_code}\n{output}"
+            assert errors == pinned_errors, (
+                f"{label} unexpected collection errors={errors}\n{output}"
+            )
+        else:
+            assert return_code == 0, f"{label} unexpected rc={return_code}\n{output}"
+        for module in AFFECTED_COLLECTION_MODULES:
+            represented_error = any(
+                error.startswith(f"{module}|") for error in errors
+            )
+            collected_node = any(
+                node.startswith(f"{module}::") for node in nodes
+            )
+            assert represented_error or collected_node, (
+                f"{label} silently excluded affected module={module}"
+            )
     collection_exclusions = _collection_exclusions()
     default_excluded_nodes = {
         node
