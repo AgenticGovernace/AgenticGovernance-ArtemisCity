@@ -8,11 +8,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from src.integration.memory_decay import (
-    DecayCycleResult,
-    MemoryDecayService,
-    MemoryNode,
-)
+from src.integration.memory_decay import (DecayCycleResult, MemoryDecayService,
+                                          MemoryNode)
 
 
 def _service(tmp_path, **kwargs):

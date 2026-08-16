@@ -14,7 +14,8 @@ from src.integration.memory_bus import MemoryBus
 from src.integration.memory_decay import MemoryDecayService
 from src.integration.sql_memory_store import MemoryRevision, MemoryWriteReceipt
 from src.mcp.vector_store import LocalVectorStore
-from src.obsidian_integration.manager import ObsidianManager, ObsidianProjectionError
+from src.obsidian_integration.manager import (ObsidianManager,
+                                              ObsidianProjectionError)
 
 
 class _InMemorySqlMemoryStore:

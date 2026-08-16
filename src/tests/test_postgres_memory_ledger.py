@@ -18,16 +18,11 @@ import pytest
 
 from src.integration.sql_memory_store import PostgresMemoryStore
 from src.memory.backends.postgres import PostgresMemoryLedger
-from src.memory.models import (
-    ClaimDisposition,
-    MemoryIdempotencyConflict,
-    MemoryLedgerUnavailable,
-    MemoryNamespaceConflict,
-    MemoryRecord,
-    MemoryWriteCommand,
-    ProjectionState,
-    WriteDisposition,
-)
+from src.memory.models import (ClaimDisposition, MemoryIdempotencyConflict,
+                               MemoryLedgerUnavailable,
+                               MemoryNamespaceConflict, MemoryRecord,
+                               MemoryWriteCommand, ProjectionState,
+                               WriteDisposition)
 from src.memory.service import MemoryService
 
 

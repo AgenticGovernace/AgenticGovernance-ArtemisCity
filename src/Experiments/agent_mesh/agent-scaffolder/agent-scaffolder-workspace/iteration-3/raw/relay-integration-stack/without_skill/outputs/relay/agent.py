@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from . import atp
-from .audit import AuditLog, AuditHaltError
+from .audit import AuditHaltError, AuditLog
 from .memory import ReflectionStore
 
 
@@ -136,10 +136,23 @@ class Relay:
     def _infer_capabilities(task: Task) -> List[str]:
         text = (task.summary + " " + task.payload).lower()
         vocab = [
-            "draft", "document", "summarize", "write", "scaffold",
-            "review", "verify", "lint",
-            "code", "refactor", "execute", "build", "run",
-            "organize", "tag", "file", "index",
+            "draft",
+            "document",
+            "summarize",
+            "write",
+            "scaffold",
+            "review",
+            "verify",
+            "lint",
+            "code",
+            "refactor",
+            "execute",
+            "build",
+            "run",
+            "organize",
+            "tag",
+            "file",
+            "index",
         ]
         hits = [w for w in vocab if w in text]
         return hits or ["execute"]
@@ -221,7 +234,9 @@ class Relay:
         if ack == "==accept==":
             return {"status": "IN_PROGRESS", "ctx": tx.ctx, "target": agent["name"]}
         if ack == "==decline==":
-            self.audit.log("reroute", ctx=tx.ctx, target=agent["name"], detail="declined")
+            self.audit.log(
+                "reroute", ctx=tx.ctx, target=agent["name"], detail="declined"
+            )
             return {"status": "REROUTE", "ctx": tx.ctx, "declined_by": agent["name"]}
         return {"status": "IN_PROGRESS", "ctx": tx.ctx, "ack": ack}
 

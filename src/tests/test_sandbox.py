@@ -4,13 +4,10 @@ import pytest
 
 from src.agents.base_agent import BaseAgent
 from src.integration.agent_registry import QUARANTINE_THRESHOLD, AgentRegistry
-from src.integration.sandbox import (
-    VIOLATION_UNAUTHORIZED_OPERATION,
-    VIOLATION_UNAUTHORIZED_PATH,
-    VIOLATION_UNAUTHORIZED_TOOL,
-    AgentSandbox,
-    ToolPolicy,
-)
+from src.integration.sandbox import (VIOLATION_UNAUTHORIZED_OPERATION,
+                                     VIOLATION_UNAUTHORIZED_PATH,
+                                     VIOLATION_UNAUTHORIZED_TOOL, AgentSandbox,
+                                     ToolPolicy)
 
 
 class _StubAgent(BaseAgent):

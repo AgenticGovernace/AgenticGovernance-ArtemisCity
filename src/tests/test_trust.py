@@ -2,19 +2,11 @@
 
 import pytest
 
-from src.governance.trust import (
-    WEIGHT_AUDIT_APPROVALS,
-    WEIGHT_CODE_QUALITY,
-    WEIGHT_SECURITY,
-    WEIGHT_SUCCESS_RATE,
-    WEIGHT_UPTIME,
-    TrustMetrics,
-    compute_trust_score,
-    security_score,
-    success_rate,
-    trust_breakdown,
-    uptime,
-)
+from src.governance.trust import (WEIGHT_AUDIT_APPROVALS, WEIGHT_CODE_QUALITY,
+                                  WEIGHT_SECURITY, WEIGHT_SUCCESS_RATE,
+                                  WEIGHT_UPTIME, TrustMetrics,
+                                  compute_trust_score, security_score,
+                                  success_rate, trust_breakdown, uptime)
 
 
 class TestWeights:

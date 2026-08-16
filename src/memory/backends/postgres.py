@@ -5,25 +5,18 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from src.integration.sql_memory_store import (
-    CanonicalIdempotencyConflict,
-    CanonicalMemoryRevision,
-    CanonicalNamespaceConflict,
-    CanonicalProjectionClaim,
-    MemoryStoreError,
-    PostgresMemoryStore,
-)
-from src.memory.models import (
-    ClaimDisposition,
-    LedgerWrite,
-    MemoryIdempotencyConflict,
-    MemoryLedgerUnavailable,
-    MemoryNamespaceConflict,
-    MemoryRecord,
-    MemoryWriteCommand,
-    ProjectionState,
-    WriteDisposition,
-)
+from src.integration.sql_memory_store import (CanonicalIdempotencyConflict,
+                                              CanonicalMemoryRevision,
+                                              CanonicalNamespaceConflict,
+                                              CanonicalProjectionClaim,
+                                              MemoryStoreError,
+                                              PostgresMemoryStore)
+from src.memory.models import (ClaimDisposition, LedgerWrite,
+                               MemoryIdempotencyConflict,
+                               MemoryLedgerUnavailable,
+                               MemoryNamespaceConflict, MemoryRecord,
+                               MemoryWriteCommand, ProjectionState,
+                               WriteDisposition)
 
 
 class PostgresProjectionClaim:

@@ -3,7 +3,8 @@
 This module implements cascading instruction loading from multiple scopes:
 global → project root → current directory → agent-specific
 """
-# TODO the return functions of the lower functions is set to none as default with no space for return object. 
+
+# TODO the return functions of the lower functions is set to none as default with no space for return object.
 
 import os
 from dataclasses import dataclass, field
@@ -29,6 +30,7 @@ class InstructionScope:
 
     def __str__(self) -> str:
         return f"[{self.level}] {self.path} (priority: {self.priority})"
+
 
 @dataclass
 class InstructionSet:
@@ -86,7 +88,7 @@ class InstructionSet:
 
 class InstructionLoader:
     """Loads and merges instructions from multiple hierarchical scopes.
-    # TODO the below needs to be adjusted to match the agent scaffolder skills layer with agents/ and .agents used. Daemon is just a mass codex replace 
+    # TODO the below needs to be adjusted to match the agent scaffolder skills layer with agents/ and .agents used. Daemon is just a mass codex replace
     Scope priority (ascending):
     1. Global (~.agents/instructions.md, ~/.artemis/instructions.md)
     2. Project root (Artemis.md, WARP.md, .agents/instructions.md)

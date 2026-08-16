@@ -26,9 +26,13 @@ QUARANTINE_AUDIT_PATH = (
 SNAPSHOT_COMMIT = "ecd1cdcd1b5801e0869aca817d695ebe1d222943"
 TASK_BASE_COMMIT = "9acb701727a9b855a9d7f281cd07873cdcf1dddf"
 EXPECTED_ALL_ROOT_COUNT = 64
-EXPECTED_ALL_ROOT_SHA = "426986bc9b60dbd4266f1d09cf76ee8656ad0b6dc598d2a812ffb5515ef80f60"
+EXPECTED_ALL_ROOT_SHA = (
+    "426986bc9b60dbd4266f1d09cf76ee8656ad0b6dc598d2a812ffb5515ef80f60"
+)
 EXPECTED_DUPLICATE_COUNT = 54
-EXPECTED_DUPLICATE_SHA = "ac2f338db44b5c797edad0d6de8c39844bd0a85e99bd827f5168e5c2de5a53f2"
+EXPECTED_DUPLICATE_SHA = (
+    "ac2f338db44b5c797edad0d6de8c39844bd0a85e99bd827f5168e5c2de5a53f2"
+)
 EXPECTED_REVIEW_COUNT = 5
 EXPECTED_REVIEW_SHA = "bbc1cdb563dbe89421647f1ce14e6ed16e894a2faa2010a906375e356a3ba895"
 EXPECTED_INERT_COUNT = 5
@@ -36,11 +40,17 @@ EXPECTED_INERT_SHA = "3e4700bf490c861c3591b71cccc8f4fa7e85d20d6deb9547cc97d4b9b5
 EXPECTED_ROOT_DEFS = 1011
 EXPECTED_MATCHES = 934
 EXPECTED_RAW_GAP_COUNT = 77
-EXPECTED_RAW_GAP_SHA = "bcd12e5f7670a9f050e225ed494c416db5e7b8e0f6f77a671938a9c15c52fdb6"
+EXPECTED_RAW_GAP_SHA = (
+    "bcd12e5f7670a9f050e225ed494c416db5e7b8e0f6f77a671938a9c15c52fdb6"
+)
 EXPECTED_RETIRED_COUNT = 8
-EXPECTED_RETIRED_SHA = "ff6613e7bd71b362ff811c4b590a9054232e1480bbe723507be2b1e81fd4e79b"
+EXPECTED_RETIRED_SHA = (
+    "ff6613e7bd71b362ff811c4b590a9054232e1480bbe723507be2b1e81fd4e79b"
+)
 EXPECTED_REVIEW_QUEUE_COUNT = 69
-EXPECTED_REVIEW_QUEUE_SHA = "44ed874a4f0152ff65a8ccf92b67a02200795e0d0d4fda5d2372ca3adea8e823"
+EXPECTED_REVIEW_QUEUE_SHA = (
+    "44ed874a4f0152ff65a8ccf92b67a02200795e0d0d4fda5d2372ca3adea8e823"
+)
 EXPECTED_DIVERGENCE_COUNT = 18
 EXPECTED_DIVERGENCE_SHA = (
     "75c127e9281bd7da8f919be24da70ec946bdc8ac5e3f91346a58a84532a32704"
@@ -53,9 +63,7 @@ AFFECTED_COLLECTION_MODULES = {
     "src/tests/test_instruction_coverage.py",
     "src/tests/test_instruction_loader.py",
 }
-AUDITED_TASK5_PARENT_COMMIT = (
-    "7ec7e63d4f030b95bc90aea1dbf1fa05ca38dc99"
-)
+AUDITED_TASK5_PARENT_COMMIT = "7ec7e63d4f030b95bc90aea1dbf1fa05ca38dc99"
 AUDITED_TASK5_COMMIT = "f2623a2f13a63b4849c8aa9522a055c012b0b948"
 EXPECTED_SEMANTIC_COUNTS = {
     "covered_by_current_contract": 27,
@@ -147,9 +155,7 @@ def _load_audit() -> dict[str, object]:
 
 
 def _collection_exclusions() -> set[str]:
-    quarantine = yaml.safe_load(
-        QUARANTINE_AUDIT_PATH.read_text(encoding="utf-8")
-    )
+    quarantine = yaml.safe_load(QUARANTINE_AUDIT_PATH.read_text(encoding="utf-8"))
     return set(quarantine["non_authority"]["collection_exclusions"])
 
 
@@ -204,10 +210,9 @@ def _extract_test_identities(relative_path: str, source: str) -> list[tuple[str,
         for node in nodes:
             if isinstance(node, ast.ClassDef) and node.name.startswith("Test"):
                 walk(node.body, classes + [node.name])
-            elif (
-                isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-                and node.name.startswith("test")
-            ):
+            elif isinstance(
+                node, (ast.FunctionDef, ast.AsyncFunctionDef)
+            ) and node.name.startswith("test"):
                 qualified = f"src/{relative_path}::" + "::".join(classes + [node.name])
                 identities.append((qualified, _normalized_function_dump(node)))
 
@@ -218,8 +223,12 @@ def _extract_test_identities(relative_path: str, source: str) -> list[tuple[str,
 def _audited_identity_sets() -> dict[str, object]:
     root_paths = [
         path
-        for path in _run_git("ls-tree", "-r", "--name-only", SNAPSHOT_COMMIT, "tests").splitlines()
-        if path.startswith("tests/") and path.endswith(".py") and path not in INERT_ROOT_PATHS
+        for path in _run_git(
+            "ls-tree", "-r", "--name-only", SNAPSHOT_COMMIT, "tests"
+        ).splitlines()
+        if path.startswith("tests/")
+        and path.endswith(".py")
+        and path not in INERT_ROOT_PATHS
     ]
     base_paths = [
         path
@@ -246,7 +255,9 @@ def _audited_identity_sets() -> dict[str, object]:
     divergences: list[tuple[str, str]] = []
     matches = 0
     for path in root_paths:
-        for identity, body in _extract_test_identities(path, _git_blob(SNAPSHOT_COMMIT, path)):
+        for identity, body in _extract_test_identities(
+            path, _git_blob(SNAPSHOT_COMMIT, path)
+        ):
             root_identities.append(identity)
             if identity not in base_map:
                 raw_gaps.append(identity)
@@ -261,9 +272,7 @@ def _audited_identity_sets() -> dict[str, object]:
         if identity not in RETIRED_DATACLASS_IDENTITIES
     )
     reviewed_divergences = sorted(
-        identity
-        for identity, path in divergences
-        if path in REVIEW_ROOT_PATHS
+        identity for identity, path in divergences if path in REVIEW_ROOT_PATHS
     )
     return {
         "root_identities": sorted(root_identities),
@@ -312,9 +321,7 @@ def _normalize_collection_errors(output: str) -> list[str]:
         module = header.group(1)
         header_modules.append(module)
         block_end = (
-            headers[index + 1].start()
-            if index + 1 < len(headers)
-            else len(output)
+            headers[index + 1].start() if index + 1 < len(headers) else len(output)
         )
         block = output[header.end() : block_end]
         origin = re.search(
@@ -331,8 +338,7 @@ def _normalize_collection_errors(output: str) -> list[str]:
             normalized.append(f"{module}|<unparsed origin>|<unparsed exception>")
             continue
         normalized.append(
-            f"{module}|{origin.group(1)}:{origin.group(2)}|"
-            f"{exception.group(1)}"
+            f"{module}|{origin.group(1)}:{origin.group(2)}|" f"{exception.group(1)}"
         )
 
     summary_modules = re.findall(
@@ -383,9 +389,7 @@ def _collect_nodes(
         text=True,
         env=env,
     )
-    combined_output = "\n".join(
-        part for part in (result.stdout, result.stderr) if part
-    )
+    combined_output = "\n".join(part for part in (result.stdout, result.stderr) if part)
     node_pattern = re.compile(r"^(src/tests|tests)/.+\.py(?:::.+)?$")
     nodes = {
         line.strip()
@@ -439,19 +443,14 @@ def test_root_test_retention_audit_freezes_the_retained_tree() -> None:
         "clean": {"return_code": 0, "error_multiset": "empty"},
         "pinned_baseline": {"return_code": 2, "error_multiset": "exact"},
     }
-    assert collection["affected_modules"] == sorted(
-        AFFECTED_COLLECTION_MODULES
-    )
+    assert collection["affected_modules"] == sorted(AFFECTED_COLLECTION_MODULES)
     assert pinned_errors["count"] == EXPECTED_COLLECTION_ERROR_COUNT
     assert pinned_errors["line_sha256"] == EXPECTED_COLLECTION_ERROR_SHA
     assert len(pinned_errors["entries"]) == EXPECTED_COLLECTION_ERROR_COUNT
     assert (
-        _canonical_line_sha(pinned_errors["entries"])
-        == EXPECTED_COLLECTION_ERROR_SHA
+        _canonical_line_sha(pinned_errors["entries"]) == EXPECTED_COLLECTION_ERROR_SHA
     )
-    pinned_modules = {
-        error.split("|", 1)[0] for error in pinned_errors["entries"]
-    }
+    pinned_modules = {error.split("|", 1)[0] for error in pinned_errors["entries"]}
     assert pinned_modules == AFFECTED_COLLECTION_MODULES
     assert all_root["count"] == EXPECTED_ALL_ROOT_COUNT
     assert all_root["line_sha256"] == EXPECTED_ALL_ROOT_SHA
@@ -481,7 +480,9 @@ def test_root_test_retention_audit_freezes_the_retained_tree() -> None:
         for path in all_paths
         if path not in tracked_paths or not (ROOT / path).exists()
     ]
-    assert not missing, f"REVERSE_SYNC_HOLD_VIOLATION retained_root_paths_missing: {missing[:5]}"
+    assert (
+        not missing
+    ), f"REVERSE_SYNC_HOLD_VIOLATION retained_root_paths_missing: {missing[:5]}"
     assert all(not (ROOT / path).is_symlink() for path in all_paths)
     assert all(Path(path).parts[0] == "tests" for path in all_paths)
     assert audit["review_signoffs"] == []
@@ -497,22 +498,30 @@ def test_root_test_retention_mechanical_baselines_match_the_audited_snapshot() -
     assert len(computed["raw_gaps"]) == EXPECTED_RAW_GAP_COUNT
     assert _canonical_line_sha(computed["raw_gaps"]) == EXPECTED_RAW_GAP_SHA
     assert len(RETIRED_DATACLASS_IDENTITIES) == EXPECTED_RETIRED_COUNT
-    assert _canonical_line_sha(sorted(RETIRED_DATACLASS_IDENTITIES)) == EXPECTED_RETIRED_SHA
+    assert (
+        _canonical_line_sha(sorted(RETIRED_DATACLASS_IDENTITIES))
+        == EXPECTED_RETIRED_SHA
+    )
     assert len(computed["semantic_review"]) == EXPECTED_REVIEW_QUEUE_COUNT
     assert _canonical_line_sha(computed["semantic_review"]) == EXPECTED_REVIEW_QUEUE_SHA
     assert len(computed["reviewed_divergences"]) == EXPECTED_DIVERGENCE_COUNT
-    assert _canonical_line_sha(computed["reviewed_divergences"]) == EXPECTED_DIVERGENCE_SHA
+    assert (
+        _canonical_line_sha(computed["reviewed_divergences"]) == EXPECTED_DIVERGENCE_SHA
+    )
 
     yaml_review = []
-    for identities in mechanical["semantic_review_queue"]["identities_by_source"].values():
+    for identities in mechanical["semantic_review_queue"][
+        "identities_by_source"
+    ].values():
         yaml_review.extend(identities)
     assert sorted(yaml_review) == computed["semantic_review"]
     assert sorted(mechanical["retired_dataclass_gaps"]["identities"]) == sorted(
         RETIRED_DATACLASS_IDENTITIES
     )
-    assert sorted(
-        mechanical["same_identity_body_divergences"]["identities"]
-    ) == computed["reviewed_divergences"]
+    assert (
+        sorted(mechanical["same_identity_body_divergences"]["identities"])
+        == computed["reviewed_divergences"]
+    )
 
 
 def test_root_test_retention_semantic_partition_is_complete_and_targeted() -> None:
@@ -521,13 +530,19 @@ def test_root_test_retention_semantic_partition_is_complete_and_targeted() -> No
     computed = _audited_identity_sets()
     current_nodes = _current_canonical_nodes()
 
-    covered = _flatten_semantic_entries(semantic["covered_by_current_contract"], "source_identity")
-    retired = _flatten_semantic_entries(semantic["retired_or_superseded"], "source_identity")
+    covered = _flatten_semantic_entries(
+        semantic["covered_by_current_contract"], "source_identity"
+    )
+    retired = _flatten_semantic_entries(
+        semantic["retired_or_superseded"], "source_identity"
+    )
     missing = _flatten_semantic_entries(
         semantic["missing_current_contract_intent"],
         "source_identity",
     )
-    semantic_identities = sorted(item["source_identity"] for item in covered + retired + missing)
+    semantic_identities = sorted(
+        item["source_identity"] for item in covered + retired + missing
+    )
 
     assert semantic["counts"] == EXPECTED_SEMANTIC_COUNTS
     assert semantic["counts_by_source"] == EXPECTED_SOURCE_COUNTS
@@ -576,7 +591,9 @@ def test_root_test_retention_canonical_modules_do_not_depend_on_root_tests() -> 
         ).splitlines()
         if line
     }
-    assert not staged, f"REVERSE_SYNC_HOLD_VIOLATION staged_root_test_changes={sorted(staged)}"
+    assert (
+        not staged
+    ), f"REVERSE_SYNC_HOLD_VIOLATION staged_root_test_changes={sorted(staged)}"
     assert not audited_commit_paths, (
         "REVERSE_SYNC_HOLD_VIOLATION "
         f"committed_root_test_changes={sorted(audited_commit_paths)}"
@@ -621,21 +638,17 @@ def test_root_test_retention_pyproject_and_collection_cutover_match() -> None:
     for label, return_code, nodes, errors, output in collections:
         if errors:
             assert return_code == 2, f"{label} unexpected rc={return_code}\n{output}"
-            assert errors == pinned_errors, (
-                f"{label} unexpected collection errors={errors}\n{output}"
-            )
+            assert (
+                errors == pinned_errors
+            ), f"{label} unexpected collection errors={errors}\n{output}"
         else:
             assert return_code == 0, f"{label} unexpected rc={return_code}\n{output}"
         for module in AFFECTED_COLLECTION_MODULES:
-            represented_error = any(
-                error.startswith(f"{module}|") for error in errors
-            )
-            collected_node = any(
-                node.startswith(f"{module}::") for node in nodes
-            )
-            assert represented_error or collected_node, (
-                f"{label} silently excluded affected module={module}"
-            )
+            represented_error = any(error.startswith(f"{module}|") for error in errors)
+            collected_node = any(node.startswith(f"{module}::") for node in nodes)
+            assert (
+                represented_error or collected_node
+            ), f"{label} silently excluded affected module={module}"
     collection_exclusions = _collection_exclusions()
     default_excluded_nodes = {
         node

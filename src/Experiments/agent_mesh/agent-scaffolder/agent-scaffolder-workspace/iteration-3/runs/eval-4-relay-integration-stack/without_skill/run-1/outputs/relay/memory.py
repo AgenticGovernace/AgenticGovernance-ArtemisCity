@@ -123,7 +123,9 @@ class _NotionClient:
 class ReflectionStore:
     """Persistent reflections: Notion canonical, local mirror as fallback."""
 
-    def __init__(self, page_id: str, mirror_path: str, auth_env_var: str = "NOTION_API_KEY"):
+    def __init__(
+        self, page_id: str, mirror_path: str, auth_env_var: str = "NOTION_API_KEY"
+    ):
         self.mirror_path = mirror_path
         token = os.environ.get(auth_env_var)
         self.notion = _NotionClient(page_id, token)

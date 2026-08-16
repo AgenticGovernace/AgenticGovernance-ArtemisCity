@@ -22,12 +22,8 @@ for _key in [
 
 import pytest
 
-from src.governance.approvals import (
-    ApprovalDecision,
-    ApprovalTier,
-    SelfUpdateGovernor,
-    UpdateProposal,
-)
+from src.governance.approvals import (ApprovalDecision, ApprovalTier,
+                                      SelfUpdateGovernor, UpdateProposal)
 from src.governance.rollback import Checkpoint, RollbackManager
 
 # ---------------------------------------------------------------------------

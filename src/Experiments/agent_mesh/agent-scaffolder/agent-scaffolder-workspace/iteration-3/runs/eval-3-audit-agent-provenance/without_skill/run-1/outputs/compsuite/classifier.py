@@ -41,9 +41,9 @@ class Severity(IntEnum):
 class FileEvent:
     """A single observed change in a watched tree."""
 
-    path: Path           # absolute, resolved path the event concerns
-    kind: str            # "created" | "modified" | "moved" | "deleted"
-    root: Path           # which watch root this path belongs to (resolved)
+    path: Path  # absolute, resolved path the event concerns
+    kind: str  # "created" | "modified" | "moved" | "deleted"
+    root: Path  # which watch root this path belongs to (resolved)
     size: Optional[int] = None  # bytes, when known (None for deletes)
 
 
@@ -52,7 +52,7 @@ class Classification:
     """Result of classifying an event."""
 
     severity: Severity
-    reason: str          # human-readable rule that fired
+    reason: str  # human-readable rule that fired
 
 
 def _ext(path: Path) -> str:
@@ -139,7 +139,9 @@ def classify_event(
     )
 
 
-def classify_safe(event: FileEvent, *, error_on_failure: bool = True, **rules) -> Classification:
+def classify_safe(
+    event: FileEvent, *, error_on_failure: bool = True, **rules
+) -> Classification:
     """Classify, but never raise: on failure, fail loud as Error (policy).
 
     AGENTS.md §2 says a classifier failure is itself an Error so problems are
@@ -150,4 +152,6 @@ def classify_safe(event: FileEvent, *, error_on_failure: bool = True, **rules) -
     except Exception as exc:  # pragma: no cover - defensive
         if error_on_failure:
             return Classification(Severity.ERROR, f"classifier failure: {exc!r}")
-        return Classification(Severity.WARNING, f"classifier failure (downgraded): {exc!r}")
+        return Classification(
+            Severity.WARNING, f"classifier failure (downgraded): {exc!r}"
+        )

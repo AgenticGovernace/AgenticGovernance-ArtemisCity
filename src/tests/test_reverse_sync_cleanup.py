@@ -22,9 +22,7 @@ EXPECTED_MANIFEST_SHA256 = (
 )
 EXPECTED_HOLD_NAME = "reverse-sync-72cf776-removal-hold"
 EXPECTED_HOLD_DATE = "2026-08-16"
-EXPECTED_SELECTION_RULE = (
-    "classification == REMOVE_REVERSE_SYNC and source_status == A"
-)
+EXPECTED_SELECTION_RULE = "classification == REMOVE_REVERSE_SYNC and source_status == A"
 EXPECTED_HELD_COUNT = 217
 EXPECTED_HELD_LIST_SHA256 = (
     "2f07edf48b8a82bd10a35826c3df009d4d60a3f54593db4a424d309d644b1f3b"
@@ -160,11 +158,7 @@ def _tracked_paths() -> set[str]:
         capture_output=True,
     )
     assert result.returncode == 0, result.stderr.decode("utf-8")
-    return {
-        path.decode("utf-8")
-        for path in result.stdout.split(b"\0")
-        if path
-    }
+    return {path.decode("utf-8") for path in result.stdout.split(b"\0") if path}
 
 
 def test_reverse_sync_manifest_matches_the_reviewed_source_commit() -> None:
@@ -175,8 +169,7 @@ def test_reverse_sync_manifest_matches_the_reviewed_source_commit() -> None:
     assert _manifest_sha256() == EXPECTED_MANIFEST_SHA256
 
     manifest_pairs = [
-        (entry["path"], entry["source_status"])
-        for entry in manifest_paths
+        (entry["path"], entry["source_status"]) for entry in manifest_paths
     ]
     source_pairs = _expanded_source_delta()
 
@@ -184,9 +177,7 @@ def test_reverse_sync_manifest_matches_the_reviewed_source_commit() -> None:
 
     expanded_paths = [path for path, _status in manifest_pairs]
     expanded_status_counts = Counter(status for _path, status in manifest_pairs)
-    classification_counts = Counter(
-        entry["classification"] for entry in manifest_paths
-    )
+    classification_counts = Counter(entry["classification"] for entry in manifest_paths)
 
     assert expanded_status_counts == EXPECTED_EXPANDED_STATUS_COUNTS
     assert classification_counts == EXPECTED_CLASSIFICATION_COUNTS

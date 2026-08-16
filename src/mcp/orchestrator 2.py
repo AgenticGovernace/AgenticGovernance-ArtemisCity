@@ -47,23 +47,19 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 from ..agents.artemis_agent import ArtemisAgent
 from ..agents.research_agent import ResearchAgent
 from ..agents.summarizer_agent import SummarizerAgent
-from ..exceptions import (
-    AgentNotFoundError,
-    MemoryBusError,
-    TaskExecutionError,
-    TaskRoutingError,
-    TaskValidationError,
-)
+from ..exceptions import (AgentNotFoundError, MemoryBusError,
+                          TaskExecutionError, TaskRoutingError,
+                          TaskValidationError)
 from ..integration.agent_registry import AgentRegistry
 from ..integration.governance import GovernanceMonitor
 from ..integration.memory_bus import MemoryBus
 from ..mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
 from ..mcp.hebbian_weights import HebbianWeightManager
 from ..mcp.vector_store import LocalVectorStore
+from ..my_types import ExecutionSummary, TaskContext, TaskResult
 from ..obsidian_integration.generator import ObsidianGenerator
 from ..obsidian_integration.manager import ObsidianManager
 from ..obsidian_integration.parser import ObsidianParser
-from ..my_types import ExecutionSummary, TaskContext, TaskResult
 from ..utils.helpers import logger
 
 if TYPE_CHECKING:

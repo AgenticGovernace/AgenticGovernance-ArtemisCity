@@ -1134,7 +1134,9 @@ class PostgresMemoryStore:
                     cursor.execute(query, parameters)
                     rows = cursor.fetchall()
         except Exception:
-            raise MemoryStoreError("failed to list canonical memory revisions") from None
+            raise MemoryStoreError(
+                "failed to list canonical memory revisions"
+            ) from None
         return [self._revision_from_row(row) for row in rows]
 
     @contextmanager
@@ -1422,7 +1424,9 @@ class PostgresMemoryStore:
         if require_leaf:
             leaf_stem, separator, leaf_suffix = segments[-1].rpartition(".")
             if not separator or not leaf_stem or not leaf_suffix:
-                raise ValueError("relative_path must identify a file leaf with a suffix")
+                raise ValueError(
+                    "relative_path must identify a file leaf with a suffix"
+                )
             if any("." in segment.lstrip(".") for segment in segments[:-1]):
                 raise ValueError(
                     "relative_path file leaf cannot be an ancestor directory"

@@ -9,15 +9,10 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from src.auth.contracts import (
-    AuthorityContextV1,
-    AuthReceiptSourceV1,
-    AuthReceiptV1,
-    DelegationReferenceV1,
-    PrincipalCapabilityV1,
-    PrincipalV1,
-    VerifiedPartyV1,
-)
+from src.auth.contracts import (AuthorityContextV1, AuthReceiptSourceV1,
+                                AuthReceiptV1, DelegationReferenceV1,
+                                PrincipalCapabilityV1, PrincipalV1,
+                                VerifiedPartyV1)
 from src.auth.delegation import DelegationGrantV1
 
 

@@ -811,9 +811,10 @@ def test_pending_task_discovery_filters_and_infers_capability(orchestrator):
     assert len(tasks) == 1
     path, task = tasks[0]
     assert path == "Agent Inputs/pending.md"
-    assert task["task_id"] == "task_" + hashlib.sha256(
-        b"Agent Inputs/pending.md"
-    ).hexdigest()[:12]
+    assert (
+        task["task_id"]
+        == "task_" + hashlib.sha256(b"Agent Inputs/pending.md").hexdigest()[:12]
+    )
     assert task["required_capability"] == "research"
     assert orchestrator.obs_parser.parse_task_note.call_count == 3
 
@@ -978,12 +979,15 @@ def test_report_accepted_receipt_records_projection_truth(orchestrator):
         "event_id": "report-event-1",
     }
 
-    assert orchestrator._persist_agent_report(
-        "Report Agent",
-        "report-pending",
-        {"provenance_id": "run-1"},
-        {"status": "success"},
-    ) is True
+    assert (
+        orchestrator._persist_agent_report(
+            "Report Agent",
+            "report-pending",
+            {"provenance_id": "run-1"},
+            {"status": "success"},
+        )
+        is True
+    )
 
     persisted = next(
         call

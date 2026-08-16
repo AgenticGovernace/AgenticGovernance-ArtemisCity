@@ -218,7 +218,9 @@ def test_production_python_paths_include_top_level_and_nested_modules() -> None:
     assert "app/kernel/__init__.py" in rel_paths
     assert "src/Kernel/__init__.py" not in rel_paths
     assert "src/interface/Quantumharmony_cli.py" not in rel_paths
-    assert not any("/tests/" in rel_path or rel_path.startswith("tests/") for rel_path in rel_paths)
+    assert not any(
+        "/tests/" in rel_path or rel_path.startswith("tests/") for rel_path in rel_paths
+    )
 
 
 def test_authoritative_python_paths_exclude_all_held_production_python() -> None:
@@ -227,9 +229,7 @@ def test_authoritative_python_paths_exclude_all_held_production_python() -> None
         path.relative_to(ROOT).as_posix() for path in _production_python_paths()
     }
     held_production_python = held_paths & production_python
-    held_outside_quarantine = held_production_python - set(
-        _quarantined_payload_paths()
-    )
+    held_outside_quarantine = held_production_python - set(_quarantined_payload_paths())
     authoritative_python = {
         path.relative_to(ROOT).as_posix() for path in _authoritative_python_paths()
     }
@@ -248,9 +248,7 @@ def test_tracked_paths_do_not_casefold_collide() -> None:
     for rel_path in _git_ls_files():
         collisions[rel_path.casefold()].append(rel_path)
 
-    duplicates = {
-        key: values for key, values in collisions.items() if len(values) > 1
-    }
+    duplicates = {key: values for key, values in collisions.items() if len(values) > 1}
     assert not duplicates
 
 
@@ -272,18 +270,20 @@ def test_legacy_quarantine_audit_matches_current_tree_scope() -> None:
         for path in payload_paths
         if Path(path).is_absolute() or ".." in Path(path).parts
     ]
-    symlink_violations = [
-        path for path in payload_paths if (ROOT / path).is_symlink()
-    ]
+    symlink_violations = [path for path in payload_paths if (ROOT / path).is_symlink()]
 
     assert "services/mcp/common/README.md" not in payload_paths
-    assert len(payload_paths) == len(set(payload_paths)) == EXPECTED_QUARANTINED_COUNT, (
-        _violation("payload-count", f"paths={len(payload_paths)}")
-    )
+    assert (
+        len(payload_paths) == len(set(payload_paths)) == EXPECTED_QUARANTINED_COUNT
+    ), _violation("payload-count", f"paths={len(payload_paths)}")
     assert not missing_tracked, _violation("missing-tracked", str(missing_tracked[:5]))
     assert not missing_files, _violation("missing-files", str(missing_files[:5]))
-    assert not lexical_violations, _violation("lexical-paths", str(lexical_violations[:5]))
-    assert not symlink_violations, _violation("symlink-paths", str(symlink_violations[:5]))
+    assert not lexical_violations, _violation(
+        "lexical-paths", str(lexical_violations[:5])
+    )
+    assert not symlink_violations, _violation(
+        "symlink-paths", str(symlink_violations[:5])
+    )
 
     assert _line_sha256(payload_paths) == EXPECTED_QUARANTINED_LINE_SHA256
     assert len(held_payload_paths) == EXPECTED_HELD_INTERSECTION_COUNT
@@ -340,9 +340,10 @@ def test_legacy_quarantine_evidence_matches_current_tree() -> None:
     groups = audit["adjacent_groups"]
 
     for duplicate_path, canonical_peer in BYTE_IDENTICAL_DUPLICATES.items():
-        assert Path(ROOT / duplicate_path).read_bytes() == Path(
-            ROOT / canonical_peer
-        ).read_bytes()
+        assert (
+            Path(ROOT / duplicate_path).read_bytes()
+            == Path(ROOT / canonical_peer).read_bytes()
+        )
     duplicate_pairs = {
         entry["path"]: entry["canonical_peer"]
         for entry in groups["lower_case_byte_identical_duplicates"]
@@ -365,9 +366,7 @@ def test_legacy_quarantine_evidence_matches_current_tree() -> None:
     assert all(entry["evidence"] for entry in groups["duplicate_persona_tests"])
 
     parsed_state = json.loads(
-        (ROOT / "src" / "integration" / "state_kernel.json").read_text(
-            encoding="utf-8"
-        )
+        (ROOT / "src" / "integration" / "state_kernel.json").read_text(encoding="utf-8")
     )
     assert isinstance(parsed_state, dict)
     generated_state = groups["generated_integration_state"]

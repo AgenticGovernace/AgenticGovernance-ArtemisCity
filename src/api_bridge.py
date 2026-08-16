@@ -44,22 +44,19 @@ from src.agents.atp.atp_validator import ATPValidator
 from src.agents.llm_agent import LLMAgent
 from src.governance.approvals import SelfUpdateGovernor, UpdateProposal
 from src.governance.checkpoints import CheckpointStore, RollbackManager
-from src.governance.trust import TrustMetrics, compute_trust_score, trust_breakdown
+from src.governance.trust import (TrustMetrics, compute_trust_score,
+                                  trust_breakdown)
 from src.integration.agent_registry import AgentRegistry, AgentRegistryStore
 from src.integration.hebbian_router import HebbianRouter
 from src.integration.learning_governance import LearningGovernanceCoordinator
 from src.integration.memory_bus import LazyProjection, MemoryBus
 from src.integration.memory_store_factory import (
-    MemoryStoreConfigurationError,
-    create_sql_memory_store,
-)
-from src.integration.sql_memory_store import (
-    IdempotencyConflictError,
-    MemoryStoreError,
-    SqlMemoryStore,
-)
+    MemoryStoreConfigurationError, create_sql_memory_store)
 from src.integration.sandbox import AgentSandbox
-from src.integration.trust_interface import TRUST_THRESHOLDS, TrustInterface, TrustLevel
+from src.integration.sql_memory_store import (IdempotencyConflictError,
+                                              MemoryStoreError, SqlMemoryStore)
+from src.integration.trust_interface import (TRUST_THRESHOLDS, TrustInterface,
+                                             TrustLevel)
 from src.mcp.hebbian_weights import HebbianWeightManager
 from src.mcp.vector_store import LocalVectorStore
 from src.obsidian_integration.manager import ObsidianManager
@@ -255,9 +252,7 @@ def _memory_dependencies_for_store(
         )
         vector_store = cast(
             LocalVectorStore,
-            LazyProjection(
-                lambda: LocalVectorStore(db_path=str(vector_db_path))
-            ),
+            LazyProjection(lambda: LocalVectorStore(db_path=str(vector_db_path))),
         )
     return manager, MemoryBus(
         manager,
@@ -1575,9 +1570,7 @@ def _memory_list(payload: Dict[str, Any]) -> Dict[str, Any]:
             files = sorted(
                 relative
                 for record in records
-                if (relative := record["relative_path"][len(prefix) :]).endswith(
-                    suffix
-                )
+                if (relative := record["relative_path"][len(prefix) :]).endswith(suffix)
                 and "/" not in relative
             )
             source = "sql"

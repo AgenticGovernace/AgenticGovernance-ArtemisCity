@@ -9,12 +9,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import app.kernel.memory_bus as kernel_memory
-from app.kernel.memory_bus import (
-    FileMemoryBackend,
-    MemoryBackend,
-    MemoryBus,
-    VectorMemoryBackend,
-)
+from app.kernel.memory_bus import (FileMemoryBackend, MemoryBackend, MemoryBus,
+                                   VectorMemoryBackend)
 
 
 class _RecordingBackend(MemoryBackend):

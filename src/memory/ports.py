@@ -5,13 +5,8 @@ from __future__ import annotations
 from contextlib import AbstractContextManager
 from typing import Protocol
 
-from .models import (
-    ClaimDisposition,
-    LedgerWrite,
-    MemoryRecord,
-    MemoryWriteCommand,
-    ProjectionState,
-)
+from .models import (ClaimDisposition, LedgerWrite, MemoryRecord,
+                     MemoryWriteCommand, ProjectionState)
 
 
 class ProjectionClaim(Protocol):

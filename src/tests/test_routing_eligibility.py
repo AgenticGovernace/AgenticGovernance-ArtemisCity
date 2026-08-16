@@ -8,11 +8,8 @@ import pytest
 
 from src.routing.authorization import AuthorizationDecision
 from src.routing.contracts import RequestedConstraintsV1
-from src.routing.eligibility import (
-    AgentEligibilityRecord,
-    EligibilityDenied,
-    EligibilityFilter,
-)
+from src.routing.eligibility import (AgentEligibilityRecord, EligibilityDenied,
+                                     EligibilityFilter)
 
 from .test_routing_authorization import _authority, _intent
 

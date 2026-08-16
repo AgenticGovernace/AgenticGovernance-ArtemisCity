@@ -10,7 +10,8 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from src.agents.base_agent import BaseAgent
-from src.governance.trust import TrustMetrics, compute_trust_score, trust_breakdown
+from src.governance.trust import (TrustMetrics, compute_trust_score,
+                                  trust_breakdown)
 from src.runtime_paths import data_path
 from src.utils.helpers import logger
 

@@ -5,11 +5,12 @@ Implements simple w = +1 / w = -1 connection weighting for agent-task relationsh
 "Cells that fire together wire together" - applied to agent orchestration.
 """
 
-import sqlite3
 import os
+import sqlite3
 import time
 from datetime import datetime
-from typing import Optional, List, Tuple
+from typing import List, Optional, Tuple
+
 from ..utils.helpers import logger
 
 # Lazy import to avoid circular dependency

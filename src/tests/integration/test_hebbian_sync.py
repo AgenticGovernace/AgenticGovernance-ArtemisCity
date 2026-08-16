@@ -6,7 +6,8 @@ and ``BatchResult`` as defined in ``src/integration/hebbian_sync.py``.
 
 import pytest
 
-from src.integration.hebbian_sync import BatchResult, HebbianSyncService, WeightUpdate
+from src.integration.hebbian_sync import (BatchResult, HebbianSyncService,
+                                          WeightUpdate)
 
 # ---------------------------------------------------------------------------
 # WeightUpdate
@@ -143,9 +144,11 @@ class TestHebbianSyncService:
 
     def test_flush_with_failing_sink_is_non_fatal_and_reports_zero_applied(self):
         calls = {"count": 0}
+
         def _sink(_batch):
             calls["count"] += 1
             raise RuntimeError("sink failed")
+
         service = HebbianSyncService(batch_size=4, sink=_sink)
         service.queue_update(WeightUpdate.from_weights("a->b", 0.0, 1.0))
         result = service.flush_batch()
@@ -165,8 +168,10 @@ class TestHebbianSyncService:
 
     def test_propagate_returns_true_when_auto_flush_triggers(self):
         received: list[list[WeightUpdate]] = []
+
         def _sink(batch):
             received.append(list(batch))
+
         service = HebbianSyncService(batch_size=1, auto_flush=True, sink=_sink)
         flushed = service.propagate("agent->task", 0.5, 1.25)
         assert flushed is True

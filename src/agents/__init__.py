@@ -10,16 +10,9 @@ from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from .artemis import (
-        ArtemisPersona,
-        Citation,
-        ConceptGraph,
-        ConceptNode,
-        ReflectionEngine,
-        ResponseMode,
-        SemanticTag,
-        SemanticTagger,
-    )
+    from .artemis import (ArtemisPersona, Citation, ConceptGraph, ConceptNode,
+                          ReflectionEngine, ResponseMode, SemanticTag,
+                          SemanticTagger)
     from .artemis_agent import ArtemisAgent
     from .base_agent import BaseAgent
     from .llm_agent import LLMAgent

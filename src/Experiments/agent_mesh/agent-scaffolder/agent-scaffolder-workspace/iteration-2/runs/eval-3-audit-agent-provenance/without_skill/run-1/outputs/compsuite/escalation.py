@@ -76,9 +76,7 @@ class Escalator:
             return False
 
         self.escalation_count += 1
-        line = (
-            f"{_utc_now_iso()}\tESCALATION\t{severity.label}\t{path}\t{detail}\n"
-        )
+        line = f"{_utc_now_iso()}\tESCALATION\t{severity.label}\t{path}\t{detail}\n"
 
         if "log" in self.sinks:
             # Sanctioned, hashed, traceable write.

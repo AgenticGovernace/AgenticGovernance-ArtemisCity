@@ -8,9 +8,9 @@ Public surface:
 """
 
 from .agent import Relay, Task
-from .atp import Transmission, Reply, ATPFault, ATP_VERSION
+from .atp import ATP_VERSION, ATPFault, Reply, Transmission
+from .audit import AuditHaltError, AuditLog
 from .memory import ReflectionStore
-from .audit import AuditLog, AuditHaltError
 
 __all__ = [
     "Relay",

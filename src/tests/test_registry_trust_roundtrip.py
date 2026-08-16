@@ -8,12 +8,8 @@ import pytest
 
 from src.agents.base_agent import BaseAgent
 from src.integration.agent_registry import AgentRegistry
-from src.integration.trust_interface import (
-    TrustInterface,
-    TrustLevel,
-    TrustStore,
-    _default_db_path,
-)
+from src.integration.trust_interface import (TrustInterface, TrustLevel,
+                                             TrustStore, _default_db_path)
 
 
 class _StubAgent(BaseAgent):

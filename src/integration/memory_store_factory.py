@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import os
 
-from .sql_memory_store import ConnectionLike, PostgresMemoryStore, SqlMemoryStore
+from .sql_memory_store import (ConnectionLike, PostgresMemoryStore,
+                               SqlMemoryStore)
 
 
 class MemoryStoreConfigurationError(RuntimeError):

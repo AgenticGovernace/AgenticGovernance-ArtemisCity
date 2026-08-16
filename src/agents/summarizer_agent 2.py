@@ -1,5 +1,6 @@
-from .base_agent import BaseAgent
 import time
+
+from .base_agent import BaseAgent
 
 
 class SummarizerAgent(BaseAgent):

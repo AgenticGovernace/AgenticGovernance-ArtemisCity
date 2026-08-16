@@ -26,13 +26,11 @@ import logging
 import os
 from typing import Dict, List, Optional
 
-from src.integration.anaconda_agent_proxy import (
-    ANACONDA_API_KEY_ENV,
-    DEFAULT_ANACONDA_API_KEY,
-    AnacondaAgentProxy,
-    discover_anaconda_agents,
-    parse_port_map,
-)
+from src.integration.anaconda_agent_proxy import (ANACONDA_API_KEY_ENV,
+                                                  DEFAULT_ANACONDA_API_KEY,
+                                                  AnacondaAgentProxy,
+                                                  discover_anaconda_agents,
+                                                  parse_port_map)
 
 logger = logging.getLogger(__name__)
 

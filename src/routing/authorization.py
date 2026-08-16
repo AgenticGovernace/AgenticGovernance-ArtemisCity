@@ -9,12 +9,9 @@ from typing import Protocol, overload
 
 from src.auth.contracts import AuthorityContextV1
 from src.auth.delegation import DelegationGrantLookup, DelegationGrantV1
-from src.routing.contracts import (
-    AuthorizedRouteRequestV1,
-    DelegationContextV1,
-    RequestedConstraintsV1,
-    ResolvedIntentV1,
-)
+from src.routing.contracts import (AuthorizedRouteRequestV1,
+                                   DelegationContextV1, RequestedConstraintsV1,
+                                   ResolvedIntentV1)
 
 
 class AuthorizationDenied(ValueError):

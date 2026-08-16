@@ -2,7 +2,8 @@
 
 import pytest
 
-from src.governance.approvals import ApprovalTier, SelfUpdateGovernor, UpdateProposal
+from src.governance.approvals import (ApprovalTier, SelfUpdateGovernor,
+                                      UpdateProposal)
 
 
 @pytest.fixture

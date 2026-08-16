@@ -77,19 +77,26 @@ class Watcher:
         # Daily audit log; rolls over automatically on the UTC date boundary.
         return Path(self.log_dir) / f"audit-{_utc_date()}.log"
 
-    def _write_audit(self, event: FileEvent, result: Classification, escalated: bool) -> None:
-        line = "\t".join(
-            [
-                _utc_now_iso(),
-                result.severity.label,
-                event.kind,
-                str(event.path),
-                "ESCALATED" if escalated else "-",
-                result.reason,
-            ]
-        ) + "\n"
+    def _write_audit(
+        self, event: FileEvent, result: Classification, escalated: bool
+    ) -> None:
+        line = (
+            "\t".join(
+                [
+                    _utc_now_iso(),
+                    result.severity.label,
+                    event.kind,
+                    str(event.path),
+                    "ESCALATED" if escalated else "-",
+                    result.reason,
+                ]
+            )
+            + "\n"
+        )
         # Sanctioned, hashed write — the audit log entry is itself provenance.
-        self.ledger.write_file(self._audit_path(), line, append=True, detail="audit-entry")
+        self.ledger.write_file(
+            self._audit_path(), line, append=True, detail="audit-entry"
+        )
 
     # ----- snapshot diffing (poll backend) ---------------------------------
 

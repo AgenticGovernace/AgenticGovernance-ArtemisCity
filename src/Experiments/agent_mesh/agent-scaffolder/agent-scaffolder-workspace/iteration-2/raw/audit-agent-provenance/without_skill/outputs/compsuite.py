@@ -38,6 +38,7 @@ CONFIG_PATH = ROOT / "config" / "compsuite.toml"
 # Config loading
 # --------------------------------------------------------------------------- #
 
+
 def _load_toml(path: Path) -> dict:
     """Parse the config file.
 
@@ -49,12 +50,14 @@ def _load_toml(path: Path) -> dict:
     """
     try:
         import tomllib as toml_reader  # Python 3.11+
+
         with path.open("rb") as fh:
             return toml_reader.load(fh)
     except ModuleNotFoundError:
         pass
     try:
         import tomli as toml_reader  # type: ignore  # optional on 3.10-
+
         with path.open("rb") as fh:
             return toml_reader.load(fh)
     except ModuleNotFoundError:
@@ -183,7 +186,9 @@ def build_watcher(cfg: dict) -> Watcher:
     if prior and prior.get("parent_run_id"):
         ledger.parent_run_id = prior["parent_run_id"]
 
-    watch_roots = [_resolve_root(r) for r in cs.get("watch_roots", ["voice_logs", "outputs"])]
+    watch_roots = [
+        _resolve_root(r) for r in cs.get("watch_roots", ["voice_logs", "outputs"])
+    ]
     for r in watch_roots:
         r.mkdir(parents=True, exist_ok=True)  # ensure the trees exist to watch
 
@@ -227,6 +232,7 @@ def build_watcher(cfg: dict) -> Watcher:
 # --------------------------------------------------------------------------- #
 # Subcommands
 # --------------------------------------------------------------------------- #
+
 
 def cmd_run(args: argparse.Namespace) -> int:
     watcher = build_watcher(load_config())
@@ -329,7 +335,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_run = sub.add_parser("run", help="Run unattended (daemon).")
     p_run.add_argument(
-        "--cycles", type=int, default=None,
+        "--cycles",
+        type=int,
+        default=None,
         help="Stop after N poll cycles (for bounded/test runs). Omit for a daemon.",
     )
     p_run.set_defaults(func=cmd_run)

@@ -11,11 +11,9 @@ from typing import Any, Self
 
 import pytest
 
-from src.integration.sql_memory_store import (
-    IdempotencyConflictError,
-    MemoryStoreError,
-    PostgresMemoryStore,
-)
+from src.integration.sql_memory_store import (IdempotencyConflictError,
+                                              MemoryStoreError,
+                                              PostgresMemoryStore)
 
 
 class FakePostgresConnection:
@@ -830,9 +828,12 @@ def test_v0001_migration_is_atomic_versioned_and_exact_path_bound() -> None:
     assert "errcode = 'p0001'" in normalized
     assert "unique (record_id, memory_id, revision, relative_path)" in normalized
     assert "current_record_id, memory_id, current_revision, relative_path" in normalized
-    assert normalized.count(
-        "references artemis.memory_records (record_id, memory_id, revision, relative_path)"
-    ) == 2
+    assert (
+        normalized.count(
+            "references artemis.memory_records (record_id, memory_id, revision, relative_path)"
+        )
+        == 2
+    )
     assert "left(relative_path, 1) not in ('/', e'\\\\')" in normalized
     assert "position(e'\\\\' in relative_path) = 0" in normalized
     assert "relative_path not like '%//%'" in normalized

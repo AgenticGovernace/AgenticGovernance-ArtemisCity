@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import stat
 import subprocess
 import sys
-import os
 from pathlib import Path
-
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MEMORY_LAYER = "src/Artemis Agentic Memory Layer"
@@ -32,7 +31,9 @@ def _copy_provisioner_fixture(tmp_path: Path) -> Path:
     return fixture
 
 
-def _run(fixture: Path, *args: str, input_text: str = "") -> subprocess.CompletedProcess[str]:
+def _run(
+    fixture: Path, *args: str, input_text: str = ""
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["bash", "setup_secrets.sh", *args],
         cwd=fixture,
@@ -50,22 +51,14 @@ def _env_value(path: Path, key: str) -> str:
     return ""
 
 
-<<<<<<< Updated upstream
-def test_sync_backfills_every_runtime_template_and_check_detects_drift(tmp_path: Path) -> None:
-=======
-<<<<<<< Updated upstream
-def test_sync_backfills_every_runtime_template_and_check_detects_drift(
-    tmp_path: Path,
-) -> None:
-=======
 def _has_active_declaration(path: Path, key: str) -> bool:
     """Return whether an environment file declares a key, even when blank."""
     return any(line.startswith(f"{key}=") for line in path.read_text().splitlines())
 
 
-def test_sync_backfills_every_runtime_template_and_check_detects_drift(tmp_path: Path) -> None:
->>>>>>> Stashed changes
->>>>>>> Stashed changes
+def test_sync_backfills_every_runtime_template_and_check_detects_drift(
+    tmp_path: Path,
+) -> None:
     fixture = _copy_provisioner_fixture(tmp_path)
     (fixture / ".env").write_text(
         "MCP_API_KEY=keep-mcp\n"
@@ -87,9 +80,7 @@ def test_sync_backfills_every_runtime_template_and_check_detects_drift(tmp_path:
     assert _env_value(fixture / ".env", "ARTEMIS_HEBBIAN_ROUTING") == "1"
     assert _env_value(fixture / "app/api/.env", "EXO_READ_TIMEOUT_SECONDS") == "900"
     assert _env_value(fixture / "src/.env", "ARTEMIS_VECTOR_BACKEND") == "sqlite"
-    assert _env_value(
-        fixture / f"{MEMORY_LAYER}/.env", "OBSIDIAN_CA_CERT"
-    ) == ""
+    assert _env_value(fixture / f"{MEMORY_LAYER}/.env", "OBSIDIAN_CA_CERT") == ""
     assert stat.S_IMODE((fixture / ".env").stat().st_mode) == 0o600
 
     check = _run(fixture, "--check")
@@ -185,12 +176,8 @@ def test_first_setup_leaves_memory_database_urls_blank(tmp_path: Path) -> None:
 
     express_env = fixture / "app/api/.env"
     assert _env_value(express_env, "ARTEMIS_MEMORY_BACKEND") == "legacy"
-    assert _env_value(
-        express_env, "ARTEMIS_MEMORY_DB_CONNECT_TIMEOUT_SECONDS"
-    ) == "10"
-    assert _env_value(
-        express_env, "ARTEMIS_MEMORY_DB_STATEMENT_TIMEOUT_MS"
-    ) == "5000"
+    assert _env_value(express_env, "ARTEMIS_MEMORY_DB_CONNECT_TIMEOUT_SECONDS") == "10"
+    assert _env_value(express_env, "ARTEMIS_MEMORY_DB_STATEMENT_TIMEOUT_MS") == "5000"
     assert not _has_active_declaration(
         express_env, "ARTEMIS_MEMORY_MIGRATION_DATABASE_URL"
     )

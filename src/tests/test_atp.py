@@ -8,13 +8,8 @@ import pytest
 
 try:
     from src.agents.atp import ATPMessage  # type: ignore
-    from src.agents.atp import (
-        ATPActionType,
-        ATPMode,
-        ATPParser,
-        ATPPriority,
-        ATPValidator,
-    )
+    from src.agents.atp import (ATPActionType, ATPMode, ATPParser, ATPPriority,
+                                ATPValidator)
 except Exception:  # pragma: no cover - module not available yet
     pytest.skip("ATP module not available in this repo", allow_module_level=True)
 

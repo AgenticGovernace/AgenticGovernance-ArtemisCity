@@ -9,19 +9,12 @@ from pydantic import ValidationError
 
 from src.auth.contracts import AuthorityContextV1
 from src.routing import contracts as routing_contracts
-from src.routing.contracts import (
-    AuthorizedRouteRequestV1,
-    ContinuationV1,
-    DelegationContextV1,
-    KernelEventV1,
-    OutcomeV1,
-    RequestedConstraintsV1,
-    ResolvedIntentV1,
-    RoutingDecisionV1,
-    TaskEnvelopeV1,
-    TaskIntentV1,
-    TaskSubmissionV1,
-)
+from src.routing.contracts import (AuthorizedRouteRequestV1, ContinuationV1,
+                                   DelegationContextV1, KernelEventV1,
+                                   OutcomeV1, RequestedConstraintsV1,
+                                   ResolvedIntentV1, RoutingDecisionV1,
+                                   TaskEnvelopeV1, TaskIntentV1,
+                                   TaskSubmissionV1)
 
 _SHA256 = "a" * 64
 

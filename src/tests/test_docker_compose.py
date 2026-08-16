@@ -147,9 +147,9 @@ class TestDockerCompose:
         """The deployed Express process must be able to spawn SQL memory commands."""
         repo_root = docker_compose_path.parent
         dockerfile = (repo_root / "src" / "Dockerfile").read_text(encoding="utf-8")
-        requirements = (
-            repo_root / "requirements-bridge.txt"
-        ).read_text(encoding="utf-8")
+        requirements = (repo_root / "requirements-bridge.txt").read_text(
+            encoding="utf-8"
+        )
 
         assert "python3 -m venv /opt/artemis-venv" in dockerfile
         assert "requirements-bridge.txt" in dockerfile

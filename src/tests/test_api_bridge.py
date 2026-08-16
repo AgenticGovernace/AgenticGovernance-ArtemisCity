@@ -14,10 +14,8 @@ from src.agents.base_agent import BaseAgent
 from src.api_bridge import BridgeError, dispatch
 from src.integration.agent_registry import QUARANTINE_THRESHOLD, AgentRegistry
 from src.integration.memory_store_factory import MemoryStoreConfigurationError
-from src.integration.sql_memory_store import (
-    IdempotencyConflictError,
-    MemoryStoreError,
-)
+from src.integration.sql_memory_store import (IdempotencyConflictError,
+                                              MemoryStoreError)
 from src.mcp.hebbian_weights import HebbianWeightManager
 
 
@@ -686,8 +684,7 @@ def test_memory_write_forwards_validated_provenance_identity(monkeypatch):
     )
 
     assert (
-        bus.write_note_with_embedding.call_args.kwargs["provenance_id"]
-        == provenance_id
+        bus.write_note_with_embedding.call_args.kwargs["provenance_id"] == provenance_id
     )
     assert (
         bus.write_note_with_embedding.call_args.kwargs["source_agent"]

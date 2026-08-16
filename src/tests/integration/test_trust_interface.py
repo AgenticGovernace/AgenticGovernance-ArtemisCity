@@ -9,13 +9,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from src.integration.trust_interface import (
-    TrustInterface,
-    TrustLevel,
-    TrustScore,
-    get_trust_interface,
-    reset_trust_interface_for_tests,
-)
+from src.integration.trust_interface import (TrustInterface, TrustLevel,
+                                             TrustScore, get_trust_interface,
+                                             reset_trust_interface_for_tests)
 
 
 # ---------------------------------------------------------------------------

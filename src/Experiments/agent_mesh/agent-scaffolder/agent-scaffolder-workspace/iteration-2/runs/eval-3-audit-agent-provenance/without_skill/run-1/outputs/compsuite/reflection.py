@@ -37,8 +37,8 @@ class ReflectionEngine:
     every_n_actions: int = 50
 
     # rolling window state
-    _seq: int = field(default=0, init=False)              # reflection counter
-    _since_last: int = field(default=0, init=False)       # actions in window
+    _seq: int = field(default=0, init=False)  # reflection counter
+    _since_last: int = field(default=0, init=False)  # actions in window
     _severity_counts: Counter = field(default_factory=Counter, init=False)
     _path_counts: Counter = field(default_factory=Counter, init=False)
     _escalations: int = field(default=0, init=False)
@@ -120,7 +120,9 @@ class ReflectionEngine:
 {self._anomaly_notes(normal, warning, error)}
 """
 
-        out = Path(self.log_dir) / "reflections" / f"reflection-{self._seq:04d}-{now}.md"
+        out = (
+            Path(self.log_dir) / "reflections" / f"reflection-{self._seq:04d}-{now}.md"
+        )
         # Written through the ledger so the reflection write is itself traceable.
         self.ledger.write_file(out, body, detail=f"reflection#{self._seq}")
         self.ledger.record("REFLECT", str(out), detail=f"window={self._since_last}")

@@ -2,12 +2,8 @@ import pytest
 from pydantic import ValidationError
 
 from src.agents.atp.atp_models import ATPActionType, ATPMode, ATPPriority
-from src.validation.models import (
-    ATPHeaderInput,
-    ATPValidationReport,
-    ParsedATP,
-    ValidationIssue,
-)
+from src.validation.models import (ATPHeaderInput, ATPValidationReport,
+                                   ParsedATP, ValidationIssue)
 
 
 def test_header_input_accepts_serialized_canonical_enums_and_is_frozen() -> None:

@@ -60,7 +60,9 @@ def setup_example_task_note(obs_manager, memory_bus=None):
     """
     example_filename = "Example Research Task.md"
     relative_path = os.path.join(AGENT_INPUT_DIR, example_filename)
-    sql_mode = memory_bus is not None and getattr(memory_bus, "sql_store", None) is not None
+    sql_mode = (
+        memory_bus is not None and getattr(memory_bus, "sql_store", None) is not None
+    )
     if sql_mode:
         note_exists = memory_bus.read_exact(relative_path) is not None
     else:

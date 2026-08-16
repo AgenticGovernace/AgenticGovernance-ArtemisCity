@@ -82,8 +82,9 @@ def read_targets(paths: list[str]) -> list[tuple[str, str]]:
     return targets
 
 
-def build_request(system_prompt: str, targets: list[tuple[str, str]],
-                  config: dict) -> dict:
+def build_request(
+    system_prompt: str, targets: list[tuple[str, str]], config: dict
+) -> dict:
     """Assemble the model request payload.
 
     Returns a backend-neutral dict. Adapt this to your LLM client of choice
@@ -92,9 +93,7 @@ def build_request(system_prompt: str, targets: list[tuple[str, str]],
     """
     rendered_files = []
     for path, source in targets:
-        rendered_files.append(
-            f"### FILE: {path}\n```\n{source}\n```"
-        )
+        rendered_files.append(f"### FILE: {path}\n```\n{source}\n```")
     user_content = (
         "Refactor the following file(s) for performance. Emit a single unified "
         "diff covering all proposed changes. Comply with all three rules in the "
@@ -212,7 +211,9 @@ def build_parser() -> argparse.ArgumentParser:
         "files", nargs="+", help="One or more source files to refactor."
     )
     p_refactor.add_argument(
-        "-o", "--output", default=None,
+        "-o",
+        "--output",
+        default=None,
         help="Write the diff to this path instead of stdout.",
     )
     p_refactor.set_defaults(func=cmd_refactor)

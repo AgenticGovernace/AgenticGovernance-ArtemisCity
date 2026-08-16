@@ -23,7 +23,13 @@ SYMMETRIC = {
 
 VALID_MODES = {"Build", "Review", "Organize", "Capture", "Synthesize", "Commit"}
 VALID_ACTION_TYPES = {"Summarize", "Scaffold", "Execute", "Reflect"}
-ACK_TAGS = {"==accept==", "==decline==", "==rephrase==", "==ref_ack==", "==intersect_warning=="}
+ACK_TAGS = {
+    "==accept==",
+    "==decline==",
+    "==rephrase==",
+    "==ref_ack==",
+    "==intersect_warning==",
+}
 
 INTERSECT_WARNING = (
     "==intersect_warning== Tag not mapped in ATP. "
@@ -114,7 +120,9 @@ def parse_reply(text: str) -> Reply:
         if not ln:
             continue
         if ln.startswith("==from=="):
-            rep.sender = ln.split(None, 1)[1].strip() if len(ln.split(None, 1)) > 1 else ""
+            rep.sender = (
+                ln.split(None, 1)[1].strip() if len(ln.split(None, 1)) > 1 else ""
+            )
         elif ln.startswith("==ctx=="):
             rep.ctx = ln.split(None, 1)[1].strip() if len(ln.split(None, 1)) > 1 else ""
         elif ln.startswith("#"):
@@ -122,7 +130,11 @@ def parse_reply(text: str) -> Reply:
             rep.fields[k.strip()] = v.strip()
         elif ln in ACK_TAGS:
             rep.ack = ln
-        elif ln.startswith("==") and ln.endswith("==") and not ln.startswith("==atp_version=="):
+        elif (
+            ln.startswith("==")
+            and ln.endswith("==")
+            and not ln.startswith("==atp_version==")
+        ):
             # A == tag that is neither a known ack nor an envelope tag => unmapped.
             raise ATPFault(f"Unmapped ATP tag in reply: {ln!r}")
     if not rep.ack:
@@ -143,7 +155,5 @@ def match_ack(sent: Transmission, reply: Reply) -> str:
             f"ctx mismatch: expected {reply_ctx_for(sent.ctx)!r}, got {reply.ctx!r}"
         )
     if reply.ack not in SYMMETRIC[sent.request_tag]:
-        raise ATPFault(
-            f"{reply.ack!r} is not a valid reply to {sent.request_tag!r}"
-        )
+        raise ATPFault(f"{reply.ack!r} is not a valid reply to {sent.request_tag!r}")
     return reply.ack

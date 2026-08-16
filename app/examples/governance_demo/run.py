@@ -27,8 +27,10 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT))
 
 from src.agents.summarizer_agent import SummarizerAgent  # noqa: E402
-from src.governance.approvals import SelfUpdateGovernor, UpdateProposal  # noqa: E402
-from src.governance.checkpoints import CheckpointStore, RollbackManager  # noqa: E402
+from src.governance.approvals import (SelfUpdateGovernor,  # noqa: E402
+                                      UpdateProposal)
+from src.governance.checkpoints import (CheckpointStore,  # noqa: E402
+                                        RollbackManager)
 from src.integration.agent_registry import AgentRegistry  # noqa: E402
 from src.integration.sandbox import AgentSandbox, ToolPolicy  # noqa: E402
 from src.runtime_paths import data_path  # noqa: E402

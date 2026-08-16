@@ -22,11 +22,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from src.integration.memory_decay import (
-    DecayCycleResult,
-    MemoryDecayService,
-    MemoryNode,
-)
+from src.integration.memory_decay import (DecayCycleResult, MemoryDecayService,
+                                          MemoryNode)
 
 
 class TestMemoryNode:
@@ -238,6 +235,7 @@ class TestMemoryDecayService:
     def test_restore_node_ignores_sink_failures(self, tmp_path):
         def _sink(_node, _previous, _new_weight):
             raise RuntimeError("sink failed")
+
         service = MemoryDecayService(log_dir=str(tmp_path / "restore_sink"), sink=_sink)
         node = MemoryNode("n1", content="c", weight=0.5, archived=True)
         service.register_node(node)
