@@ -37,6 +37,44 @@ EXPECTED_AUDIENCE = "artemis-city"
 EXPECTED_SIGNER_NAMESPACE = "authstructure"
 EXPECTED_RECEIPT_KEY_ID = "receipt-key:production-1"
 
+_AUTHSTRUCTURE_URL_CASES = (
+    ("https://auth.example.test", True),
+    ("https://auth.example.test/verify/v1", True),
+    ("https://127.0.0.1:443/verify", True),
+    ("http://localhost", True),
+    ("http://localhost:8080/verify", True),
+    ("http://127.0.0.1:8080/verify", True),
+    ("HTTPS://auth.example.test/verify", False),
+    ("Http://localhost/verify", False),
+    ("http://LOCALHOST/verify", False),
+    ("http://127.0.0.2/verify", False),
+    ("https://[::1]/verify", False),
+    ("https://auth.example.test:/verify", False),
+    ("https://auth.example.test:0/verify", False),
+    ("https://auth.example.test:65536/verify", False),
+    ("https://auth.example.test:abc/verify", False),
+    ("https://user:pass@auth.example.test/verify", False),
+    ("https://auth.example.test/verify?tenant=city", False),
+    ("https://auth.example.test/verify#fragment", False),
+    ("https://bad host.example.test/verify", False),
+    ("https:///missing-host", False),
+    ("https://auth.example.test./verify", False),
+    ("https://-auth.example.test/verify", False),
+    ("https://999.999.999.999/verify", False),
+)
+
+_AUTHSTRUCTURE_IDENTIFIER_CASES = (
+    ("artemis-city", True),
+    ("authstructure", True),
+    ("receipt-key:production-1", True),
+    ("tenant/example_v1.2", True),
+    ("", False),
+    ("artemis city", False),
+    ("-leading-separator", False),
+    ("name@namespace", False),
+    ("a" * 256, False),
+)
+
 
 def _canonical_bytes(projection: dict[str, object]) -> bytes:
     return json.dumps(
@@ -328,13 +366,49 @@ def _assert_denial_is_safe(
     denied: pytest.ExceptionInfo[AuthenticationDenied], expected_code: str
 ) -> None:
     assert denied.value.code == expected_code
+    _assert_exception_graph_is_safe(denied.value)
+
+
+def _exception_graph(error: BaseException) -> list[BaseException]:
+    pending = [error]
+    visited: set[int] = set()
+    graph: list[BaseException] = []
+    while pending:
+        current = pending.pop()
+        if id(current) in visited:
+            continue
+        visited.add(id(current))
+        graph.append(current)
+        for linked in (current.__cause__, current.__context__):
+            if linked is not None:
+                pending.append(linked)
+    return graph
+
+
+def _assert_exception_graph_is_safe(error: BaseException) -> None:
+    graph = _exception_graph(error)
+    assert graph == [error]
     for secret in (
         RAW_AUTHORIZATION,
         RAW_BODY.decode(),
         "raw-target-proof-do-not-retain",
     ):
-        assert secret not in str(denied.value)
-        assert secret not in repr(denied.value)
+        for linked in graph:
+            assert secret not in str(linked)
+            assert secret not in repr(linked)
+
+
+def _nested_secret_exception() -> ValueError:
+    try:
+        try:
+            raise RuntimeError(RAW_AUTHORIZATION)
+        except RuntimeError:
+            raise LookupError(RAW_BODY.decode()) from None
+    except LookupError:
+        try:
+            raise ValueError("adapter failed")
+        except ValueError as outer:
+            return outer
 
 
 def test_auth_errors_replace_unregistered_codes_with_safe_defaults() -> None:
@@ -412,6 +486,7 @@ def test_auth_verifier_request_rejects_malformed_header_shapes_safely(
 
     assert str(denied.value) == "invalid_authentication_request_headers"
     assert RAW_AUTHORIZATION not in repr(denied.value)
+    _assert_exception_graph_is_safe(denied.value)
 
 
 def test_auth_config_missing_production_verifier_fails_closed(monkeypatch) -> None:
@@ -429,6 +504,7 @@ def test_auth_config_missing_production_verifier_fails_closed(monkeypatch) -> No
 
     assert denied.value.code == "auth_verifier_unavailable"
     assert str(denied.value) == "auth_verifier_unavailable"
+    _assert_exception_graph_is_safe(denied.value)
 
 
 def test_auth_config_complete_environment_still_fails_without_public_contract(
@@ -446,6 +522,7 @@ def test_auth_config_complete_environment_still_fails_without_public_contract(
         load_auth_verifier("prod")
 
     assert denied.value.code == "auth_verifier_unavailable"
+    _assert_exception_graph_is_safe(denied.value)
 
 
 def _set_valid_authstructure_environment(monkeypatch) -> None:
@@ -511,7 +588,7 @@ def test_auth_config_rejects_blank_or_malformed_operator_values_safely(
     assert str(denied.value) == "auth_verifier_unavailable"
     if value:
         assert value not in repr(denied.value)
-    assert denied.value.__cause__ is None
+    _assert_exception_graph_is_safe(denied.value)
 
 
 def test_auth_config_direct_construction_cannot_bypass_validation() -> None:
@@ -525,6 +602,27 @@ def test_auth_config_direct_construction_cannot_bypass_validation() -> None:
         )
 
     assert denied.value.code == "auth_verifier_unavailable"
+    _assert_exception_graph_is_safe(denied.value)
+
+
+class _ExplodingURL(str):
+    def __iter__(self):
+        nested = _nested_secret_exception()
+        raise nested
+
+
+def test_auth_config_discards_nested_secret_exception_graph() -> None:
+    """Configuration failures must not retain active or nested exceptions."""
+    with pytest.raises(AuthConfigurationError) as denied:
+        AuthstructureConfig(
+            url=cast(str, _ExplodingURL("https://auth.example.test")),
+            audience=EXPECTED_AUDIENCE,
+            signer_namespace=EXPECTED_SIGNER_NAMESPACE,
+            receipt_key_id=EXPECTED_RECEIPT_KEY_ID,
+        )
+
+    assert denied.value.code == "auth_verifier_unavailable"
+    _assert_exception_graph_is_safe(denied.value)
 
 
 def test_authstructure_verify_rejects_wrong_contract_version(
@@ -587,6 +685,27 @@ def test_authstructure_verify_rejects_malformed_canonical_bytes_safely(
         _verifier(malformed).verify(authentication_request)
 
     _assert_denial_is_safe(denied, "receipt_canonicalization_mismatch")
+
+
+@pytest.mark.parametrize(
+    "canonical_bytes",
+    [
+        b'{"version":"artemis.auth-receipt/1","version":"duplicate"}',
+        b'{"verified_at":NaN}',
+        b'{"verified_at":Infinity}',
+    ],
+)
+def test_authstructure_verify_rejects_non_strict_canonical_json(
+    authentication_request: AuthenticationRequest,
+    canonical_bytes: bytes,
+) -> None:
+    """Duplicate keys and non-finite numbers are never canonical JSON."""
+    artifact = _artifact(canonical_bytes=canonical_bytes)
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(artifact).verify(authentication_request)
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
 
 
 def test_authstructure_verify_rejects_malformed_receipt_artifact_safely(
@@ -693,6 +812,98 @@ def test_authstructure_verify_rejects_signed_raw_request_echoes(
     assert denied.value.__cause__ is None
 
 
+@pytest.mark.parametrize(
+    "header_name",
+    [
+        "authorization",
+        "Proxy-Authorization",
+        "cookie",
+        "X-Api-Key",
+        "apiKey",
+        "apikey",
+        "X-Auth-Token",
+        "X-Request-Signature",
+        "X-Client-Proof",
+        "Client-Certificate",
+    ],
+)
+def test_authstructure_verify_rejects_exact_sensitive_header_leaves(
+    header_name: str,
+) -> None:
+    """Normalized credential-bearing headers remain transient proof leaves."""
+    proof = "credential-leaf-do-not-retain"
+    request = AuthenticationRequest(
+        transport="http",
+        request_id="request:1",
+        method="POST",
+        authority="routing.artemis.city",
+        raw_target=b"/v1/route",
+        headers={header_name: (proof,)},
+        body=b"{}",
+    )
+    artifact = _artifact(identity_overrides={"agent_id": proof})
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(artifact).verify(request)
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
+
+
+@pytest.mark.parametrize(
+    "echoed_proof",
+    [
+        "raw-body-proof-do-not-retain",
+        "raw-target-proof-do-not-retain",
+    ],
+)
+def test_authstructure_verify_rejects_high_information_structured_proof_leaves(
+    authentication_request: AuthenticationRequest,
+    echoed_proof: str,
+) -> None:
+    """Named JSON and query proof values cannot enter a signed receipt."""
+    artifact = _artifact(identity_overrides={"agent_id": echoed_proof})
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(artifact).verify(authentication_request)
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
+
+
+def test_authstructure_verify_allows_benign_transport_collisions() -> None:
+    """Common body, target, and metadata values are not credential proofs."""
+    request = AuthenticationRequest(
+        transport="http",
+        request_id="request:1",
+        method="POST",
+        authority="routing.artemis.city",
+        raw_target=b"/",
+        headers={
+            "content-type": ("application/json",),
+            "user-agent": ("common-client/1.0",),
+            "x-request-id": ("receipt:verified-1",),
+        },
+        body=b"{}",
+    )
+
+    receipt = _verifier(_artifact()).verify(request)
+
+    assert receipt.source.receipt_id == "receipt:verified-1"
+
+
+def test_authstructure_verify_uses_exact_not_substring_proof_matching(
+    authentication_request: AuthenticationRequest,
+) -> None:
+    """Credential text embedded in a distinct leaf is not an exact echo."""
+    embedded = f"credential-prefix::{RAW_AUTHORIZATION}::suffix"
+
+    receipt = _verifier(_artifact(identity_overrides={"agent_id": embedded})).verify(
+        authentication_request
+    )
+
+    assert receipt.principal is not None
+    assert receipt.principal.identity.agent_id == embedded
+
+
 def test_authstructure_verify_rejects_raw_proof_added_to_canonical_output(
     authentication_request: AuthenticationRequest,
 ) -> None:
@@ -723,7 +934,7 @@ def test_authstructure_artifact_repr_omits_receipt_and_canonical_bytes() -> None
 class _ExplodingPrincipal:
     @property
     def capability(self):
-        raise RuntimeError(RAW_AUTHORIZATION)
+        raise _nested_secret_exception()
 
 
 def test_authstructure_verify_sanitizes_nested_artifact_failure(
@@ -778,11 +989,26 @@ def test_authstructure_verify_rejects_future_receipt_time(
     _assert_denial_is_safe(denied, "receipt_time_invalid")
 
 
+def test_authstructure_verify_rejects_principal_verified_after_receipt(
+    authentication_request: AuthenticationRequest,
+) -> None:
+    """A receipt cannot predate the principal verification it attests to."""
+    artifact = _artifact(
+        verified_at=NOW - timedelta(minutes=2),
+        principal_verified_at=NOW - timedelta(minutes=1),
+    )
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(artifact).verify(authentication_request)
+
+    _assert_denial_is_safe(denied, "receipt_time_invalid")
+
+
 @pytest.mark.parametrize(
     "clock",
     [
         lambda: NOW.replace(tzinfo=None),
-        lambda: (_ for _ in ()).throw(RuntimeError(RAW_AUTHORIZATION)),
+        lambda: (_ for _ in ()).throw(_nested_secret_exception()),
     ],
 )
 def test_authstructure_verify_sanitizes_unusable_clock(
@@ -869,7 +1095,7 @@ def test_authstructure_verify_sanitizes_boundary_failure(
 ) -> None:
     """An adapter exception must not copy transport proof into safe errors."""
     verifier = AuthstructureVerifier(
-        boundary=_ReceiptBoundary(error=RuntimeError(RAW_AUTHORIZATION)),
+        boundary=_ReceiptBoundary(error=_nested_secret_exception()),
         expected_audience=EXPECTED_AUDIENCE,
         expected_signer_namespace=EXPECTED_SIGNER_NAMESPACE,
         expected_receipt_key_id=EXPECTED_RECEIPT_KEY_ID,
@@ -880,7 +1106,6 @@ def test_authstructure_verify_sanitizes_boundary_failure(
         verifier.verify(authentication_request)
 
     _assert_denial_is_safe(denied, "auth_verifier_unavailable")
-    assert denied.value.__cause__ is None
 
 
 def test_authstructure_verify_returns_verified_credential_free_receipt(
@@ -992,6 +1217,21 @@ def _valid_setup_values() -> dict[str, str]:
     }
 
 
+def _run_setup(script: Path, cwd: Path, mode: str) -> subprocess.CompletedProcess[str]:
+    command = ["bash", str(script)]
+    if mode == "regenerate":
+        command.append("--regenerate")
+    elif mode == "check":
+        command.append("--check")
+    return subprocess.run(
+        command,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
 @pytest.mark.parametrize(
     ("changes", "expected_diagnostic"),
     [
@@ -1086,3 +1326,110 @@ def test_setup_sync_and_regenerate_preserve_authstructure_values(
         )
         assert result.returncode == 0, result.stdout + result.stderr
         assert root_env.read_bytes() == expected
+
+
+@pytest.mark.parametrize("mode", ["sync", "regenerate"])
+@pytest.mark.parametrize(
+    ("changes", "expected_state"),
+    [
+        ({"ARTEMIS_AUTHSTRUCTURE_URL": None}, "missing"),
+        ({"ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE": ""}, "blank"),
+        (
+            {"ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID": ("operator-secret malformed")},
+            "malformed",
+        ),
+    ],
+)
+def test_setup_mutating_modes_preserve_invalid_operator_configuration(
+    tmp_path: Path,
+    mode: str,
+    changes: dict[str, str | None],
+    expected_state: str,
+) -> None:
+    """Sync and regenerate must stop without inventing operator values."""
+    values = _valid_setup_values()
+    for key, value in changes.items():
+        if value is None:
+            values.pop(key)
+        else:
+            values[key] = value
+    script, root_env = _setup_secrets_fixture(tmp_path, values)
+    expected = root_env.read_bytes()
+
+    result = _run_setup(script, tmp_path, mode)
+    output = result.stdout + result.stderr
+
+    assert result.returncode == 1
+    assert root_env.read_bytes() == expected
+    assert expected_state in output
+    assert "operator action required" in output
+    assert "Setup complete." not in output
+    assert "operator-secret" not in output
+
+
+@pytest.mark.parametrize(("url", "accepted"), _AUTHSTRUCTURE_URL_CASES)
+def test_authstructure_url_grammar_matches_python_and_shell(
+    tmp_path: Path,
+    url: str,
+    accepted: bool,
+) -> None:
+    """Python admission and setup checks share one literal URL grammar."""
+    values = _valid_setup_values()
+    values["ARTEMIS_AUTHSTRUCTURE_URL"] = url
+    script, _ = _setup_secrets_fixture(tmp_path, values)
+
+    try:
+        AuthstructureConfig(
+            url=url,
+            audience=EXPECTED_AUDIENCE,
+            signer_namespace=EXPECTED_SIGNER_NAMESPACE,
+            receipt_key_id=EXPECTED_RECEIPT_KEY_ID,
+        )
+    except AuthConfigurationError:
+        python_accepted = False
+    else:
+        python_accepted = True
+    shell_result = _run_setup(script, tmp_path, "check")
+
+    assert python_accepted is accepted
+    assert (shell_result.returncode == 0) is accepted
+
+
+@pytest.mark.parametrize(
+    ("environment_key", "config_field"),
+    [
+        ("ARTEMIS_AUTHSTRUCTURE_AUDIENCE", "audience"),
+        ("ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE", "signer_namespace"),
+        ("ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID", "receipt_key_id"),
+    ],
+)
+@pytest.mark.parametrize(("value", "accepted"), _AUTHSTRUCTURE_IDENTIFIER_CASES)
+def test_authstructure_identifier_grammar_matches_python_and_shell(
+    tmp_path: Path,
+    environment_key: str,
+    config_field: str,
+    value: str,
+    accepted: bool,
+) -> None:
+    """All three public identifier fields use the same constrained grammar."""
+    values = _valid_setup_values()
+    values[environment_key] = value
+    script, _ = _setup_secrets_fixture(tmp_path, values)
+    config_values = {
+        "url": values["ARTEMIS_AUTHSTRUCTURE_URL"],
+        "audience": values["ARTEMIS_AUTHSTRUCTURE_AUDIENCE"],
+        "signer_namespace": values["ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE"],
+        "receipt_key_id": values["ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID"],
+    }
+    assert config_values[config_field] == value
+
+    try:
+        AuthstructureConfig(**config_values)
+    except AuthConfigurationError:
+        python_accepted = False
+    else:
+        python_accepted = True
+    shell_result = _run_setup(script, tmp_path, "check")
+
+    assert python_accepted is accepted
+    assert (shell_result.returncode == 0) is accepted

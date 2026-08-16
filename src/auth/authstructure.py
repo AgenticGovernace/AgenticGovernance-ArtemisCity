@@ -5,15 +5,46 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
+from urllib.parse import parse_qsl, urlsplit
 
 from .contracts import AuthReceiptV1
 from .verifier import AuthenticationDenied, AuthenticationRequest
 
 AUTHSTRUCTURE_RECEIPT_FORMAT = "authstructure.receipt/2"
+_SENSITIVE_PROOF_NAME_PARTS = frozenset(
+    {
+        "authorization",
+        "certificate",
+        "cookie",
+        "key",
+        "proof",
+        "secret",
+        "signature",
+        "token",
+    }
+)
+_SENSITIVE_PROOF_COMBINED_NAMES = frozenset(
+    {
+        "accesstoken",
+        "apikey",
+        "authtoken",
+        "clientcertificate",
+        "clientproof",
+        "clientsecret",
+        "refreshtoken",
+        "requestsignature",
+    }
+)
+# Header credentials are explicit proof regardless of length. JSON-body and
+# query-target values must be under a sensitive name and carry at least this
+# many characters before either the leaf or its complete structured container
+# is treated as proof. Admission compares exact receipt leaves, never substrings.
+_STRUCTURED_PROOF_MIN_LENGTH = 16
 
 
 @dataclass(frozen=True, repr=False)
@@ -52,25 +83,36 @@ class AuthstructureVerifier:
     def verify(self, request: AuthenticationRequest) -> AuthReceiptV1:
         """Return a validated receipt or raise a stable credential-free denial."""
 
+        artifact: object = None
+        boundary_denial: AuthenticationDenied | None = None
         try:
             artifact = self._boundary.verify(request)
         # A boundary may fail with any adapter exception. The fail-closed
         # translation deliberately discards its potentially secret message.
         except Exception:  # noqa: BLE001
-            raise AuthenticationDenied("auth_verifier_unavailable") from None
+            boundary_denial = AuthenticationDenied("auth_verifier_unavailable")
+        if boundary_denial is not None:
+            raise boundary_denial
 
+        receipt: AuthReceiptV1 | None = None
+        processing_denial: AuthenticationDenied | None = None
         try:
-            return self._validate_artifact(artifact, request)
+            receipt = self._validate_artifact(artifact, request)
         except AuthenticationDenied as denied:
-            raise AuthenticationDenied(denied.code) from None
+            processing_denial = AuthenticationDenied(denied.code)
         # Receipt artifacts are untrusted adapter output. Any unexpected
         # normalization or admission error must become a safe denial.
         except Exception:  # noqa: BLE001
-            raise AuthenticationDenied("authentication_rejected") from None
+            processing_denial = AuthenticationDenied("authentication_rejected")
+        if processing_denial is not None:
+            raise processing_denial
+        if receipt is None:
+            raise AuthenticationDenied("authentication_rejected")
+        return receipt
 
     def _validate_artifact(
         self,
-        artifact: AuthstructureReceiptArtifact,
+        artifact: object,
         request: AuthenticationRequest,
     ) -> AuthReceiptV1:
         if not isinstance(artifact, AuthstructureReceiptArtifact):
@@ -120,15 +162,16 @@ class AuthstructureVerifier:
             raise AuthenticationDenied("receipt_time_invalid")
         if receipt.principal.expires_at <= now:
             raise AuthenticationDenied("principal_expired")
-        if self._contains_raw_proof(
+        if self._contains_structured_proof_echo(
             receipt.model_dump(mode="json", warnings="error"),
-            canonical_bytes,
             request,
         ):
             raise AuthenticationDenied("authentication_rejected")
         return receipt
 
     def _safe_now(self) -> datetime:
+        now: datetime | None = None
+        clock_denial: AuthenticationDenied | None = None
         try:
             now = self._clock()
             if now.tzinfo is None or now.utcoffset() is None:
@@ -137,7 +180,12 @@ class AuthstructureVerifier:
         # Clock failures are admission failures; their details are not safe
         # authentication output and must not escape this boundary.
         except Exception:  # noqa: BLE001
-            raise AuthenticationDenied("receipt_time_invalid") from None
+            clock_denial = AuthenticationDenied("receipt_time_invalid")
+        if clock_denial is not None:
+            raise clock_denial
+        if now is None:
+            raise AuthenticationDenied("receipt_time_invalid")
+        return now
 
     @classmethod
     def _signed_projection(cls, receipt: AuthReceiptV1) -> dict[str, object]:
@@ -209,40 +257,94 @@ class AuthstructureVerifier:
         return parsed
 
     @classmethod
-    def _contains_raw_proof(
+    def _contains_structured_proof_echo(
         cls,
         receipt_dump: Mapping[str, object],
-        canonical_bytes: bytes,
         request: AuthenticationRequest,
     ) -> bool:
-        byte_fragments = [request.body, request.raw_target]
-        text_fragments: list[str] = []
-        for values in request.headers.values():
-            for value in values:
-                text_fragments.append(value)
-                byte_fragments.append(value.encode("utf-8"))
-        for fragment in (request.body, request.raw_target):
-            try:
-                text_fragments.append(fragment.decode("utf-8"))
-            except UnicodeDecodeError:
-                pass
-
-        byte_fragments = [fragment for fragment in byte_fragments if fragment]
-        text_fragments = [fragment for fragment in text_fragments if fragment]
-        if any(fragment in canonical_bytes for fragment in byte_fragments):
-            return True
-        return cls._value_contains_fragment(receipt_dump, text_fragments)
+        proof_leaves = cls._structured_proof_leaves(request)
+        if not proof_leaves:
+            return False
+        return any(value in proof_leaves for value in cls._string_leaves(receipt_dump))
 
     @classmethod
-    def _value_contains_fragment(cls, value: object, fragments: Sequence[str]) -> bool:
+    def _string_leaves(cls, value: object) -> Sequence[str]:
         if isinstance(value, str):
-            return any(fragment in value for fragment in fragments)
+            return (value,)
         if isinstance(value, Mapping):
-            return any(
-                cls._value_contains_fragment(key, fragments)
-                or cls._value_contains_fragment(nested, fragments)
-                for key, nested in value.items()
+            return tuple(
+                leaf for nested in value.values() for leaf in cls._string_leaves(nested)
             )
         if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
-            return any(cls._value_contains_fragment(item, fragments) for item in value)
-        return False
+            return tuple(leaf for item in value for leaf in cls._string_leaves(item))
+        return ()
+
+    @classmethod
+    def _structured_proof_leaves(cls, request: AuthenticationRequest) -> frozenset[str]:
+        leaves: set[str] = set()
+        for name, values in request.headers.items():
+            if cls._is_sensitive_proof_name(name):
+                leaves.update(value for value in values if value)
+
+        try:
+            body_text = request.body.decode("utf-8")
+            body_value = json.loads(body_text)
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            pass
+        else:
+            body_leaves = cls._named_structured_proof_leaves(body_value)
+            leaves.update(body_leaves)
+            if body_leaves and len(body_text) >= _STRUCTURED_PROOF_MIN_LENGTH:
+                leaves.add(body_text)
+
+        try:
+            raw_target = request.raw_target.decode("utf-8")
+            query_pairs = parse_qsl(
+                urlsplit(raw_target).query,
+                keep_blank_values=True,
+                strict_parsing=False,
+            )
+        except (UnicodeDecodeError, ValueError):
+            pass
+        else:
+            target_leaves = {
+                value
+                for name, value in query_pairs
+                if cls._is_sensitive_proof_name(name)
+                and len(value) >= _STRUCTURED_PROOF_MIN_LENGTH
+            }
+            leaves.update(target_leaves)
+            if target_leaves and len(raw_target) >= _STRUCTURED_PROOF_MIN_LENGTH:
+                leaves.add(raw_target)
+        return frozenset(leaves)
+
+    @classmethod
+    def _named_structured_proof_leaves(cls, value: object) -> frozenset[str]:
+        leaves: set[str] = set()
+        if isinstance(value, Mapping):
+            for name, nested in value.items():
+                if isinstance(name, str) and cls._is_sensitive_proof_name(name):
+                    leaves.update(
+                        leaf
+                        for leaf in cls._string_leaves(nested)
+                        if len(leaf) >= _STRUCTURED_PROOF_MIN_LENGTH
+                    )
+                else:
+                    leaves.update(cls._named_structured_proof_leaves(nested))
+        elif isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+            for nested in value:
+                leaves.update(cls._named_structured_proof_leaves(nested))
+        return frozenset(leaves)
+
+    @staticmethod
+    def _is_sensitive_proof_name(name: str) -> bool:
+        camel_separated = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "-", name)
+        normalized = re.sub(r"[^a-z0-9]+", "-", camel_separated.casefold()).strip("-")
+        name_parts = frozenset(normalized.split("-"))
+        return bool(
+            normalized
+            and (
+                _SENSITIVE_PROOF_NAME_PARTS.intersection(name_parts)
+                or _SENSITIVE_PROOF_COMBINED_NAMES.intersection(name_parts)
+            )
+        )

@@ -187,10 +187,21 @@ is_valid_authstructure_identifier() {
 }
 
 is_valid_authstructure_hostname() {
-    local hostname="$1" label
+    local hostname="$1" label octet octet_number
     local -a labels
     [[ -n "$hostname" && ${#hostname} -le 253 ]] || return 1
+    [[ "$hostname" != .* && "$hostname" != *. ]] || return 1
     IFS='.' read -r -a labels <<< "$hostname"
+    if [[ "$hostname" =~ ^[0-9.]+$ ]]; then
+        [[ ${#labels[@]} -eq 4 ]] || return 1
+        for octet in "${labels[@]}"; do
+            [[ "$octet" =~ ^[0-9]{1,3}$ ]] || return 1
+            [[ ${#octet} -eq 1 || "$octet" != 0* ]] || return 1
+            octet_number=$((10#$octet))
+            (( octet_number <= 255 )) || return 1
+        done
+        return 0
+    fi
     for label in "${labels[@]}"; do
         [[ -n "$label" && ${#label} -le 63 ]] || return 1
         [[ "$label" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]] || return 1
@@ -385,18 +396,17 @@ sync_template() {
             expected="$template_value"
         fi
 
-        if ! active_declares "$key" "$target"; then
-            if [[ "$MODE" == "check" ]]; then
-                echo -e "  $YELLOW""drift$NC $target — missing $key"
-                changed=1
-            else
-                set_env_var "$key" "$expected" "$target"
-                echo -e "  $GREEN""added$NC $target — $key"
-            fi
-            continue
-        fi
-
         if is_operator_authstructure_config "$key"; then
+            if ! active_declares "$key" "$target"; then
+                if [[ "$MODE" == "check" ]]; then
+                    echo -e "  $YELLOW""drift$NC $target — missing $key"
+                else
+                    echo -e "  $YELLOW""incomplete$NC $target — missing $key; operator action required"
+                fi
+                changed=1
+                continue
+            fi
+
             local configured_value reason
             configured_value="$(read_env_value "$key" "$target")"
             if ! is_valid_authstructure_value "$key" "$configured_value"; then
@@ -411,6 +421,17 @@ sync_template() {
                     echo -e "  $YELLOW""preserved$NC $target — $key $reason; operator action required"
                 fi
                 changed=1
+            fi
+            continue
+        fi
+
+        if ! active_declares "$key" "$target"; then
+            if [[ "$MODE" == "check" ]]; then
+                echo -e "  $YELLOW""drift$NC $target — missing $key"
+                changed=1
+            else
+                set_env_var "$key" "$expected" "$target"
+                echo -e "  $GREEN""added$NC $target — $key"
             fi
             continue
         fi
@@ -470,6 +491,10 @@ case "$MODE" in
         echo -e "$GREEN""all runtime env files match their templates and owned secrets.$NC"
         ;;
     sync|regenerate)
+        if [[ "$DRIFT_COUNT" -gt 0 ]]; then
+            echo -e "$RED""Setup incomplete:$NC operator-supplied configuration requires action."
+            exit 1
+        fi
         echo -e "$GREEN""Setup complete.$NC"
         echo ""
         echo "Value ownership:"

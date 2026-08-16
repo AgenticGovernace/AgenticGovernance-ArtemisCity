@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
-from ipaddress import ip_address
 from urllib.parse import urlsplit
 
 from .verifier import AuthVerifier
@@ -32,6 +31,7 @@ class AuthstructureConfig:
     receipt_key_id: str
 
     def __post_init__(self) -> None:
+        invalid_configuration = False
         try:
             self._validate_url(self.url)
             for value in (
@@ -44,7 +44,9 @@ class AuthstructureConfig:
         # Configuration parsing can fail through URL, port, host, or type
         # validation; no rejected operator value may enter the safe error.
         except Exception:  # noqa: BLE001
-            raise AuthConfigurationError("auth_verifier_unavailable") from None
+            invalid_configuration = True
+        if invalid_configuration:
+            raise AuthConfigurationError("auth_verifier_unavailable")
 
     @classmethod
     def from_environment(cls, environment: str) -> AuthstructureConfig:
@@ -69,9 +71,15 @@ class AuthstructureConfig:
     def _validate_url(value: str) -> None:
         if not value or any(character.isspace() for character in value):
             raise ValueError
+        if value.startswith("https://"):
+            expected_scheme = "https"
+        elif value.startswith("http://"):
+            expected_scheme = "http"
+        else:
+            raise ValueError
         parsed = urlsplit(value)
         if (
-            parsed.scheme not in {"https", "http"}
+            parsed.scheme != expected_scheme
             or parsed.hostname is None
             or parsed.username is not None
             or parsed.password is not None
@@ -79,14 +87,31 @@ class AuthstructureConfig:
             or parsed.fragment
         ):
             raise ValueError
-        port = parsed.port
-        if port is not None and not 1 <= port <= 65535:
+        authority = parsed.netloc
+        if not authority or "[" in authority or "]" in authority:
             raise ValueError
+        if authority.count(":") > 1:
+            raise ValueError
+        if ":" in authority:
+            hostname, port_text = authority.rsplit(":", 1)
+            if not port_text.isdigit():
+                raise ValueError
+            port = int(port_text)
+            if not 1 <= port <= 65535:
+                raise ValueError
+        else:
+            hostname = authority
 
-        hostname = parsed.hostname
-        try:
-            ip_address(hostname)
-        except ValueError:
+        if re.fullmatch(r"[0-9.]+", hostname):
+            octets = hostname.split(".")
+            if (
+                len(octets) != 4
+                or any(not octet for octet in octets)
+                or any(len(octet) > 1 and octet.startswith("0") for octet in octets)
+                or any(int(octet) > 255 for octet in octets)
+            ):
+                raise ValueError
+        else:
             labels = hostname.split(".")
             if len(hostname) > 253 or any(
                 not label
@@ -97,10 +122,7 @@ class AuthstructureConfig:
             ):
                 raise ValueError from None
 
-        if parsed.scheme == "http" and hostname.lower() not in {
-            "localhost",
-            "127.0.0.1",
-        }:
+        if expected_scheme == "http" and hostname not in {"localhost", "127.0.0.1"}:
             raise ValueError
 
 

@@ -38,6 +38,7 @@ class AuthenticationRequest:
     body: bytes = field(repr=False)
 
     def __post_init__(self) -> None:
+        invalid_headers = False
         try:
             if not isinstance(self.headers, Mapping):
                 raise TypeError
@@ -52,7 +53,9 @@ class AuthenticationRequest:
         # Custom mappings may fail while iterating. Their potentially secret
         # exception details must not escape this transient boundary.
         except Exception:  # noqa: BLE001
-            raise ValueError("invalid_authentication_request_headers") from None
+            invalid_headers = True
+        if invalid_headers:
+            raise ValueError("invalid_authentication_request_headers")
 
 
 class AuthenticationDenied(Exception):
