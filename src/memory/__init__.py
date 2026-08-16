@@ -1,6 +1,39 @@
-"""Compatibility package for legacy ``memory.*`` imports.
+"""Canonical provider-neutral memory domain and service contracts."""
 
-Canonical Artemis City implementations live under ``src.*``. This package
-keeps older scripts and documentation examples importable without copying
-runtime logic.
-"""
+from .models import (
+    ClaimDisposition,
+    LedgerState,
+    LedgerWrite,
+    MemoryError,
+    MemoryIdempotencyConflict,
+    MemoryLedgerUnavailable,
+    MemoryNamespaceConflict,
+    MemoryRecord,
+    MemoryValidationError,
+    MemoryWriteCommand,
+    MemoryWriteReceipt,
+    ProjectionState,
+    WriteDisposition,
+)
+from .ports import MemoryLedger, MemoryProjection, ProjectionClaim
+from .service import MemoryService
+
+__all__ = [
+    "ClaimDisposition",
+    "LedgerState",
+    "LedgerWrite",
+    "MemoryError",
+    "MemoryIdempotencyConflict",
+    "MemoryLedger",
+    "MemoryLedgerUnavailable",
+    "MemoryNamespaceConflict",
+    "MemoryProjection",
+    "MemoryRecord",
+    "MemoryService",
+    "MemoryValidationError",
+    "MemoryWriteCommand",
+    "MemoryWriteReceipt",
+    "ProjectionClaim",
+    "ProjectionState",
+    "WriteDisposition",
+]
