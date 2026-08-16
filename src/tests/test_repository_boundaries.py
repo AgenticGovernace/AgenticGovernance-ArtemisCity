@@ -24,9 +24,11 @@ def _git_ls_files(*patterns: str) -> list[str]:
 
 
 def _production_python_paths() -> list[Path]:
-    rel_paths = _git_ls_files("src/**/*.py", "app/**/*.py")
+    rel_paths = _git_ls_files("src", "app")
     paths: list[Path] = []
     for rel_path in rel_paths:
+        if not rel_path.endswith(".py"):
+            continue
         if "/tests/" in rel_path or rel_path.startswith("tests/"):
             continue
         paths.append(ROOT / rel_path)
@@ -40,6 +42,15 @@ def _python_string_literals(path: Path) -> list[str]:
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             literals.append(node.value)
     return literals
+
+
+def test_production_python_paths_include_top_level_and_nested_modules() -> None:
+    rel_paths = sorted(path.relative_to(ROOT).as_posix() for path in _production_python_paths())
+
+    assert "src/__init__.py" in rel_paths
+    assert "app/__init__.py" in rel_paths
+    assert "app/kernel/__init__.py" in rel_paths
+    assert not any("/tests/" in rel_path or rel_path.startswith("tests/") for rel_path in rel_paths)
 
 
 def test_tracked_paths_do_not_casefold_collide() -> None:

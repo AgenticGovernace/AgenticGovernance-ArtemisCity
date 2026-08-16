@@ -35,6 +35,49 @@ FORBIDDEN_SUFFIXES = {
 }
 
 
+def test_allowlist_comparator_accepts_normalized_wheel_dist_info(tmp_path: Path) -> None:
+    allowlist = tmp_path / "wheel-allowlist.txt"
+    allowlist.write_text(
+        "\n".join(
+            [
+                "app/__init__.py",
+                "{dist_info}/METADATA",
+                "{dist_info}/WHEEL",
+                "{dist_info}/RECORD",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    members = [
+        "app/__init__.py",
+        "artemis_city-1.0.0.dist-info/METADATA",
+        "artemis_city-1.0.0.dist-info/WHEEL",
+        "artemis_city-1.0.0.dist-info/RECORD",
+    ]
+
+    _assert_members_match_allowlist(
+        member_names=members,
+        allowlist_path=allowlist,
+        artifact_label="wheel",
+        normalize_wheel_dist_info=True,
+    )
+
+
+def test_allowlist_comparator_rejects_placeholder_allowlist(tmp_path: Path) -> None:
+    allowlist = tmp_path / "wheel-allowlist.txt"
+    allowlist.write_text("", encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="TASK_6_RELEASE_ALLOWLIST_MISMATCH"):
+        _assert_members_match_allowlist(
+            member_names=["app/__init__.py"],
+            allowlist_path=allowlist,
+            artifact_label="wheel",
+            normalize_wheel_dist_info=True,
+        )
+
+
 @pytest.fixture(scope="module")
 def built_release_artifacts(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
     outdir = tmp_path_factory.mktemp("release-artifacts")
@@ -78,6 +121,32 @@ def _artifact_members(artifact_path: Path) -> list[str]:
     return members
 
 
+def _normalize_allowlist_member(
+    member_name: str, *, normalize_wheel_dist_info: bool
+) -> str:
+    path = PurePosixPath(member_name)
+    if (
+        normalize_wheel_dist_info
+        and path.parts
+        and path.parts[0].endswith(".dist-info")
+    ):
+        return PurePosixPath("{dist_info}", *path.parts[1:]).as_posix()
+    return path.as_posix()
+
+
+def _read_allowlist(
+    allowlist_path: Path, *, normalize_wheel_dist_info: bool
+) -> list[str]:
+    return [
+        _normalize_allowlist_member(
+            line.strip(),
+            normalize_wheel_dist_info=normalize_wheel_dist_info,
+        )
+        for line in allowlist_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
 def _artifact_scope_violations(member_names: list[str]) -> list[str]:
     violations: list[str] = []
     casefolded: dict[str, list[str]] = defaultdict(list)
@@ -109,8 +178,52 @@ def _artifact_scope_violations(member_names: list[str]) -> list[str]:
 def _assert_allowlist_exists(path: Path, artifact_label: str) -> None:
     assert path.is_file(), (
         "TASK_6_RELEASE_ALLOWLIST_MISSING: "
-        f"{artifact_label} allowlist {path.relative_to(ROOT).as_posix()} "
+        f"{artifact_label} allowlist {_display_path(path)} "
         "must be committed in Task 6 before release contents can be frozen."
+    )
+
+
+def _display_path(path: Path) -> str:
+    if path.is_relative_to(ROOT):
+        return path.relative_to(ROOT).as_posix()
+    return path.as_posix()
+
+
+def _assert_members_match_allowlist(
+    *,
+    member_names: list[str],
+    allowlist_path: Path,
+    artifact_label: str,
+    normalize_wheel_dist_info: bool,
+) -> None:
+    _assert_allowlist_exists(allowlist_path, artifact_label)
+
+    normalized_members = sorted(
+        {
+            _normalize_allowlist_member(
+                member_name,
+                normalize_wheel_dist_info=normalize_wheel_dist_info,
+            )
+            for member_name in member_names
+        }
+    )
+    allowlist_members = sorted(
+        set(
+            _read_allowlist(
+                allowlist_path,
+                normalize_wheel_dist_info=normalize_wheel_dist_info,
+            )
+        )
+    )
+
+    missing_from_artifact = sorted(set(allowlist_members) - set(normalized_members))
+    unexpected_in_artifact = sorted(set(normalized_members) - set(allowlist_members))
+
+    assert normalized_members == allowlist_members, (
+        "TASK_6_RELEASE_ALLOWLIST_MISMATCH: "
+        f"{artifact_label} members differ from {_display_path(allowlist_path)}; "
+        f"missing_from_artifact={missing_from_artifact[:20]}, "
+        f"unexpected_in_artifact={unexpected_in_artifact[:20]}."
     )
 
 
@@ -140,9 +253,23 @@ def test_sdist_rejects_forbidden_release_members(
     )
 
 
-def test_wheel_allowlist_contract_is_present() -> None:
-    _assert_allowlist_exists(WHEEL_ALLOWLIST, "wheel")
+def test_wheel_allowlist_contract_is_present(
+    built_release_artifacts: dict[str, Path],
+) -> None:
+    _assert_members_match_allowlist(
+        member_names=_artifact_members(built_release_artifacts["wheel"]),
+        allowlist_path=WHEEL_ALLOWLIST,
+        artifact_label="wheel",
+        normalize_wheel_dist_info=True,
+    )
 
 
-def test_sdist_allowlist_contract_is_present() -> None:
-    _assert_allowlist_exists(SDIST_ALLOWLIST, "sdist")
+def test_sdist_allowlist_contract_is_present(
+    built_release_artifacts: dict[str, Path],
+) -> None:
+    _assert_members_match_allowlist(
+        member_names=_artifact_members(built_release_artifacts["sdist"]),
+        allowlist_path=SDIST_ALLOWLIST,
+        artifact_label="sdist",
+        normalize_wheel_dist_info=False,
+    )
