@@ -1,0 +1,3044 @@
+---
+api_version: "artemis.quantumharmony.dev/v1"
+kind: "ReverseSyncAuditManifest"
+metadata:
+  name: "reverse-sync-72cf776-path-audit"
+  manifest_version: 1
+  audit_date: "2026-08-16"
+  owner_repository: "Artemis_City"
+  observed_head: "5ac7c654b65de056e706ef1164b3d145c48200a2"
+source_commit:
+  sha: "72cf776a69b260d4bcc2c811179d49dc34dbbf0d"
+  parent: "613abc0250a27193630eab18df4409f0c0ea04f3"
+  author_name: "popvilla"
+  author_email: "prinston@artemiscity.com"
+  authored_at: "2026-08-15T16:38:23-04:00"
+  committer_name: "popvilla"
+  committer_email: "prinston@artemiscity.com"
+  committed_at: "2026-08-15T16:38:23-04:00"
+  subject: "popupdate"
+  trailer: "Signed-off-by: popvilla <prinston@artemiscity.com>"
+delta_contract:
+  extraction_command: "git diff-tree --no-commit-id --name-status -r -M 72cf776a69b260d4bcc2c811179d49dc34dbbf0d"
+  raw_record_count: 337
+  raw_status_counts: {A: 259, M: 18, D: 26, R100: 34}
+  rename_expansion_policy: "Each R100 record expands into two path records: the old path is D and the new path is A. This preserves the 371-path audit universe while retaining rename_peer and similarity evidence."
+  expanded_path_count: 371
+  expanded_source_status_counts: {A: 293, M: 18, D: 60}
+classification_counts:
+  KEEP_AUTHORITATIVE: 21
+  KEEP_COMPATIBILITY: 1
+  REMOVE_REVERSE_SYNC: 221
+  REVIEW_SEPARATELY: 79
+  ALREADY_CORRECTED: 49
+allowed_action_semantics:
+  KEEP_AUTHORITATIVE:
+    automatic: true
+    action: "Retain an added or modified canonical path; restore a deleted/moved canonical path from reviewed Git content. This classification does not authorize unrelated rewrites."
+  KEEP_COMPATIBILITY:
+    automatic: true
+    action: "Retain the compatibility surface unchanged until a separately reviewed migration replaces it."
+  REMOVE_REVERSE_SYNC:
+    automatic: true
+    action: "For A, remove the added path. For M, undo only the contaminated commit hunks and reconcile later edits against the canonical owner. No D entries currently use this class."
+  REVIEW_SEPARATELY:
+    automatic: false
+    action: "Preserve the path and its recoverable Git content until a focused comparison, provenance-retention decision, and human review authorize a change."
+  ALREADY_CORRECTED:
+    automatic: false
+    action: "Take no cleanup action from this manifest; verify the previously applied correction remains present before finalizing the cleanup."
+evidence_catalog:
+  source_commit_delta:
+    kind: "git-command"
+    locator: "git diff-tree --no-commit-id --name-status -r -M 72cf776a69b260d4bcc2c811179d49dc34dbbf0d"
+    claim: "Defines the complete rename-aware source delta; R100 records are expanded according to delta_contract.rename_expansion_policy."
+  audit_group_namespace:
+    kind: "manifest-reference"
+    locator: "audit_groups.<audit_group>"
+    claim: "Every path's second evidence identifier resolves to its audit_groups record, which supplies repository locators and the classification claim."
+audit_groups:
+  environment_contract:
+    classification: KEEP_AUTHORITATIVE
+    path_count: 5
+    rationale: "Retain the environment/provisioning contract and its focused synchronization tests."
+    evidence:
+      - locator: "setup_secrets.sh"
+      - locator: "src/tests/test_setup_secrets.py"
+      - locator: "docs/DEPLOYMENT.md"
+    claim: "These paths define and test canonical environment value ownership, synchronization, preservation, and rotation."
+  root_benchmark:
+    classification: KEEP_AUTHORITATIVE
+    path_count: 1
+    rationale: "Restore the benchmark at the root path named by maintained core modules."
+    evidence:
+      - locator: "src/integration/memory_decay.py:22"
+      - locator: "src/integration/hebbian_sync.py:14"
+    claim: "Maintained memory and Hebbian modules identify benchmarks/bench_memory_ops.py as the benchmark contract."
+  root_examples:
+    classification: KEEP_AUTHORITATIVE
+    path_count: 7
+    rationale: "Restore examples to the canonical root examples tree used by their commands and documentation."
+    evidence:
+      - locator: "examples/"
+      - locator: "git show 72cf776:app/examples/README.md"
+    claim: "The moved example documents and scripts invoke examples/... paths, not app/examples/...."
+  root_sandbox_docs:
+    classification: KEEP_AUTHORITATIVE
+    path_count: 3
+    rationale: "Restore the simulation sandbox documentation to its canonical root tree."
+    evidence:
+      - locator: "docs/PROJECT_BOUNDARIES.md:31"
+      - locator: "sandbox_city/"
+    claim: "The project-boundary document assigns the simulation sandbox to sandbox_city/."
+  root_monitoring_config:
+    classification: KEEP_AUTHORITATIVE
+    path_count: 2
+    rationale: "Restore operational monitoring configuration at the root monitoring boundary."
+    evidence:
+      - locator: "monitoring/alerts.yml"
+      - locator: "monitoring/prometheus.yml"
+    claim: "These are operational configuration files; their src/utils copies are misplaced reverse-sync destinations."
+  root_supabase_migration:
+    classification: KEEP_AUTHORITATIVE
+    path_count: 1
+    rationale: "Restore the database migration to the Supabase CLI's canonical root migration directory."
+    evidence:
+      - locator: "git show 72cf776:app/supabase/migrations/artemis.sql"
+    claim: "The migration's own operator instructions name supabase/migrations/."
+  reproducibility_fixture:
+    classification: KEEP_AUTHORITATIVE
+    path_count: 1
+    rationale: "Restore the deliberately tracked vector-store reproducibility fixture."
+    evidence:
+      - locator: "src/tests/test_gitignore_contract.py:94"
+      - locator: "app/scripts/data/vector_store.db"
+    claim: "The gitignore contract test explicitly allowlists this database fixture."
+  unique_governance_implementation:
+    classification: KEEP_AUTHORITATIVE
+    path_count: 1
+    rationale: "Retain the unique governance implementation pending its planned consolidation."
+    evidence:
+      - locator: "tests/integration/test_governance.py:20"
+      - locator: "src/governance/self_update_governance.py"
+    claim: "The module is unique and is imported by the governance integration test."
+  legacy_exception_compatibility:
+    classification: KEEP_COMPATIBILITY
+    path_count: 1
+    rationale: "Retain the legacy exception import surface until it becomes a thin canonical re-export."
+    evidence:
+      - locator: "tests/integration/test_exceptions.py:7"
+      - locator: "src/integration/exceptions.py"
+    claim: "Root integration tests still import exceptions while the maintained implementation is src.integration.exceptions."
+  unrelated_agent_bundle:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 109
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence:
+      - locator: "git show 72cf776:.agents/AGENTS.md"
+      - locator: "git ls-tree -r 72cf776 -- .agents/skills"
+    claim: "The bundle describes an unrelated Delphi/Oracle IDE and Data Cloud tooling rather than Artemis runtime ownership."
+  broken_devcontainer_delta:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 1
+    rationale: "Undo the broken devcontainer delta and reconcile only against canonical runtime configuration."
+    evidence:
+      - locator: "git diff 613abc0 72cf776 -- .devcontainer/devcontainer.json"
+      - locator: "docker-compose.yaml"
+      - locator: ".python-version"
+    claim: "The delta downgrades Python, names a nonexistent Compose service, mixes workspace roots, and stores a literal user placeholder."
+  duplicate_github_environments:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 3
+    rationale: "Remove duplicate GitHub environment files; config/environments remains authoritative."
+    evidence:
+      - locator: "config/environments/"
+      - locator: ".github/environments/"
+    claim: "Runtime loading and tests consume config/environments; the added GitHub files duplicate that contract."
+  unsafe_promotion_delta:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 1
+    rationale: "Undo the recursive promotion-trigger delta and preserve serialized dev promotion behavior."
+    evidence:
+      - locator: "git diff 613abc0 72cf776 -- .github/workflows/promote.yml"
+    claim: "Triggering on staging and prod allows workflow pushes to retrigger promotion with the wrong source SHA."
+  local_vscode_artifacts:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 3
+    rationale: "Remove or undo local editor artifacts that do not describe a valid Artemis launch surface."
+    evidence:
+      - locator: ".vscode/launch.json"
+      - locator: ".vscode/settings.json"
+    claim: "The additions target nonexistent Deno/main.ts paths and include machine-specific absolute schema associations."
+  incorrect_app_move:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 21
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence:
+      - locator: "docs/PROJECT_BOUNDARIES.md"
+      - locator: "pyproject.toml"
+      - locator: "git diff-tree -r -M 72cf776"
+    claim: "Benchmarks, examples, memory compatibility, sandbox, Supabase, and frontend secret-template changes were moved into or altered under the wrong owner."
+  empty_architecture_moc:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 1
+    rationale: "Remove the empty generated architecture map-of-content artifact."
+    evidence:
+      - locator: "git show 72cf776:src/Architecture/Architecture.md"
+    claim: "The file carries no authoritative architecture content."
+  legacy_src_kernel_artifacts:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 23
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence:
+      - locator: "src/Kernel/"
+      - locator: "docs/PROJECT_BOUNDARIES.md:28"
+    claim: "Only the compatibility initializer is allowed outside app/kernel; these commit-added notes, agents, memory snapshots, and state are not runtime authority."
+  generated_source_moc:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 16
+    rationale: "Remove the generated empty source map/index artifact."
+    evidence:
+      - locator: "git show 72cf776:{path}"
+    claim: "The file is a generated minimal map/index with no authoritative implementation content."
+  stale_agent_copy:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 16
+    rationale: "Remove the stale numbered/copied agent or obsolete persona artifact."
+    evidence:
+      - locator: "src/agents/"
+      - locator: "src/tests/"
+    claim: "Maintained canonical agent modules are newer and tested; the added copy or obsolete Codex-era document has no production owner."
+  duplicate_exception_copy:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 2
+    rationale: "Remove the byte-identical numbered or copy exception module."
+    evidence:
+      - locator: "src/exceptions.py"
+      - locator: "src/integration/exceptions.py"
+    claim: "The added file duplicates src/exceptions.py and is not the maintained exception owner."
+  root_source_duplicate:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 9
+    rationale: "Remove the unreferenced root-level duplicate in favor of its maintained package owner."
+    evidence:
+      - locator: "src/obsidian_integration/"
+      - locator: "src/mcp/"
+      - locator: "src/utils/"
+      - locator: "src/launch/"
+      - locator: "src/integration/"
+      - locator: "src/agents/artemis/"
+    claim: "No production import targets the root copy; maintained implementations live in cohesive packages."
+  obsolete_named_cli:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 1
+    rationale: "Remove the obsolete vendor/tool-named CLI surface."
+    evidence:
+      - locator: "src/interface/Quantumharmony_cli.py"
+      - locator: "docs/CODING_STANDARDS.md"
+    claim: "The routing contract cannot be owned by an assistant, model, vendor, or desktop application name."
+  duplicate_launch_lock:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 1
+    rationale: "Remove the duplicate launch package-manager lock."
+    evidence:
+      - locator: "src/launch/yarn.lock"
+      - locator: "src/launch/package-lock.json"
+    claim: "The compatibility launch surface already uses its npm lock."
+  stale_mcp_copy:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 4
+    rationale: "Remove the stale numbered MCP implementation copy."
+    evidence:
+      - locator: "src/mcp/"
+      - locator: "src/tests/"
+    claim: "The canonical MCP modules are newer, larger, and used by maintained imports and tests."
+  stale_obsidian_copy:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 2
+    rationale: "Remove the stale numbered Obsidian integration copy."
+    evidence:
+      - locator: "src/obsidian_integration/"
+      - locator: "src/tests/"
+    claim: "The canonical manager and parser modules are the maintained tested imports."
+  misplaced_tool_manifest:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 3
+    rationale: "Remove the duplicate or misplaced tool/dependency manifest."
+    evidence:
+      - locator: "src/integration/qodana.yaml"
+      - locator: "requirements*.txt"
+      - locator: ".project"
+    claim: "Canonical owners already exist at src/integration, repository root, or .project."
+  moved_monitoring_copy:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 4
+    rationale: "Remove the misplaced monitoring copy under source utilities."
+    evidence:
+      - locator: "monitoring/"
+      - locator: "src/utils/monitoring/"
+    claim: "Operational monitoring configuration belongs at root; generated/empty copies have no source-runtime owner."
+  generated_kernel_state:
+    classification: REMOVE_REVERSE_SYNC
+    path_count: 1
+    rationale: "Remove generated command history from the tracked source tree."
+    evidence:
+      - locator: "src/state_kernel.json"
+    claim: "The JSON is runtime state rather than source."
+  mixed_contract_configuration:
+    classification: REVIEW_SEPARATELY
+    path_count: 10
+    rationale: "Preserve for a file-level comparison because the delta mixes useful and invalid contract changes."
+    evidence:
+      - locator: "git diff 613abc0 72cf776 -- {path}"
+    claim: "The file contains both potentially authoritative improvements and drift; no whole-file action is safe."
+  calculation_notebook:
+    classification: REVIEW_SEPARATELY
+    path_count: 2
+    rationale: "Preserve and archive unique calculation provenance before any source-control decision."
+    evidence:
+      - locator: "git show 613abc0:{path}"
+    claim: "The notebook contains potentially unique Hebbian or experiment evidence mixed with scratch execution state."
+  architecture_figure:
+    classification: REVIEW_SEPARATELY
+    path_count: 5
+    rationale: "Preserve non-reconstructable visual provenance pending architecture-asset review."
+    evidence:
+      - locator: "git show 613abc0:{path}"
+    claim: "The deleted binary may overlap the hand-drawn architecture and cannot be reconstructed from text."
+  constitution_relocation:
+    classification: REVIEW_SEPARATELY
+    path_count: 4
+    rationale: "Review both sides of the constitution move and rewrite identity before choosing a canonical location."
+    evidence:
+      - locator: "Agentic_Constitution/"
+      - locator: "src/Agentic_Constitution/"
+    claim: "The move is byte-identical, but the content and document ownership still require a governance decision."
+  archived_doc_relocation:
+    classification: REVIEW_SEPARATELY
+    path_count: 4
+    rationale: "Preserve both sides of the archived-document move pending retention and ownership review."
+    evidence:
+      - locator: "docs/Archived/"
+      - locator: "kernel/Archived/"
+    claim: "The destination is the wrong owner, while the large generated report should not be automatically restored."
+  semantic_zone_variant:
+    classification: REVIEW_SEPARATELY
+    path_count: 1
+    rationale: "Compare and consolidate the unique semantic-zone variant rather than deleting it."
+    evidence:
+      - locator: "src/Architecture/semantic_zones.md"
+      - locator: "sandbox_city/semantic_zones.md"
+    claim: "The source variant differs from the moved sandbox document and may contain useful conceptual content."
+  vault_artifact:
+    classification: REVIEW_SEPARATELY
+    path_count: 19
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence:
+      - locator: "obsidian_vault/"
+      - locator: "app/obsidian_vault/"
+    claim: "The path is a real agent input or output, not disposable generated noise."
+  historical_execution_log:
+    classification: REVIEW_SEPARATELY
+    path_count: 4
+    rationale: "Apply an explicit provenance-retention decision before removing the historical run log."
+    evidence:
+      - locator: "src/launch/logs/"
+    claim: "The tracked log is generated state but may be retained as execution provenance."
+  incomplete_obsidian_server:
+    classification: REVIEW_SEPARATELY
+    path_count: 28
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence:
+      - locator: "src/mcp-server/"
+      - locator: "/Volumes/250gb/-p/mcp_obsidian_system"
+    claim: "The TypeScript server is incomplete and unregistered, but may contain unique operations; it is not the original Python task-loop scaffold."
+  misplaced_server_manifest:
+    classification: REVIEW_SEPARATELY
+    path_count: 2
+    rationale: "Review with the incomplete server because this manifest describes a conflicting Obsidian MCP package."
+    evidence:
+      - locator: "src/package.json"
+      - locator: "src/mcp-server/package.json"
+    claim: "The two server manifests use different package identities and dependency versions."
+  uppercase_kernel_corrected:
+    classification: ALREADY_CORRECTED
+    path_count: 11
+    rationale: "Record only: the uppercase app/Kernel collision is already staged for deletion."
+    evidence:
+      - locator: "git status --short -- app/Kernel"
+      - locator: "app/kernel/"
+    claim: "Lowercase app/kernel is canonical and the uppercase duplicate entries are already removed in the current index."
+  requirements_move_corrected:
+    classification: ALREADY_CORRECTED
+    path_count: 8
+    rationale: "Record only: the requirement move has already been restored to the repository root."
+    evidence:
+      - locator: "git status --short -- requirements*.txt app/requirements*.txt"
+    claim: "The current index expresses the app destinations as renames back to canonical root manifests."
+  entrypoint_copy_isolation_corrected:
+    classification: ALREADY_CORRECTED
+    path_count: 3
+    rationale: "Record only: the entrypoint/copy/test-isolation correction already exists in the current tree or index."
+    evidence:
+      - locator: "src/__init__.py"
+      - locator: "src/agents/artemis/semantic_tagging 2.py"
+      - locator: "conftest.py"
+    claim: "Artemis-only dispatch, duplicate removal, and root pytest isolation have already been restored."
+  valid_deletion_corrected:
+    classification: ALREADY_CORRECTED
+    path_count: 2
+    rationale: "Record only: the commit deletion is valid and remains the desired state."
+    evidence:
+      - locator: ".github/workflows/github-app.yml"
+      - locator: "Pipfile.lock"
+    claim: "The deleted workflow was invalid and the Pipenv lock belongs to an obsolete runtime surface."
+  root_memory_duplicate_corrected:
+    classification: ALREADY_CORRECTED
+    path_count: 5
+    rationale: "Record only: the obsolete root memory duplicate remains correctly removed."
+    evidence:
+      - locator: "src/memory/"
+      - locator: "memory/"
+    claim: "The maintained compatibility package is src/memory."
+  root_memory_state_corrected:
+    classification: ALREADY_CORRECTED
+    path_count: 2
+    rationale: "Record only: generated root memory state remains correctly removed."
+    evidence:
+      - locator: "memory_store/"
+    claim: "These JSON files are generated runtime memory, not source."
+  root_monitoring_junk_corrected:
+    classification: ALREADY_CORRECTED
+    path_count: 2
+    rationale: "Record only: the empty/copy root monitoring artifacts remain correctly removed."
+    evidence:
+      - locator: "monitoring/monitoring.md"
+      - locator: "monitoring/prometheus copy.yml"
+    claim: "Neither path is an authoritative operational configuration."
+  supabase_state_corrected:
+    classification: ALREADY_CORRECTED
+    path_count: 16
+    rationale: "Record only: generated Supabase CLI state remains correctly removed."
+    evidence:
+      - locator: "supabase/.branches/"
+      - locator: "supabase/.temp/"
+      - locator: "supabase/supabase/.temp/"
+    claim: "Branch and temp metadata are generated local state and must not be tracked."
+paths:
+  - path: ".agents/AGENTS.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/.datacloud_skills_manifest"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/accidental-data-loss-prevention/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/bigquery-bigframes/OWNERS"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/bigquery-bigframes/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/bigquery-bigframes/references/BIGFRAMES.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/bigquery-bigframes/references/linear_regression.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/bigquery-bigframes/references/logistic_regression.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/bigquery-data-transfer-service/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/bigquery-data-transfer-service/scripts/bigquery_dts.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/bigquery-graph/OWNERS"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/bigquery-graph/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/bigquery-graph/references/graph-schema/best_practices.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/bigquery-graph/references/graph-schema/ddl_reference.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/bigquery-graph/references/graph-schema/feature_parity.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/bigquery-graph/references/graph-schema/graph_schema_ddl_advisor.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/bigquery-graph/references/graph_queries.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/bigquery-graph/references/semantic_queries.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/bigquery-sql/OWNERS"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/bigquery-sql/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/building-data-apps/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/building-data-apps/examples/express_chat.ts"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/building-data-apps/examples/fastapi_chat.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/building-data-apps/examples/react_chat_panel.jsx"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/building-data-apps/references/chat_integration.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/building-data-apps/references/react_framework.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/building-data-apps/references/shared_design_system.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/building-data-apps/references/streamlit_framework.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/data-autocleaning/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/data-autocleaning/scripts/dataplex_scanner.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/dataform-bigquery/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/dbt-bigquery/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/discovering-gcp-data-assets/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/enforcing-resource-attribution/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/federate-lakehouse-catalog/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcloud-auth-verification/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-composer-troubleshooting/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-data-pipelines/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-dataflow/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-dataflow/references/bottlenecks_and_parallelism_context.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-dataflow/references/dataflow_diagnostics_reference.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-dataflow/references/dataflow_metrics_bigquery.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-dataflow/references/dataflow_metrics_core_job.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-dataflow/references/dataflow_metrics_pubsub.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-dataflow/references/dataflow_metrics_streaming_engine.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-dataflow/references/python_flex_template_reference.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-dataflow/references/streaming_horizontal_autoscaling_analysis.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-dataflow/references/streaming_job_health.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-managed-airflow-dag-authoring/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-managed-airflow-migrations/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-managed-airflow-migrations/references/airflow-3.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-managed-airflow-migrations/references/environment-inspection.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-managed-airflow-migrations/references/local-development-environment.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-managed-airflow-recommendations/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-managed-airflow-recommendations/references/gcloud_reference.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-managed-airflow-recommendations/scripts/dag_parsing_stats.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-managed-airflow-recommendations/scripts/environment_health.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-managed-airflow-recommendations/scripts/lib/__init__.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-managed-airflow-recommendations/scripts/lib/flagutils.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-managed-airflow-recommendations/scripts/lib/monitoring.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-managed-airflow-recommendations/scripts/workload_cpu_usage.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-managed-airflow-recommendations/scripts/workload_disk_usage.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-managed-airflow-recommendations/scripts/workload_memory_usage.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-managed-airflow-recommendations/scripts/workload_restarts.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-pipeline-orchestration/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-pipeline-orchestration/references/orchestration-pipelines-schema.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-pipeline-orchestration/scripts/trigger/airflow_trigger.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-pipeline-resource-provisioning/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-pipeline-resource-provisioning/references/gcp_pipeline_resource_provisioning_spec.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-spark/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-spark/references/gcloud_dataproc.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-spark/references/ml_tasks.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-spark/references/read_write_data.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-spark/references/schema_direct_inspection.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcp-spark/references/spark_optimizations.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/examples/sample_assessment.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/references/baseline_security.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/references/bucket_classification.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/references/phases/baseline.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/references/phases/classification.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/references/phases/discover.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/references/phases/output.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/references/phases/toxic_analysis.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/references/saif_risk_factors.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/references/telemetry_signals.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/references/toxic_combinations.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/scripts/cloud_rest_helpers_nodeps.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/scripts/evaluate_project_security_posture.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/scripts/fetch_bucket_telemetry.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/scripts/fetch_object_telemetry.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/scripts/list_datasets.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/scripts/preflight_permissions.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/gcs-security-assessment/scripts/validation.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/google-cloud-storage-basics/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/google-cloud-storage-basics/references/cli-api-usage.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/google-cloud-storage-basics/references/client-library-usage.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/google-cloud-storage-basics/references/core-concepts.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/google-cloud-storage-basics/references/data-management.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/google-cloud-storage-basics/references/data-transfer.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/google-cloud-storage-basics/references/gcsfuse.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/google-cloud-storage-basics/references/high-performance-storage.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/google-cloud-storage-basics/references/iac-usage.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/google-cloud-storage-basics/references/mcp-usage.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/google-cloud-storage-basics/references/storage-intelligence.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/managing-python-dependencies/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/ml-best-practices/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/notebook-guidance/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".agents/skills/skill-repair/SKILL.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unrelated_agent_bundle
+    rationale: "Remove the unrelated reverse-synced agent and Google Data Cloud skill bundle."
+    evidence: [source_commit_delta, unrelated_agent_bundle]
+  - path: ".devcontainer/devcontainer.json"
+    source_status: M
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: broken_devcontainer_delta
+    rationale: "Undo the broken devcontainer delta and reconcile only against canonical runtime configuration."
+    evidence: [source_commit_delta, broken_devcontainer_delta]
+  - path: ".env.example"
+    source_status: M
+    classification: REVIEW_SEPARATELY
+    audit_group: mixed_contract_configuration
+    rationale: "Preserve for a file-level comparison because the delta mixes useful and invalid contract changes."
+    evidence: [source_commit_delta, mixed_contract_configuration]
+  - path: ".github/environments/dev.yaml"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: duplicate_github_environments
+    rationale: "Remove duplicate GitHub environment files; config/environments remains authoritative."
+    evidence: [source_commit_delta, duplicate_github_environments]
+  - path: ".github/environments/prod.yaml"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: duplicate_github_environments
+    rationale: "Remove duplicate GitHub environment files; config/environments remains authoritative."
+    evidence: [source_commit_delta, duplicate_github_environments]
+  - path: ".github/environments/staging.yaml"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: duplicate_github_environments
+    rationale: "Remove duplicate GitHub environment files; config/environments remains authoritative."
+    evidence: [source_commit_delta, duplicate_github_environments]
+  - path: ".github/workflows/github-app.yml"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: valid_deletion_corrected
+    rationale: "Record only: the commit deletion is valid and remains the desired state."
+    evidence: [source_commit_delta, valid_deletion_corrected]
+  - path: ".github/workflows/promote.yml"
+    source_status: M
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: unsafe_promotion_delta
+    rationale: "Undo the recursive promotion-trigger delta and preserve serialized dev promotion behavior."
+    evidence: [source_commit_delta, unsafe_promotion_delta]
+  - path: ".gitignore"
+    source_status: M
+    classification: REVIEW_SEPARATELY
+    audit_group: mixed_contract_configuration
+    rationale: "Preserve for a file-level comparison because the delta mixes useful and invalid contract changes."
+    evidence: [source_commit_delta, mixed_contract_configuration]
+  - path: ".secrets.baseline"
+    source_status: M
+    classification: REVIEW_SEPARATELY
+    audit_group: mixed_contract_configuration
+    rationale: "Preserve for a file-level comparison because the delta mixes useful and invalid contract changes."
+    evidence: [source_commit_delta, mixed_contract_configuration]
+  - path: ".vscode/extensions.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: local_vscode_artifacts
+    rationale: "Remove or undo local editor artifacts that do not describe a valid Artemis launch surface."
+    evidence: [source_commit_delta, local_vscode_artifacts]
+  - path: ".vscode/launch.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: local_vscode_artifacts
+    rationale: "Remove or undo local editor artifacts that do not describe a valid Artemis launch surface."
+    evidence: [source_commit_delta, local_vscode_artifacts]
+  - path: ".vscode/settings.json"
+    source_status: M
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: local_vscode_artifacts
+    rationale: "Remove or undo local editor artifacts that do not describe a valid Artemis launch surface."
+    evidence: [source_commit_delta, local_vscode_artifacts]
+  - path: "Pipfile.lock"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: valid_deletion_corrected
+    rationale: "Record only: the commit deletion is valid and remains the desired state."
+    evidence: [source_commit_delta, valid_deletion_corrected]
+  - path: "README.md"
+    source_status: M
+    classification: REVIEW_SEPARATELY
+    audit_group: mixed_contract_configuration
+    rationale: "Preserve for a file-level comparison because the delta mixes useful and invalid contract changes."
+    evidence: [source_commit_delta, mixed_contract_configuration]
+  - path: "SIMULATION DOC.ipynb"
+    source_status: D
+    classification: REVIEW_SEPARATELY
+    audit_group: calculation_notebook
+    rationale: "Preserve and archive unique calculation provenance before any source-control decision."
+    evidence: [source_commit_delta, calculation_notebook]
+  - path: "app/Kernel/__init__.py"
+    source_status: A
+    classification: ALREADY_CORRECTED
+    audit_group: uppercase_kernel_corrected
+    rationale: "Record only: the uppercase app/Kernel collision is already staged for deletion."
+    evidence: [source_commit_delta, uppercase_kernel_corrected]
+  - path: "app/Kernel/agent_router.py"
+    source_status: A
+    classification: ALREADY_CORRECTED
+    audit_group: uppercase_kernel_corrected
+    rationale: "Record only: the uppercase app/Kernel collision is already staged for deletion."
+    evidence: [source_commit_delta, uppercase_kernel_corrected]
+  - path: "app/Kernel/agent_router.yaml"
+    source_status: A
+    classification: ALREADY_CORRECTED
+    audit_group: uppercase_kernel_corrected
+    rationale: "Record only: the uppercase app/Kernel collision is already staged for deletion."
+    evidence: [source_commit_delta, uppercase_kernel_corrected]
+  - path: "app/Kernel/agents/__init__.py"
+    source_status: A
+    classification: ALREADY_CORRECTED
+    audit_group: uppercase_kernel_corrected
+    rationale: "Record only: the uppercase app/Kernel collision is already staged for deletion."
+    evidence: [source_commit_delta, uppercase_kernel_corrected]
+  - path: "app/Kernel/agents/base.py"
+    source_status: A
+    classification: ALREADY_CORRECTED
+    audit_group: uppercase_kernel_corrected
+    rationale: "Record only: the uppercase app/Kernel collision is already staged for deletion."
+    evidence: [source_commit_delta, uppercase_kernel_corrected]
+  - path: "app/Kernel/agents/daemon_agent.py"
+    source_status: A
+    classification: ALREADY_CORRECTED
+    audit_group: uppercase_kernel_corrected
+    rationale: "Record only: the uppercase app/Kernel collision is already staged for deletion."
+    evidence: [source_commit_delta, uppercase_kernel_corrected]
+  - path: "app/Kernel/agents/planner_agent.py"
+    source_status: A
+    classification: ALREADY_CORRECTED
+    audit_group: uppercase_kernel_corrected
+    rationale: "Record only: the uppercase app/Kernel collision is already staged for deletion."
+    evidence: [source_commit_delta, uppercase_kernel_corrected]
+  - path: "app/Kernel/artemis_cli.py"
+    source_status: A
+    classification: ALREADY_CORRECTED
+    audit_group: uppercase_kernel_corrected
+    rationale: "Record only: the uppercase app/Kernel collision is already staged for deletion."
+    evidence: [source_commit_delta, uppercase_kernel_corrected]
+  - path: "app/Kernel/cli.py"
+    source_status: A
+    classification: ALREADY_CORRECTED
+    audit_group: uppercase_kernel_corrected
+    rationale: "Record only: the uppercase app/Kernel collision is already staged for deletion."
+    evidence: [source_commit_delta, uppercase_kernel_corrected]
+  - path: "app/Kernel/kernel.py"
+    source_status: A
+    classification: ALREADY_CORRECTED
+    audit_group: uppercase_kernel_corrected
+    rationale: "Record only: the uppercase app/Kernel collision is already staged for deletion."
+    evidence: [source_commit_delta, uppercase_kernel_corrected]
+  - path: "app/Kernel/memory_bus.py"
+    source_status: A
+    classification: ALREADY_CORRECTED
+    audit_group: uppercase_kernel_corrected
+    rationale: "Record only: the uppercase app/Kernel collision is already staged for deletion."
+    evidence: [source_commit_delta, uppercase_kernel_corrected]
+  - path: "app/api/.env.example"
+    source_status: M
+    classification: KEEP_AUTHORITATIVE
+    audit_group: environment_contract
+    rationale: "Retain the environment/provisioning contract and its focused synchronization tests."
+    evidence: [source_commit_delta, environment_contract]
+  - path: "benchmarks/bench_memory_ops.py"
+    source_status: D
+    classification: KEEP_AUTHORITATIVE
+    audit_group: root_benchmark
+    rationale: "Restore the benchmark at the root path named by maintained core modules."
+    evidence: [source_commit_delta, root_benchmark]
+    rename:
+      role: source
+      peer: "app/benchmarks/bench_memory_ops.py"
+      similarity: 100
+  - path: "app/benchmarks/bench_memory_ops.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "benchmarks/bench_memory_ops.py"
+      similarity: 100
+  - path: "examples/README.md"
+    source_status: D
+    classification: KEEP_AUTHORITATIVE
+    audit_group: root_examples
+    rationale: "Restore examples to the canonical root examples tree used by their commands and documentation."
+    evidence: [source_commit_delta, root_examples]
+    rename:
+      role: source
+      peer: "app/examples/README.md"
+      similarity: 100
+  - path: "app/examples/README.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "examples/README.md"
+      similarity: 100
+  - path: "examples/governance_demo/README.md"
+    source_status: D
+    classification: KEEP_AUTHORITATIVE
+    audit_group: root_examples
+    rationale: "Restore examples to the canonical root examples tree used by their commands and documentation."
+    evidence: [source_commit_delta, root_examples]
+    rename:
+      role: source
+      peer: "app/examples/governance_demo/README.md"
+      similarity: 100
+  - path: "app/examples/governance_demo/README.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "examples/governance_demo/README.md"
+      similarity: 100
+  - path: "examples/governance_demo/run.py"
+    source_status: D
+    classification: KEEP_AUTHORITATIVE
+    audit_group: root_examples
+    rationale: "Restore examples to the canonical root examples tree used by their commands and documentation."
+    evidence: [source_commit_delta, root_examples]
+    rename:
+      role: source
+      peer: "app/examples/governance_demo/run.py"
+      similarity: 100
+  - path: "app/examples/governance_demo/run.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "examples/governance_demo/run.py"
+      similarity: 100
+  - path: "examples/minimal_deployment/README.md"
+    source_status: D
+    classification: KEEP_AUTHORITATIVE
+    audit_group: root_examples
+    rationale: "Restore examples to the canonical root examples tree used by their commands and documentation."
+    evidence: [source_commit_delta, root_examples]
+    rename:
+      role: source
+      peer: "app/examples/minimal_deployment/README.md"
+      similarity: 100
+  - path: "app/examples/minimal_deployment/README.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "examples/minimal_deployment/README.md"
+      similarity: 100
+  - path: "examples/minimal_deployment/run.py"
+    source_status: D
+    classification: KEEP_AUTHORITATIVE
+    audit_group: root_examples
+    rationale: "Restore examples to the canonical root examples tree used by their commands and documentation."
+    evidence: [source_commit_delta, root_examples]
+    rename:
+      role: source
+      peer: "app/examples/minimal_deployment/run.py"
+      similarity: 100
+  - path: "app/examples/minimal_deployment/run.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "examples/minimal_deployment/run.py"
+      similarity: 100
+  - path: "examples/multi_agent_workflow/README.md"
+    source_status: D
+    classification: KEEP_AUTHORITATIVE
+    audit_group: root_examples
+    rationale: "Restore examples to the canonical root examples tree used by their commands and documentation."
+    evidence: [source_commit_delta, root_examples]
+    rename:
+      role: source
+      peer: "app/examples/multi_agent_workflow/README.md"
+      similarity: 100
+  - path: "app/examples/multi_agent_workflow/README.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "examples/multi_agent_workflow/README.md"
+      similarity: 100
+  - path: "examples/multi_agent_workflow/run.py"
+    source_status: D
+    classification: KEEP_AUTHORITATIVE
+    audit_group: root_examples
+    rationale: "Restore examples to the canonical root examples tree used by their commands and documentation."
+    evidence: [source_commit_delta, root_examples]
+    rename:
+      role: source
+      peer: "app/examples/multi_agent_workflow/run.py"
+      similarity: 100
+  - path: "app/examples/multi_agent_workflow/run.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "examples/multi_agent_workflow/run.py"
+      similarity: 100
+  - path: "memory/__init__.py"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: root_memory_duplicate_corrected
+    rationale: "Record only: the obsolete root memory duplicate remains correctly removed."
+    evidence: [source_commit_delta, root_memory_duplicate_corrected]
+    rename:
+      role: source
+      peer: "app/memory/__init__.py"
+      similarity: 100
+  - path: "app/memory/__init__.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "memory/__init__.py"
+      similarity: 100
+  - path: "memory/integration/__init__.py"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: root_memory_duplicate_corrected
+    rationale: "Record only: the obsolete root memory duplicate remains correctly removed."
+    evidence: [source_commit_delta, root_memory_duplicate_corrected]
+    rename:
+      role: source
+      peer: "app/memory/integration/__init__.py"
+      similarity: 100
+  - path: "app/memory/integration/__init__.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "memory/integration/__init__.py"
+      similarity: 100
+  - path: "memory/integration/context_loader.py"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: root_memory_duplicate_corrected
+    rationale: "Record only: the obsolete root memory duplicate remains correctly removed."
+    evidence: [source_commit_delta, root_memory_duplicate_corrected]
+    rename:
+      role: source
+      peer: "app/memory/integration/context_loader.py"
+      similarity: 100
+  - path: "app/memory/integration/context_loader.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "memory/integration/context_loader.py"
+      similarity: 100
+  - path: "memory/integration/memory_client.py"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: root_memory_duplicate_corrected
+    rationale: "Record only: the obsolete root memory duplicate remains correctly removed."
+    evidence: [source_commit_delta, root_memory_duplicate_corrected]
+    rename:
+      role: source
+      peer: "app/memory/integration/memory_client.py"
+      similarity: 100
+  - path: "app/memory/integration/memory_client.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "memory/integration/memory_client.py"
+      similarity: 100
+  - path: "memory/integration/trust_interface.py"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: root_memory_duplicate_corrected
+    rationale: "Record only: the obsolete root memory duplicate remains correctly removed."
+    evidence: [source_commit_delta, root_memory_duplicate_corrected]
+    rename:
+      role: source
+      peer: "app/memory/integration/trust_interface.py"
+      similarity: 100
+  - path: "app/memory/integration/trust_interface.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "memory/integration/trust_interface.py"
+      similarity: 100
+  - path: "memory_store/1780582462_daemon_3a11a36a.json"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: root_memory_state_corrected
+    rationale: "Record only: generated root memory state remains correctly removed."
+    evidence: [source_commit_delta, root_memory_state_corrected]
+    rename:
+      role: source
+      peer: "app/memory_store/1780582462_daemon_3a11a36a.json"
+      similarity: 100
+  - path: "app/memory_store/1780582462_daemon_3a11a36a.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "memory_store/1780582462_daemon_3a11a36a.json"
+      similarity: 100
+  - path: "memory_store/1780582476_daemon_1f126444.json"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: root_memory_state_corrected
+    rationale: "Record only: generated root memory state remains correctly removed."
+    evidence: [source_commit_delta, root_memory_state_corrected]
+    rename:
+      role: source
+      peer: "app/memory_store/1780582476_daemon_1f126444.json"
+      similarity: 100
+  - path: "app/memory_store/1780582476_daemon_1f126444.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "memory_store/1780582476_daemon_1f126444.json"
+      similarity: 100
+  - path: "app/obsidian_vault/Agent Inputs/3_20260724061730.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+  - path: "obsidian_vault/Agent Inputs/Example Research Task.md"
+    source_status: D
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+    rename:
+      role: source
+      peer: "app/obsidian_vault/Agent Inputs/Example Research Task.md"
+      similarity: 100
+  - path: "app/obsidian_vault/Agent Inputs/Example Research Task.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+    rename:
+      role: destination
+      peer: "obsidian_vault/Agent Inputs/Example Research Task.md"
+      similarity: 100
+  - path: "app/obsidian_vault/Agent Inputs/a_20260724045647.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+  - path: "app/obsidian_vault/Agent Inputs/activity.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+  - path: "app/obsidian_vault/Agent Inputs/tailscale_review_20260805083228.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+  - path: "app/obsidian_vault/Agent Inputs/websearch_20260714090511.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+  - path: "app/obsidian_vault/Agent Outputs/Alpha_Report_T-activity_4.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+  - path: "app/obsidian_vault/Agent Outputs/Artemis_Agent_Report_collab_001_17.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+  - path: "app/obsidian_vault/Agent Outputs/Artemis_Agent_Report_task_aaf641dd_17.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+  - path: "app/obsidian_vault/Agent Outputs/LLM_Agent_Report_direct_summary_T001_12.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+  - path: "app/obsidian_vault/Agent Outputs/LLM_Agent_Report_direct_summary_T001_16.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+  - path: "app/obsidian_vault/Agent Outputs/LLM_Agent_Report_user_instruction_20260724045647_11.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+  - path: "obsidian_vault/Agent Outputs/Research_Agent_Report_20260530133717_5.md"
+    source_status: D
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+    rename:
+      role: source
+      peer: "app/obsidian_vault/Agent Outputs/Research_Agent_Report_20260530133717_5.md"
+      similarity: 100
+  - path: "app/obsidian_vault/Agent Outputs/Research_Agent_Report_20260530133717_5.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+    rename:
+      role: destination
+      peer: "obsidian_vault/Agent Outputs/Research_Agent_Report_20260530133717_5.md"
+      similarity: 100
+  - path: "app/obsidian_vault/Agent Outputs/Research_Agent_Report_research_001_15.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+  - path: "app/obsidian_vault/Agent Outputs/Research_Agent_Report_research_001_17.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+  - path: "app/obsidian_vault/Agent Outputs/Research_Agent_Report_user_instruction_20260805083228_15.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+  - path: "app/obsidian_vault/Agent Outputs/Summarizer_Agent_Report_direct_summary_T001_15.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: vault_artifact
+    rationale: "Hash and export the vault record to the selected provenance store before source-tree removal."
+    evidence: [source_commit_delta, vault_artifact]
+  - path: "requirements-dev.txt"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: requirements_move_corrected
+    rationale: "Record only: the requirement move has already been restored to the repository root."
+    evidence: [source_commit_delta, requirements_move_corrected]
+    rename:
+      role: source
+      peer: "app/requirements-dev.txt"
+      similarity: 100
+  - path: "app/requirements-dev.txt"
+    source_status: A
+    classification: ALREADY_CORRECTED
+    audit_group: requirements_move_corrected
+    rationale: "Record only: the requirement move has already been restored to the repository root."
+    evidence: [source_commit_delta, requirements_move_corrected]
+    rename:
+      role: destination
+      peer: "requirements-dev.txt"
+      similarity: 100
+  - path: "requirements-docker.txt"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: requirements_move_corrected
+    rationale: "Record only: the requirement move has already been restored to the repository root."
+    evidence: [source_commit_delta, requirements_move_corrected]
+    rename:
+      role: source
+      peer: "app/requirements-docker.txt"
+      similarity: 100
+  - path: "app/requirements-docker.txt"
+    source_status: A
+    classification: ALREADY_CORRECTED
+    audit_group: requirements_move_corrected
+    rationale: "Record only: the requirement move has already been restored to the repository root."
+    evidence: [source_commit_delta, requirements_move_corrected]
+    rename:
+      role: destination
+      peer: "requirements-docker.txt"
+      similarity: 100
+  - path: "requirements-runtime.txt"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: requirements_move_corrected
+    rationale: "Record only: the requirement move has already been restored to the repository root."
+    evidence: [source_commit_delta, requirements_move_corrected]
+    rename:
+      role: source
+      peer: "app/requirements-runtime.txt"
+      similarity: 100
+  - path: "app/requirements-runtime.txt"
+    source_status: A
+    classification: ALREADY_CORRECTED
+    audit_group: requirements_move_corrected
+    rationale: "Record only: the requirement move has already been restored to the repository root."
+    evidence: [source_commit_delta, requirements_move_corrected]
+    rename:
+      role: destination
+      peer: "requirements-runtime.txt"
+      similarity: 100
+  - path: "requirements.txt"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: requirements_move_corrected
+    rationale: "Record only: the requirement move has already been restored to the repository root."
+    evidence: [source_commit_delta, requirements_move_corrected]
+    rename:
+      role: source
+      peer: "app/requirements.txt"
+      similarity: 100
+  - path: "app/requirements.txt"
+    source_status: A
+    classification: ALREADY_CORRECTED
+    audit_group: requirements_move_corrected
+    rationale: "Record only: the requirement move has already been restored to the repository root."
+    evidence: [source_commit_delta, requirements_move_corrected]
+    rename:
+      role: destination
+      peer: "requirements.txt"
+      similarity: 100
+  - path: "sandbox_city/_Index_of_sandbox_city.md"
+    source_status: D
+    classification: KEEP_AUTHORITATIVE
+    audit_group: root_sandbox_docs
+    rationale: "Restore the simulation sandbox documentation to its canonical root tree."
+    evidence: [source_commit_delta, root_sandbox_docs]
+    rename:
+      role: source
+      peer: "app/sandbox_city/_Index_of_sandbox_city.md"
+      similarity: 100
+  - path: "app/sandbox_city/_Index_of_sandbox_city.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "sandbox_city/_Index_of_sandbox_city.md"
+      similarity: 100
+  - path: "sandbox_city/index.md"
+    source_status: D
+    classification: KEEP_AUTHORITATIVE
+    audit_group: root_sandbox_docs
+    rationale: "Restore the simulation sandbox documentation to its canonical root tree."
+    evidence: [source_commit_delta, root_sandbox_docs]
+    rename:
+      role: source
+      peer: "app/sandbox_city/index.md"
+      similarity: 100
+  - path: "app/sandbox_city/index.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "sandbox_city/index.md"
+      similarity: 100
+  - path: "sandbox_city/semantic_zones.md"
+    source_status: D
+    classification: KEEP_AUTHORITATIVE
+    audit_group: root_sandbox_docs
+    rationale: "Restore the simulation sandbox documentation to its canonical root tree."
+    evidence: [source_commit_delta, root_sandbox_docs]
+    rename:
+      role: source
+      peer: "app/sandbox_city/semantic_zones.md"
+      similarity: 100
+  - path: "app/sandbox_city/semantic_zones.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "sandbox_city/semantic_zones.md"
+      similarity: 100
+  - path: "app/scripts/data/vector_store.db"
+    source_status: D
+    classification: KEEP_AUTHORITATIVE
+    audit_group: reproducibility_fixture
+    rationale: "Restore the deliberately tracked vector-store reproducibility fixture."
+    evidence: [source_commit_delta, reproducibility_fixture]
+  - path: "supabase/.branches/_current_branch"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: supabase_state_corrected
+    rationale: "Record only: generated Supabase CLI state remains correctly removed."
+    evidence: [source_commit_delta, supabase_state_corrected]
+    rename:
+      role: source
+      peer: "app/supabase/.branches/_current_branch"
+      similarity: 100
+  - path: "app/supabase/.branches/_current_branch"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "supabase/.branches/_current_branch"
+      similarity: 100
+  - path: "supabase/migrations/artemis.sql"
+    source_status: D
+    classification: KEEP_AUTHORITATIVE
+    audit_group: root_supabase_migration
+    rationale: "Restore the database migration to the Supabase CLI's canonical root migration directory."
+    evidence: [source_commit_delta, root_supabase_migration]
+    rename:
+      role: source
+      peer: "app/supabase/migrations/artemis.sql"
+      similarity: 100
+  - path: "app/supabase/migrations/artemis.sql"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+    rename:
+      role: destination
+      peer: "supabase/migrations/artemis.sql"
+      similarity: 100
+  - path: "app/web/frontend/.env.example"
+    source_status: M
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: incorrect_app_move
+    rationale: "Remove the incorrect app-owned destination while restoring or retaining the canonical owner separately."
+    evidence: [source_commit_delta, incorrect_app_move]
+  - path: "conftest.py"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: entrypoint_copy_isolation_corrected
+    rationale: "Record only: the entrypoint/copy/test-isolation correction already exists in the current tree or index."
+    evidence: [source_commit_delta, entrypoint_copy_isolation_corrected]
+  - path: "docs/DEPLOYMENT.md"
+    source_status: M
+    classification: REVIEW_SEPARATELY
+    audit_group: mixed_contract_configuration
+    rationale: "Preserve for a file-level comparison because the delta mixes useful and invalid contract changes."
+    evidence: [source_commit_delta, mixed_contract_configuration]
+  - path: "docs/Figures/3qxqpgCZUhq0NicfKLn1___JbelnRLHqINDuNCF51xhpyclDXW2___---diagram----01ddae7ad94aeb464c1d09bcd2fdf528-City-Infrastructure-Architecture.png"
+    source_status: D
+    classification: REVIEW_SEPARATELY
+    audit_group: architecture_figure
+    rationale: "Preserve non-reconstructable visual provenance pending architecture-asset review."
+    evidence: [source_commit_delta, architecture_figure]
+  - path: "docs/Figures/3qxqpgCZUhq0NicfKLn1___JbelnRLHqINDuNCF51xhpyclDXW2___---diagram----2c5cacadc811ddd3833e63ebc488399b-Artemis-City-Architecture.png"
+    source_status: D
+    classification: REVIEW_SEPARATELY
+    audit_group: architecture_figure
+    rationale: "Preserve non-reconstructable visual provenance pending architecture-asset review."
+    evidence: [source_commit_delta, architecture_figure]
+  - path: "docs/Figures/9skbTVbh57gG3A6g4mQ4___JbelnRLHqINDuNCF51xhpyclDXW2___---diagram----c02802e44bfd334352bc5e76aa8dba31-Multi-Agent-Coordination-Platform--MCP-.png"
+    source_status: D
+    classification: REVIEW_SEPARATELY
+    audit_group: architecture_figure
+    rationale: "Preserve non-reconstructable visual provenance pending architecture-asset review."
+    evidence: [source_commit_delta, architecture_figure]
+  - path: "docs/Figures/9skbTVbh57gG3A6g4mQ4___JbelnRLHqINDuNCF51xhpyclDXW2___---diagram---tInHhPIuY48tXFDnpdOUU---id---_E_Orsk6lH41v3KDLFs3t.png"
+    source_status: D
+    classification: REVIEW_SEPARATELY
+    audit_group: architecture_figure
+    rationale: "Preserve non-reconstructable visual provenance pending architecture-asset review."
+    evidence: [source_commit_delta, architecture_figure]
+  - path: "docs/Figures/RbH7tUtdYFc15lk1ep9O___JbelnRLHqINDuNCF51xhpyclDXW2___---diagram----1b27a1d2e37f190919e64adc6a1305e8-Artemis-City-Multi-Agent-Operating-System.png"
+    source_status: D
+    classification: REVIEW_SEPARATELY
+    audit_group: architecture_figure
+    rationale: "Preserve non-reconstructable visual provenance pending architecture-asset review."
+    evidence: [source_commit_delta, architecture_figure]
+  - path: "hf.ipynb"
+    source_status: D
+    classification: REVIEW_SEPARATELY
+    audit_group: calculation_notebook
+    rationale: "Preserve and archive unique calculation provenance before any source-control decision."
+    evidence: [source_commit_delta, calculation_notebook]
+  - path: "docs/Archived/CLAUDE.md"
+    source_status: D
+    classification: REVIEW_SEPARATELY
+    audit_group: archived_doc_relocation
+    rationale: "Preserve both sides of the archived-document move pending retention and ownership review."
+    evidence: [source_commit_delta, archived_doc_relocation]
+    rename:
+      role: source
+      peer: "kernel/Archived/CLAUDE.md"
+      similarity: 100
+  - path: "kernel/Archived/CLAUDE.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: archived_doc_relocation
+    rationale: "Preserve both sides of the archived-document move pending retention and ownership review."
+    evidence: [source_commit_delta, archived_doc_relocation]
+    rename:
+      role: destination
+      peer: "docs/Archived/CLAUDE.md"
+      similarity: 100
+  - path: "docs/Archived/Coverage report.html"
+    source_status: D
+    classification: REVIEW_SEPARATELY
+    audit_group: archived_doc_relocation
+    rationale: "Preserve both sides of the archived-document move pending retention and ownership review."
+    evidence: [source_commit_delta, archived_doc_relocation]
+    rename:
+      role: source
+      peer: "kernel/Archived/Coverage report.html"
+      similarity: 100
+  - path: "kernel/Archived/Coverage report.html"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: archived_doc_relocation
+    rationale: "Preserve both sides of the archived-document move pending retention and ownership review."
+    evidence: [source_commit_delta, archived_doc_relocation]
+    rename:
+      role: destination
+      peer: "docs/Archived/Coverage report.html"
+      similarity: 100
+  - path: "package.json"
+    source_status: M
+    classification: REVIEW_SEPARATELY
+    audit_group: mixed_contract_configuration
+    rationale: "Preserve for a file-level comparison because the delta mixes useful and invalid contract changes."
+    evidence: [source_commit_delta, mixed_contract_configuration]
+  - path: "pyproject.toml"
+    source_status: M
+    classification: REVIEW_SEPARATELY
+    audit_group: mixed_contract_configuration
+    rationale: "Preserve for a file-level comparison because the delta mixes useful and invalid contract changes."
+    evidence: [source_commit_delta, mixed_contract_configuration]
+  - path: "setup_secrets.sh"
+    source_status: M
+    classification: KEEP_AUTHORITATIVE
+    audit_group: environment_contract
+    rationale: "Retain the environment/provisioning contract and its focused synchronization tests."
+    evidence: [source_commit_delta, environment_contract]
+  - path: "src/.env.example"
+    source_status: M
+    classification: KEEP_AUTHORITATIVE
+    audit_group: environment_contract
+    rationale: "Retain the environment/provisioning contract and its focused synchronization tests."
+    evidence: [source_commit_delta, environment_contract]
+  - path: "Agentic_Constitution/Agent_Card.md"
+    source_status: D
+    classification: REVIEW_SEPARATELY
+    audit_group: constitution_relocation
+    rationale: "Review both sides of the constitution move and rewrite identity before choosing a canonical location."
+    evidence: [source_commit_delta, constitution_relocation]
+    rename:
+      role: source
+      peer: "src/Agentic_Constitution/Agent_Card.md"
+      similarity: 100
+  - path: "src/Agentic_Constitution/Agent_Card.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: constitution_relocation
+    rationale: "Review both sides of the constitution move and rewrite identity before choosing a canonical location."
+    evidence: [source_commit_delta, constitution_relocation]
+    rename:
+      role: destination
+      peer: "Agentic_Constitution/Agent_Card.md"
+      similarity: 100
+  - path: "Agentic_Constitution/manifesto.md"
+    source_status: D
+    classification: REVIEW_SEPARATELY
+    audit_group: constitution_relocation
+    rationale: "Review both sides of the constitution move and rewrite identity before choosing a canonical location."
+    evidence: [source_commit_delta, constitution_relocation]
+    rename:
+      role: source
+      peer: "src/Agentic_Constitution/manifesto.md"
+      similarity: 100
+  - path: "src/Agentic_Constitution/manifesto.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: constitution_relocation
+    rationale: "Review both sides of the constitution move and rewrite identity before choosing a canonical location."
+    evidence: [source_commit_delta, constitution_relocation]
+    rename:
+      role: destination
+      peer: "Agentic_Constitution/manifesto.md"
+      similarity: 100
+  - path: "monitoring/monitoring.md"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: root_monitoring_junk_corrected
+    rationale: "Record only: the empty/copy root monitoring artifacts remain correctly removed."
+    evidence: [source_commit_delta, root_monitoring_junk_corrected]
+    rename:
+      role: source
+      peer: "src/Architecture/Architecture.md"
+      similarity: 100
+  - path: "src/Architecture/Architecture.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: empty_architecture_moc
+    rationale: "Remove the empty generated architecture map-of-content artifact."
+    evidence: [source_commit_delta, empty_architecture_moc]
+    rename:
+      role: destination
+      peer: "monitoring/monitoring.md"
+      similarity: 100
+  - path: "src/Architecture/semantic_zones.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: semantic_zone_variant
+    rationale: "Compare and consolidate the unique semantic-zone variant rather than deleting it."
+    evidence: [source_commit_delta, semantic_zone_variant]
+  - path: "src/Artemis Agentic Memory Layer/.env.example"
+    source_status: A
+    classification: KEEP_AUTHORITATIVE
+    audit_group: environment_contract
+    rationale: "Retain the environment/provisioning contract and its focused synchronization tests."
+    evidence: [source_commit_delta, environment_contract]
+  - path: "src/Kernel/Kernel.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/agents/agents.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/agents/artemis_cli_agent.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/agents/codex_agent.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/memory_store/1771597142_ArtemisCliAgent.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/memory_store/1771597222_ArtemisCliAgent.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/memory_store/1771597237_ArtemisCliAgent.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/memory_store/1771597246_PlannerAgent.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/memory_store/1771597252_ArtemisCliAgent.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/memory_store/1771597261_PlannerAgent.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/memory_store/1771597265_ArtemisCliAgent.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/memory_store/1771597277_ArtemisCliAgent.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/memory_store/1771597286_ArtemisCliAgent.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/memory_store/1771597398_PlannerAgent.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/memory_store/1771597403_ArtemisCliAgent.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/memory_store/1771597415_ArtemisCliAgent.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/memory_store/1771597418_ArtemisCliAgent.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/memory_store/1771597432_ArtemisCliAgent.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/memory_store/1771597434_ArtemisCliAgent.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/memory_store/1771597435_ArtemisCliAgent.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/memory_store/1771597964_ArtemisCliAgent.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/memory_store/memory_store.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Kernel/state_kernel.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: legacy_src_kernel_artifacts
+    rationale: "Remove Codex-era kernel notes and generated runtime state with no maintained import owner."
+    evidence: [source_commit_delta, legacy_src_kernel_artifacts]
+  - path: "src/Projects/Projects.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: generated_source_moc
+    rationale: "Remove the generated empty source map/index artifact."
+    evidence: [source_commit_delta, generated_source_moc]
+  - path: "src/_Index_of_src.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: generated_source_moc
+    rationale: "Remove the generated empty source map/index artifact."
+    evidence: [source_commit_delta, generated_source_moc]
+  - path: "src/__init__.py"
+    source_status: M
+    classification: ALREADY_CORRECTED
+    audit_group: entrypoint_copy_isolation_corrected
+    rationale: "Record only: the entrypoint/copy/test-isolation correction already exists in the current tree or index."
+    evidence: [source_commit_delta, entrypoint_copy_isolation_corrected]
+  - path: "src/agents/__init__ 2.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_agent_copy
+    rationale: "Remove the stale numbered/copied agent or obsolete persona artifact."
+    evidence: [source_commit_delta, stale_agent_copy]
+  - path: "src/agents/agents.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_agent_copy
+    rationale: "Remove the stale numbered/copied agent or obsolete persona artifact."
+    evidence: [source_commit_delta, stale_agent_copy]
+  - path: "src/agents/artemis-cli/_Index_of_codex.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_agent_copy
+    rationale: "Remove the stale numbered/copied agent or obsolete persona artifact."
+    evidence: [source_commit_delta, stale_agent_copy]
+  - path: "src/agents/artemis-cli/artemis-cli.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_agent_copy
+    rationale: "Remove the stale numbered/copied agent or obsolete persona artifact."
+    evidence: [source_commit_delta, stale_agent_copy]
+  - path: "src/agents/artemis-cli/manifesto.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_agent_copy
+    rationale: "Remove the stale numbered/copied agent or obsolete persona artifact."
+    evidence: [source_commit_delta, stale_agent_copy]
+  - path: "src/agents/artemis/__init__ 2.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_agent_copy
+    rationale: "Remove the stale numbered/copied agent or obsolete persona artifact."
+    evidence: [source_commit_delta, stale_agent_copy]
+  - path: "src/agents/artemis/artemis.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_agent_copy
+    rationale: "Remove the stale numbered/copied agent or obsolete persona artifact."
+    evidence: [source_commit_delta, stale_agent_copy]
+  - path: "src/agents/artemis/persona 2.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_agent_copy
+    rationale: "Remove the stale numbered/copied agent or obsolete persona artifact."
+    evidence: [source_commit_delta, stale_agent_copy]
+  - path: "src/agents/artemis/reflection 2.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_agent_copy
+    rationale: "Remove the stale numbered/copied agent or obsolete persona artifact."
+    evidence: [source_commit_delta, stale_agent_copy]
+  - path: "src/agents/artemis/semantic_tagging 2.py"
+    source_status: A
+    classification: ALREADY_CORRECTED
+    audit_group: entrypoint_copy_isolation_corrected
+    rationale: "Record only: the entrypoint/copy/test-isolation correction already exists in the current tree or index."
+    evidence: [source_commit_delta, entrypoint_copy_isolation_corrected]
+  - path: "src/agents/artemis_agent 2.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_agent_copy
+    rationale: "Remove the stale numbered/copied agent or obsolete persona artifact."
+    evidence: [source_commit_delta, stale_agent_copy]
+  - path: "src/agents/atp/atp.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_agent_copy
+    rationale: "Remove the stale numbered/copied agent or obsolete persona artifact."
+    evidence: [source_commit_delta, stale_agent_copy]
+  - path: "src/agents/base_agent 2.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_agent_copy
+    rationale: "Remove the stale numbered/copied agent or obsolete persona artifact."
+    evidence: [source_commit_delta, stale_agent_copy]
+  - path: "src/agents/codex_daemon.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_agent_copy
+    rationale: "Remove the stale numbered/copied agent or obsolete persona artifact."
+    evidence: [source_commit_delta, stale_agent_copy]
+  - path: "src/agents/copilot.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_agent_copy
+    rationale: "Remove the stale numbered/copied agent or obsolete persona artifact."
+    evidence: [source_commit_delta, stale_agent_copy]
+  - path: "src/agents/research_agent 2.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_agent_copy
+    rationale: "Remove the stale numbered/copied agent or obsolete persona artifact."
+    evidence: [source_commit_delta, stale_agent_copy]
+  - path: "src/agents/summarizer_agent 2.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_agent_copy
+    rationale: "Remove the stale numbered/copied agent or obsolete persona artifact."
+    evidence: [source_commit_delta, stale_agent_copy]
+  - path: "src/core/core.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: generated_source_moc
+    rationale: "Remove the generated empty source map/index artifact."
+    evidence: [source_commit_delta, generated_source_moc]
+  - path: "src/core/instructions/instruction_loader.py"
+    source_status: M
+    classification: REVIEW_SEPARATELY
+    audit_group: mixed_contract_configuration
+    rationale: "Preserve for a file-level comparison because the delta mixes useful and invalid contract changes."
+    evidence: [source_commit_delta, mixed_contract_configuration]
+  - path: "src/core/instructions/instructions.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: generated_source_moc
+    rationale: "Remove the generated empty source map/index artifact."
+    evidence: [source_commit_delta, generated_source_moc]
+  - path: "src/data/data.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: generated_source_moc
+    rationale: "Remove the generated empty source map/index artifact."
+    evidence: [source_commit_delta, generated_source_moc]
+  - path: "src/exceptions 2.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: duplicate_exception_copy
+    rationale: "Remove the byte-identical numbered or copy exception module."
+    evidence: [source_commit_delta, duplicate_exception_copy]
+  - path: "src/exceptions copy.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: duplicate_exception_copy
+    rationale: "Remove the byte-identical numbered or copy exception module."
+    evidence: [source_commit_delta, duplicate_exception_copy]
+  - path: "src/exceptions.py"
+    source_status: A
+    classification: KEEP_COMPATIBILITY
+    audit_group: legacy_exception_compatibility
+    rationale: "Retain the legacy exception import surface until it becomes a thin canonical re-export."
+    evidence: [source_commit_delta, legacy_exception_compatibility]
+  - path: "src/generator.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: root_source_duplicate
+    rationale: "Remove the unreferenced root-level duplicate in favor of its maintained package owner."
+    evidence: [source_commit_delta, root_source_duplicate]
+  - path: "src/governance/governance.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: generated_source_moc
+    rationale: "Remove the generated empty source map/index artifact."
+    evidence: [source_commit_delta, generated_source_moc]
+  - path: "src/governance/self_update_governance.py"
+    source_status: A
+    classification: KEEP_AUTHORITATIVE
+    audit_group: unique_governance_implementation
+    rationale: "Retain the unique governance implementation pending its planned consolidation."
+    evidence: [source_commit_delta, unique_governance_implementation]
+  - path: "src/hebbian_weights.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: root_source_duplicate
+    rationale: "Remove the unreferenced root-level duplicate in favor of its maintained package owner."
+    evidence: [source_commit_delta, root_source_duplicate]
+  - path: "src/helpers.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: root_source_duplicate
+    rationale: "Remove the unreferenced root-level duplicate in favor of its maintained package owner."
+    evidence: [source_commit_delta, root_source_duplicate]
+  - path: "src/integration/integration.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: generated_source_moc
+    rationale: "Remove the generated empty source map/index artifact."
+    evidence: [source_commit_delta, generated_source_moc]
+  - path: "src/interface/Quantumharmony_cli.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: obsolete_named_cli
+    rationale: "Remove the obsolete vendor/tool-named CLI surface."
+    evidence: [source_commit_delta, obsolete_named_cli]
+  - path: "src/interface/interface.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: generated_source_moc
+    rationale: "Remove the generated empty source map/index artifact."
+    evidence: [source_commit_delta, generated_source_moc]
+  - path: "src/launch/data/data.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: generated_source_moc
+    rationale: "Remove the generated empty source map/index artifact."
+    evidence: [source_commit_delta, generated_source_moc]
+  - path: "src/launch/logs/logs.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: generated_source_moc
+    rationale: "Remove the generated empty source map/index artifact."
+    evidence: [source_commit_delta, generated_source_moc]
+  - path: "src/launch/logs/run_20260220_090458.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: historical_execution_log
+    rationale: "Apply an explicit provenance-retention decision before removing the historical run log."
+    evidence: [source_commit_delta, historical_execution_log]
+  - path: "src/launch/logs/run_20260220_090545.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: historical_execution_log
+    rationale: "Apply an explicit provenance-retention decision before removing the historical run log."
+    evidence: [source_commit_delta, historical_execution_log]
+  - path: "src/launch/logs/run_20260220_090629.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: historical_execution_log
+    rationale: "Apply an explicit provenance-retention decision before removing the historical run log."
+    evidence: [source_commit_delta, historical_execution_log]
+  - path: "src/launch/logs/run_20260220_091343.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: historical_execution_log
+    rationale: "Apply an explicit provenance-retention decision before removing the historical run log."
+    evidence: [source_commit_delta, historical_execution_log]
+  - path: "src/launch/yarn.lock"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: duplicate_launch_lock
+    rationale: "Remove the duplicate launch package-manager lock."
+    evidence: [source_commit_delta, duplicate_launch_lock]
+  - path: "src/main.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: root_source_duplicate
+    rationale: "Remove the unreferenced root-level duplicate in favor of its maintained package owner."
+    evidence: [source_commit_delta, root_source_duplicate]
+  - path: "src/mcp-server/README.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/mcp-server.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/package-lock.json"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/package.json"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/config/config.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/config/index.ts"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/index.ts"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/mcp-server/index.ts"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/mcp-server/mcp-server.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/mcp-server/tools/obsidianDeleteNoteTool.ts"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/mcp-server/tools/obsidianGlobalSearchTool.ts"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/mcp-server/tools/obsidianListNotesTool.ts"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/mcp-server/tools/obsidianManageFrontmatterTool.ts"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/mcp-server/tools/obsidianManageTagsTool.ts"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/mcp-server/tools/obsidianReadNoteTool.ts"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/mcp-server/tools/obsidianSearchReplaceTool.ts"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/mcp-server/tools/obsidianUpdateNoteTool.ts"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/mcp-server/tools/tools.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/services/obsidianRestAPI/index.ts"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/services/obsidianRestAPI/methods.ts"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/services/obsidianRestAPI/obsidianRestAPI.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/services/services.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/src.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/types-global/index.d.ts"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/types-global/types-global.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/utils/logger.ts"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/src/utils/utils.md"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp-server/tsconfig.json"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: incomplete_obsidian_server
+    rationale: "Compare unique note operations against the historical task-loop service before salvage or deletion."
+    evidence: [source_commit_delta, incomplete_obsidian_server]
+  - path: "src/mcp/config 2.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_mcp_copy
+    rationale: "Remove the stale numbered MCP implementation copy."
+    evidence: [source_commit_delta, stale_mcp_copy]
+  - path: "src/mcp/hebbian_weights 2.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_mcp_copy
+    rationale: "Remove the stale numbered MCP implementation copy."
+    evidence: [source_commit_delta, stale_mcp_copy]
+  - path: "src/mcp/mcp.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: generated_source_moc
+    rationale: "Remove the generated empty source map/index artifact."
+    evidence: [source_commit_delta, generated_source_moc]
+  - path: "src/mcp/orchestrator 2.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_mcp_copy
+    rationale: "Remove the stale numbered MCP implementation copy."
+    evidence: [source_commit_delta, stale_mcp_copy]
+  - path: "src/mcp/vector_store 2.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_mcp_copy
+    rationale: "Remove the stale numbered MCP implementation copy."
+    evidence: [source_commit_delta, stale_mcp_copy]
+  - path: "src/my_types.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: root_source_duplicate
+    rationale: "Remove the unreferenced root-level duplicate in favor of its maintained package owner."
+    evidence: [source_commit_delta, root_source_duplicate]
+  - path: "src/obsidian_integration/manager 2.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_obsidian_copy
+    rationale: "Remove the stale numbered Obsidian integration copy."
+    evidence: [source_commit_delta, stale_obsidian_copy]
+  - path: "src/obsidian_integration/obsidian_integration.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: generated_source_moc
+    rationale: "Remove the generated empty source map/index artifact."
+    evidence: [source_commit_delta, generated_source_moc]
+  - path: "src/obsidian_integration/parser 2.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: stale_obsidian_copy
+    rationale: "Remove the stale numbered Obsidian integration copy."
+    evidence: [source_commit_delta, stale_obsidian_copy]
+  - path: "src/package-lock.json"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: misplaced_server_manifest
+    rationale: "Review with the incomplete server because this manifest describes a conflicting Obsidian MCP package."
+    evidence: [source_commit_delta, misplaced_server_manifest]
+  - path: "src/package.json"
+    source_status: A
+    classification: REVIEW_SEPARATELY
+    audit_group: misplaced_server_manifest
+    rationale: "Review with the incomplete server because this manifest describes a conflicting Obsidian MCP package."
+    evidence: [source_commit_delta, misplaced_server_manifest]
+  - path: "src/parser.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: root_source_duplicate
+    rationale: "Remove the unreferenced root-level duplicate in favor of its maintained package owner."
+    evidence: [source_commit_delta, root_source_duplicate]
+  - path: "src/qodana.yaml"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: misplaced_tool_manifest
+    rationale: "Remove the duplicate or misplaced tool/dependency manifest."
+    evidence: [source_commit_delta, misplaced_tool_manifest]
+  - path: "src/requirements.txt"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: misplaced_tool_manifest
+    rationale: "Remove the duplicate or misplaced tool/dependency manifest."
+    evidence: [source_commit_delta, misplaced_tool_manifest]
+  - path: "src/run_logger.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: root_source_duplicate
+    rationale: "Remove the unreferenced root-level duplicate in favor of its maintained package owner."
+    evidence: [source_commit_delta, root_source_duplicate]
+  - path: "src/sandbox_city/networked_scripts/networked_scripts.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: generated_source_moc
+    rationale: "Remove the generated empty source map/index artifact."
+    evidence: [source_commit_delta, generated_source_moc]
+  - path: "src/sandbox_city/sandbox_city.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: generated_source_moc
+    rationale: "Remove the generated empty source map/index artifact."
+    evidence: [source_commit_delta, generated_source_moc]
+  - path: "src/semantic_tagging.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: root_source_duplicate
+    rationale: "Remove the unreferenced root-level duplicate in favor of its maintained package owner."
+    evidence: [source_commit_delta, root_source_duplicate]
+  - path: "src/src.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: generated_source_moc
+    rationale: "Remove the generated empty source map/index artifact."
+    evidence: [source_commit_delta, generated_source_moc]
+  - path: "src/state_kernel.json"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: generated_kernel_state
+    rationale: "Remove generated command history from the tracked source tree."
+    evidence: [source_commit_delta, generated_kernel_state]
+  - path: "src/tests/test_setup_secrets.py"
+    source_status: A
+    classification: KEEP_AUTHORITATIVE
+    audit_group: environment_contract
+    rationale: "Retain the environment/provisioning contract and its focused synchronization tests."
+    evidence: [source_commit_delta, environment_contract]
+  - path: "monitoring/alerts.yml"
+    source_status: D
+    classification: KEEP_AUTHORITATIVE
+    audit_group: root_monitoring_config
+    rationale: "Restore operational monitoring configuration at the root monitoring boundary."
+    evidence: [source_commit_delta, root_monitoring_config]
+    rename:
+      role: source
+      peer: "src/utils/monitoring/alerts.yml"
+      similarity: 100
+  - path: "src/utils/monitoring/alerts.yml"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: moved_monitoring_copy
+    rationale: "Remove the misplaced monitoring copy under source utilities."
+    evidence: [source_commit_delta, moved_monitoring_copy]
+    rename:
+      role: destination
+      peer: "monitoring/alerts.yml"
+      similarity: 100
+  - path: "src/utils/monitoring/monitoring.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: moved_monitoring_copy
+    rationale: "Remove the misplaced monitoring copy under source utilities."
+    evidence: [source_commit_delta, moved_monitoring_copy]
+  - path: "monitoring/prometheus copy.yml"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: root_monitoring_junk_corrected
+    rationale: "Record only: the empty/copy root monitoring artifacts remain correctly removed."
+    evidence: [source_commit_delta, root_monitoring_junk_corrected]
+    rename:
+      role: source
+      peer: "src/utils/monitoring/prometheus copy.yml"
+      similarity: 100
+  - path: "src/utils/monitoring/prometheus copy.yml"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: moved_monitoring_copy
+    rationale: "Remove the misplaced monitoring copy under source utilities."
+    evidence: [source_commit_delta, moved_monitoring_copy]
+    rename:
+      role: destination
+      peer: "monitoring/prometheus copy.yml"
+      similarity: 100
+  - path: "monitoring/prometheus.yml"
+    source_status: D
+    classification: KEEP_AUTHORITATIVE
+    audit_group: root_monitoring_config
+    rationale: "Restore operational monitoring configuration at the root monitoring boundary."
+    evidence: [source_commit_delta, root_monitoring_config]
+    rename:
+      role: source
+      peer: "src/utils/monitoring/prometheus.yml"
+      similarity: 100
+  - path: "src/utils/monitoring/prometheus.yml"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: moved_monitoring_copy
+    rationale: "Remove the misplaced monitoring copy under source utilities."
+    evidence: [source_commit_delta, moved_monitoring_copy]
+    rename:
+      role: destination
+      peer: "monitoring/prometheus.yml"
+      similarity: 100
+  - path: "src/utils/utils.md"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: generated_source_moc
+    rationale: "Remove the generated empty source map/index artifact."
+    evidence: [source_commit_delta, generated_source_moc]
+  - path: "src/vector_store.py"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: root_source_duplicate
+    rationale: "Remove the unreferenced root-level duplicate in favor of its maintained package owner."
+    evidence: [source_commit_delta, root_source_duplicate]
+  - path: "supabase/.temp/gotrue-version"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: supabase_state_corrected
+    rationale: "Record only: generated Supabase CLI state remains correctly removed."
+    evidence: [source_commit_delta, supabase_state_corrected]
+  - path: "supabase/.temp/linked-project.json"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: supabase_state_corrected
+    rationale: "Record only: generated Supabase CLI state remains correctly removed."
+    evidence: [source_commit_delta, supabase_state_corrected]
+  - path: "supabase/.temp/pooler-url"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: supabase_state_corrected
+    rationale: "Record only: generated Supabase CLI state remains correctly removed."
+    evidence: [source_commit_delta, supabase_state_corrected]
+  - path: "supabase/.temp/postgres-version"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: supabase_state_corrected
+    rationale: "Record only: generated Supabase CLI state remains correctly removed."
+    evidence: [source_commit_delta, supabase_state_corrected]
+  - path: "supabase/.temp/project-ref"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: supabase_state_corrected
+    rationale: "Record only: generated Supabase CLI state remains correctly removed."
+    evidence: [source_commit_delta, supabase_state_corrected]
+  - path: "supabase/.temp/storage-migration"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: supabase_state_corrected
+    rationale: "Record only: generated Supabase CLI state remains correctly removed."
+    evidence: [source_commit_delta, supabase_state_corrected]
+  - path: "supabase/.temp/storage-version"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: supabase_state_corrected
+    rationale: "Record only: generated Supabase CLI state remains correctly removed."
+    evidence: [source_commit_delta, supabase_state_corrected]
+  - path: "supabase/supabase/.temp/cli-latest"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: supabase_state_corrected
+    rationale: "Record only: generated Supabase CLI state remains correctly removed."
+    evidence: [source_commit_delta, supabase_state_corrected]
+  - path: "supabase/supabase/.temp/gotrue-version"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: supabase_state_corrected
+    rationale: "Record only: generated Supabase CLI state remains correctly removed."
+    evidence: [source_commit_delta, supabase_state_corrected]
+  - path: "supabase/supabase/.temp/linked-project.json"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: supabase_state_corrected
+    rationale: "Record only: generated Supabase CLI state remains correctly removed."
+    evidence: [source_commit_delta, supabase_state_corrected]
+  - path: "supabase/supabase/.temp/pooler-url"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: supabase_state_corrected
+    rationale: "Record only: generated Supabase CLI state remains correctly removed."
+    evidence: [source_commit_delta, supabase_state_corrected]
+  - path: "supabase/supabase/.temp/postgres-version"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: supabase_state_corrected
+    rationale: "Record only: generated Supabase CLI state remains correctly removed."
+    evidence: [source_commit_delta, supabase_state_corrected]
+  - path: "supabase/supabase/.temp/project-ref"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: supabase_state_corrected
+    rationale: "Record only: generated Supabase CLI state remains correctly removed."
+    evidence: [source_commit_delta, supabase_state_corrected]
+  - path: "supabase/supabase/.temp/storage-migration"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: supabase_state_corrected
+    rationale: "Record only: generated Supabase CLI state remains correctly removed."
+    evidence: [source_commit_delta, supabase_state_corrected]
+  - path: "supabase/supabase/.temp/storage-version"
+    source_status: D
+    classification: ALREADY_CORRECTED
+    audit_group: supabase_state_corrected
+    rationale: "Record only: generated Supabase CLI state remains correctly removed."
+    evidence: [source_commit_delta, supabase_state_corrected]
+  - path: "tests/conftest.py"
+    source_status: M
+    classification: REVIEW_SEPARATELY
+    audit_group: mixed_contract_configuration
+    rationale: "Preserve for a file-level comparison because the delta mixes useful and invalid contract changes."
+    evidence: [source_commit_delta, mixed_contract_configuration]
+  - path: "ts.project"
+    source_status: A
+    classification: REMOVE_REVERSE_SYNC
+    audit_group: misplaced_tool_manifest
+    rationale: "Remove the duplicate or misplaced tool/dependency manifest."
+    evidence: [source_commit_delta, misplaced_tool_manifest]
+  - path: "uv.lock"
+    source_status: M
+    classification: REVIEW_SEPARATELY
+    audit_group: mixed_contract_configuration
+    rationale: "Preserve for a file-level comparison because the delta mixes useful and invalid contract changes."
+    evidence: [source_commit_delta, mixed_contract_configuration]
+adjacent_current_tree:
+  excluded_from_delta_count: true
+  note: "These paths predate the source commit and are not members of the 371-path delta or its classification counts."
+adjacent_current_tree_findings:
+  - path: "src/Kernel/__init__.py"
+    classification: KEEP_COMPATIBILITY
+    rationale: "Sole temporary src.Kernel compatibility initializer; a maintained test asserts it re-exports app.kernel."
+    evidence:
+      - "src/tests/test_coverage_foundations.py:119"
+      - "docs/PROJECT_BOUNDARIES.md:28"
+  - path: "src/Kernel/agent_router.py"
+    classification: REMOVE_REVERSE_SYNC
+    rationale: "Preexisting byte-identical duplicate of the matching app/kernel path; no maintained source import requires it."
+    evidence:
+      - "cmp -s \"src/Kernel/agent_router.py\" \"app/kernel/agent_router.py\""
+      - "maintained import search"
+  - path: "src/Kernel/agent_router.yaml"
+    classification: REMOVE_REVERSE_SYNC
+    rationale: "Preexisting byte-identical duplicate of the matching app/kernel path; no maintained source import requires it."
+    evidence:
+      - "cmp -s \"src/Kernel/agent_router.yaml\" \"app/kernel/agent_router.yaml\""
+      - "maintained import search"
+  - path: "src/Kernel/artemis_cli.py"
+    classification: REMOVE_REVERSE_SYNC
+    rationale: "Preexisting byte-identical duplicate of the matching app/kernel path; no maintained source import requires it."
+    evidence:
+      - "cmp -s \"src/Kernel/artemis_cli.py\" \"app/kernel/artemis_cli.py\""
+      - "maintained import search"
+  - path: "src/Kernel/cli.py"
+    classification: REMOVE_REVERSE_SYNC
+    rationale: "Preexisting byte-identical duplicate of the matching app/kernel path; no maintained source import requires it."
+    evidence:
+      - "cmp -s \"src/Kernel/cli.py\" \"app/kernel/cli.py\""
+      - "maintained import search"
+  - path: "src/Kernel/kernel.py"
+    classification: REMOVE_REVERSE_SYNC
+    rationale: "Preexisting byte-identical duplicate of the matching app/kernel path; no maintained source import requires it."
+    evidence:
+      - "cmp -s \"src/Kernel/kernel.py\" \"app/kernel/kernel.py\""
+      - "maintained import search"
+  - path: "src/Kernel/memory_bus.py"
+    classification: REMOVE_REVERSE_SYNC
+    rationale: "Preexisting byte-identical duplicate of the matching app/kernel path; no maintained source import requires it."
+    evidence:
+      - "cmp -s \"src/Kernel/memory_bus.py\" \"app/kernel/memory_bus.py\""
+      - "maintained import search"
+  - path: "src/Kernel/agents/__init__.py"
+    classification: REMOVE_REVERSE_SYNC
+    rationale: "Preexisting byte-identical duplicate of the matching app/kernel path; no maintained source import requires it."
+    evidence:
+      - "cmp -s \"src/Kernel/agents/__init__.py\" \"app/kernel/agents/__init__.py\""
+      - "maintained import search"
+  - path: "src/Kernel/agents/base.py"
+    classification: REMOVE_REVERSE_SYNC
+    rationale: "Preexisting byte-identical duplicate of the matching app/kernel path; no maintained source import requires it."
+    evidence:
+      - "cmp -s \"src/Kernel/agents/base.py\" \"app/kernel/agents/base.py\""
+      - "maintained import search"
+  - path: "src/Kernel/agents/daemon_agent.py"
+    classification: REMOVE_REVERSE_SYNC
+    rationale: "Preexisting byte-identical duplicate of the matching app/kernel path; no maintained source import requires it."
+    evidence:
+      - "cmp -s \"src/Kernel/agents/daemon_agent.py\" \"app/kernel/agents/daemon_agent.py\""
+      - "maintained import search"
+  - path: "src/Kernel/agents/planner_agent.py"
+    classification: REMOVE_REVERSE_SYNC
+    rationale: "Preexisting byte-identical duplicate of the matching app/kernel path; no maintained source import requires it."
+    evidence:
+      - "cmp -s \"src/Kernel/agents/planner_agent.py\" \"app/kernel/agents/planner_agent.py\""
+      - "maintained import search"
+  - path: "tests/integration/test_artemis_persona 2.py"
+    classification: REMOVE_REVERSE_SYNC
+    rationale: "Byte-identical duplicate of tests/integration/test_artemis_persona.py that inflates collection."
+    evidence:
+      - "cmp -s duplicate canonical"
+  - path: "src/tests/integration/test_artemis_persona 2.py"
+    classification: REMOVE_REVERSE_SYNC
+    rationale: "Stale 190-line subset of the 408-line canonical persona integration test."
+    evidence:
+      - "wc -l duplicate canonical"
+  - path: "src/integration/state_kernel.json"
+    classification: REMOVE_REVERSE_SYNC
+    rationale: "Unreferenced generated demo command history, not source."
+    evidence:
+      - "tracked-file inspection"
+      - "maintained reference search"
+  - path: "Concept_Demos/demo_memory_integration.py"
+    classification: REVIEW_SEPARATELY
+    rationale: "Normalize the display-only app/Kernel CLI path after uppercase-package removal."
+    evidence:
+      - "Concept_Demos/demo_memory_integration.py:336"
+  - path: "src/launch/demo_memory_integration.py"
+    classification: REVIEW_SEPARATELY
+    rationale: "Normalize the display-only app/Kernel CLI path after uppercase-package removal."
+    evidence:
+      - "src/launch/demo_memory_integration.py:337"
+validation:
+  source_delta_parsed: true
+  yaml_parsed: true
+  raw_record_count_matches: true
+  expanded_path_set_exact: true
+  unique_path_count: 371
+  duplicate_paths: []
+  missing_paths: []
+  extra_paths: []
+  source_status_counts_match: true
+  classification_counts_match: true
+  audit_group_counts_match: true
+  adjacent_findings_excluded: true
+  expected_classification_counts:
+    KEEP_AUTHORITATIVE: 21
+    KEEP_COMPATIBILITY: 1
+    REMOVE_REVERSE_SYNC: 221
+    REVIEW_SEPARATELY: 79
+    ALREADY_CORRECTED: 49
+  verification_commands:
+    - "git diff-tree --no-commit-id --name-status -r -M 72cf776a69b260d4bcc2c811179d49dc34dbbf0d"
+    - ".venv/bin/python -c 'import yaml; yaml.safe_load(open(\"docs/audits/2026-08-16-reverse-sync-72cf776-path-manifest.yaml\"))'"
+    - "manifest verifier: expand R records to D/A, compare exact path/status pairs, uniqueness, class counts, and adjacent exclusion"
