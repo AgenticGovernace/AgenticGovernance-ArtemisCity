@@ -35,6 +35,15 @@ def test_local_principal_fails_closed_without_identity(monkeypatch):
         LocalPrincipalProvider.from_environment().current()
 
 
+def test_local_principal_fails_closed_for_whitespace_only_identity(monkeypatch):
+    """Whitespace-only local identity must produce a governed denial."""
+    monkeypatch.setenv("ARTEMIS_MCP_PRINCIPAL_ID", "   ")
+    monkeypatch.setenv("ARTEMIS_MCP_CAPABILITIES", "memory:write")
+
+    with pytest.raises(GovernanceDenied, match="principal configuration"):
+        LocalPrincipalProvider.from_environment().current()
+
+
 def test_incomplete_atp_envelope_is_rejected_by_contract():
     """Authority-bearing ATP metadata must include its provenance parent."""
     with pytest.raises(ValidationError, match="parent_provenance_id"):
@@ -118,6 +127,40 @@ def test_bearer_principal_fails_closed_without_sdk_auth_context(monkeypatch):
     monkeypatch.setattr(
         "artemis_mcp_common.principals.get_access_token",
         lambda: None,
+    )
+
+    with pytest.raises(GovernanceDenied, match="bearer"):
+        BearerPrincipalProvider().current()
+
+
+def test_bearer_principal_fails_closed_for_whitespace_only_subject(monkeypatch):
+    """Whitespace-only SDK subjects must not escape as Pydantic validation errors."""
+    sdk_token = AccessToken(
+        token="sdk-token",
+        client_id="memory-client",
+        subject="   ",
+        scopes=["memory:write"],
+    )
+    monkeypatch.setattr(
+        "artemis_mcp_common.principals.get_access_token",
+        lambda: sdk_token,
+    )
+
+    with pytest.raises(GovernanceDenied, match="bearer"):
+        BearerPrincipalProvider().current()
+
+
+def test_bearer_principal_fails_closed_for_whitespace_only_scopes(monkeypatch):
+    """Whitespace-only SDK scopes must not escape as Pydantic validation errors."""
+    sdk_token = AccessToken(
+        token="sdk-token",
+        client_id="memory-client",
+        subject="bearer-subject",
+        scopes=[" ", "\t"],
+    )
+    monkeypatch.setattr(
+        "artemis_mcp_common.principals.get_access_token",
+        lambda: sdk_token,
     )
 
     with pytest.raises(GovernanceDenied, match="bearer"):

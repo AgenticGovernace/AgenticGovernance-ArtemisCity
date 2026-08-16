@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 import os
 import secrets
@@ -12,6 +13,11 @@ from mcp.server.auth.provider import AccessToken
 
 from .gate import GovernanceDenied
 from .models import ServicePrincipal
+
+
+def _normalized_capabilities(capabilities: Iterable[str]) -> set[str]:
+    """Strip empty capability evidence before it reaches the strict model."""
+    return {capability.strip() for capability in capabilities if capability.strip()}
 
 
 @dataclass(frozen=True)
@@ -36,11 +42,13 @@ class LocalPrincipalProvider:
 
     def current(self) -> ServicePrincipal:
         """Return the configured principal or deny an incomplete configuration."""
-        if not self.principal_id or not self.capabilities:
+        principal_id = (self.principal_id or "").strip()
+        capabilities = _normalized_capabilities(self.capabilities)
+        if not principal_id or not capabilities:
             raise GovernanceDenied("local principal configuration is incomplete")
         return ServicePrincipal(
-            principal_id=self.principal_id,
-            capabilities=set(self.capabilities),
+            principal_id=principal_id,
+            capabilities=capabilities,
             transport="stdio",
         )
 
@@ -51,15 +59,15 @@ class BearerPrincipalProvider:
     def current(self) -> ServicePrincipal:
         """Return the SDK-authenticated bearer principal or deny its absence."""
         access_token = get_access_token()
-        if (
-            access_token is None
-            or not access_token.subject
-            or not access_token.scopes
-        ):
+        if access_token is None:
+            raise GovernanceDenied("bearer principal authentication is unavailable")
+        principal_id = (access_token.subject or "").strip()
+        capabilities = _normalized_capabilities(access_token.scopes)
+        if not principal_id or not capabilities:
             raise GovernanceDenied("bearer principal authentication is unavailable")
         return ServicePrincipal(
-            principal_id=access_token.subject,
-            capabilities=set(access_token.scopes),
+            principal_id=principal_id,
+            capabilities=capabilities,
             transport="http",
         )
 
