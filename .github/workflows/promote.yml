@@ -2,7 +2,7 @@ name: Promote
 
 on:
   push:
-    branches: [dev, staging, prod]
+    branches: [dev]
   # Manual re-run of the cascade from the Actions tab. Regardless of which ref
   # the UI selects, the cascade always promotes the current `dev` tip (resolved
   # in the `resolve` job below) — never the default branch or an arbitrary ref.
