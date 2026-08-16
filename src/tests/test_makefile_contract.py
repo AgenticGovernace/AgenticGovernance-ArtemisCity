@@ -185,6 +185,16 @@ def test_python_dependency_groups_are_real_extras_without_runtime_pytest() -> No
     )
 
 
+def test_pyproject_will_only_collect_src_tests_after_task_5() -> None:
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    pytest_options = pyproject["tool"]["pytest"]["ini_options"]
+
+    assert pytest_options["testpaths"] == ["src/tests"], (
+        "TASK_5_TEST_COLLECTION_ROOT: pyproject.toml must declare only "
+        "['src/tests'] once the legacy root tests tree is retired."
+    )
+
+
 def test_requirement_files_have_one_owner_per_normalized_name() -> None:
     runtime = _requirements(ROOT / "requirements.txt")
     development = _requirements(ROOT / "requirements-dev.txt")
