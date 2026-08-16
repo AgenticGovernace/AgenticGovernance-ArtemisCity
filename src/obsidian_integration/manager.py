@@ -34,11 +34,11 @@ def _directory_open_flags() -> int:
     return os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
 
 
-def _open_unique_temp_file(parent_fd: int, target_name: str) -> tuple[int, str]:
+def _open_unique_temp_file(parent_fd: int) -> tuple[int, str]:
     """Create a cryptographically named staging file below an open directory."""
     flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW
     for _ in range(_TEMP_FILE_ATTEMPTS):
-        candidate = f".{target_name}.{secrets.token_hex(16)}"
+        candidate = f".artemis-{secrets.token_hex(16)}.tmp"
         try:
             file_descriptor = os.open(candidate, flags, 0o666, dir_fd=parent_fd)
         except FileExistsError:
@@ -75,29 +75,51 @@ class ObsidianManager:
             from src.mcp.config import OBSIDIAN_VAULT_PATH as _vault
 
             vault_path = _vault
-        self.vault_path = Path(vault_path)
-        if not self.vault_path.is_dir():
+        configured_path = Path(vault_path)
+        try:
+            resolved_path = configured_path.resolve(strict=True)
+        except (FileNotFoundError, NotADirectoryError) as exc:
             logger.error("Obsidian vault path does not exist")
-            raise FileNotFoundError(f"Obsidian vault path not found: {self.vault_path}")
+            raise FileNotFoundError(
+                f"Obsidian vault path not found: {configured_path}"
+            ) from exc
+        if not resolved_path.is_dir():
+            logger.error("Obsidian vault path does not exist")
+            raise FileNotFoundError(f"Obsidian vault path not found: {configured_path}")
+        self.vault_path = resolved_path
+        root_stat = self.vault_path.stat()
+        self._vault_identity = (root_stat.st_dev, root_stat.st_ino)
         logger.info("Obsidian Manager initialized")
 
     def _get_full_path(self, relative_path: str) -> Path:
         """Resolve a vault-relative path and reject vault escapes."""
-        requested = Path(*_validated_relative_parts(relative_path))
+        requested = PurePosixPath(*_validated_relative_parts(relative_path))
 
         vault_root = self.vault_path.resolve()
-        full_path = (vault_root / requested).resolve()
+        full_path = vault_root.joinpath(*requested.parts).resolve()
         try:
             resolved_relative = full_path.relative_to(vault_root)
         except ValueError as exc:
             raise ValueError("vault path escapes configured vault root") from exc
-        if resolved_relative != requested:
+        if resolved_relative.as_posix() != requested.as_posix():
             raise ValueError("vault path must resolve to its canonical lexical path")
         return full_path
 
+    def _open_vault_root(self) -> int:
+        """Open the initialized vault identity without accepting path replacement."""
+        root_fd = os.open(self.vault_path, _directory_open_flags())
+        try:
+            root_stat = os.fstat(root_fd)
+            if (root_stat.st_dev, root_stat.st_ino) != self._vault_identity:
+                raise ValueError("configured vault root identity changed")
+            return root_fd
+        except BaseException:
+            os.close(root_fd)
+            raise
+
     def _open_parent_directory(self, parent_parts: tuple[str, ...]) -> int:
         """Traverse or create parents without following path components."""
-        current_fd = os.open(self.vault_path, _directory_open_flags())
+        current_fd = self._open_vault_root()
         try:
             for component in parent_parts:
                 try:
@@ -109,6 +131,8 @@ class ObsidianManager:
                         os.mkdir(component, 0o777, dir_fd=current_fd)
                     except FileExistsError:
                         pass
+                    else:
+                        os.fsync(current_fd)
                     next_fd = os.open(
                         component, _directory_open_flags(), dir_fd=current_fd
                     )
@@ -178,11 +202,11 @@ class ObsidianManager:
         Returns:
             None: This function does not return a value.
         """
-        if os.name != "posix":
-            raise NotImplementedError(
-                "durable Obsidian projection is currently POSIX-only"
-            )
         if overwrite:
+            if os.name != "posix":
+                raise NotImplementedError(
+                    "durable Obsidian projection is currently POSIX-only"
+                )
             if not isinstance(content, str):
                 raise TypeError("note content must be text")
             encoded_content = content.encode("utf-8")
@@ -197,7 +221,7 @@ class ObsidianManager:
                 parent_fd = self._open_parent_directory(path_parts[:-1])
                 target_mode = self._existing_target_mode(parent_fd, target_name)
                 stage = "temporary_write"
-                temp_fd, temp_name = _open_unique_temp_file(parent_fd, target_name)
+                temp_fd, temp_name = _open_unique_temp_file(parent_fd)
                 if target_mode is not None:
                     os.fchmod(temp_fd, target_mode)
                 stream = os.fdopen(temp_fd, "wb")

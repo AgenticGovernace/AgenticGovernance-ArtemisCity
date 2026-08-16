@@ -279,3 +279,160 @@ def test_windows_rejection_precedes_all_write_side_effects(manager, monkeypatch)
 
     assert side_effects == []
     assert list(manager.vault_path.iterdir()) == []
+
+
+def test_relative_vault_root_remains_anchored_after_cwd_change(tmp_path, monkeypatch):
+    initialized_cwd = tmp_path / "initialized"
+    later_cwd = tmp_path / "later"
+    initialized_vault = initialized_cwd / "vault"
+    redirected_vault = later_cwd / "vault"
+    initialized_vault.mkdir(parents=True)
+    redirected_vault.mkdir(parents=True)
+    monkeypatch.chdir(initialized_cwd)
+    manager = ObsidianManager(vault_path="vault")
+
+    monkeypatch.chdir(later_cwd)
+    manager.write_note("projection.md", "anchored content")
+
+    assert (initialized_vault / "projection.md").read_text(encoding="utf-8") == (
+        "anchored content"
+    )
+    assert not (redirected_vault / "projection.md").exists()
+
+
+def test_replaced_absolute_vault_ancestor_cannot_redirect_write(tmp_path):
+    configured_parent = tmp_path / "configured"
+    initialized_vault = configured_parent / "vault"
+    initialized_vault.mkdir(parents=True)
+    manager = ObsidianManager(vault_path=str(initialized_vault))
+
+    relocated_parent = tmp_path / "relocated"
+    configured_parent.rename(relocated_parent)
+    redirected_vault = configured_parent / "vault"
+    redirected_vault.mkdir(parents=True)
+
+    with pytest.raises(ValueError, match="identity"):
+        manager.write_note("projection.md", "must remain confined")
+
+    assert not (redirected_vault / "projection.md").exists()
+    assert not (relocated_parent / "vault" / "projection.md").exists()
+
+
+def test_created_parent_entries_are_synced_before_temp_and_replacement(
+    manager, monkeypatch
+):
+    events: list[tuple[str, str | int]] = []
+    real_fsync = manager_module.os.fsync
+    real_mkdir = manager_module.os.mkdir
+    real_open = manager_module.os.open
+    real_replace = manager_module.os.replace
+    vault_inode = manager.vault_path.stat().st_ino
+
+    def record_mkdir(path, mode=0o777, *, dir_fd=None):
+        assert dir_fd is not None
+        events.append(("mkdir", os.fspath(path)))
+        return real_mkdir(path, mode, dir_fd=dir_fd)
+
+    def record_fsync(file_descriptor):
+        if stat.S_ISDIR(os.fstat(file_descriptor).st_mode):
+            events.append(("dir_fsync", os.fstat(file_descriptor).st_ino))
+        return real_fsync(file_descriptor)
+
+    def record_open(path, flags, mode=0o777, *, dir_fd=None):
+        if flags & os.O_CREAT:
+            assert dir_fd is not None
+            events.append(("temp_open", os.fstat(dir_fd).st_ino))
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    def record_replace(source, target, *, src_dir_fd, dst_dir_fd):
+        assert src_dir_fd == dst_dir_fd
+        events.append(("replace", os.fstat(dst_dir_fd).st_ino))
+        return real_replace(
+            source,
+            target,
+            src_dir_fd=src_dir_fd,
+            dst_dir_fd=dst_dir_fd,
+        )
+
+    monkeypatch.setattr(manager_module.os, "mkdir", record_mkdir)
+    monkeypatch.setattr(manager_module.os, "fsync", record_fsync)
+    monkeypatch.setattr(manager_module.os, "open", record_open)
+    monkeypatch.setattr(manager_module.os, "replace", record_replace)
+
+    manager.write_note("outer/inner/projection.md", "durable parents")
+
+    outer_inode = (manager.vault_path / "outer").stat().st_ino
+    inner_inode = (manager.vault_path / "outer" / "inner").stat().st_ino
+    assert events == [
+        ("mkdir", "outer"),
+        ("dir_fsync", vault_inode),
+        ("mkdir", "inner"),
+        ("dir_fsync", outer_inode),
+        ("temp_open", inner_inode),
+        ("replace", inner_inode),
+        ("dir_fsync", inner_inode),
+    ]
+
+
+@pytest.mark.parametrize("failed_directory_sync", [1, 2])
+def test_created_parent_sync_failure_precedes_temp_and_replacement(
+    manager, monkeypatch, failed_directory_sync
+):
+    real_fsync = manager_module.os.fsync
+    real_open = manager_module.os.open
+    directory_syncs = 0
+    temp_opened = False
+    replacement_attempted = False
+
+    def fail_selected_directory_fsync(file_descriptor):
+        nonlocal directory_syncs
+        if stat.S_ISDIR(os.fstat(file_descriptor).st_mode):
+            directory_syncs += 1
+            if directory_syncs == failed_directory_sync:
+                raise OSError("simulated created-parent sync failure")
+        return real_fsync(file_descriptor)
+
+    def record_open(path, flags, mode=0o777, *, dir_fd=None):
+        nonlocal temp_opened
+        if flags & os.O_CREAT:
+            temp_opened = True
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    def record_replace(*_args, **_kwargs):
+        nonlocal replacement_attempted
+        replacement_attempted = True
+
+    monkeypatch.setattr(manager_module.os, "fsync", fail_selected_directory_fsync)
+    monkeypatch.setattr(manager_module.os, "open", record_open)
+    monkeypatch.setattr(manager_module.os, "replace", record_replace)
+
+    with pytest.raises(manager_module.ObsidianProjectionError) as error_info:
+        manager.write_note("outer/inner/projection.md", "not yet projectable")
+
+    assert error_info.value.stage == "parent_directory"
+    assert error_info.value.replacement_applied is False
+    assert temp_opened is False
+    assert replacement_attempted is False
+
+
+def test_windows_append_retains_legacy_behavior(manager, monkeypatch):
+    note_path = manager.vault_path / "projection.md"
+    note_path.write_text("existing", encoding="utf-8")
+    monkeypatch.setattr(manager_module.os, "name", "nt")
+
+    manager.write_note("projection.md", " + appended", overwrite=False)
+
+    assert note_path.read_text(encoding="utf-8") == "existing + appended"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX NAME_MAX behavior")
+def test_maximum_length_target_name_uses_bounded_temporary_name(manager):
+    name_max = os.pathconf(manager.vault_path, "PC_NAME_MAX")
+    suffix = ".md"
+    target_name = f"{'n' * (name_max - len(suffix))}{suffix}"
+
+    manager.write_note(target_name, "maximum-length target")
+
+    assert (manager.vault_path / target_name).read_text(encoding="utf-8") == (
+        "maximum-length target"
+    )

@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import pytest
+import yaml
 
 from src.memory.backends.obsidian import ObsidianMemoryProjection
 from src.memory.backends.vector import VectorMemoryProjection
@@ -142,3 +143,32 @@ def test_vector_projection_uses_logical_memory_id_and_canonical_metadata() -> No
             },
         )
     ]
+
+
+def test_obsidian_frontmatter_hostile_unicode_round_trips_through_yaml_parser() -> None:
+    manager = RecordingObsidianManager()
+    projection = ObsidianMemoryProjection(manager)
+    expected_strings = {
+        "record_id": "record\u0085identifier",
+        "memory_id": "memory\u0085identifier",
+        "namespace": "reviewed\u0085namespace",
+        "key": "daily\u0085brief",
+        "content_sha256": "sha256\u0085digest",
+        "provenance_id": "completion\u0085provenance",
+    }
+    record = memory_record(
+        record_id=expected_strings["record_id"],
+        memory_id=expected_strings["memory_id"],
+        namespace=expected_strings["namespace"],
+        key=expected_strings["key"],
+        content_sha256=expected_strings["content_sha256"],
+        completion_provenance_id=expected_strings["provenance_id"],
+    )
+
+    projection.project(record)
+
+    rendered_note = manager.writes[0][1]
+    frontmatter = yaml.safe_load(rendered_note.split("---", 2)[1])
+    assert {field: frontmatter[field] for field in expected_strings} == (
+        expected_strings
+    )
