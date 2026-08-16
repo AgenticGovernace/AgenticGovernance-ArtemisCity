@@ -4,18 +4,17 @@ from .agent_router import AgentRouter
 from .agents import Agent, DaemonAgent, PlannerAgent
 from .artemis_cli import main
 from .kernel import Kernel
-from .memory_bus import (FileMemoryBackend, MemoryBackend, MemoryBus,
-                         VectorMemoryBackend)
+from .memory_bus import FileMemoryBackend, MemoryBackend, MemoryBus, VectorMemoryBackend
 
 __all__ = [
-    "Kernel",
-    "AgentRouter",
-    "MemoryBus",
-    "MemoryBackend",
-    "FileMemoryBackend",
-    "VectorMemoryBackend",
     "Agent",
+    "AgentRouter",
     "DaemonAgent",
+    "FileMemoryBackend",
+    "Kernel",
+    "MemoryBackend",
+    "MemoryBus",
     "PlannerAgent",
+    "VectorMemoryBackend",
     "main",
 ]
