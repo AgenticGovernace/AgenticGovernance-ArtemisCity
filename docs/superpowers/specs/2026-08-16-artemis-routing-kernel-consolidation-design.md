@@ -41,7 +41,7 @@ domain services. They do not become another execution authority.
    cannot expand or override it.
 6. Governance status and trust determine eligibility. Hebbian evidence ranks
    only eligible candidates; it never grants authority.
-7. An outcome and its completion provenance must be durable before Hebbian or
+7. An outcome and its linked result provenance must be durable before Hebbian or
    trust learning occurs. The same outcome may update learning at most once.
 8. Artemis City owns the production routing and Hebbian implementation. Oracle,
    Prove, Authbuild, and the historical Obsidian scaffold contribute contracts,
@@ -109,6 +109,33 @@ The reverse-sync and release audits add two migration constraints:
   untracked artifacts. The sdist was broader still. Passing `twine check` and
   the existing artifact test do not prove a safe release.
 
+## Historical kernel and honmbase material disposition
+
+The supplied kernel/monorepo export is design provenance, not an executable
+instruction source. It combines three different eras: the original virtual
+kernel model, the Obsidian task-loop scaffold, and a proposed `honmbase`
+physical monorepo with generic CI examples. The implementation keeps the useful
+control-flow concepts while translating them into the governed architecture in
+this document.
+
+| Historical concept | Disposition | Canonical replacement |
+|---|---|---|
+| CLI -> kernel -> router -> agent/model -> memory -> user | Retain the topology | Ingress -> auth -> strict ATP -> authorization -> eligibility/ranking -> dispatch -> durable outcome/provenance -> ledger/learning/projection |
+| Installed CLI and Makefile as userland bridges | Retain as adapters | Existing Artemis entry points delegate once to the Routing Kernel; no `codex` executable or prompt is created |
+| `agent_router.py` keyword and priority matching | Replace | Typed ATP intent, capability registry, governance/trust eligibility, then Hebbian ranking |
+| Named Codex/Daemon fallback agents | Remove as routing identity | Governed `llm_chat` capability fallback inside the authorized domain |
+| `state_kernel.json` as execution authority | Remove | Transactional task ledger plus OutcomeV1 and linked provenance |
+| Memory backend chosen by the text router | Replace | Canonical Memory Bus policy chooses stores/projections after authorization; routing cannot select a weaker persistence path |
+| Planner -> worker -> memory pipelines | Retain with controls | Ledger-backed typed child tasks, bounded delegation, parent/child provenance, deterministic fan-out/fan-in |
+| Obsidian task notes as queue state | Retain only as readable projection | Atomic ledger claims and an outbox project state to Obsidian |
+| Immediate `honmbase/` moves, submodules/subtrees, package-manager conversion, and generic CI YAML | Supersede for this phase | Separate repositories linked by the versioned workspace catalog, immutable refs, reviewed transfers, and repository-specific gates |
+| Core/App/Support/Shared logical layers | Retain as catalog metadata | Ownership domains and links describe the layers without copying repositories into one tree |
+
+The export's file names, commands, dependency versions, branch names, action
+versions, project counts, and proposed directory moves are historical claims.
+They must be reverified against the live repositories before any later
+monorepo ADR can adopt them.
+
 ## Canonical architecture
 
 ```mermaid
@@ -121,17 +148,21 @@ flowchart LR
     EL --> HR["Hebbian ranking"]
     HR --> EX["Sandboxed agent execution"]
     EX --> OC["Atomic outcome + finalizing commit"]
-    OC --> PC["Completion provenance commit"]
-    PC --> TS["Task ledger result transition"]
+    OC --> PC["Linked result provenance commit"]
+    PC --> NS["Governed next-state resolver"]
+    NS --> TS["Ordinary result transition"]
+    NS --> GA["Child-plan validation + delegation authorization"]
+    GA --> WC["Atomic grants / budget / tasks / edges / waiting_children"]
     TS --> LE["Once-only eligible learning"]
     TS --> OP["Projection outbox"]
+    WC --> OP
     OP --> OB["Obsidian / vector projections"]
 ```
 
 The arrows are an ordering contract. A later component cannot retroactively
 authorize or legitimize a request rejected by an earlier component. The
 projection branch is asynchronous: projection failure cannot undo a durable
-terminal outcome or cause agent execution to repeat.
+result state or cause agent execution to repeat.
 
 ### Source layout
 
@@ -143,6 +174,7 @@ src/
   auth/
     contracts.py        # PrincipalV1 and AuthReceiptV1
     verifier.py         # AuthVerifier port and configured adapters
+    delegation.py       # bounded grant issuance and authority intersection
   routing/
     contracts.py        # TaskEnvelopeV1, RoutingDecisionV1, OutcomeV1
     intent.py           # strict ATP-to-domain resolution
@@ -150,6 +182,7 @@ src/
     finalizer.py        # durable outcome/provenance/learning ordering
   tasks/
     ledger.py           # lifecycle, atomic claims, attempts, replay
+    graph.py            # child validation, fan-out/fan-in, graph limits
 ```
 
 Existing modules delegate during migration:
@@ -165,6 +198,34 @@ Existing modules delegate during migration:
   are removed.
 - FastAPI, Express/Python bridge, MCP servers, and launch scripts call the same
   `RoutingKernel.execute()` or `RoutingKernel.stream()` service.
+
+### CLI compatibility contract
+
+The current distribution is named `artemis-city` but does not define an
+installed console script. Consolidation preserves the existing module and
+Makefile surfaces; adding a new installed binary is a separate, versioned public
+interface decision.
+
+- `make cli ARGS="..."` and `python -m src ...` are the primary interactive and
+  one-shot adapters to `RoutingKernel.execute()`.
+- `make kernel ARGS="..."`, `python -m app.kernel.cli`, and
+  `python -m src.interface.artemis_cli` remain compatibility facades over the
+  same service.
+- `make atp ARGS="..."` becomes a real strict-ATP adapter instead of silently
+  behaving like the default CLI. The direct `python -m src --atp ...` form has
+  the same disposition.
+- `python -m src --plan plan.json` parses typed plan tasks and submits each
+  through the same kernel; it cannot invoke private agents directly.
+- `make run`, `make orchestrator`, and `python -m src.launch.main` remain the
+  task-loop/Obsidian surfaces, with each atomic task claim delegated exactly
+  once to the kernel. `python -m src --orchestrator ...` and
+  `python -m src.mcp ...` are direct aliases of this surface.
+- `python -m app.kernel.artemis_cli ...` remains a compatibility facade beside
+  `python -m app.kernel.cli`; both delegate to the same kernel service.
+- `make hebbian` and `make agent-stats` are read-only inspection commands over
+  canonical learning state and do not execute a routed task.
+
+No `codex` executable, prompt, agent, or compatibility alias is created.
 
 ## Authentication and authorization
 
@@ -214,6 +275,26 @@ AuthReceiptV1
     canonical_receipt
 ```
 
+```text
+AuthorityContextV1
+  requester:
+    principal
+    auth_receipt
+  actor:
+    principal
+    auth_receipt
+  delegation:
+    grant_id | null
+    grant_hash | null
+```
+
+For an external root request, requester and actor identify the same verified
+principal and no delegation exists. For an internal child, requester remains
+the root principal while actor is the independently authenticated scheduler
+service. Effective authority is the intersection of requester scopes, actor
+scopes, the persisted delegation grant, the child ATP domain, and current
+Artemis policy. No component may select the broader identity.
+
 The receipt attests identity, request proof, and verified capability evidence;
 it does not decide whether an Artemis route is authorized. The Routing Kernel
 separately evaluates the ATP-derived capability domain against
@@ -260,8 +341,7 @@ TaskEnvelopeV1
   generation
   input_sha256
   ingress
-  principal
-  auth_receipt
+  authority: AuthorityContextV1
   content
   intent:
     mode
@@ -272,14 +352,27 @@ TaskEnvelopeV1
   requested_constraints:
     capability | null
     agent | null
+  delegation:
+    grant_id | null
+    grant_hash | null
+    root_task_id
+    parent_task_id | null
+    parent_outcome_id | null
+    depth
+  continuation:
+    sequence
+    child_result_set_sha256 | null
+    prior_outcome_id | null
   provenance_parent_id | null
-  idempotency_key
+  submission_idempotency_key
+  attempt_idempotency_key
   created_at
 ```
 
-The verifier constructs `principal` and `auth_receipt` as trusted in-process
-values. An ingress must reject caller-supplied serialized fields with those
-names rather than hydrate them into trusted objects.
+The verifier and scheduler construct `authority` as a trusted in-process value.
+An ingress must reject caller-supplied serialized authority or delegation fields
+rather than hydrate them into trusted objects. Root tasks use continuation
+sequence zero with no child-result hash.
 
 Rules:
 
@@ -303,6 +396,13 @@ Rules:
    the request or code.
 7. If the fallback has no eligible candidate, routing fails with a stable
    `no_eligible_agent` result. It does not silently use another persona.
+8. A child task requires an Artemis-issued delegation grant linked to the root
+   principal and auth receipt. Delegation may narrow scopes, ATP domain, budget,
+   and lifetime; it cannot expand them, and serialized caller-created grants are
+   rejected.
+9. Child authorization uses the intersection defined by AuthorityContextV1.
+   Missing, expired, hash-mismatched, over-budget, or non-narrowing grants block
+   admission before routing.
 
 Mode/ActionType consistency warnings remain useful in authoring and preview
 tools. In the execution profile, an inconsistent pair is an error.
@@ -349,8 +449,12 @@ Canonical finalization order:
 agent result
   -> validate typed result status
   -> atomically commit canonical OutcomeV1 and ledger state finalizing
-  -> commit completion provenance linked to parent
-  -> transition task ledger to the resulting state
+  -> commit result provenance linked to parent
+  -> resolve the governed next-state branch
+     ordinary result: transition task ledger to the resulting state
+     child plan: validate graph and authorize bounded delegation
+                 atomically persist grants, reserve budget, create tasks/edges,
+                 and transition parent to waiting_children
   -> enqueue projections and apply eligible learning exactly once
   -> publish response with learning/projection status
 ```
@@ -360,21 +464,31 @@ outcome/finalizing write is the replay boundary: after it succeeds, recovery
 retries provenance, state transition, projection, or learning without
 dispatching the agent again.
 
+Graph validation covers schema, capability-domain narrowing, cycle prevention,
+depth/fan-out/task limits, failure/cancellation policy, and available budget.
+The successful transaction persists the immutable delegation grants and their
+hashes, reserves budget, creates child-task and edge records, and changes the
+parent to `waiting_children`. A parent is never marked as waiting for children
+that the ledger did not durably accept. Any validation or authorization failure
+creates no child records and transitions the finalizing parent to `blocked`
+with linked decision provenance.
+
 An admitted pre-dispatch failure—such as invalid ATP, authorization denial, or
 no eligible agent—skips agent execution but uses the same durable finalizer with
 a typed rejection OutcomeV1 and linked provenance. A pre-auth rejection is not
 admitted to the task ledger and cannot reach this path.
 
 The outcome contains a stable `outcome_id`, `attempt_id`, `task_id`, generation,
-status, classification, retryability, content/artifact hashes, agent, routing
-decision, auth receipt reference, provenance IDs, and learning eligibility.
+continuation sequence and child-result-set hash, status, classification,
+retryability, content/artifact hashes, agent, routing decision, authority/grant
+references, provenance IDs, and learning eligibility.
 
 Safety rules:
 
 - Missing or unknown result status is an invalid agent result, never success.
 - Failure to commit the canonical outcome prevents a completed claim and all
   learning.
-- Failure to commit required completion provenance prevents learning and leaves
+- Failure to commit required result provenance prevents learning and leaves
   a recoverable non-completed ledger state.
 - A learning-store failure after durable completion does not erase the outcome.
   It records `learning_status: failed` for governed retry.
@@ -383,8 +497,8 @@ Safety rules:
 - Obsidian or vector projection failure does not rerun a successful agent. An
   outbox retries only the failed projection.
 - A reconciler resumes each `finalizing` task from its stored OutcomeV1. It
-  retries completion provenance with an idempotent stage key, then the terminal
-  transition and post-terminal work; it never dispatches the agent again.
+  retries result provenance with an idempotent stage key, then the result-state
+  transition and post-result work; it never dispatches the agent again.
 - If the atomic outcome/finalizing write itself fails, lease recovery may repeat
   execution only when the agent supports the same stable idempotency key or an
   authoritative result lookup. Otherwise reconciliation moves the task to
@@ -403,9 +517,9 @@ Canonical states:
 ingest -> pending
 pending | due retry_wait -> running
 running -> finalizing
-finalizing -> completed | failed | retry_wait
-pending | running | retry_wait -> cancelled
-pending | running | retry_wait | finalizing -> blocked
+pending | retry_wait | waiting_children -> finalizing  # policy/cancel/fan-in outcome
+finalizing -> completed | failed | retry_wait | waiting_children | blocked | cancelled
+waiting_children -> pending  # governed continuation, same generation
 blocked | failed -> pending  # explicit requeue, new generation
 ```
 
@@ -413,18 +527,105 @@ Legacy `in progress` projects to `running`. Routing failure, invalid ATP,
 missing capability, provenance failure, and governance denial project to
 `blocked` with a stable reason code rather than an automatic retry.
 
-The ledger records task/input identity, explicit requeue generation, state
-version, attempt count, active attempt and lease, retry timing, reason,
-provenance parent, outcome reference, timestamps, and finalization stage keys.
+The ledger records task/input identity, explicit requeue generation,
+continuation sequence and child-result-set hash, state version, attempt count,
+active attempt and lease, retry timing, reason, provenance parent, outcome
+reference, timestamps, and finalization stage keys.
 
-Claims use atomic compare-and-set semantics. The same task ID, generation, and
-input hash replays its stored terminal outcome without dispatch or learning.
+Claims use atomic compare-and-set semantics. External submission identity is
+`(task_id, generation, input_sha256, submission_idempotency_key)`. Attempt
+identity is `(task_id, generation, continuation.sequence,
+child_result_set_sha256, attempt_idempotency_key)`. Reusing either identity
+returns its durable current state; a terminal state replays its stored outcome
+without dispatch or learning.
 An explicit requeue increments the generation while retaining the input hash;
 different input under the same task ID is a conflict and requires a new task
 ID. A stale lease retries only when the operation and agent support the stable
 idempotency key; uncertain external side effects transition to `blocked` for
 review. A `finalizing` task has a durable OutcomeV1 and is never sent back to
 agent execution.
+
+External replay never advances a `waiting_children` task. Only the ledger's
+fan-in transition may create its continuation attempt.
+
+## Multi-agent task graphs and back orchestration
+
+Multi-agent coordination is a task-ledger concern, not a private router path.
+An agent cannot call another agent directly or select its identity. A planning
+result may emit typed `ChildTaskSpecV1` records; after the result and provenance
+are durable, the kernel authorizes the plan and the ledger creates the child
+tasks idempotently.
+
+```text
+ChildTaskSpecV1
+  child_task_id
+  edge_id
+  dependencies[]
+  intent
+  content_sha256
+  requested_constraints
+  failure_policy
+  cancellation_policy
+  requested_budget
+  idempotency_seed
+
+DelegationGrantV1
+  grant_id
+  grant_hash
+  root_task_id
+  parent_task_id
+  parent_outcome_id
+  requester_principal_ref
+  requester_auth_receipt_id
+  requester_auth_receipt_hash
+  actor_principal_ref
+  actor_auth_receipt_id
+  actor_auth_receipt_hash
+  allowed_modes[]
+  allowed_action_types[]
+  allowed_capabilities[]
+  allowed_target_zones[]
+  depth_limit
+  budget_reservation_id
+  issued_at
+  expires_at
+  policy_version
+```
+
+The grant is an immutable ledger record, not a portable bearer token. A child
+envelope carries only its ID and hash; the kernel loads the record and checks
+both authenticated principals, current policy, expiry, reservation, and hash
+before admission.
+
+The externally submitted root task is authenticated at ingress. Each internal
+child is admitted by the independently authenticated scheduler with an
+Artemis-issued delegation grant linked to the root requester, root auth receipt,
+parent task, and parent outcome. Its effective authority is the intersection in
+AuthorityContextV1. The child still passes strict ATP resolution, Artemis
+authorization, eligibility, Hebbian ranking, execution, outcome persistence,
+and provenance. Original credentials are referenced by safe receipt identity,
+never replayed or copied into child content.
+
+Parent tasks use `waiting_children` after their planning/checkpoint outcome is
+durable. Required child outcomes fan in through the ledger. The ledger computes
+a canonical hash over the required child outcome IDs, content hashes, and edge
+policies, increments the continuation sequence, and derives the next attempt
+idempotency key before returning the parent to `pending` in the same generation.
+A duplicate fan-in event returns the already-created continuation.
+
+Child failure policy is authorized with the graph, not chosen by an untrusted
+agent response. `continue-partial` creates a continuation with a typed partial
+result set. `fail-parent` or a policy terminal outcome moves the waiting parent
+through `finalizing`, persists a scheduler-generated OutcomeV1 and provenance,
+then reaches `failed` or `blocked`. Cancellation follows the persisted edge
+policy and also emits linked decision provenance.
+
+Every graph has configured depth, fan-out, total-task, time, and cost limits.
+Task, edge, grant, and reservation IDs are deterministic, cycles are rejected,
+and replay cannot create a second grant, reservation, child, continuation, or
+learning update. Planning/checkpoint outcomes and scheduler-generated
+graph-control outcomes are always learning-ineligible. Only terminal task
+outcomes explicitly classified by policy may update learning.
 
 SQLite is the initial local/test ledger implementation. The ledger is a port so
 a PostgreSQL production adapter can share the transactional deployment model
@@ -538,13 +739,15 @@ The core returns typed, stable failure classes:
 | Authentication verifier unavailable | not admitted | deployment recovery | no |
 | Invalid/inconsistent ATP | `blocked` | explicit correction | no |
 | Unauthorized scope/agent/path | `blocked` | explicit correction | no |
+| Invalid/expired/non-narrowing delegation | `blocked` | new authorized graph | no |
+| Invalid/cyclic/over-budget child graph | `blocked` | new authorized graph | no |
 | No eligible capability/agent | `blocked` | after registry/policy change | no |
 | Governance denial | `blocked` | explicit review | no |
 | Retryable provider failure | `retry_wait` | bounded | no penalty |
 | Non-retryable agent failure | `failed` | explicit requeue | eligible only when classified |
 | Outcome/finalizing commit failure | `running`, then reconcile or block | storage recovery | no |
-| Completion-provenance commit failure | `finalizing` | finalization only | no |
-| Projection failure | terminal outcome plus pending outbox | projection only | unchanged |
+| Result-provenance commit failure | `finalizing` | finalization only | no |
+| Projection failure | durable outcome plus pending outbox | projection only | unchanged |
 | Learning persistence failure | terminal outcome plus learning error | governed learning retry | never twice |
 
 Errors expose safe codes and references, not credentials, raw claims, untrusted
@@ -571,8 +774,8 @@ paths, provider secrets, or unsanitized agent content.
 
 ### Phase 2: Lock contracts with failing tests
 
-- Add Principal, AuthReceipt, TaskEnvelope, RoutingDecision, Outcome, and task
-  ledger models.
+- Add Principal, AuthReceipt, AuthorityContext, DelegationGrant, TaskEnvelope,
+  ChildTaskSpec, RoutingDecision, Outcome, and task-ledger models.
 - Add a shared call-trace harness proving gate and finalization order.
 - Change ATP tests from caller override/downgrade acceptance to strict authority.
 
@@ -596,6 +799,8 @@ paths, provider secrets, or unsanitized agent content.
 ### Phase 5: Make the task loop transactional
 
 - Add atomic claim, lease, retry, idempotency, and explicit requeue semantics.
+- Add bounded delegation, deterministic child-task graphs, atomic
+  `waiting_children` fan-out, and idempotent fan-in continuation.
 - Project task/report status to Obsidian after canonical state commits.
 - Move learning behind outcome and provenance durability.
 
@@ -626,17 +831,33 @@ Completion requires evidence for all of the following:
    ATP-authorized domain.
 4. Governance/trust eligibility occurs before Hebbian ranking.
 5. Synchronous and streaming traces share the same ordered lifecycle.
-6. Outcome and completion provenance exist before exactly-one learning update.
+6. Outcome and linked result provenance exist before exactly-one learning
+   update; planning, checkpoint, and graph-control outcomes produce zero
+   learning updates.
 7. Two workers cannot claim one task attempt, replay is idempotent, and changed
    input under the same task ID is blocked.
-8. Projection failure does not rerun a completed agent.
-9. Wheel and sdist contain only approved tracked runtime files and no Codex
+8. Child effective authority is the intersection of authenticated requester,
+   authenticated scheduler actor, persisted unexpired grant, child ATP domain,
+   reservation, and current Artemis policy; no input can select a broader
+   identity.
+9. Child-plan validation rejects cycles and configured depth, fan-out,
+   total-task, time, and cost limits before any child record exists.
+10. Grant persistence, budget reservation, task/edge creation, and the parent
+    `waiting_children` transition commit atomically or not at all.
+11. Fan-in hashes the required child-result snapshot, increments exactly one
+    continuation sequence, and derives a distinct attempt idempotency key;
+    replay cannot duplicate a child, continuation, reservation, or learning
+    update.
+12. Failure and cancellation propagation follows the persisted edge policy and
+    produces the required parent outcome and linked decision provenance.
+13. Projection failure does not rerun a completed agent.
+14. Wheel and sdist contain only approved tracked runtime files and no Codex
    runtime identity or local artifacts.
-10. `src.Kernel` resolves only to the compatibility facade and cannot load a
+15. `src.Kernel` resolves only to the compatibility facade and cannot load a
     second router, Memory Bus, or Kernel class.
-11. Canonical Python, TypeScript auth/adapter, package, and live contract tests
+16. Canonical Python, TypeScript auth/adapter, package, and live contract tests
     pass with baseline failures distinguished from regressions.
-12. Workspace transfers resolve to immutable reviewed sources and pass schema,
+17. Workspace transfers resolve to immutable reviewed sources and pass schema,
     hash-manifest, test, and human-review gates.
 
 No narrow unit test, passing metadata check, documentation claim, or absence of
