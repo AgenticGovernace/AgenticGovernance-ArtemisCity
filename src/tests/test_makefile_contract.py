@@ -5,9 +5,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
-import sys
 import tomllib
-import zipfile
 from pathlib import Path
 
 import yaml
@@ -17,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 ROOT_MAKEFILE = ROOT / "Makefile"
 LAUNCH_DIR = ROOT / "src" / "launch"
 LAUNCH_MAKEFILE = LAUNCH_DIR / "Makefile"
+RELEASE_HOLD_MESSAGE = "RELEASE_HOLD_ACTIVE: Python package release is blocked."
 
 
 def _make_dry_run(directory: Path, target: str) -> str:
@@ -32,6 +31,18 @@ def _make_dry_run(directory: Path, target: str) -> str:
     assert result.returncode == 0, result.stderr
     assert "warning: undefined variable" not in result.stderr.lower(), result.stderr
     return result.stdout
+
+
+def _run_make(directory: Path, target: str) -> subprocess.CompletedProcess[str]:
+    """Run one Make target and return its captured result."""
+
+    return subprocess.run(
+        ["make", "--no-print-directory", "--warn-undefined-variables", target],
+        cwd=directory,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
 
 
 def _target_names(makefile: Path) -> set[str]:
@@ -94,6 +105,47 @@ def test_root_owns_installation_services_and_documentation() -> None:
         "docs",
         "docs-serve",
     } <= targets
+
+
+def test_release_hold_targets_are_root_owned_and_phony() -> None:
+    targets = _target_names(ROOT_MAKEFILE)
+    makefile_text = ROOT_MAKEFILE.read_text(encoding="utf-8")
+    phony_block = makefile_text.split(".DEFAULT_GOAL", maxsplit=1)[0]
+
+    assert {"package-audit", "package-check"} <= targets
+    assert "package-audit" in phony_block
+    assert "package-check" in phony_block
+
+
+def test_package_audit_selects_only_release_hold_contract_tests() -> None:
+    output = _make_dry_run(ROOT, "package-audit")
+
+    assert "src/tests/test_release_artifacts.py" in output
+    assert "-k release_hold_contract" in output
+    assert "src/tests/test_repository_boundaries.py" not in output
+    assert "python -m build" not in output
+
+
+def test_package_check_exits_two_with_the_stable_hold_message() -> None:
+    result = _run_make(ROOT, "package-check")
+    output = result.stdout + result.stderr
+
+    assert result.returncode == 2
+    assert RELEASE_HOLD_MESSAGE in output
+    assert "python -m build" not in output
+
+
+def test_build_keeps_its_recipe_dormant_behind_the_release_hold() -> None:
+    output = _make_dry_run(ROOT, "build")
+    makefile_text = ROOT_MAKEFILE.read_text(encoding="utf-8")
+
+    audit_index = output.index("src/tests/test_release_artifacts.py")
+    hold_index = output.index(RELEASE_HOLD_MESSAGE)
+    build_index = output.index("python -m build")
+    assert audit_index < hold_index < build_index
+    assert re.search(r"^package-check: package-audit", makefile_text, re.MULTILINE)
+    assert re.search(r"^build: package-check", makefile_text, re.MULTILINE)
+    assert makefile_text.count("$(PYTHON) -m build") == 1
 
 
 def test_launch_makefile_contains_only_application_feature_targets() -> None:
@@ -278,47 +330,19 @@ def test_clean_env_validates_a_real_non_symlink_virtual_environment() -> None:
     assert "Refusing to remove unsafe environment path" in output
 
 
-def test_hatch_wheel_preserves_supported_import_roots(tmp_path: Path) -> None:
+def test_hatch_configuration_remains_unchanged_while_release_hold_is_active() -> None:
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
     assert pyproject["build-system"]["build-backend"] == "hatchling.build"
-    wheel_config = pyproject["tool"]["hatch"]["build"]["targets"]["wheel"]
+    targets = pyproject["tool"]["hatch"]["build"]["targets"]
+    wheel_config = targets["wheel"]
     assert wheel_config["only-include"] == ["src", "app"]
     assert set(wheel_config["exclude"]) == {
         "/app/api/**",
         "/app/scripts/**",
         "/app/web/**",
     }
-
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "build",
-            "--wheel",
-            "--no-isolation",
-            "--outdir",
-            str(tmp_path),
-        ],
-        cwd=ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, result.stdout + result.stderr
-
-    wheels = list(tmp_path.glob("*.whl"))
-    assert len(wheels) == 1
-    with zipfile.ZipFile(wheels[0]) as archive:
-        names = set(archive.namelist())
-
-    assert "src/__init__.py" in names
-    assert "app/__init__.py" in names
-    assert "app/kernel/__init__.py" in names
-    assert not any(
-        name.startswith(("app/api/", "app/scripts/", "app/web/")) for name in names
-    )
-    assert not any(name.startswith(("agents/", "mcp/", "tests/")) for name in names)
+    assert "sdist" not in targets
 
 
 def test_promote_delegates_dependency_installation_to_root_make() -> None:

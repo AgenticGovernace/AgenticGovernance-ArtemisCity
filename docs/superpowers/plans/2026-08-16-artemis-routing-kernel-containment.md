@@ -25,8 +25,9 @@ on disk, define the releasable surface.
   rename, or rewrite is permitted while the hold is active.
 - Task 5 may migrate unique root-test behavior and narrow default collection to
   `src/tests`, but it must retain the root test tree while the hold is active.
-- Task 6 must exclude held and quarantined material through exact tracked
-  allowlists even while those files remain present in the repository.
+- Task 6 is an active release hold. It records clean-commit candidate evidence
+  and makes package entry points fail closed without approving an allowlist or
+  changing packaging configuration.
 - Historical destructive checkboxes below are suspended while the hold is
   active and cannot be executed from this plan without a superseding amendment.
 
@@ -522,85 +523,57 @@ the hold is active.
 
 ---
 
-### Task 6: Enforce explicit tracked wheel and sdist allowlists
+### Task 6: Hold Python release until the reviewed lift conditions pass
+
+**Active replacement:** The earlier allowlist-and-build task is suspended. It
+must not alter `pyproject.toml`, `uv.lock`, CI, or either approved allowlist path.
 
 **Files:**
-- Create: `config/release/python-wheel-files.v1.txt`
-- Create: `config/release/python-sdist-files.v1.txt`
-- Modify: `pyproject.toml`
+- Create: `docs/audits/2026-08-16-python-release-hold.yaml`
+- Create: `docs/audits/2026-08-16-python-wheel-candidate.v1.txt`
+- Create: `docs/audits/2026-08-16-python-sdist-candidate.v1.txt`
 - Modify: `src/tests/test_release_artifacts.py`
 - Modify: `src/tests/test_makefile_contract.py`
 - Modify: `Makefile`
-- Modify: `.circleci/config.yml`
+- Modify: this plan.
 
 **Interfaces:**
-- Consumes: the cleaned tracked tree and one canonical test root.
-- Produces: exact release payload manifests, `make package-check`, and an isolated-wheel import proof.
+- Consumes: the committed hold, quarantine, and retained-root evidence.
+- Produces: exact candidate evidence and a non-destructive package stop gate.
 
-- [ ] **Step 1: Generate and review tracked allowlist candidates**
+- [ ] **Step 1: Record clean-commit RED evidence**
 
-  The wheel candidate contains only approved runtime Python and required package
-  data from maintained `src` packages, `src/Kernel/__init__.py`,
-  `app/__init__.py`, and `app/kernel/**`. The sdist candidate adds only approved
-  build metadata, operator docs, source tests, configuration, and migrations.
-  Both lists are UTF-8, sorted bytewise, one relative POSIX path per line, with
-  no glob syntax.
+  Re-resolve `HEAD`, extract it with `git archive` into a fresh temporary
+  directory, and build the current broad wheel and sdist there. Record member
+  counts, hashes, and intersections with all protected sets. The dirty worktree
+  is never package evidence.
 
-  Reject candidate members that are untracked, ignored, case-colliding,
-  copy-suffixed, or match the forbidden rules from Task 2.
+- [ ] **Step 2: Freeze evidence-only source candidates**
 
-- [ ] **Step 2: Narrow Hatch build inputs**
+  Write sorted, literal candidate paths from the observed commit. Hash the path
+  list, source blobs, and path/blob-OID manifest. Candidates authorize no build,
+  release, mutation, or future allowlist.
 
-  Replace the broad `only-include = ["src", "app"]` rule with explicit runtime
-  package includes and add an explicit sdist include/exclude section. Keep
-  `app/api`, `app/web`, `app/scripts`, tests, services incubators, experiments,
-  vaults, data, logs, caches, and previous builds outside the wheel.
+- [ ] **Step 3: Record the active blockers and lift conditions**
 
-- [ ] **Step 3: Make artifact tests compare exact members**
+  The strict versioned hold records the known schema, receipt, import, runtime
+  path, dependency, entry-point, facade, reproducibility, test, merge, review,
+  and user-authorization blockers. Every permission is false and every signoff
+  is empty.
 
-  Build into a fresh temporary directory. Normalize wheel `.dist-info` metadata
-  as the small versioned metadata allowance; every other wheel/sdist member must
-  equal the corresponding committed allowlist. Assert every payload source is
-  returned by `git ls-files`.
+- [ ] **Step 4: Make package entry points fail closed**
 
-- [ ] **Step 4: Add one operator and CI gate**
+  `package-audit` runs only the hold contract. `package-check` depends on that
+  audit, prints `RELEASE_HOLD_ACTIVE: Python package release is blocked.`, and
+  exits 2. `build` depends on `package-check`; its existing build recipe remains
+  present but unreachable while the hold is active.
 
-  `make package-check` performs, in order:
+- [ ] **Step 5: Verify without creating package output**
 
-  ```bash
-  python -m build
-  python -m twine check dist/*
-  python -m pytest -q src/tests/test_release_artifacts.py \
-    src/tests/test_repository_boundaries.py
-  ```
+  Run the hold, Makefile, repository-boundary, reverse-sync, and retained-root
+  tests. Confirm `package-check` and `build` exit 2 before creating new `dist/`
+  or `build/` output. Compare the task diff with every protected set and require
+  empty intersections.
 
-  CircleCI invokes `make package-check`; it does not duplicate the logic.
-
-- [ ] **Step 5: Install and inspect the real wheel**
-
-  Create a fresh temporary virtual environment, install the wheel with
-  `--no-deps`, and assert:
-
-  ```python
-  import app.kernel
-  import src
-  import src.Kernel
-
-  assert src.Kernel.Kernel is app.kernel.Kernel
-  ```
-
-  Inspect both archives for forbidden paths and case-fold collisions.
-
-- [ ] **Step 6: Run release proof and commit**
-
-  ```bash
-  .venv/bin/python -m pytest -q \
-    src/tests/test_release_artifacts.py \
-    src/tests/test_repository_boundaries.py \
-    src/tests/test_makefile_contract.py
-  make package-check
-  make test
-  git add config/release pyproject.toml src/tests/test_release_artifacts.py \
-    src/tests/test_makefile_contract.py Makefile .circleci/config.yml
-  git commit -m "build: enforce tracked release allowlists"
-  ```
+The earlier exact allowlist, installed-wheel, CI, and publish work can resume
+only in a later reviewed task after every recorded lift condition passes.

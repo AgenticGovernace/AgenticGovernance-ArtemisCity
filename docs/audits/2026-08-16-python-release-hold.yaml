@@ -1,0 +1,322 @@
+api_version: "artemis.quantumharmony.dev/v1"
+kind: "PythonReleaseHold"
+metadata:
+  name: "python-release-hold"
+  hold_version: 1
+  hold_date: "2026-08-16"
+  owner_repository: "Artemis_City"
+  status: "active"
+
+observation:
+  commit: "6462c4c2b51e66d6c51728ee6c9decb31e2ef651"
+  branch: "feature/routing-kernel-consolidation"
+  commit_time: "2026-08-16T04:25:49-04:00"
+  evidence_source: "git archive HEAD"
+  dirty_at_evidence_refresh: true
+  dirty_path_count_at_evidence_refresh: 78
+  dirty_status_encoding: "sorted git status --porcelain=v1 lines with terminal LF"
+  dirty_status_line_sha256: >-
+    8f40b6b69f35d218c76537286dfe400e5468c12a26e4784b5e573bd08303cf0e
+  dirty_observation_is_release_evidence: false
+  tool_versions:
+    python: "3.12.13"
+    git: "2.50.1 (Apple Git-155)"
+    make: "GNU Make 3.81"
+    build: "1.5.0"
+    hatchling: "1.31.0"
+    pytest: "9.0.3"
+    pyyaml: "6.0.3"
+
+approved_release_allowlists:
+  wheel:
+    path: "config/release/python-wheel-files.v1.txt"
+    present_at_observed_commit: false
+    present_in_worktree: false
+    authorized: false
+  sdist:
+    path: "config/release/python-sdist-files.v1.txt"
+    present_at_observed_commit: false
+    present_in_worktree: false
+    authorized: false
+
+broad_clean_commit_artifacts:
+  source:
+    commit: "6462c4c2b51e66d6c51728ee6c9decb31e2ef651"
+    tree: "354d4369a33cffeb737292128fc3375a94c19f15"
+    git_archive_sha256: >-
+      1e72ea1b3331bb43c5f86aeeaae9a33e77819cbb115622151ea03d208ea2515a
+    pyproject_blob_oid: "d2cc0242eb8711e507144310d5bf022dfa007262"
+    pyproject_sha256: >-
+      8dcf796aee1c1d8c30d1eff0704421b4606c3c2f59429a5f97a860e49eaf6fc1
+  build_command: >-
+    python -m build --wheel --sdist --no-isolation --outdir OUTPUT ARCHIVED_SOURCE
+  normalized_member_encoding: "sorted UTF-8 paths, one per line, terminal LF"
+  wheel:
+    artifact_name: "artemis_city-1.0.0-py3-none-any.whl"
+    build_return_code: 0
+    archive_sha256: >-
+      6f5f46fc626705080bc476ff7ae41dc1225d52f1307501d8498e81da5f8661f7
+    member_count: 425
+    normalized_member_line_sha256: >-
+      4f18f09033082149f8955aa257a1beea15e4dff2643fe4575a3173a87268c0ef
+    protected_intersections:
+      held:
+        count: 102
+        line_sha256: >-
+          0cef4ad99504c8af45cc872678ade25b6a2b3d911bf95d05651407994a552474
+      retained_root:
+        count: 0
+        line_sha256: >-
+          e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      quarantine:
+        count: 37
+        line_sha256: >-
+          9741fc471249a157df929f273c455a7d602915dd31387acc2127f612322157fb
+  sdist:
+    artifact_name: "artemis_city-1.0.0.tar.gz"
+    build_return_code: 0
+    archive_sha256: >-
+      0f0c112fa9662436ea7a8889fb7b5e7a2f0afd6f6feca7807a843de4d92c6133
+    member_count: 793
+    normalized_member_line_sha256: >-
+      8a1d1ecf3f0d13657a41f76b1ce30c6e794236662683eee0e199260302244bb5
+    protected_intersections:
+      held:
+        count: 217
+        line_sha256: >-
+          2f07edf48b8a82bd10a35826c3df009d4d60a3f54593db4a424d309d644b1f3b
+      retained_root:
+        count: 64
+        line_sha256: >-
+          426986bc9b60dbd4266f1d09cf76ee8656ad0b6dc598d2a812ffb5515ef80f60
+      quarantine:
+        count: 45
+        line_sha256: >-
+          b45297b6c2de2bf734e7cb4faee9196ab3dd0e62f5a12048502e3b26af243873
+
+candidates:
+  wheel:
+    path: "docs/audits/2026-08-16-python-wheel-candidate.v1.txt"
+    role: "evidence_only"
+    approved: false
+    count: 106
+    sorted_path_encoding: "sorted UTF-8 paths, one per line, terminal LF"
+    sorted_path_sha256: >-
+      d500a3eee4f1d9902c08c31aa347f953ddfedcaebaf48a8a7f70e65bb43948bb
+    content_digest_encoding: "path + NUL + blob bytes + NUL in candidate order"
+    path_nul_blob_nul_sha256: >-
+      3044ce0c6ee21017f6f33b183eed2ed4d3e0e66001ff0fa785aad5a0a2da5d68
+    oid_manifest_encoding: "path + TAB + Git blob OID + LF in candidate order"
+    path_tab_blob_oid_manifest_sha256: >-
+      a04e80d3286d1e91d7784b1788fb8c2b460c84ce693956dfee544066508dfdd5
+    protected_intersections:
+      held:
+        count: 0
+        line_sha256: >-
+          e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        paths: []
+      retained_root:
+        count: 0
+        line_sha256: >-
+          e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        paths: []
+      quarantine:
+        count: 1
+        line_sha256: >-
+          936bea53d1e9b571a6ba963af54e1f8aaf0ca01dc75d209aea443d3210b0470a
+        paths:
+          - "src/Kernel/__init__.py"
+    experimental_artifact:
+      status: "not_attempted"
+      reason_code: "active_hold_configuration_unchanged"
+      normalized_member_count: null
+      normalized_member_line_sha256: null
+  sdist:
+    path: "docs/audits/2026-08-16-python-sdist-candidate.v1.txt"
+    role: "evidence_only"
+    approved: false
+    count: 106
+    sorted_path_encoding: "sorted UTF-8 paths, one per line, terminal LF"
+    sorted_path_sha256: >-
+      d500a3eee4f1d9902c08c31aa347f953ddfedcaebaf48a8a7f70e65bb43948bb
+    content_digest_encoding: "path + NUL + blob bytes + NUL in candidate order"
+    path_nul_blob_nul_sha256: >-
+      3044ce0c6ee21017f6f33b183eed2ed4d3e0e66001ff0fa785aad5a0a2da5d68
+    oid_manifest_encoding: "path + TAB + Git blob OID + LF in candidate order"
+    path_tab_blob_oid_manifest_sha256: >-
+      a04e80d3286d1e91d7784b1788fb8c2b460c84ce693956dfee544066508dfdd5
+    protected_intersections:
+      held:
+        count: 0
+        line_sha256: >-
+          e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        paths: []
+      retained_root:
+        count: 0
+        line_sha256: >-
+          e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        paths: []
+      quarantine:
+        count: 1
+        line_sha256: >-
+          936bea53d1e9b571a6ba963af54e1f8aaf0ca01dc75d209aea443d3210b0470a
+        paths:
+          - "src/Kernel/__init__.py"
+    experimental_artifact:
+      status: "not_attempted"
+      reason_code: "active_hold_configuration_unchanged"
+      normalized_member_count: null
+      normalized_member_line_sha256: null
+
+blockers:
+  recognized_reason_codes:
+    - "auth_receipt_schema_unpublishable"
+    - "authstructure_conformance_missing"
+    - "compatibility_facade_release_authority_undecided"
+    - "console_entry_point_undecided"
+    - "credential_value_filter_incomplete"
+    - "fresh_user_release_authorization_pending"
+    - "full_tests_pending"
+    - "installed_wheel_imports_unverified"
+    - "instruction_loader_import_broken"
+    - "merge_pending"
+    - "minimal_dependencies_unlocked"
+    - "receipt_projection_mutable"
+    - "reproducible_artifacts_unverified"
+    - "review_completion_pending"
+    - "routing_envelope_schema_unpublishable"
+    - "runtime_paths_not_operator_writable"
+    - "tracked_release_allowlists_absent"
+  active:
+    - reason_code: "auth_receipt_schema_unpublishable"
+      status: "open"
+      evidence:
+        probe: "AuthReceiptV1.model_json_schema()"
+        return_code: 1
+        error_type: "PydanticInvalidForJsonSchema"
+        unsupported_type: "src.auth.contracts.FrozenJsonDict"
+    - reason_code: "authstructure_conformance_missing"
+      status: "open"
+      evidence:
+        verifier_port: "src/auth/verifier.py"
+        external_conformance_result: "not established"
+    - reason_code: "compatibility_facade_release_authority_undecided"
+      status: "open"
+      evidence:
+        path: "src/Kernel/__init__.py"
+        candidate_quarantine_intersection: true
+    - reason_code: "console_entry_point_undecided"
+      status: "open"
+      evidence:
+        pyproject_project_scripts_present: false
+    - reason_code: "credential_value_filter_incomplete"
+      status: "open"
+      evidence:
+        synthetic_bearer_under_noncredential_key_accepted: true
+    - reason_code: "fresh_user_release_authorization_pending"
+      status: "open"
+      evidence:
+        authorization_records: []
+    - reason_code: "full_tests_pending"
+      status: "open"
+      evidence:
+        full_suite_result: "not claimed"
+    - reason_code: "installed_wheel_imports_unverified"
+      status: "open"
+      evidence:
+        installed_candidate_wheel_result: "not attempted while hold is active"
+    - reason_code: "instruction_loader_import_broken"
+      status: "open"
+      evidence:
+        probe: "import src.core.instructions.instruction_loader"
+        return_code: 1
+        error_type: "IndentationError"
+        source_line: "src/core/instructions/instruction_loader.py:48"
+    - reason_code: "merge_pending"
+      status: "open"
+      evidence:
+        merge_signoffs: []
+    - reason_code: "minimal_dependencies_unlocked"
+      status: "open"
+      evidence:
+        declared_runtime_dependency_count: 36
+        reviewed_minimal_dependency_lock: false
+    - reason_code: "receipt_projection_mutable"
+      status: "open"
+      evidence:
+        frozen_json_dict_values_reassignment_succeeded: true
+    - reason_code: "reproducible_artifacts_unverified"
+      status: "open"
+      evidence:
+        exact_candidate_rebuilds_compared: false
+    - reason_code: "review_completion_pending"
+      status: "open"
+      evidence:
+        human_review_signoffs: []
+    - reason_code: "routing_envelope_schema_unpublishable"
+      status: "open"
+      evidence:
+        probe: "TaskEnvelopeV1.model_json_schema()"
+        return_code: 1
+        error_type: "PydanticInvalidForJsonSchema"
+        unsupported_type: "src.auth.contracts.FrozenJsonDict"
+    - reason_code: "runtime_paths_not_operator_writable"
+      status: "open"
+      evidence:
+        default_root_expression: "Path(__file__).resolve().parents[1]"
+        installed_site_packages_write_risk: true
+    - reason_code: "tracked_release_allowlists_absent"
+      status: "open"
+      evidence:
+        wheel_allowlist_present: false
+        sdist_allowlist_present: false
+
+permissions:
+  authorizes_allowlist_creation: false
+  authorizes_build: false
+  authorizes_configuration_change: false
+  authorizes_content_rewrite: false
+  authorizes_deletion: false
+  authorizes_move: false
+  authorizes_publish: false
+  authorizes_release: false
+  authorizes_rename: false
+  authorizes_restore: false
+  candidate_grants_release_authority: false
+
+lift_conditions:
+  - key: "auth_schemas_publishable"
+    satisfied: false
+  - key: "authstructure_conformance_green"
+    satisfied: false
+  - key: "compatibility_facade_decided"
+    satisfied: false
+  - key: "console_entry_point_decided"
+    satisfied: false
+  - key: "fresh_user_release_authorization"
+    satisfied: false
+  - key: "full_tests_green"
+    satisfied: false
+  - key: "installed_wheel_imports_green"
+    satisfied: false
+  - key: "merge_complete"
+    satisfied: false
+  - key: "minimal_dependencies_locked"
+    satisfied: false
+  - key: "receipt_projection_immutable"
+    satisfied: false
+  - key: "receipt_values_safe"
+    satisfied: false
+  - key: "release_review_complete"
+    satisfied: false
+  - key: "reproducible_artifacts_green"
+    satisfied: false
+  - key: "runtime_paths_operator_writable"
+    satisfied: false
+  - key: "tracked_allowlists_reviewed"
+    satisfied: false
+
+signoffs:
+  human_review: []
+  merge: []
+  user_release_authorization: []
