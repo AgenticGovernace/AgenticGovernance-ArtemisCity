@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Protocol, overload
 
 from src.auth.contracts import AuthorityContextV1
@@ -105,6 +105,12 @@ class ArtemisAuthorizer:
         elif intent is None or requested is None:
             raise TypeError("split authorization requires intent and constraints")
 
+        if delegation_context is None and authority.delegation is not None:
+            raise AuthorizationDenied(
+                "delegation_context_required",
+                "delegated authorization requires a verified route request",
+            )
+
         grant = self._validated_grant(authority, intent, delegation_context)
 
         effective = authority.requester.principal.capability.granted_scopes
@@ -199,7 +205,17 @@ class ArtemisAuthorizer:
                 "delegation_grant_hash_mismatch",
                 "delegation reference does not match the persisted grant",
             )
-        if self._clock() >= grant.expires_at:
+        try:
+            now = self._clock()
+            if now.tzinfo is None or now.utcoffset() is None:
+                raise ValueError("clock must return a timezone-aware datetime")
+            current_utc = now.astimezone(UTC)
+        except Exception as error:
+            raise AuthorizationDenied(
+                "delegation_clock_unavailable",
+                "delegation expiry clock is unavailable or invalid",
+            ) from error
+        if current_utc >= grant.expires_at.astimezone(UTC):
             raise AuthorizationDenied(
                 "delegation_grant_expired", "delegation grant has expired"
             )

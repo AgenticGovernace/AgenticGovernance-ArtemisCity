@@ -17,7 +17,11 @@ from src.routing.eligibility import (
 from .test_routing_authorization import _authority, _intent
 
 
-def _authorized(*, pinned: str | None = None) -> AuthorizationDecision:
+def _authorized(
+    *,
+    pinned: str | None = None,
+    capabilities: frozenset[str] = frozenset({"llm_chat"}),
+) -> AuthorizationDecision:
     return AuthorizationDecision(
         authority=_authority(
             requester_scopes={"llm_chat"},
@@ -25,7 +29,7 @@ def _authorized(*, pinned: str | None = None) -> AuthorizationDecision:
         ),
         intent=_intent(),
         requested=RequestedConstraintsV1(agent=pinned),
-        capabilities=frozenset({"llm_chat"}),
+        capabilities=capabilities,
         delegation_grant=None,
     )
 
@@ -46,11 +50,11 @@ def _record(name: str = "eligible-agent", **changes: object) -> AgentEligibility
 
 
 class _Registry:
-    def __init__(self, records: tuple[AgentEligibilityRecord, ...], *, broken=False):
+    def __init__(self, records: tuple[object, ...], *, broken=False):
         self.records = records
         self.broken = broken
 
-    def list_admission_records(self) -> tuple[AgentEligibilityRecord, ...]:
+    def list_admission_records(self) -> tuple[object, ...]:
         if self.broken:
             raise RuntimeError("registry unavailable")
         return self.records
@@ -71,17 +75,19 @@ class _Sandbox:
     def __init__(self, denied: set[str] | None = None, *, broken=False):
         self.denied = denied or set()
         self.broken = broken
+        self.calls: list[tuple[str, frozenset[str], str]] = []
 
     def allows(
         self, agent_id: str, capabilities: frozenset[str], tenant_id: str
     ) -> bool:
         if self.broken:
             raise RuntimeError("sandbox unavailable")
+        self.calls.append((agent_id, capabilities, tenant_id))
         return agent_id not in self.denied
 
 
 def _filter(
-    records: tuple[AgentEligibilityRecord, ...],
+    records: tuple[object, ...],
     *,
     trust: _Trust | None = None,
     sandbox: _Sandbox | None = None,
@@ -154,4 +160,70 @@ def test_eligibility_rejects_non_finite_scores() -> None:
     with pytest.raises(EligibilityDenied) as denied:
         _filter((_record(composite_score=float("nan")),)).candidates(_authorized())
 
-    assert denied.value.code == "no_eligible_agent"
+    assert denied.value.code == "eligibility_lookup_failed"
+
+
+def test_pin_id_name_collision_denies_instead_of_retaining_two_records() -> None:
+    """One pin string cannot resolve as an ID and another record's name."""
+    records = (
+        _record("first", agent_id="pin:shared"),
+        _record("pin:shared", agent_id="agent:second"),
+    )
+
+    with pytest.raises(EligibilityDenied) as denied:
+        _filter(records).candidates(_authorized(pinned="pin:shared"))
+
+    assert denied.value.code == "pinned_agent_ambiguous"
+
+
+@pytest.mark.parametrize("duplicate_field", ["agent_id", "name"])
+def test_snapshot_duplicate_identity_denies_before_pin_resolution(
+    duplicate_field: str,
+) -> None:
+    """Duplicate canonical identity is a registry failure, even with a pin."""
+    first = _record("first")
+    second = replace(
+        _record("second"),
+        **{duplicate_field: getattr(first, duplicate_field)},
+    )
+
+    with pytest.raises(EligibilityDenied) as denied:
+        _filter((first, second)).candidates(_authorized(pinned="first"))
+
+    assert denied.value.code == "eligibility_lookup_failed"
+
+
+@pytest.mark.parametrize(
+    "malformed",
+    [
+        object(),
+        _record(capabilities={"llm_chat"}),
+        _record(name=""),
+        _record(composite_score=float("nan")),
+    ],
+)
+def test_snapshot_malformed_elements_return_lookup_failed(malformed: object) -> None:
+    """Malformed registry projections cannot escape or become first-wins data."""
+    with pytest.raises(EligibilityDenied) as denied:
+        _filter((malformed,)).candidates(_authorized())
+
+    assert denied.value.code == "eligibility_lookup_failed"
+
+
+def test_candidate_and_sandbox_capabilities_are_narrowed_by_record_scope() -> None:
+    """A broad declaration cannot carry capabilities outside registry scope."""
+    sandbox = _Sandbox()
+    candidates = _filter(
+        (
+            _record(
+                capabilities=frozenset({"llm_chat", "reasoning"}),
+                scopes=frozenset({"reasoning"}),
+            ),
+        ),
+        sandbox=sandbox,
+    ).candidates(_authorized(capabilities=frozenset({"llm_chat", "reasoning"})))
+
+    assert candidates[0].capabilities == frozenset({"reasoning"})
+    assert sandbox.calls == [
+        ("agent:eligible-agent", frozenset({"reasoning"}), "tenant:city")
+    ]

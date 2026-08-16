@@ -41,6 +41,7 @@ never breaks routing — it simply falls back to whatever signals remain.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from math import isfinite
 from typing import Any, Dict, List, Optional
 
 from src.routing.authorization import AuthorizationDecision
@@ -139,9 +140,17 @@ class HebbianRanker:
         beta: float = DEFAULT_BETA,
     ) -> None:
         self.hebbian = hebbian
-        self.alpha = max(0.0, min(1.0, float(alpha)))
-        self.beta = max(0.0, min(1.0 - self.alpha, float(beta)))
-        self.neutral_prior = neutral_prior
+        parsed_alpha = float(alpha)
+        parsed_beta = float(beta)
+        parsed_neutral_prior = float(neutral_prior)
+        if not all(
+            isfinite(value)
+            for value in (parsed_alpha, parsed_beta, parsed_neutral_prior)
+        ):
+            raise ValueError("ranker configuration must contain only finite values")
+        self.alpha = max(0.0, min(1.0, parsed_alpha))
+        self.beta = max(0.0, min(1.0 - self.alpha, parsed_beta))
+        self.neutral_prior = parsed_neutral_prior
 
     def rank(
         self,
@@ -251,11 +260,13 @@ class HebbianRanker:
             if callable(get_scoped):
                 scoped_weight = get_scoped(name, task_type)
                 if scoped_weight is not None:
-                    return max(0.0, float(scoped_weight))
+                    parsed = float(scoped_weight)
+                    return max(0.0, parsed) if isfinite(parsed) else None
                 has_scoped = getattr(self.hebbian, "has_task_type_history", None)
                 if callable(has_scoped) and has_scoped(name):
                     return None
-            return max(0.0, float(self.hebbian.get_agent_average_weight(name)))
+            parsed = float(self.hebbian.get_agent_average_weight(name))
+            return max(0.0, parsed) if isfinite(parsed) else None
         except Exception:  # noqa: BLE001 - optional learned evidence is fail-neutral
             return 0.0
 
@@ -264,7 +275,8 @@ class HebbianRanker:
             getter = getattr(self.hebbian, "get_pair_bonus", None)
             if not callable(getter):
                 return 0.0
-            return max(-0.5, min(0.5, float(getter(name))))
+            parsed = float(getter(name))
+            return max(-0.5, min(0.5, parsed)) if isfinite(parsed) else 0.0
         except Exception:  # noqa: BLE001 - optional learned evidence is fail-neutral
             return 0.0
 
@@ -276,7 +288,8 @@ class HebbianRanker:
             score = getter(name, task_type)
             if score is None:
                 return None
-            return max(0.0, min(1.0, float(score)))
+            parsed = float(score)
+            return max(0.0, min(1.0, parsed)) if isfinite(parsed) else None
         except Exception:  # noqa: BLE001 - optional learned evidence is fail-neutral
             return None
 
@@ -291,10 +304,11 @@ class HebbianRanker:
             if not callable(getter):
                 return neutral
             signal = getter(name, task_type) or {}
+            oscillation_rate = float(signal.get("oscillation_rate", 0.0))
+            if not isfinite(oscillation_rate):
+                return neutral
             return {
-                "oscillation_rate": max(
-                    0.0, min(1.0, float(signal.get("oscillation_rate", 0.0)))
-                ),
+                "oscillation_rate": max(0.0, min(1.0, oscillation_rate)),
                 "alert_active": bool(signal.get("alert_active", False)),
                 "sample_count": max(0, int(signal.get("sample_count", 0))),
             }

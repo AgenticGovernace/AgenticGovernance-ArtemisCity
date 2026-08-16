@@ -6,6 +6,8 @@ Uses lightweight fakes for the registry and Hebbian manager so the routing
 math is tested in isolation (no SQLite, no agents, no orchestrator).
 """
 
+from math import isfinite
+
 import pytest
 
 from src.integration.hebbian_router import HebbianRanker, HebbianRouter, RoutingDecision
@@ -549,3 +551,77 @@ def test_hebbian_ranker_has_no_fallback_or_discovery_path():
 
     with pytest.raises(ValueError, match="No eligible candidates"):
         ranker.rank(_authorized(), ())
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("field", ["alpha", "beta", "neutral_prior"])
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_hebbian_ranker_rejects_non_finite_configuration(
+    field: str, value: float
+) -> None:
+    """Non-finite blend configuration cannot enter production ranking."""
+    with pytest.raises(ValueError, match="finite"):
+        HebbianRanker(FakeHebbian(), **{field: value})
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("bad_value", [float("nan"), float("inf"), float("-inf")])
+def test_hebbian_ranker_neutralizes_non_finite_evidence_deterministically(
+    bad_value: float,
+) -> None:
+    """Non-finite optional evidence is neutral under either candidate order."""
+
+    class NonFiniteHebbian(FakeHebbian):
+        def get_task_type_weight(self, name, task_type):
+            return bad_value
+
+        def has_task_type_history(self, name):
+            return True
+
+        def get_pair_bonus(self, name):
+            return bad_value
+
+        def get_timing_score(self, name, task_type):
+            return bad_value
+
+        def get_stability_signal(self, name, task_type):
+            return {
+                "oscillation_rate": bad_value,
+                "alert_active": True,
+                "sample_count": 1,
+            }
+
+    def candidates(order):
+        return tuple(
+            EligibleCandidate(
+                agent_id=f"agent:{name}",
+                name=name,
+                capabilities=frozenset({"llm_chat"}),
+                composite_score=0.5,
+                trust_score=0.8,
+            )
+            for name in order
+        )
+
+    ranker = HebbianRanker(NonFiniteHebbian(), alpha=0.5, beta=0.25)
+    forward = ranker.rank(_authorized(), candidates(("z-agent", "a-agent")))
+    reverse = ranker.rank(_authorized(), candidates(("a-agent", "z-agent")))
+
+    assert forward.agent_name == reverse.agent_name == "a-agent"
+    for decision in (forward, reverse):
+        for score in decision.candidates:
+            assert all(
+                isfinite(value)
+                for value in (
+                    score.hebbian_weight,
+                    score.hebbian_norm,
+                    score.pair_bonus,
+                    score.hebbian_effective,
+                    score.oscillation_rate,
+                    score.blended,
+                )
+            )
+            assert score.hebbian_weight == 0.0
+            assert score.pair_bonus == 0.0
+            assert score.timing_score is None
+            assert score.oscillation_rate == 0.0

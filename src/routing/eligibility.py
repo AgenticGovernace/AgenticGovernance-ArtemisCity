@@ -103,28 +103,36 @@ class EligibilityFilter:
                 "eligibility_lookup_failed",
                 "agent registry did not return an immutable snapshot",
             )
+        records = self._validate_snapshot(records)
 
         pinned = authorized.requested.agent
         if pinned is not None:
-            records = tuple(
+            matches = tuple(
                 record
                 for record in records
                 if record.name == pinned or record.agent_id == pinned
             )
+            if len(matches) > 1:
+                raise EligibilityDenied(
+                    "pinned_agent_ambiguous",
+                    "the pinned identifier resolves to multiple registry records",
+                )
+            if not matches:
+                raise EligibilityDenied(
+                    "pinned_agent_ineligible",
+                    "the pinned agent is absent from the registry snapshot",
+                )
+            records = matches
 
         requester_tenant = authorized.authority.requester.principal.identity.tenant_id
         eligible: list[EligibleCandidate] = []
-        seen: set[str] = set()
         for record in sorted(records, key=lambda candidate: candidate.name):
-            if record.agent_id in seen:
-                continue
-            seen.add(record.agent_id)
-            capabilities = record.capabilities.intersection(authorized.capabilities)
+            capabilities = record.capabilities.intersection(record.scopes).intersection(
+                authorized.capabilities
+            )
             if not capabilities:
                 continue
             if requester_tenant not in record.tenant_ids:
-                continue
-            if not capabilities.intersection(record.scopes):
                 continue
             if record.status != "active":
                 continue
@@ -170,3 +178,53 @@ class EligibilityFilter:
                 "no_eligible_agent", "no agent passed every eligibility gate"
             )
         return tuple(eligible)
+
+    @staticmethod
+    def _validate_snapshot(
+        records: tuple[object, ...],
+    ) -> tuple[AgentEligibilityRecord, ...]:
+        validated: list[AgentEligibilityRecord] = []
+        agent_ids: set[str] = set()
+        names: set[str] = set()
+        for record in records:
+            if not isinstance(record, AgentEligibilityRecord):
+                raise EligibilityDenied(
+                    "eligibility_lookup_failed",
+                    "agent registry returned a malformed admission record",
+                )
+            string_fields = (record.agent_id, record.name, record.status)
+            set_fields = (
+                record.capabilities,
+                record.tenant_ids,
+                record.scopes,
+            )
+            valid_strings = all(
+                type(value) is str and bool(value.strip()) for value in string_fields
+            )
+            valid_sets = all(
+                type(values) is frozenset
+                and all(type(value) is str and bool(value.strip()) for value in values)
+                for values in set_fields
+            )
+            valid_bools = (
+                type(record.quarantined) is bool and type(record.suspended) is bool
+            )
+            valid_score = (
+                type(record.composite_score) is float
+                and isfinite(record.composite_score)
+                and 0.0 <= record.composite_score <= 1.0
+            )
+            if not (valid_strings and valid_sets and valid_bools and valid_score):
+                raise EligibilityDenied(
+                    "eligibility_lookup_failed",
+                    "agent registry returned a malformed admission record",
+                )
+            if record.agent_id in agent_ids or record.name in names:
+                raise EligibilityDenied(
+                    "eligibility_lookup_failed",
+                    "agent registry returned duplicate canonical identity",
+                )
+            agent_ids.add(record.agent_id)
+            names.add(record.name)
+            validated.append(record)
+        return tuple(validated)

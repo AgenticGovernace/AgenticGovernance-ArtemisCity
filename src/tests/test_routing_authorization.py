@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -178,13 +179,19 @@ def _child_route_request(
     *,
     authority_has_grant: bool = True,
     root_task_id: str = "task:root-1",
+    parent_task_id: str = "task:parent-1",
+    parent_outcome_id: str = "outcome:parent-1",
+    depth: int = 1,
+    reference_hash: str | None = None,
+    capability: str = "llm_chat",
 ) -> AuthorizedRouteRequestV1:
     authority = _authority(
         requester_scopes={"llm_chat", "reasoning"},
         actor_scopes={"llm_chat"},
         grant=grant if authority_has_grant else None,
+        reference_hash=reference_hash,
     )
-    intent = _intent()
+    intent = _intent(capability)
     requested = RequestedConstraintsV1()
     envelope = TaskEnvelopeV1(
         task_id="task:child-1",
@@ -203,11 +210,11 @@ def _child_route_request(
         requested_constraints=requested,
         delegation=DelegationContextV1(
             grant_id=grant.grant_id,
-            grant_hash=grant.grant_hash,
+            grant_hash=reference_hash or grant.grant_hash,
             root_task_id=root_task_id,
-            parent_task_id="task:parent-1",
-            parent_outcome_id="outcome:parent-1",
-            depth=1,
+            parent_task_id=parent_task_id,
+            parent_outcome_id=parent_outcome_id,
+            depth=depth,
         ),
         continuation=ContinuationV1(
             sequence=1,
@@ -279,12 +286,13 @@ def _authorizer(
     budget: _BudgetPolicy | None = None,
     policy: _CapabilityPolicy | None = None,
     broken_lookup: bool = False,
+    clock: Callable[[], datetime] | None = None,
 ) -> ArtemisAuthorizer:
     return ArtemisAuthorizer(
         grant_lookup=_GrantLookup(grant, broken=broken_lookup),
         budget_policy=budget or _BudgetPolicy(),
         capability_policy=policy or _CapabilityPolicy(),
-        clock=lambda: NOW,
+        clock=clock or (lambda: NOW),
     )
 
 
@@ -297,15 +305,7 @@ def test_authorizer_intersects_every_authority_and_policy_layer() -> None:
             target={"llm_chat", "reasoning"},
             current={"llm_chat", "text_generation"},
         ),
-    ).authorize(
-        authority=_authority(
-            requester_scopes={"llm_chat", "reasoning"},
-            actor_scopes={"llm_chat"},
-            grant=grant,
-        ),
-        intent=_intent(),
-        requested=RequestedConstraintsV1(),
-    )
+    ).authorize(_child_route_request(grant))
 
     assert authorized.capabilities == frozenset({"llm_chat"})
     assert authorized.delegation_grant == grant
@@ -329,23 +329,18 @@ def test_authorizer_returns_stable_delegation_denials(
         scopes={"llm_chat"},
         expires_at=NOW if case == "expired" else None,
     )
-    authority = _authority(
-        requester_scopes={"llm_chat", "reasoning"},
-        actor_scopes={"llm_chat"},
-        grant=grant,
+    request = _child_route_request(
+        grant,
         reference_hash="f" * 64 if case == "hash" else None,
+        capability="reasoning" if case == "non_narrowing" else "llm_chat",
     )
-    if case == "non_narrowing":
-        intent = _intent("reasoning")
-    else:
-        intent = _intent()
     authorizer = _authorizer(
         None if case == "missing" else grant,
         budget=_BudgetPolicy(active=case != "budget"),
     )
 
     with pytest.raises(AuthorizationDenied) as denied:
-        authorizer.authorize(authority, intent, RequestedConstraintsV1())
+        authorizer.authorize(request)
 
     assert denied.value.code == expected_code
 
@@ -362,15 +357,7 @@ def test_authorizer_fails_closed_when_an_admission_port_raises(failure: str) -> 
     )
 
     with pytest.raises(AuthorizationDenied) as denied:
-        authorizer.authorize(
-            _authority(
-                requester_scopes={"llm_chat", "reasoning"},
-                actor_scopes={"llm_chat"},
-                grant=grant,
-            ),
-            _intent(),
-            RequestedConstraintsV1(),
-        )
+        authorizer.authorize(_child_route_request(grant))
 
     assert denied.value.code in {
         "delegation_grant_missing",
@@ -424,3 +411,61 @@ def test_child_route_request_must_remain_inside_persisted_grant_links() -> None:
         )
 
     assert denied.value.code == "delegation_grant_non_narrowing"
+
+
+def test_split_delegated_authority_requires_verified_delegation_context() -> None:
+    """Split-form authorization cannot skip child graph linkage checks."""
+    grant = _grant(scopes={"llm_chat"})
+
+    with pytest.raises(AuthorizationDenied) as denied:
+        _authorizer(grant).authorize(
+            _authority(
+                requester_scopes={"llm_chat", "reasoning"},
+                actor_scopes={"llm_chat"},
+                grant=grant,
+            ),
+            _intent(),
+            RequestedConstraintsV1(),
+        )
+
+    assert denied.value.code == "delegation_context_required"
+
+
+@pytest.mark.parametrize(
+    "context_changes",
+    [
+        {"root_task_id": "task:other-root"},
+        {"parent_task_id": "task:other-parent"},
+        {"parent_outcome_id": "outcome:other-parent"},
+        {"depth": 2},
+    ],
+)
+def test_child_route_request_rejects_each_grant_link_mismatch(
+    context_changes: dict[str, object],
+) -> None:
+    """Every persisted child-link field independently bounds delegation."""
+    grant = _grant(scopes={"llm_chat"})
+
+    with pytest.raises(AuthorizationDenied) as denied:
+        _authorizer(grant).authorize(_child_route_request(grant, **context_changes))
+
+    assert denied.value.code == "delegation_grant_non_narrowing"
+
+
+@pytest.mark.parametrize(
+    "clock",
+    [
+        lambda: NOW.replace(tzinfo=None),
+        lambda: (_ for _ in ()).throw(RuntimeError("clock unavailable")),
+    ],
+)
+def test_delegation_clock_failures_return_a_stable_denial(
+    clock: Callable[[], datetime],
+) -> None:
+    """Invalid or unavailable time evidence must not escape as raw errors."""
+    grant = _grant(scopes={"llm_chat"})
+
+    with pytest.raises(AuthorizationDenied) as denied:
+        _authorizer(grant, clock=clock).authorize(_child_route_request(grant))
+
+    assert denied.value.code == "delegation_clock_unavailable"
