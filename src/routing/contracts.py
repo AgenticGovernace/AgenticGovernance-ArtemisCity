@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -41,7 +42,34 @@ KernelEventType = Literal[
 ]
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_BEARER_CREDENTIAL_RE = re.compile(
+    r"\bBearer[ \t]+[A-Za-z0-9._~+/=-]{16,}\b", re.IGNORECASE
+)
+_PRIVATE_KEY_RE = re.compile(
+    r"-----BEGIN(?: [A-Z0-9]+)* PRIVATE KEY-----", re.IGNORECASE
+)
 _CONTROL_RESULT_KINDS = frozenset({"planning", "checkpoint", "graph_control"})
+_FORBIDDEN_CREDENTIAL_FIELDS = frozenset(
+    {
+        "access_token",
+        "api_key",
+        "authorization_code",
+        "bearer_token",
+        "certificate",
+        "certificate_pem",
+        "client_secret",
+        "password",
+        "private_key",
+        "provider_secret",
+        "refresh_token",
+        "secret",
+        "token",
+    }
+)
+_NORMALIZED_FORBIDDEN_CREDENTIAL_FIELDS = frozenset(
+    "".join(character for character in field if character.isalnum())
+    for field in _FORBIDDEN_CREDENTIAL_FIELDS
+)
 
 
 def _require_aware_timestamp(value: datetime) -> datetime:
@@ -56,10 +84,48 @@ def _require_sha256(value: str) -> str:
     return value
 
 
+def _credential_violation(value: object) -> str | None:
+    """Return a safe description of recursively detected credential material."""
+
+    if isinstance(value, Mapping):
+        for key, nested_value in value.items():
+            normalized_key = "".join(
+                character for character in str(key).lower() if character.isalnum()
+            )
+            if normalized_key in _NORMALIZED_FORBIDDEN_CREDENTIAL_FIELDS:
+                return str(key)
+            nested_violation = _credential_violation(nested_value)
+            if nested_violation is not None:
+                return nested_violation
+    elif isinstance(value, (list, tuple, set, frozenset)):
+        for nested_value in value:
+            nested_violation = _credential_violation(nested_value)
+            if nested_violation is not None:
+                return nested_violation
+    elif isinstance(value, BaseModel):
+        return _credential_violation(value.model_dump())
+    elif isinstance(value, str):
+        if _BEARER_CREDENTIAL_RE.search(value):
+            return "raw Bearer credential"
+        if _PRIVATE_KEY_RE.search(value):
+            return "private key material"
+    return None
+
+
 class RoutingModel(BaseModel):
     """Shared strict, immutable base for routing-contract records."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, str_strip_whitespace=True)
+    model_config = ConfigDict(
+        extra="forbid", frozen=True, strict=True, str_strip_whitespace=True
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_credential_material(cls, value: Any) -> Any:
+        violation = _credential_violation(value)
+        if violation is not None:
+            raise ValueError(f"credential material is forbidden: {violation}")
+        return value
 
 
 class TaskIntentV1(RoutingModel):
@@ -162,6 +228,14 @@ class TaskSubmissionV1(RoutingModel):
     _valid_input_sha256 = field_validator("input_sha256")(_require_sha256)
     _aware_created_at = field_validator("created_at")(_require_aware_timestamp)
 
+    @model_validator(mode="after")
+    def require_caller_atp_source(self) -> TaskSubmissionV1:
+        if self.intent.source != "caller-atp":
+            raise ValueError(
+                "caller submissions cannot use typed-adapter intent source"
+            )
+        return self
+
 
 class TaskEnvelopeV1(RoutingModel):
     """Trusted in-process task envelope accepted by the Routing Kernel."""
@@ -219,6 +293,18 @@ class AuthorizedRouteRequestV1(RoutingModel):
     def require_envelope_authority(self) -> AuthorizedRouteRequestV1:
         if self.authority != self.envelope.authority:
             raise ValueError("authority must match the trusted envelope authority")
+        intent_fields = ("mode", "action_type", "context", "target_zone", "source")
+        if any(
+            getattr(self.resolved_intent, field) != getattr(self.envelope.intent, field)
+            for field in intent_fields
+        ):
+            raise ValueError("resolved intent must match the envelope intent")
+        requested_capability = self.envelope.requested_constraints.capability
+        if (
+            requested_capability is not None
+            and requested_capability != self.resolved_intent.capability
+        ):
+            raise ValueError("requested capability must match the resolved capability")
         return self
 
 
@@ -247,6 +333,7 @@ class OutcomeV1(RoutingModel):
     generation: int = Field(ge=0)
     continuation_sequence: int = Field(ge=0)
     child_result_set_sha256: str | None = None
+    prior_outcome_id: str | None = Field(default=None, min_length=1)
     status: OutcomeStatus
     classification: OutcomeClassification
     result_kind: Literal["terminal", "planning", "checkpoint", "graph_control"] = (
@@ -256,7 +343,7 @@ class OutcomeV1(RoutingModel):
     content_sha256: str
     artifact_sha256: str | None = None
     agent_id: str | None = Field(default=None, min_length=1)
-    routing_decision: RoutingDecisionV1 | None = None
+    routing_decision: RoutingDecisionV1
     requester_principal_ref: str = Field(min_length=1)
     requester_auth_receipt_id: str = Field(min_length=1)
     requester_auth_receipt_hash: str
@@ -297,6 +384,18 @@ class OutcomeV1(RoutingModel):
         if (self.delegation_grant_id is None) != (self.delegation_grant_hash is None):
             raise ValueError(
                 "delegation_grant_id and delegation_grant_hash must be provided together"
+            )
+        if self.continuation_sequence == 0:
+            if (
+                self.child_result_set_sha256 is not None
+                or self.prior_outcome_id is not None
+            ):
+                raise ValueError(
+                    "root continuation outcome must not link prior results"
+                )
+        elif self.child_result_set_sha256 is None or self.prior_outcome_id is None:
+            raise ValueError(
+                "child continuation outcome requires linked child results and prior outcome"
             )
         if self.learning_eligible and (
             self.result_kind in _CONTROL_RESULT_KINDS

@@ -193,6 +193,59 @@ def test_transport_submission_rejects_trusted_authority_construction(
         TaskSubmissionV1(**valid_submission)
 
 
+@pytest.mark.parametrize("field", ["privateKey", "bearerToken"])
+def test_transport_payload_rejects_nested_normalized_credential_aliases(
+    valid_submission: dict[str, object], field: str
+) -> None:
+    """Removing recursive alias checks would let nested payloads carry secrets."""
+    intent = dict(valid_submission["intent"])
+    intent[field] = "credential-material"
+    valid_submission["intent"] = intent
+
+    with pytest.raises(ValidationError, match=f"credential material.*{field}"):
+        TaskSubmissionV1(**valid_submission)
+
+
+def test_task_payload_rejects_raw_bearer_and_private_key_material(
+    valid_envelope: dict[str, object], valid_submission: dict[str, object]
+) -> None:
+    """Removing value checks would let unmistakable credentials enter payload text."""
+    valid_submission["content"] = (
+        "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.payload.signature"
+    )
+    with pytest.raises(ValidationError, match="Bearer"):
+        TaskSubmissionV1(**valid_submission)
+
+    intent = dict(valid_envelope["intent"])
+    intent["context"] = "-----BEGIN PRIVATE KEY-----\nsecret\n-----END PRIVATE KEY-----"
+    valid_envelope["intent"] = intent
+    with pytest.raises(ValidationError, match="private key"):
+        TaskEnvelopeV1(**valid_envelope)
+
+
+def test_transport_submission_rejects_trusted_adapter_intent_source(
+    valid_submission: dict[str, object],
+) -> None:
+    """Removing the ingress source check lets callers claim a trusted adapter."""
+    intent = dict(valid_submission["intent"])
+    intent["source"] = "typed-adapter"
+    valid_submission["intent"] = intent
+
+    with pytest.raises(ValidationError, match="typed-adapter"):
+        TaskSubmissionV1(**valid_submission)
+
+
+def test_trusted_envelope_allows_typed_adapter_intent_source(
+    valid_envelope: dict[str, object],
+) -> None:
+    """Trusted adapters must retain their explicit source after ingress validation."""
+    intent = dict(valid_envelope["intent"])
+    intent["source"] = "typed-adapter"
+    valid_envelope["intent"] = intent
+
+    assert TaskEnvelopeV1(**valid_envelope).intent.source == "typed-adapter"
+
+
 @pytest.mark.parametrize("field", ["input_sha256", "content_sha256"])
 def test_sha256_identity_requires_a_lowercase_64_hex_digest(field: str) -> None:
     """Removing digest validation would admit malformed durable identities."""
@@ -317,6 +370,43 @@ def test_outcome_rejects_unknown_status(valid_outcome: dict[str, object]) -> Non
         OutcomeV1(**valid_outcome)
 
 
+def test_outcome_requires_routing_decision(valid_outcome: dict[str, object]) -> None:
+    """Removing the required decision makes durable outcomes unexplainable."""
+    valid_outcome["routing_decision"] = None
+
+    with pytest.raises(ValidationError, match="routing_decision"):
+        OutcomeV1(**valid_outcome)
+
+
+@pytest.mark.parametrize(
+    "continuation_sequence, child_result_set_sha256, prior_outcome_id",
+    [
+        (0, _SHA256, None),
+        (0, None, "outcome:prior-1"),
+        (1, None, None),
+        (1, _SHA256, None),
+        (1, None, "outcome:prior-1"),
+    ],
+)
+def test_outcome_requires_complete_root_or_child_continuation_identity(
+    valid_outcome: dict[str, object],
+    continuation_sequence: int,
+    child_result_set_sha256: str | None,
+    prior_outcome_id: str | None,
+) -> None:
+    """Removing continuation checks creates outcomes that cannot be replayed."""
+    valid_outcome.update(
+        {
+            "continuation_sequence": continuation_sequence,
+            "child_result_set_sha256": child_result_set_sha256,
+            "prior_outcome_id": prior_outcome_id,
+        }
+    )
+
+    with pytest.raises(ValidationError, match="continuation"):
+        OutcomeV1(**valid_outcome)
+
+
 @pytest.mark.parametrize(
     ("classification", "result_kind"),
     [
@@ -358,6 +448,16 @@ def test_models_are_strict_frozen_and_reject_naive_timestamps(
         submission.task_id = "task:mutated"  # type: ignore[misc]
 
 
+def test_transport_rejects_string_to_integer_coercion(
+    valid_submission: dict[str, object],
+) -> None:
+    """Removing strict mode would turn an untyped generation into an accepted ID."""
+    valid_submission["generation"] = "0"
+
+    with pytest.raises(ValidationError, match="int_type"):
+        TaskSubmissionV1(**valid_submission)
+
+
 def test_authorized_request_and_events_preserve_typed_kernel_boundaries(
     now: datetime,
     valid_envelope: dict[str, object],
@@ -395,3 +495,58 @@ def test_authorized_request_and_events_preserve_typed_kernel_boundaries(
 
     assert request.resolved_intent.capability == "research"
     assert event.outcome_id == "outcome:root-1"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("mode", "review"),
+        ("action_type", "summarize"),
+        ("context", "different context"),
+        ("target_zone", "restricted"),
+        ("source", "typed-adapter"),
+    ],
+)
+def test_authorized_request_requires_resolved_intent_to_match_envelope(
+    valid_envelope: dict[str, object], field: str, value: str
+) -> None:
+    """Removing intent alignment lets authorization apply to a different task."""
+    envelope = TaskEnvelopeV1(**valid_envelope)
+    resolved = {
+        "mode": "execute",
+        "action_type": "research",
+        "context": "contract test",
+        "target_zone": "public",
+        "source": "caller-atp",
+        "capability": "research",
+    }
+    resolved[field] = value
+
+    with pytest.raises(ValidationError, match="resolved intent"):
+        AuthorizedRouteRequestV1(
+            envelope=envelope,
+            resolved_intent=ResolvedIntentV1(**resolved),
+            authority=envelope.authority,
+        )
+
+
+def test_authorized_request_rejects_conflicting_requested_capability(
+    valid_envelope: dict[str, object],
+) -> None:
+    """Removing constraint alignment lets a route broaden a caller constraint."""
+    envelope = TaskEnvelopeV1(**valid_envelope)
+    resolved = ResolvedIntentV1(
+        mode="execute",
+        action_type="research",
+        context="contract test",
+        target_zone="public",
+        source="caller-atp",
+        capability="different-capability",
+    )
+
+    with pytest.raises(ValidationError, match="requested capability"):
+        AuthorizedRouteRequestV1(
+            envelope=envelope,
+            resolved_intent=resolved,
+            authority=envelope.authority,
+        )
