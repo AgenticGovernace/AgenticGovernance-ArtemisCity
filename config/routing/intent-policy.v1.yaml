@@ -1,0 +1,27 @@
+version: artemis.intent-policy/1
+pairs:
+  Build:
+    Scaffold: [text_generation]
+    Execute: [llm_chat]
+  Review:
+    Summarize: [text_summarization]
+    Reflect: [reasoning]
+  Organize:
+    Scaffold: [text_generation]
+    Execute: [llm_chat]
+  Capture:
+    Summarize: [text_summarization]
+  Synthesize:
+    Summarize: [text_summarization]
+    Reflect: [reasoning]
+  Commit:
+    Execute: [llm_chat]
+  Reflect:
+    Reflect: [reasoning]
+    Summarize: [text_summarization]
+fallback:
+  capability: llm_chat
+  allowed_pairs:
+    - [Build, Execute]
+    - [Organize, Execute]
+    - [Commit, Execute]

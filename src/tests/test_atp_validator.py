@@ -298,6 +298,19 @@ class TestATPValidatorStrict:
         assert result.is_valid is False
         assert any("Commit" in error and "Reflect" in error for error in result.errors)
 
+    def test_review_summarize_pair_is_valid(self, validator):
+        """Strict ATP accepts a policy-supported Review and Summarize pair."""
+        msg = _msg(
+            mode=ATPMode.REVIEW,
+            context="Summarize the reviewed notes",
+            action_type=ATPActionType.SUMMARIZE,
+            content="Summarize the reviewed notes for operators.",
+        )
+
+        result = validator.validate(msg)
+
+        assert result.is_valid is True
+
 
 # ---------------------------------------------------------------------------
 # Mode/action consistency

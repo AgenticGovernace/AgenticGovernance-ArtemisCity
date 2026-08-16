@@ -27,17 +27,17 @@ def test_atp_context_infers_action_domain_and_cleans_content():
     assert resolved["atp"]["context"] == "Condense the release notes"
 
 
-def test_atp_context_preserves_explicit_capability():
+def test_atp_context_allows_an_explicit_capability_that_equals_the_domain():
     resolved = resolve_task_context(
         {
             "content": ATP_SUMMARY,
-            "required_capability": "reasoning",
+            "required_capability": "text_summarization",
             "_capability_explicit": True,
         }
     )
 
-    assert resolved["required_capability"] == "reasoning"
-    assert resolved["routing_scope"] == "atp:summarize:reasoning"
+    assert resolved["required_capability"] == "text_summarization"
+    assert resolved["routing_scope"] == "atp:summarize:text_summarization"
 
 
 def test_non_atp_context_is_unchanged():
@@ -45,9 +45,6 @@ def test_non_atp_context_is_unchanged():
     assert resolve_task_context(source) == source
 
 
-def test_strict_atp_context_rejects_incomplete_header():
+def test_atp_context_rejects_incomplete_header_without_a_caller_strictness_flag():
     with pytest.raises(ValueError, match="Incomplete ATP headers"):
-        resolve_task_context(
-            {"content": "#Mode: Build\nCreate it."},
-            strict=True,
-        )
+        resolve_task_context({"content": "#Mode: Build\nCreate it."})
