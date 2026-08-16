@@ -400,6 +400,7 @@ supabase/.env
 /obsidian_vault/
 /vault/
 /MCP/
+<<<<<<< HEAD
 
 # Local launch, watcher, and generated documentation state.
 /.air/
@@ -819,3 +820,40 @@ src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/iteration
 src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/iteration-2/runs/eval-0-refactorbot-folder-scaffold/without_skill/run-1/outputs/examples/sample_session.md
 src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/iteration-2/runs/eval-0-refactorbot-folder-scaffold/without_skill/run-1/outputs/prompts/system_prompt.md
 .dbeaver/data-sources.json
+=======
+CLAUDE.html
+/.run
+/memory_store
+data/run_logs.db-journal
+state_kernel.json
+obsidian_vault/Agent Inputs/ethics_research_20260605104845.md
+obsidian_vault/Agent Outputs/Research_Agent_Report_user_instruction_20260605104845_5.md
+obsidian_vault/Agent Outputs/Summarizer_Agent_Report_direct_summary_T001_5.md
+/obsidian_vault/.obsidian
+/src/artemis_city.egg-info/dependency_links.txt
+/src/artemis_city.egg-info/PKG-INFO
+/src/artemis_city.egg-info/requires.txt
+/src/artemis_city.egg-info/SOURCES.txt
+/src/artemis_city.egg-info/top_level.txt
+/vault/.obsidian/app.json
+/vault/.obsidian/appearance.json
+/vault/.obsidian/core-plugins.json
+/vault/.obsidian/workspace.json
+/vault/Agent Inputs/Example Research Task.md
+/vault/Agent Outputs/Research_Agent_Report_20260608093346_5.md
+/vault/Agent Outputs/Summarizer_Agent_Report_direct_summary_T001_5.md
+obsidian_vault/Agent Inputs/analyze_system_architecture_20260614034425.md
+obsidian_vault/Agent Inputs/T_NEW_RESEARCH.md
+obsidian_vault/Agent Outputs/Agent Outputs.md
+obsidian_vault/Agent Outputs/Artemis_Agent_Report_user_instruction_20260614034425_7.md
+obsidian_vault/Agent Outputs/Research_Agent_Report_T_NEW_RESEARCH_5.md
+.agents/skills/artemis-transmission-protocol/atp_registry.db
+/DerivedData
+/Files.xcworkspace
+/obsidian_vault
+.harper-dictionary.txt
+/.agents/.chunk/config.json
+*.db
+/.jupyter/desktop-workspaces/default-37a8.jupyterlab-workspace
+/.virtual_documents/hf.ipynb
+>>>>>>> e03bb9d (git ignore)
