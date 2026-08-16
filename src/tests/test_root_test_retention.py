@@ -35,8 +35,14 @@ EXPECTED_RETIRED_COUNT = 8
 EXPECTED_RETIRED_SHA = "ff6613e7bd71b362ff811c4b590a9054232e1480bbe723507be2b1e81fd4e79b"
 EXPECTED_REVIEW_QUEUE_COUNT = 69
 EXPECTED_REVIEW_QUEUE_SHA = "44ed874a4f0152ff65a8ccf92b67a02200795e0d0d4fda5d2372ca3adea8e823"
-EXPECTED_DIVERGENCE_COUNT = 17
-EXPECTED_DIVERGENCE_SHA = "10acf22358182343f4194c3e45ffa16db6b58ec9d037c62c00c7cc9302c6afd2"
+EXPECTED_DIVERGENCE_COUNT = 18
+EXPECTED_DIVERGENCE_SHA = (
+    "75c127e9281bd7da8f919be24da70ec946bdc8ac5e3f91346a58a84532a32704"
+)
+AUDITED_TASK5_PARENT_COMMIT = (
+    "7ec7e63d4f030b95bc90aea1dbf1fa05ca38dc99"
+)
+AUDITED_TASK5_COMMIT = "f2623a2f13a63b4849c8aa9522a055c012b0b948"
 EXPECTED_SEMANTIC_COUNTS = {
     "covered_by_current_contract": 27,
     "retired_or_superseded": 36,
@@ -92,9 +98,6 @@ RETIRED_DATACLASS_IDENTITIES = {
     "src/tests/integration/test_memory_decay.py::TestDecayEvent::test_event_creation",
     "src/tests/integration/test_memory_decay.py::TestDecayEvent::test_event_to_dict",
     "src/tests/integration/test_memory_decay.py::TestMemoryNode::test_node_to_dict",
-}
-EXCLUDED_REVIEWED_DIVERGENCE = {
-    "src/tests/integration/test_memory_decay.py::TestMemoryNode::test_node_initialization",
 }
 TARGET_TESTS = {
     "src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_propagate_returns_true_when_auto_flush_triggers",
@@ -208,7 +211,7 @@ def _audited_identity_sets() -> dict[str, object]:
     reviewed_divergences = sorted(
         identity
         for identity, path in divergences
-        if path in REVIEW_ROOT_PATHS and identity not in EXCLUDED_REVIEWED_DIVERGENCE
+        if path in REVIEW_ROOT_PATHS
     )
     return {
         "root_identities": sorted(root_identities),
@@ -238,7 +241,7 @@ def _current_canonical_nodes() -> set[str]:
     return nodes
 
 
-def _collect_nodes(*extra_args: str) -> tuple[int, set[str], str]:
+def _collect_nodes(*extra_args: str) -> tuple[int, set[str], set[str], str]:
     env = os.environ.copy()
     env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
     result = subprocess.run(
@@ -258,13 +261,14 @@ def _collect_nodes(*extra_args: str) -> tuple[int, set[str], str]:
         text=True,
         env=env,
     )
-    node_pattern = re.compile(r"^src/tests/.+\.py(?:::.+)?$")
+    node_pattern = re.compile(r"^(src/tests|tests)/.+\.py(?:::.+)?$")
     nodes = {
         line.strip()
         for line in result.stdout.splitlines()
         if node_pattern.match(line.strip())
     }
-    return result.returncode, nodes, result.stderr
+    root_nodes = {node for node in nodes if node.startswith("tests/")}
+    return result.returncode, nodes, root_nodes, result.stderr
 
 
 def test_root_test_retention_audit_freezes_the_retained_tree() -> None:
@@ -286,6 +290,8 @@ def test_root_test_retention_audit_freezes_the_retained_tree() -> None:
         "status": "active",
         "audited_snapshot": SNAPSHOT_COMMIT,
         "task_base_commit": TASK_BASE_COMMIT,
+        "task5_parent_commit": AUDITED_TASK5_PARENT_COMMIT,
+        "task5_commit": AUDITED_TASK5_COMMIT,
     }
     assert audit["authority"] == {
         "authorizes_deletion": False,
@@ -389,13 +395,23 @@ def test_root_test_retention_canonical_modules_do_not_depend_on_root_tests() -> 
         assert "tests/" not in text
 
     staged = {line for line in _run_git("diff", "--cached", "--name-only", "--", "tests").splitlines() if line}
-    last_commit = {
+    audited_commit_paths = {
         line
-        for line in _run_git("show", "--name-only", "--format=", "HEAD", "--", "tests").splitlines()
+        for line in _run_git(
+            "diff",
+            "--name-only",
+            AUDITED_TASK5_PARENT_COMMIT,
+            AUDITED_TASK5_COMMIT,
+            "--",
+            "tests",
+        ).splitlines()
         if line
     }
     assert not staged, f"REVERSE_SYNC_HOLD_VIOLATION staged_root_test_changes={sorted(staged)}"
-    assert not last_commit, f"REVERSE_SYNC_HOLD_VIOLATION committed_root_test_changes={sorted(last_commit)}"
+    assert not audited_commit_paths, (
+        "REVERSE_SYNC_HOLD_VIOLATION "
+        f"committed_root_test_changes={sorted(audited_commit_paths)}"
+    )
 
 
 def test_root_test_retention_pyproject_and_collection_cutover_match() -> None:
@@ -404,8 +420,21 @@ def test_root_test_retention_pyproject_and_collection_cutover_match() -> None:
 
     assert pytest_options["testpaths"] == ["src/tests"]
 
-    default_rc, default_nodes, default_stderr = _collect_nodes()
-    explicit_rc, explicit_nodes, explicit_stderr = _collect_nodes("src/tests")
+    default_rc, default_nodes, default_root_nodes, default_stderr = _collect_nodes()
+    (
+        explicit_rc,
+        explicit_nodes,
+        explicit_root_nodes,
+        explicit_stderr,
+    ) = _collect_nodes("src/tests")
     assert default_rc == 0, default_stderr
     assert explicit_rc == 0, explicit_stderr
-    assert sorted(default_nodes) == sorted(explicit_nodes)
+    assert default_nodes == explicit_nodes
+    assert not default_root_nodes, (
+        "REVERSE_SYNC_HOLD_VIOLATION "
+        f"default_collection_includes_root_tests={sorted(default_root_nodes)}"
+    )
+    assert not explicit_root_nodes, (
+        "REVERSE_SYNC_HOLD_VIOLATION "
+        f"explicit_collection_includes_root_tests={sorted(explicit_root_nodes)}"
+    )

@@ -6,6 +6,10 @@ metadata:
   status: active
   audited_snapshot: ecd1cdcd1b5801e0869aca817d695ebe1d222943
   task_base_commit: 9acb701727a9b855a9d7f281cd07873cdcf1dddf
+  task5_parent_commit: >-
+    7ec7e63d4f030b95bc90aea1dbf1fa05ca38dc99
+  task5_commit: >-
+    f2623a2f13a63b4849c8aa9522a055c012b0b948
 
 authority:
   authorizes_deletion: false
@@ -265,8 +269,8 @@ mechanical_audit:
         - src/tests/test_llm_agent.py::TestLLMAgent::test_perform_task_falls_back_to_text_completions_endpoint
         - src/tests/test_llm_agent.py::TestLLMAgent::test_stream_task_falls_back_when_exo_errors
   same_identity_body_divergences:
-    count: 17
-    line_sha256: 10acf22358182343f4194c3e45ffa16db6b58ec9d037c62c00c7cc9302c6afd2
+    count: 18
+    line_sha256: 75c127e9281bd7da8f919be24da70ec946bdc8ac5e3f91346a58a84532a32704
     identities:
       - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_decision_to_dict
       - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_buffer_cleared_after_flush
@@ -279,6 +283,8 @@ mechanical_audit:
       - src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_register_node
       - src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_restore_unknown_node_returns_none
       - src/tests/integration/test_memory_decay.py::TestMemoryNode::test_node_defaults
+      - >-
+        src/tests/integration/test_memory_decay.py::TestMemoryNode::test_node_initialization
       - src/tests/integration/test_sandbox.py::TestAgentSandbox::test_allowed_action
       - src/tests/integration/test_sandbox.py::TestAgentSandbox::test_denied_file_access_outside_scope
       - src/tests/integration/test_sandbox.py::TestAgentSandbox::test_denied_tool_not_whitelisted
