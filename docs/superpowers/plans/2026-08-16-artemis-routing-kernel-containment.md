@@ -419,15 +419,26 @@ present and tracked as retained evidence while moving collection authority to
 `src/tests`. The audited snapshot is `ecd1cdcd1b5801e0869aca817d695ebe1d222943`
 against Task 5 base `9acb701727a9b855a9d7f281cd07873cdcf1dddf`. Mechanical
 baselines are `1011/934/77`, retired dataclass gaps are `8`, the semantic queue
-is `69`, and reviewed same-identity body divergences are `17`. The semantic
-partition is `27 covered / 36 retired-or-superseded / 6 missing`; the missing
-intents land in five canonical tests:
+is `69`, and reviewed same-identity body divergences are `18`, with sorted-line
+SHA-256
+`75c127e9281bd7da8f919be24da70ec946bdc8ac5e3f91346a58a84532a32704`.
+The semantic partition is
+`27 covered / 36 retired-or-superseded / 6 missing`; the missing intents land
+in five canonical tests:
 
-- `src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_propagate_returns_true_when_auto_flush_triggers`
-- `src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_flush_with_failing_sink_is_non_fatal_and_reports_zero_applied`
-- `src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_restore_node_ignores_sink_failures`
-- `src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_provenance_write_oserror_is_non_fatal`
-- `src/tests/test_agent_governance.py::TestViolations::test_agent_records_expose_governance_status_partition`
+- File `src/tests/integration/test_hebbian_sync.py`; class
+  `TestHebbianSyncService`; test
+  `test_propagate_returns_true_when_auto_flush_triggers`.
+- File `src/tests/integration/test_hebbian_sync.py`; class
+  `TestHebbianSyncService`; test
+  `test_flush_with_failing_sink_is_non_fatal_and_reports_zero_applied`.
+- File `src/tests/integration/test_memory_decay.py`; class
+  `TestMemoryDecayService`; test `test_restore_node_ignores_sink_failures`.
+- File `src/tests/integration/test_memory_decay.py`; class
+  `TestMemoryDecayService`; test
+  `test_provenance_write_oserror_is_non_fatal`.
+- File `src/tests/test_agent_governance.py`; class `TestViolations`; test
+  `test_agent_records_expose_governance_status_partition`.
 
 Historical delete-the-root-tree steps below remain suspended evidence only while
 the hold is active.

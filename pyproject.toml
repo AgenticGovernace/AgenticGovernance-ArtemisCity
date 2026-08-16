@@ -127,7 +127,7 @@ exclude = ["/app/api/**", "/app/scripts/**", "/app/web/**"]
 [tool.pytest.ini_options]
 testpaths = ["src/tests"]
 python_files = ["test_*.py"]
-addopts = "-ra"
+addopts = '-ra --ignore="src/tests/integration/test_artemis_persona 2.py"'
 
 [dependency-groups]
 test = [

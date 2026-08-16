@@ -7,6 +7,7 @@ import copy
 import hashlib
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tomllib
@@ -17,6 +18,12 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 AUDIT_PATH = ROOT / "docs" / "audits" / "2026-08-16-root-test-tree-retention.yaml"
+QUARANTINE_AUDIT_PATH = (
+    ROOT
+    / "docs"
+    / "audits"
+    / "2026-08-16-reverse-sync-adjacent-current-tree-quarantine.yaml"
+)
 SNAPSHOT_COMMIT = "ecd1cdcd1b5801e0869aca817d695ebe1d222943"
 TASK_BASE_COMMIT = "9acb701727a9b855a9d7f281cd07873cdcf1dddf"
 EXPECTED_ALL_ROOT_COUNT = 64
@@ -100,11 +107,26 @@ RETIRED_DATACLASS_IDENTITIES = {
     "src/tests/integration/test_memory_decay.py::TestMemoryNode::test_node_to_dict",
 }
 TARGET_TESTS = {
-    "src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_propagate_returns_true_when_auto_flush_triggers",
-    "src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_flush_with_failing_sink_is_non_fatal_and_reports_zero_applied",
-    "src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_restore_node_ignores_sink_failures",
-    "src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_provenance_write_oserror_is_non_fatal",
-    "src/tests/test_agent_governance.py::TestViolations::test_agent_records_expose_governance_status_partition",
+    (
+        "src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::"
+        "test_propagate_returns_true_when_auto_flush_triggers"
+    ),
+    (
+        "src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::"
+        "test_flush_with_failing_sink_is_non_fatal_and_reports_zero_applied"
+    ),
+    (
+        "src/tests/integration/test_memory_decay.py::TestMemoryDecayService::"
+        "test_restore_node_ignores_sink_failures"
+    ),
+    (
+        "src/tests/integration/test_memory_decay.py::TestMemoryDecayService::"
+        "test_provenance_write_oserror_is_non_fatal"
+    ),
+    (
+        "src/tests/test_agent_governance.py::TestViolations::"
+        "test_agent_records_expose_governance_status_partition"
+    ),
 }
 OWNED_CANONICAL_TESTS = [
     ROOT / "src/tests/integration/test_hebbian_sync.py",
@@ -115,6 +137,13 @@ OWNED_CANONICAL_TESTS = [
 
 def _load_audit() -> dict[str, object]:
     return yaml.safe_load(AUDIT_PATH.read_text(encoding="utf-8"))
+
+
+def _collection_exclusions() -> set[str]:
+    quarantine = yaml.safe_load(
+        QUARANTINE_AUDIT_PATH.read_text(encoding="utf-8")
+    )
+    return set(quarantine["non_authority"]["collection_exclusions"])
 
 
 def _canonical_line_sha(items: list[str]) -> str:
@@ -168,7 +197,10 @@ def _extract_test_identities(relative_path: str, source: str) -> list[tuple[str,
         for node in nodes:
             if isinstance(node, ast.ClassDef) and node.name.startswith("Test"):
                 walk(node.body, classes + [node.name])
-            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test"):
+            elif (
+                isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name.startswith("test")
+            ):
                 qualified = f"src/{relative_path}::" + "::".join(classes + [node.name])
                 identities.append((qualified, _normalized_function_dump(node)))
 
@@ -184,13 +216,22 @@ def _audited_identity_sets() -> dict[str, object]:
     ]
     base_paths = [
         path
-        for path in _run_git("ls-tree", "-r", "--name-only", TASK_BASE_COMMIT, "src/tests").splitlines()
+        for path in _run_git(
+            "ls-tree",
+            "-r",
+            "--name-only",
+            TASK_BASE_COMMIT,
+            "src/tests",
+        ).splitlines()
         if path.endswith(".py")
     ]
 
     base_map: dict[str, str] = {}
     for path in base_paths:
-        for identity, body in _extract_test_identities(path.removeprefix("src/"), _git_blob(TASK_BASE_COMMIT, path)):
+        for identity, body in _extract_test_identities(
+            path.removeprefix("src/"),
+            _git_blob(TASK_BASE_COMMIT, path),
+        ):
             base_map[identity] = body
 
     root_identities: list[str] = []
@@ -207,7 +248,11 @@ def _audited_identity_sets() -> dict[str, object]:
             if base_map[identity] != body:
                 divergences.append((identity, path))
 
-    semantic_review = sorted(identity for identity in raw_gaps if identity not in RETIRED_DATACLASS_IDENTITIES)
+    semantic_review = sorted(
+        identity
+        for identity in raw_gaps
+        if identity not in RETIRED_DATACLASS_IDENTITIES
+    )
     reviewed_divergences = sorted(
         identity
         for identity, path in divergences
@@ -222,7 +267,10 @@ def _audited_identity_sets() -> dict[str, object]:
     }
 
 
-def _flatten_semantic_entries(section: dict[str, list[dict[str, str]]], key: str) -> list[dict[str, str]]:
+def _flatten_semantic_entries(
+    section: dict[str, list[dict[str, str]]],
+    key: str,
+) -> list[dict[str, str]]:
     entries: list[dict[str, str]] = []
     for grouped_entries in section.values():
         for item in grouped_entries:
@@ -236,7 +284,10 @@ def _current_canonical_nodes() -> set[str]:
     for path in _tracked_paths("src/tests"):
         if not path.endswith(".py"):
             continue
-        for identity, _body in _extract_test_identities(path.removeprefix("src/"), (ROOT / path).read_text(encoding="utf-8")):
+        for identity, _body in _extract_test_identities(
+            path.removeprefix("src/"),
+            (ROOT / path).read_text(encoding="utf-8"),
+        ):
             nodes.add(identity)
     return nodes
 
@@ -302,7 +353,9 @@ def test_root_test_retention_audit_freezes_the_retained_tree() -> None:
         "src_test_collection_authority": True,
         "retained_until": "merge_complete_and_reviews_complete",
         "non_authority_statement": (
-            "retained root tests are evidence only and receive no collection, runtime, import, routing, or release authority merely by remaining tracked"
+            "retained root tests are evidence only and receive no collection, "
+            "runtime, import, routing, or release authority merely by "
+            "remaining tracked"
         ),
     }
     assert all_root["count"] == EXPECTED_ALL_ROOT_COUNT
@@ -328,7 +381,11 @@ def test_root_test_retention_audit_freezes_the_retained_tree() -> None:
     assert set(duplicate_paths).isdisjoint(inert_paths)
     assert set(review_paths).isdisjoint(inert_paths)
 
-    missing = [path for path in all_paths if path not in tracked_paths or not (ROOT / path).exists()]
+    missing = [
+        path
+        for path in all_paths
+        if path not in tracked_paths or not (ROOT / path).exists()
+    ]
     assert not missing, f"REVERSE_SYNC_HOLD_VIOLATION retained_root_paths_missing: {missing[:5]}"
     assert all(not (ROOT / path).is_symlink() for path in all_paths)
     assert all(Path(path).parts[0] == "tests" for path in all_paths)
@@ -355,8 +412,12 @@ def test_root_test_retention_mechanical_baselines_match_the_audited_snapshot() -
     for identities in mechanical["semantic_review_queue"]["identities_by_source"].values():
         yaml_review.extend(identities)
     assert sorted(yaml_review) == computed["semantic_review"]
-    assert sorted(mechanical["retired_dataclass_gaps"]["identities"]) == sorted(RETIRED_DATACLASS_IDENTITIES)
-    assert sorted(mechanical["same_identity_body_divergences"]["identities"]) == computed["reviewed_divergences"]
+    assert sorted(mechanical["retired_dataclass_gaps"]["identities"]) == sorted(
+        RETIRED_DATACLASS_IDENTITIES
+    )
+    assert sorted(
+        mechanical["same_identity_body_divergences"]["identities"]
+    ) == computed["reviewed_divergences"]
 
 
 def test_root_test_retention_semantic_partition_is_complete_and_targeted() -> None:
@@ -367,7 +428,10 @@ def test_root_test_retention_semantic_partition_is_complete_and_targeted() -> No
 
     covered = _flatten_semantic_entries(semantic["covered_by_current_contract"], "source_identity")
     retired = _flatten_semantic_entries(semantic["retired_or_superseded"], "source_identity")
-    missing = _flatten_semantic_entries(semantic["missing_current_contract_intent"], "source_identity")
+    missing = _flatten_semantic_entries(
+        semantic["missing_current_contract_intent"],
+        "source_identity",
+    )
     semantic_identities = sorted(item["source_identity"] for item in covered + retired + missing)
 
     assert semantic["counts"] == EXPECTED_SEMANTIC_COUNTS
@@ -394,7 +458,17 @@ def test_root_test_retention_canonical_modules_do_not_depend_on_root_tests() -> 
         assert "import tests" not in text
         assert "tests/" not in text
 
-    staged = {line for line in _run_git("diff", "--cached", "--name-only", "--", "tests").splitlines() if line}
+    staged = {
+        line
+        for line in _run_git(
+            "diff",
+            "--cached",
+            "--name-only",
+            "--",
+            "tests",
+        ).splitlines()
+        if line
+    }
     audited_commit_paths = {
         line
         for line in _run_git(
@@ -430,6 +504,34 @@ def test_root_test_retention_pyproject_and_collection_cutover_match() -> None:
     assert default_rc == 0, default_stderr
     assert explicit_rc == 0, explicit_stderr
     assert default_nodes == explicit_nodes
+    collection_exclusions = _collection_exclusions()
+    default_excluded_nodes = {
+        node
+        for node in default_nodes
+        if node.split("::", 1)[0] in collection_exclusions
+    }
+    explicit_excluded_nodes = {
+        node
+        for node in explicit_nodes
+        if node.split("::", 1)[0] in collection_exclusions
+    }
+    assert not default_excluded_nodes, (
+        "QUARANTINE_COLLECTION_VIOLATION "
+        f"default_collection={sorted(default_excluded_nodes)}"
+    )
+    assert not explicit_excluded_nodes, (
+        "QUARANTINE_COLLECTION_VIOLATION "
+        f"explicit_collection={sorted(explicit_excluded_nodes)}"
+    )
+    configured_ignores = {
+        option.removeprefix("--ignore=")
+        for option in shlex.split(pytest_options["addopts"])
+        if option.startswith("--ignore=")
+    }
+    canonical_exclusions = {
+        path for path in collection_exclusions if path.startswith("src/tests/")
+    }
+    assert canonical_exclusions <= configured_ignores
     assert not default_root_nodes, (
         "REVERSE_SYNC_HOLD_VIOLATION "
         f"default_collection_includes_root_tests={sorted(default_root_nodes)}"
