@@ -2,11 +2,33 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Remove the reviewed reverse-synchronization drift, reduce legacy compatibility to one facade, establish `src/tests` as the sole Python test authority, and make release artifacts explicit and reproducible.
+**Goal:** Preserve the reviewed reverse-sync comparison material until merge and
+review completion, reduce live legacy compatibility to one facade, narrow test
+and runtime authority to canonical surfaces, and make release artifacts exact
+and reproducible before any later cleanup authority is reconsidered.
 
-**Architecture:** The committed 371-path audit manifest is the deletion/restoration authority. Deterministic paths are handled first, mixed items remain untouched, and every removal stays recoverable from Git. Release payloads are compared with committed tracked-file allowlists instead of relying on broad directory includes or `twine check` alone.
+**Architecture:** The committed 371-path audit manifest remains the immutable
+comparison source. The 217-path hold and adjacent quarantine preserve retained
+legacy material without granting runtime, import, test, routing, or release
+authority. Exact tracked allowlists, not broad directory includes or presence
+on disk, define the releasable surface.
 
 **Tech Stack:** Git, Python 3.12, PyYAML, pytest, Hatchling, build, twine
+
+## Active Hold Amendment
+
+- The historical destructive Task 3 is replaced by the committed reverse-sync
+  hold until the relevant merge is complete, reviews are complete, the user
+  gives fresh authorization, digests remain unchanged, and the hold/package
+  gates are green.
+- Task 4 is audit and quarantine only. No legacy path removal, restore, move,
+  rename, or rewrite is permitted while the hold is active.
+- Task 5 may migrate unique root-test behavior and narrow default collection to
+  `src/tests`, but it must retain the root test tree while the hold is active.
+- Task 6 must exclude held and quarantined material through exact tracked
+  allowlists even while those files remain present in the repository.
+- Historical destructive checkboxes below are suspended while the hold is
+  active and cannot be executed from this plan without a superseding amendment.
 
 **Spec:** `docs/superpowers/specs/2026-08-16-artemis-routing-kernel-consolidation-design.md`
 
