@@ -1,0 +1,538 @@
+metadata:
+  name: root-test-tree-retention
+  retention_version: 1
+  retention_date: 2026-08-16
+  owner_repository: Artemis_City
+  status: active
+  audited_snapshot: ecd1cdcd1b5801e0869aca817d695ebe1d222943
+  task_base_commit: 9acb701727a9b855a9d7f281cd07873cdcf1dddf
+
+authority:
+  authorizes_deletion: false
+  authorizes_move: false
+  authorizes_rename: false
+  authorizes_content_rewrite: false
+  root_test_collection_authority: false
+  src_test_collection_authority: true
+  retained_until: merge_complete_and_reviews_complete
+  non_authority_statement: retained root tests are evidence only and receive no collection, runtime, import, routing, or release authority merely by remaining tracked
+
+retained_paths:
+  all_tracked:
+    count: 64
+    line_encoding: sorted UTF-8 paths, one per line, terminal LF
+    line_sha256: 426986bc9b60dbd4266f1d09cf76ee8656ad0b6dc598d2a812ffb5515ef80f60
+    paths:
+      - tests/README.md
+      - tests/__init__.py
+      - tests/conftest.py
+      - tests/integration/__init__.py
+      - tests/integration/test_agent_registry.py
+      - tests/integration/test_artemis_persona 2.py
+      - tests/integration/test_artemis_persona.py
+      - tests/integration/test_atp_metrics.py
+      - tests/integration/test_atp_validator.py
+      - tests/integration/test_base_agent.py
+      - tests/integration/test_context_loader.py
+      - tests/integration/test_exceptions.py
+      - tests/integration/test_governance.py
+      - tests/integration/test_governance_monitor.py
+      - tests/integration/test_hebbian_sync.py
+      - tests/integration/test_memory_bus_integration.py
+      - tests/integration/test_memory_client.py
+      - tests/integration/test_memory_decay.py
+      - tests/integration/test_reflection.py
+      - tests/integration/test_sandbox.py
+      - tests/integration/test_semantic_tagging.py
+      - tests/integration/test_trust_interface.py
+      - tests/run_simulation.py
+      - tests/test_agent_governance.py
+      - tests/test_agent_registry.py
+      - tests/test_agent_routing.py
+      - tests/test_anaconda_agent_proxy.py
+      - tests/test_api_bridge.py
+      - tests/test_approvals.py
+      - tests/test_artemis_persona.py
+      - tests/test_atp.py
+      - tests/test_atp_metrics.py
+      - tests/test_atp_validator.py
+      - tests/test_base_agent.py
+      - tests/test_base_agent_compliance.py
+      - tests/test_checkpoints.py
+      - tests/test_context_loader.py
+      - tests/test_docker_compose.py
+      - tests/test_exceptions.py
+      - tests/test_governance_monitor.py
+      - tests/test_guidelines_demo.py
+      - tests/test_hebbian_learning.py
+      - tests/test_hebbian_marketplace_vs_inference.ipynb
+      - tests/test_hebbian_marketplace_vs_inference.py
+      - tests/test_hebbian_router.py
+      - tests/test_hebbian_scoped_vs_coldstart.ipynb
+      - tests/test_hebbian_scoped_vs_coldstart.py
+      - tests/test_hebbian_sync.py
+      - tests/test_instruction_loader.py
+      - tests/test_kernel_smoke.py
+      - tests/test_llm_agent.py
+      - tests/test_mcp_imports.py
+      - tests/test_memory_bus.py
+      - tests/test_memory_bus_integration.py
+      - tests/test_memory_client.py
+      - tests/test_memory_decay.py
+      - tests/test_memory_integration.py
+      - tests/test_memory_legacy_imports.py
+      - tests/test_reflection.py
+      - tests/test_sandbox.py
+      - tests/test_semantic_tagging.py
+      - tests/test_trust.py
+      - tests/test_trust_interface.py
+      - tests/test_vector_store.py
+  duplicate_retained:
+    count: 54
+    line_encoding: sorted UTF-8 paths, one per line, terminal LF
+    line_sha256: ac2f338db44b5c797edad0d6de8c39844bd0a85e99bd827f5168e5c2de5a53f2
+    paths:
+      - tests/__init__.py
+      - tests/integration/__init__.py
+      - tests/integration/test_agent_registry.py
+      - tests/integration/test_artemis_persona.py
+      - tests/integration/test_atp_metrics.py
+      - tests/integration/test_atp_validator.py
+      - tests/integration/test_base_agent.py
+      - tests/integration/test_context_loader.py
+      - tests/integration/test_exceptions.py
+      - tests/integration/test_governance_monitor.py
+      - tests/integration/test_memory_bus_integration.py
+      - tests/integration/test_memory_client.py
+      - tests/integration/test_reflection.py
+      - tests/integration/test_semantic_tagging.py
+      - tests/integration/test_trust_interface.py
+      - tests/run_simulation.py
+      - tests/test_agent_governance.py
+      - tests/test_agent_registry.py
+      - tests/test_agent_routing.py
+      - tests/test_anaconda_agent_proxy.py
+      - tests/test_api_bridge.py
+      - tests/test_approvals.py
+      - tests/test_artemis_persona.py
+      - tests/test_atp.py
+      - tests/test_atp_metrics.py
+      - tests/test_atp_validator.py
+      - tests/test_base_agent.py
+      - tests/test_base_agent_compliance.py
+      - tests/test_checkpoints.py
+      - tests/test_context_loader.py
+      - tests/test_docker_compose.py
+      - tests/test_exceptions.py
+      - tests/test_governance_monitor.py
+      - tests/test_guidelines_demo.py
+      - tests/test_hebbian_learning.py
+      - tests/test_hebbian_marketplace_vs_inference.py
+      - tests/test_hebbian_router.py
+      - tests/test_hebbian_scoped_vs_coldstart.py
+      - tests/test_hebbian_sync.py
+      - tests/test_instruction_loader.py
+      - tests/test_kernel_smoke.py
+      - tests/test_mcp_imports.py
+      - tests/test_memory_bus.py
+      - tests/test_memory_bus_integration.py
+      - tests/test_memory_client.py
+      - tests/test_memory_decay.py
+      - tests/test_memory_integration.py
+      - tests/test_memory_legacy_imports.py
+      - tests/test_reflection.py
+      - tests/test_sandbox.py
+      - tests/test_semantic_tagging.py
+      - tests/test_trust.py
+      - tests/test_trust_interface.py
+      - tests/test_vector_store.py
+  migrate_review_retained:
+    count: 5
+    line_encoding: sorted UTF-8 paths, one per line, terminal LF
+    line_sha256: bbc1cdb563dbe89421647f1ce14e6ed16e894a2faa2010a906375e356a3ba895
+    paths:
+      - tests/integration/test_governance.py
+      - tests/integration/test_hebbian_sync.py
+      - tests/integration/test_memory_decay.py
+      - tests/integration/test_sandbox.py
+      - tests/test_llm_agent.py
+  obsolete_inert_retained:
+    count: 5
+    line_encoding: sorted UTF-8 paths, one per line, terminal LF
+    line_sha256: 3e4700bf490c861c3591b71cccc8f4fa7e85d20d6deb9547cc97d4b9b5291aea
+    paths:
+      - tests/README.md
+      - tests/conftest.py
+      - tests/integration/test_artemis_persona 2.py
+      - tests/test_hebbian_marketplace_vs_inference.ipynb
+      - tests/test_hebbian_scoped_vs_coldstart.ipynb
+
+mechanical_audit:
+  identity_encoding: destination_path::QualifiedIdentity with sorted UTF-8 lines and terminal LF
+  root_test_definitions: 1011
+  qualified_matches: 934
+  raw_mechanical_gaps:
+    count: 77
+    line_sha256: bcd12e5f7670a9f050e225ed494c416db5e7b8e0f6f77a671938a9c15c52fdb6
+  retired_dataclass_gaps:
+    count: 8
+    line_sha256: ff6613e7bd71b362ff811c4b590a9054232e1480bbe723507be2b1e81fd4e79b
+    identities:
+      - src/tests/integration/test_hebbian_sync.py::TestBatchResult::test_batch_result_creation
+      - src/tests/integration/test_hebbian_sync.py::TestBatchResult::test_batch_result_to_dict
+      - src/tests/integration/test_hebbian_sync.py::TestWeightUpdate::test_weight_update_creation
+      - src/tests/integration/test_hebbian_sync.py::TestWeightUpdate::test_weight_update_defaults
+      - src/tests/integration/test_hebbian_sync.py::TestWeightUpdate::test_weight_update_to_dict
+      - src/tests/integration/test_memory_decay.py::TestDecayEvent::test_event_creation
+      - src/tests/integration/test_memory_decay.py::TestDecayEvent::test_event_to_dict
+      - src/tests/integration/test_memory_decay.py::TestMemoryNode::test_node_to_dict
+  semantic_review_queue:
+    count: 69
+    line_sha256: 44ed874a4f0152ff65a8ccf92b67a02200795e0d0d4fda5d2372ca3adea8e823
+    identities_by_source:
+      tests/integration/test_governance.py:
+        - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_governor_initialization
+        - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_evaluate_proposal_sync_returns_decision
+        - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_no_registry_requires_human
+        - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_lint_catches_missing_description
+        - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_lint_catches_missing_target_component
+        - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_lint_catches_suspicious_patterns
+        - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_auto_approve_with_high_trust
+        - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_monitored_approve_with_mid_trust
+        - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_proposal_history
+        - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_multiple_proposals
+        - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_evaluate_proposal_async_pipeline
+        - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_determine_approval_level_missing_agent_score
+        - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_determine_approval_level_low_trust
+        - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_make_decision_human_required
+        - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_make_decision_rejects_on_sandbox_failures
+        - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_make_decision_rejects_on_perf_regression
+        - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_decision_to_dict_includes_sandbox_rates
+        - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_log_proposal_persist_failure_is_non_fatal
+        - src/tests/integration/test_governance.py::TestSandboxTestResults::test_pass_rate
+        - src/tests/integration/test_governance.py::TestSandboxTestResults::test_failure_rate
+        - src/tests/integration/test_governance.py::TestSandboxTestResults::test_zero_tests
+        - src/tests/integration/test_governance.py::TestApprovalLevel::test_enum_values
+      tests/integration/test_hebbian_sync.py:
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_queue_update
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_flush_sync_empty_buffer
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_flush_sync_processes_all
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_flush_sync_latency_tracked
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_should_flush_by_buffer_size
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_should_flush_by_time
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_should_flush_false_when_empty
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_stats
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_register_hook
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_batch_log_persistence
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_update_types
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_propagate_weight_update_triggers_auto_flush
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_async_flush_processes_buffer
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_flush_sync_collects_failures_from_sync_pipeline
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_async_flush_runs_hooks_and_ignores_hook_errors
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_async_sync_targets_called
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_async_sync_target_exceptions_are_swallowed
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_sync_target_exceptions_are_swallowed
+        - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_log_batch_handles_oserror
+      tests/integration/test_memory_decay.py:
+        - src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_touch_node
+        - src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_sync_decay_cycle_no_decay_for_recent_nodes
+        - src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_sync_decay_cycle_decays_old_nodes
+        - src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_sync_decay_cycle_archives_very_old_nodes
+        - src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_sync_decay_cycle_deletes_below_threshold
+        - src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_get_decay_history
+        - src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_get_node_health
+        - src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_async_decay_cycle_with_client_updates
+        - src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_restore_node_handles_client_failures
+        - src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_archive_and_delete_handle_client_failures
+        - src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_save_decay_log_handles_oserror
+      tests/integration/test_sandbox.py:
+        - src/tests/integration/test_sandbox.py::TestAgentSandbox::test_quarantine_after_threshold
+        - src/tests/integration/test_sandbox.py::TestAgentSandbox::test_release_from_quarantine
+        - src/tests/integration/test_sandbox.py::TestAgentSandbox::test_alignment_impact
+        - src/tests/integration/test_sandbox.py::TestAgentSandbox::test_violation_summary
+        - src/tests/integration/test_sandbox.py::TestAgentSandbox::test_violations_in_window
+        - src/tests/integration/test_sandbox.py::TestSandboxManager::test_manager_initialization
+        - src/tests/integration/test_sandbox.py::TestSandboxManager::test_create_sandbox
+        - src/tests/integration/test_sandbox.py::TestSandboxManager::test_create_sandbox_with_custom_whitelist
+        - src/tests/integration/test_sandbox.py::TestSandboxManager::test_check_agent_action
+        - src/tests/integration/test_sandbox.py::TestSandboxManager::test_check_unknown_agent_denied
+        - src/tests/integration/test_sandbox.py::TestSandboxManager::test_get_quarantined_agents
+        - src/tests/integration/test_sandbox.py::TestSandboxManager::test_get_all_violations
+        - src/tests/integration/test_sandbox.py::TestSandboxManager::test_system_health
+        - src/tests/integration/test_sandbox.py::TestSandboxManager::test_default_whitelists_by_role
+        - src/tests/integration/test_sandbox.py::TestSandboxManager::test_bulk_sandbox_creation
+      tests/test_llm_agent.py:
+        - src/tests/test_llm_agent.py::TestLLMAgent::test_perform_task_falls_back_to_text_completions_endpoint
+        - src/tests/test_llm_agent.py::TestLLMAgent::test_stream_task_falls_back_when_exo_errors
+  same_identity_body_divergences:
+    count: 17
+    line_sha256: 10acf22358182343f4194c3e45ffa16db6b58ec9d037c62c00c7cc9302c6afd2
+    identities:
+      - src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_decision_to_dict
+      - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_buffer_cleared_after_flush
+      - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_cumulative_stats_across_flushes
+      - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_queue_multiple_updates
+      - src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_service_initialization
+      - src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_already_archived_nodes_skipped
+      - src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_decay_log_persistence
+      - src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_mixed_node_states
+      - src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_register_node
+      - src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_restore_unknown_node_returns_none
+      - src/tests/integration/test_memory_decay.py::TestMemoryNode::test_node_defaults
+      - src/tests/integration/test_sandbox.py::TestAgentSandbox::test_allowed_action
+      - src/tests/integration/test_sandbox.py::TestAgentSandbox::test_denied_file_access_outside_scope
+      - src/tests/integration/test_sandbox.py::TestAgentSandbox::test_denied_tool_not_whitelisted
+      - src/tests/integration/test_sandbox.py::TestAgentSandbox::test_quarantined_agent_denied
+      - src/tests/integration/test_sandbox.py::TestAgentSandbox::test_sandbox_initialization
+      - src/tests/test_llm_agent.py::TestLLMAgent::test_perform_task_fallback_when_endpoint_unavailable
+
+semantic_disposition:
+  counts:
+    covered_by_current_contract: 27
+    retired_or_superseded: 36
+    missing_current_contract_intent: 6
+  counts_by_source:
+    governance:
+      covered_by_current_contract: 8
+      retired_or_superseded: 14
+      missing_current_contract_intent: 0
+    hebbian:
+      covered_by_current_contract: 7
+      retired_or_superseded: 10
+      missing_current_contract_intent: 2
+    memory:
+      covered_by_current_contract: 5
+      retired_or_superseded: 4
+      missing_current_contract_intent: 2
+    sandbox:
+      covered_by_current_contract: 7
+      retired_or_superseded: 6
+      missing_current_contract_intent: 2
+    llm:
+      covered_by_current_contract: 0
+      retired_or_superseded: 2
+      missing_current_contract_intent: 0
+  covered_by_current_contract:
+    tests/integration/test_governance.py:
+      - source_identity: src/tests/integration/test_governance.py::TestApprovalLevel::test_enum_values
+        current_test: src/tests/integration/test_governance.py::TestApprovalTier::test_enum_values
+        note: approval tier/value coverage remains current under the renamed enum
+      - source_identity: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_auto_approve_with_high_trust
+        current_test: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_auto_approve_high_trust_low_risk
+        note: high-trust low-risk auto approval remains covered
+      - source_identity: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_monitored_approve_with_mid_trust
+        current_test: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_monitored_mid_trust
+        note: monitored tier behavior remains covered
+      - source_identity: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_no_registry_requires_human
+        current_test: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_human_unknown_agent
+        note: missing history still forces human review in the current classifier contract
+      - source_identity: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_multiple_proposals
+        current_test: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_multiple_proposals_independent
+        note: independent proposal classification remains covered
+      - source_identity: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_determine_approval_level_missing_agent_score
+        current_test: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_human_unknown_agent
+        note: unknown-agent handling remains covered through classify()
+      - source_identity: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_determine_approval_level_low_trust
+        current_test: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_human_low_trust
+        note: low-trust escalation remains covered
+      - source_identity: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_make_decision_human_required
+        current_test: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_human_breaking_changes
+        note: human-tier escalation remains covered by current risk gating
+    tests/integration/test_hebbian_sync.py:
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_queue_update
+        current_test: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_queue_single_update
+        note: single update buffering remains covered
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_flush_sync_empty_buffer
+        current_test: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_flush_empty_buffer
+        note: empty-buffer flush behavior remains covered
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_flush_sync_processes_all
+        current_test: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_flush_clears_buffer
+        note: full buffer flush and clear behavior remains covered
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_flush_sync_latency_tracked
+        current_test: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_flush_latency_tracked
+        note: flush latency accounting remains covered
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_should_flush_by_buffer_size
+        current_test: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_auto_flush_by_buffer_size
+        note: batch-size-triggered flush remains covered through auto flush behavior
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_should_flush_by_time
+        current_test: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_auto_flush_by_time
+        note: elapsed-time-triggered flush remains covered through auto flush behavior
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_stats
+        current_test: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_stats_after_flush
+        note: cumulative flush statistics remain covered
+    tests/integration/test_memory_decay.py:
+      - source_identity: src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_sync_decay_cycle_no_decay_for_recent_nodes
+        current_test: src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_decay_cycle_no_decay_for_recent_nodes
+        note: recent-node no-decay behavior remains covered
+      - source_identity: src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_sync_decay_cycle_decays_old_nodes
+        current_test: src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_decay_cycle_decays_old_nodes
+        note: stale-node decay behavior remains covered
+      - source_identity: src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_sync_decay_cycle_archives_very_old_nodes
+        current_test: src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_decay_cycle_archives_very_old_nodes
+        note: archive threshold behavior remains covered
+      - source_identity: src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_sync_decay_cycle_deletes_below_threshold
+        current_test: src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_decay_cycle_deletes_below_threshold
+        note: delete-threshold behavior remains covered
+      - source_identity: src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_get_decay_history
+        current_test: src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_decay_cycle_generates_provenance_events
+        note: decay history intent is now covered by cycle-result provenance events
+    tests/integration/test_sandbox.py:
+      - source_identity: src/tests/integration/test_sandbox.py::TestAgentSandbox::test_quarantine_after_threshold
+        current_test: src/tests/test_agent_governance.py::TestViolations::test_third_violation_quarantines
+        note: quarantine threshold authority moved to the registry governance layer
+      - source_identity: src/tests/integration/test_sandbox.py::TestAgentSandbox::test_release_from_quarantine
+        current_test: src/tests/test_agent_governance.py::TestClearViolations::test_clear_releases_quarantine
+        note: release semantics moved to registry clear_violations
+      - source_identity: src/tests/integration/test_sandbox.py::TestAgentSandbox::test_violation_summary
+        current_test: src/tests/test_agent_governance.py::TestViolations::test_get_violations_newest_first
+        note: persisted violation summaries now come from the registry
+      - source_identity: src/tests/integration/test_sandbox.py::TestAgentSandbox::test_violations_in_window
+        current_test: src/tests/test_agent_governance.py::TestViolations::test_first_violation_logged_not_quarantined
+        note: violation_count tracking now lives in registry governance state
+      - source_identity: src/tests/integration/test_sandbox.py::TestSandboxManager::test_check_agent_action
+        current_test: src/tests/integration/test_sandbox.py::TestAgentSandbox::test_allowed_action
+        note: direct action authorization remains covered without the removed manager wrapper
+      - source_identity: src/tests/integration/test_sandbox.py::TestSandboxManager::test_check_unknown_agent_denied
+        current_test: src/tests/integration/test_sandbox.py::TestAgentSandbox::test_no_registry_still_works
+        note: denial without a usable registry remains covered at the sandbox boundary
+      - source_identity: src/tests/integration/test_sandbox.py::TestSandboxManager::test_get_all_violations
+        current_test: src/tests/test_agent_governance.py::TestViolations::test_get_violations_newest_first
+        note: aggregate violation reads now come from registry persistence rather than a manager cache
+  retired_or_superseded:
+    tests/integration/test_governance.py:
+      - source_identity: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_governor_initialization
+        current_runtime_evidence: src/governance/approvals.py::SelfUpdateGovernor
+        note: the current governor no longer exposes log_dir, sandbox counters, or perf-regression tuning at construction
+      - source_identity: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_evaluate_proposal_sync_returns_decision
+        current_runtime_evidence: src/governance/approvals.py::SelfUpdateGovernor.classify
+        note: the current contract is pure classification over UpdateProposal rather than sync evaluate_proposal wrappers
+      - source_identity: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_lint_catches_missing_description
+        current_runtime_evidence: src/governance/approvals.py::UpdateProposal
+        note: proposal linting is no longer a runtime responsibility of the governor
+      - source_identity: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_lint_catches_missing_target_component
+        current_runtime_evidence: src/governance/approvals.py::UpdateProposal
+        note: target-component lint hooks were removed with the old workflow governance API
+      - source_identity: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_lint_catches_suspicious_patterns
+        current_runtime_evidence: src/governance/approvals.py::SelfUpdateGovernor.classify
+        note: suspicious-pattern lint rejection is not part of the current classifier contract
+      - source_identity: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_proposal_history
+        current_runtime_evidence: src/governance/approvals.py::SelfUpdateGovernor
+        note: the current classifier does not persist proposal history
+      - source_identity: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_evaluate_proposal_async_pipeline
+        current_runtime_evidence: src/governance/approvals.py::SelfUpdateGovernor.classify
+        note: async proposal execution/logging was removed from the current governance surface
+      - source_identity: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_make_decision_rejects_on_sandbox_failures
+        current_runtime_evidence: src/governance/approvals.py::SelfUpdateGovernor.classify
+        note: sandbox-rate rejection is no longer modeled in the current classifier
+      - source_identity: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_make_decision_rejects_on_perf_regression
+        current_runtime_evidence: src/governance/approvals.py::SelfUpdateGovernor.classify
+        note: performance-regression rejection is no longer modeled in the current classifier
+      - source_identity: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_decision_to_dict_includes_sandbox_rates
+        current_runtime_evidence: src/governance/approvals.py::ApprovalDecision.to_dict
+        note: sandbox pass/fail rate fields were removed from the current decision payload
+      - source_identity: src/tests/integration/test_governance.py::TestSelfUpdateGovernor::test_log_proposal_persist_failure_is_non_fatal
+        current_runtime_evidence: src/governance/approvals.py::SelfUpdateGovernor.classify
+        note: proposal persistence is no longer attempted by the current classifier
+      - source_identity: src/tests/integration/test_governance.py::TestSandboxTestResults::test_pass_rate
+        current_runtime_evidence: src/governance/approvals.py::ApprovalDecision
+        note: SandboxTestResults no longer exists in the current contract
+      - source_identity: src/tests/integration/test_governance.py::TestSandboxTestResults::test_failure_rate
+        current_runtime_evidence: src/governance/approvals.py::ApprovalDecision
+        note: SandboxTestResults no longer exists in the current contract
+      - source_identity: src/tests/integration/test_governance.py::TestSandboxTestResults::test_zero_tests
+        current_runtime_evidence: src/governance/approvals.py::ApprovalDecision
+        note: SandboxTestResults no longer exists in the current contract
+    tests/integration/test_hebbian_sync.py:
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_should_flush_false_when_empty
+        current_runtime_evidence: src/integration/hebbian_sync.py::HebbianSyncService
+        note: explicit should_flush probes were removed with the simplified auto-flush API
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_register_hook
+        current_runtime_evidence: src/integration/hebbian_sync.py::HebbianSyncService
+        note: propagation hooks are not part of the simplified current service
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_batch_log_persistence
+        current_runtime_evidence: src/integration/hebbian_sync.py::HebbianSyncService.flush_batch
+        note: the current service no longer writes per-batch JSON logs
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_update_types
+        current_runtime_evidence: src/integration/hebbian_sync.py::WeightUpdate
+        note: update_type variants were removed from the simplified WeightUpdate model
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_async_flush_processes_buffer
+        current_runtime_evidence: src/integration/hebbian_sync.py::HebbianSyncService.flush_batch
+        note: async flush APIs were removed from the current service surface
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_async_flush_runs_hooks_and_ignores_hook_errors
+        current_runtime_evidence: src/integration/hebbian_sync.py::HebbianSyncService.flush_batch
+        note: async hook execution was removed with the simplified batching contract
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_async_sync_targets_called
+        current_runtime_evidence: src/integration/hebbian_sync.py::BatchSink
+        note: multi-target async mirroring was replaced by a single sink callback
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_async_sync_target_exceptions_are_swallowed
+        current_runtime_evidence: src/integration/hebbian_sync.py::BatchSink
+        note: async target mirroring was removed with the simplified sink contract
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_sync_target_exceptions_are_swallowed
+        current_runtime_evidence: src/integration/hebbian_sync.py::BatchSink
+        note: per-target sync helpers were removed with the simplified sink contract
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_log_batch_handles_oserror
+        current_runtime_evidence: src/integration/hebbian_sync.py::HebbianSyncService.flush_batch
+        note: dedicated batch-log persistence was removed from the current service
+    tests/integration/test_memory_decay.py:
+      - source_identity: src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_touch_node
+        current_runtime_evidence: src/integration/memory_decay.py::MemoryDecayService.record_access
+        note: the old touch_node API was renamed to record_access
+      - source_identity: src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_get_node_health
+        current_runtime_evidence: src/integration/memory_decay.py::MemoryDecayService
+        note: aggregate node-health summaries are no longer part of the current service surface
+      - source_identity: src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_async_decay_cycle_with_client_updates
+        current_runtime_evidence: src/integration/memory_decay.py::MemoryDecayService.run_decay_cycle
+        note: async client-update mirroring was removed from the current service
+      - source_identity: src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_archive_and_delete_handle_client_failures
+        current_runtime_evidence: src/integration/memory_decay.py::MemoryDecayService._safe_sink
+        note: archive/delete client callbacks were consolidated into one best-effort sink
+    tests/integration/test_sandbox.py:
+      - source_identity: src/tests/integration/test_sandbox.py::TestAgentSandbox::test_alignment_impact
+        current_runtime_evidence: src/integration/sandbox.py::AgentSandbox
+        note: local alignment-impact accounting was removed from the current sandbox contract
+      - source_identity: src/tests/integration/test_sandbox.py::TestSandboxManager::test_manager_initialization
+        current_runtime_evidence: src/integration/sandbox.py
+        note: SandboxManager no longer exists in the current runtime surface
+      - source_identity: src/tests/integration/test_sandbox.py::TestSandboxManager::test_create_sandbox
+        current_runtime_evidence: src/integration/sandbox.py
+        note: manager-based sandbox construction was removed from the current runtime surface
+      - source_identity: src/tests/integration/test_sandbox.py::TestSandboxManager::test_create_sandbox_with_custom_whitelist
+        current_runtime_evidence: src/integration/sandbox.py
+        note: manager-based custom-whitelist construction was removed from the current runtime surface
+      - source_identity: src/tests/integration/test_sandbox.py::TestSandboxManager::test_default_whitelists_by_role
+        current_runtime_evidence: src/integration/sandbox.py::AgentSandbox
+        note: role-derived whitelist factories are no longer part of the current runtime surface
+      - source_identity: src/tests/integration/test_sandbox.py::TestSandboxManager::test_bulk_sandbox_creation
+        current_runtime_evidence: src/integration/sandbox.py
+        note: bulk manager construction was removed from the current runtime surface
+    tests/test_llm_agent.py:
+      - source_identity: src/tests/test_llm_agent.py::TestLLMAgent::test_perform_task_falls_back_to_text_completions_endpoint
+        current_runtime_evidence: src/tests/test_llm_agent.py::TestLLMAgent::test_perform_task_fallback_when_endpoint_unavailable
+        note: fail-closed provider failure supersedes fallback-to-completions success
+      - source_identity: src/tests/test_llm_agent.py::TestLLMAgent::test_stream_task_falls_back_when_exo_errors
+        current_runtime_evidence: src/tests/test_llm_agent.py::TestLLMAgent::test_stream_task_reports_failure_without_fake_tokens
+        note: fail-closed streaming failure supersedes fallback token emission
+  missing_current_contract_intent:
+    tests/integration/test_hebbian_sync.py:
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_propagate_weight_update_triggers_auto_flush
+        target_test: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_propagate_returns_true_when_auto_flush_triggers
+        note: preserve auto-flush return-value intent under the simplified propagate API
+      - source_identity: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_flush_sync_collects_failures_from_sync_pipeline
+        target_test: src/tests/integration/test_hebbian_sync.py::TestHebbianSyncService::test_flush_with_failing_sink_is_non_fatal_and_reports_zero_applied
+        note: preserve non-fatal sink failure accounting under the simplified sink API
+    tests/integration/test_memory_decay.py:
+      - source_identity: src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_restore_node_handles_client_failures
+        target_test: src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_restore_node_ignores_sink_failures
+        note: preserve best-effort restore behavior under sink failure
+      - source_identity: src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_save_decay_log_handles_oserror
+        target_test: src/tests/integration/test_memory_decay.py::TestMemoryDecayService::test_provenance_write_oserror_is_non_fatal
+        note: preserve non-fatal provenance write behavior in the current decay cycle
+    tests/integration/test_sandbox.py:
+      - source_identity: src/tests/integration/test_sandbox.py::TestSandboxManager::test_get_quarantined_agents
+        target_test: src/tests/test_agent_governance.py::TestViolations::test_agent_records_expose_governance_status_partition
+        note: quarantined-partition authority moved to persisted registry records
+      - source_identity: src/tests/integration/test_sandbox.py::TestSandboxManager::test_system_health
+        target_test: src/tests/test_agent_governance.py::TestViolations::test_agent_records_expose_governance_status_partition
+        note: active-vs-quarantined system partition now comes from persisted registry records
+
+review_signoffs: []

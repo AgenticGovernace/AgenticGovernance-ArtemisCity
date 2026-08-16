@@ -125,7 +125,7 @@ only-include = ["src", "app"]
 exclude = ["/app/api/**", "/app/scripts/**", "/app/web/**"]
 
 [tool.pytest.ini_options]
-testpaths = ["src/tests", "tests/"]
+testpaths = ["src/tests"]
 python_files = ["test_*.py"]
 addopts = "-ra"
 

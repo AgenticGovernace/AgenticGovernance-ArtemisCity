@@ -229,6 +229,17 @@ class TestMemoryDecayService:
         # restore_boost default is 0.10 → 0.5 * 1.10 = 0.55
         assert restored.weight == pytest.approx(0.55, abs=0.01)
 
+    def test_restore_node_ignores_sink_failures(self, tmp_path):
+        def _sink(_node, _previous, _new_weight):
+            raise RuntimeError("sink failed")
+        service = MemoryDecayService(log_dir=str(tmp_path / "restore_sink"), sink=_sink)
+        node = MemoryNode("n1", content="c", weight=0.5, archived=True)
+        service.register_node(node)
+        restored = service.restore_node("n1")
+        assert restored is not None
+        assert restored.archived is False
+        assert restored.weight == pytest.approx(0.55, abs=0.01)
+
     def test_restore_unknown_node_returns_none(self, service):
         """Restoring a missing node returns None."""
         result = service.restore_node("missing")
@@ -257,6 +268,25 @@ class TestMemoryDecayService:
         service.run_decay_cycle(now=now)
         log_files = list(service.log_dir.glob("*.jsonl"))
         assert len(log_files) >= 1
+
+    def test_provenance_write_oserror_is_non_fatal(self, service, monkeypatch):
+        now = datetime.now(timezone.utc)
+        service.register_node(
+            MemoryNode(
+                "n1", content="c", weight=1.0, last_access=now - timedelta(days=60)
+            )
+        )
+        original_open = Path.open
+        def _open_with_failure(path_obj, *args, **kwargs):
+            if path_obj.suffix == ".jsonl" and path_obj.parent == service.log_dir:
+                raise OSError("disk full")
+            return original_open(path_obj, *args, **kwargs)
+        monkeypatch.setattr(Path, "open", _open_with_failure)
+        result = service.run_decay_cycle(now=now)
+        assert result.decayed == 1
+        assert result.deleted == 0
+        assert result.archived == 0
+        assert service.nodes["n1"].weight == pytest.approx(0.90, abs=0.001)
 
     def test_provenance_disabled(self, tmp_path):
         """No provenance files when enable_provenance=False."""
