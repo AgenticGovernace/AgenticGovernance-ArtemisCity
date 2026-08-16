@@ -181,6 +181,66 @@ is_operator_authstructure_config() {
     esac
 }
 
+is_valid_authstructure_identifier() {
+    local value="$1"
+    [[ "$value" =~ ^[A-Za-z0-9][A-Za-z0-9._:/-]{0,254}$ ]]
+}
+
+is_valid_authstructure_hostname() {
+    local hostname="$1" label
+    local -a labels
+    [[ -n "$hostname" && ${#hostname} -le 253 ]] || return 1
+    IFS='.' read -r -a labels <<< "$hostname"
+    for label in "${labels[@]}"; do
+        [[ -n "$label" && ${#label} -le 63 ]] || return 1
+        [[ "$label" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]] || return 1
+    done
+}
+
+# Authstructure endpoints require HTTPS. Plain HTTP is accepted only for the
+# explicit loopback hosts used by local conformance fixtures.
+is_valid_authstructure_url() {
+    local value="$1" scheme remainder authority host port port_number
+    [[ -n "$value" && ! "$value" =~ [[:space:]] ]] || return 1
+    [[ "$value" != *"?"* && "$value" != *"#"* ]] || return 1
+
+    case "$value" in
+        https://*) scheme=https; remainder="${value#https://}" ;;
+        http://*)  scheme=http; remainder="${value#http://}" ;;
+        *) return 1 ;;
+    esac
+    authority="${remainder%%/*}"
+    [[ -n "$authority" && "$authority" != *"@"* ]] || return 1
+
+    host="$authority"
+    if [[ "$authority" == *":"* ]]; then
+        host="${authority%:*}"
+        port="${authority##*:}"
+        [[ "$port" =~ ^[0-9]{1,5}$ ]] || return 1
+        port_number=$((10#$port))
+        (( port_number >= 1 && port_number <= 65535 )) || return 1
+    fi
+    is_valid_authstructure_hostname "$host" || return 1
+    if [[ "$scheme" == "http" ]]; then
+        [[ "$host" == "localhost" || "$host" == "127.0.0.1" ]] || return 1
+    fi
+}
+
+is_valid_authstructure_value() {
+    local key="$1" value="$2"
+    case "$key" in
+        ARTEMIS_AUTHSTRUCTURE_URL)
+            is_valid_authstructure_url "$value"
+            ;;
+        ARTEMIS_AUTHSTRUCTURE_AUDIENCE|ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE|ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID)
+            is_valid_authstructure_identifier "$value"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 should_create() {
     local target="$1"
     if [[ -f "$target" ]]; then
@@ -332,6 +392,25 @@ sync_template() {
             else
                 set_env_var "$key" "$expected" "$target"
                 echo -e "  $GREEN""added$NC $target — $key"
+            fi
+            continue
+        fi
+
+        if is_operator_authstructure_config "$key"; then
+            local configured_value reason
+            configured_value="$(read_env_value "$key" "$target")"
+            if ! is_valid_authstructure_value "$key" "$configured_value"; then
+                if [[ -z "$configured_value" ]]; then
+                    reason="blank"
+                else
+                    reason="malformed"
+                fi
+                if [[ "$MODE" == "check" ]]; then
+                    echo -e "  $YELLOW""drift$NC $target — $key $reason"
+                else
+                    echo -e "  $YELLOW""preserved$NC $target — $key $reason; operator action required"
+                fi
+                changed=1
             fi
             continue
         fi

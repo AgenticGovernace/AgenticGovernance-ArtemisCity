@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import Literal, Protocol
 
 from .contracts import AuthorityContextV1, AuthReceiptV1, VerifiedPartyV1
@@ -35,6 +36,23 @@ class AuthenticationRequest:
     raw_target: bytes
     headers: Mapping[str, tuple[str, ...]] = field(repr=False)
     body: bytes = field(repr=False)
+
+    def __post_init__(self) -> None:
+        try:
+            if not isinstance(self.headers, Mapping):
+                raise TypeError
+            copied_headers: dict[str, tuple[str, ...]] = {}
+            for key, values in self.headers.items():
+                if not isinstance(key, str) or not isinstance(values, tuple):
+                    raise TypeError
+                if any(not isinstance(value, str) for value in values):
+                    raise TypeError
+                copied_headers[key] = tuple(values)
+            object.__setattr__(self, "headers", MappingProxyType(copied_headers))
+        # Custom mappings may fail while iterating. Their potentially secret
+        # exception details must not escape this transient boundary.
+        except Exception:  # noqa: BLE001
+            raise ValueError("invalid_authentication_request_headers") from None
 
 
 class AuthenticationDenied(Exception):

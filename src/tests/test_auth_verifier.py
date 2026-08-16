@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
+import subprocess
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Literal, cast
 
 import pytest
@@ -13,13 +17,18 @@ from src.auth.authstructure import (
     AuthstructureReceiptArtifact,
     AuthstructureVerifier,
 )
-from src.auth.config import AuthConfigurationError, load_auth_verifier
+from src.auth.config import (
+    AuthConfigurationError,
+    AuthstructureConfig,
+    load_auth_verifier,
+)
 from src.auth.contracts import AuthReceiptSourceV1, AuthReceiptV1, PrincipalV1
 from src.auth.verifier import (
     AuthenticationDenied,
     AuthenticationRequest,
     AuthorityContextFactory,
 )
+from src.tests.fakes import FakeAuthVerifier
 
 NOW = datetime(2026, 8, 16, 12, 0, tzinfo=UTC)
 RAW_AUTHORIZATION = "Bearer raw-transport-proof-do-not-retain"
@@ -38,33 +47,84 @@ def _canonical_bytes(projection: dict[str, object]) -> bytes:
     ).encode("utf-8")
 
 
-def _principal(
-    *, expires_at: datetime, audience: str = EXPECTED_AUDIENCE
-) -> PrincipalV1:
-    return PrincipalV1.model_validate(
-        {
-            "identity": {
-                "actor_issuer": "https://auth.example.test",
-                "actor_subject_ref": "subject:alice",
-                "agent_id": "agent:planner",
-                "tenant_id": "tenant:city",
-                "certificate_issuer": "issuer:city-ca",
-                "certificate_serial": "serial:0123",
-                "certificate_thumbprint": "thumbprint:abc123",
-                "request_key_id": "request-key:1",
-                "request_key_jkt": "jkt:request-key-1",
-            },
-            "capability": {
-                "token_issuer": "https://auth.example.test",
-                "audience": audience,
-                "token_key_id": "capability-key:1",
-                "token_jti_ref": "receipt-ref:jti-1",
-                "granted_scopes": {"tasks:read", "tasks:route"},
-            },
-            "verified_at": NOW - timedelta(minutes=5),
-            "expires_at": expires_at,
-        }
-    )
+def _principal_data(
+    *,
+    expires_at: datetime,
+    audience: str = EXPECTED_AUDIENCE,
+    identity_overrides: dict[str, object] | None = None,
+    capability_overrides: dict[str, object] | None = None,
+    verified_at: datetime = NOW - timedelta(minutes=5),
+) -> dict[str, object]:
+    identity: dict[str, object] = {
+        "actor_issuer": "https://auth.example.test",
+        "actor_subject_ref": "subject:alice",
+        "agent_id": "agent:planner",
+        "tenant_id": "tenant:city",
+        "certificate_issuer": "issuer:city-ca",
+        "certificate_serial": "serial:0123",
+        "certificate_thumbprint": "thumbprint:abc123",
+        "request_key_id": "request-key:1",
+        "request_key_jkt": "jkt:request-key-1",
+    }
+    capability: dict[str, object] = {
+        "token_issuer": "https://auth.example.test",
+        "audience": audience,
+        "token_key_id": "capability-key:1",
+        "token_jti_ref": "receipt-ref:jti-1",
+        "granted_scopes": ["tasks:read", "tasks:route"],
+    }
+    identity.update(identity_overrides or {})
+    capability.update(capability_overrides or {})
+    return {
+        "version": "artemis.principal/1",
+        "identity": identity,
+        "capability": capability,
+        "verified_at": verified_at,
+        "expires_at": expires_at,
+    }
+
+
+def _json_principal(principal_data: dict[str, object]) -> dict[str, object]:
+    identity = cast(dict[str, object], principal_data["identity"])
+    capability = cast(dict[str, object], principal_data["capability"])
+    return {
+        "version": principal_data["version"],
+        "identity": dict(identity),
+        "capability": {
+            **capability,
+            "granted_scopes": sorted(cast(list[str], capability["granted_scopes"])),
+        },
+        "verified_at": cast(datetime, principal_data["verified_at"]).isoformat(),
+        "expires_at": cast(datetime, principal_data["expires_at"]).isoformat(),
+    }
+
+
+def _signed_projection(
+    *,
+    request_id: str,
+    authentication: Literal["authenticated", "rejected"],
+    principal_data: dict[str, object] | None,
+    reason_code: str | None,
+    verified_at: datetime,
+    receipt_format: str,
+    receipt_id: str,
+    receipt_key_id: str,
+    signer_namespace: str,
+) -> dict[str, object]:
+    return {
+        "version": "artemis.auth-receipt/1",
+        "request_id": request_id,
+        "authentication": authentication,
+        "principal": _json_principal(principal_data) if principal_data else None,
+        "reason_code": reason_code,
+        "verified_at": verified_at.isoformat(),
+        "source": {
+            "format": receipt_format,
+            "receipt_id": receipt_id,
+            "receipt_key_id": receipt_key_id,
+            "signer_namespace": signer_namespace,
+        },
+    }
 
 
 def _artifact(
@@ -75,21 +135,48 @@ def _artifact(
     receipt_format: str = "authstructure.receipt/2",
     signer_namespace: str = EXPECTED_SIGNER_NAMESPACE,
     receipt_key_id: str = EXPECTED_RECEIPT_KEY_ID,
+    receipt_id: str = "receipt:verified-1",
     verified_at: datetime = NOW - timedelta(minutes=1),
+    principal_verified_at: datetime = NOW - timedelta(minutes=5),
     expires_at: datetime = NOW + timedelta(minutes=5),
+    identity_overrides: dict[str, object] | None = None,
+    capability_overrides: dict[str, object] | None = None,
     canonical_bytes: bytes | None = None,
+    canonical_projection: dict[str, object] | None = None,
     record_hash: str | None = None,
 ) -> AuthstructureReceiptArtifact:
-    projection = {
-        "proof_ref": "proof:verified-1",
-        "receipt_id": "receipt:verified-1",
-        "verified": authentication == "authenticated",
-    }
-    expected_bytes = _canonical_bytes(projection)
+    reason_code = (
+        None if authentication == "authenticated" else "authentication_rejected"
+    )
+    principal_data = (
+        _principal_data(
+            expires_at=expires_at,
+            audience=audience,
+            identity_overrides=identity_overrides,
+            capability_overrides=capability_overrides,
+            verified_at=principal_verified_at,
+        )
+        if authentication == "authenticated"
+        else None
+    )
+    projection = canonical_projection or _signed_projection(
+        request_id=request_id,
+        authentication=authentication,
+        principal_data=principal_data,
+        reason_code=reason_code,
+        verified_at=verified_at,
+        receipt_format=receipt_format,
+        receipt_id=receipt_id,
+        receipt_key_id=receipt_key_id,
+        signer_namespace=signer_namespace,
+    )
+    expected_bytes = (
+        canonical_bytes if canonical_bytes is not None else _canonical_bytes(projection)
+    )
     source = AuthReceiptSourceV1.model_validate(
         {
             "format": receipt_format,
-            "receipt_id": "receipt:verified-1",
+            "receipt_id": receipt_id,
             "record_hash": record_hash
             or f"sha256:{hashlib.sha256(expected_bytes).hexdigest()}",
             "receipt_key_id": receipt_key_id,
@@ -97,26 +184,20 @@ def _artifact(
             "canonical_receipt": projection,
         }
     )
-    principal = (
-        _principal(expires_at=expires_at, audience=audience)
-        if authentication == "authenticated"
-        else None
-    )
+    principal = PrincipalV1.model_validate(principal_data) if principal_data else None
     receipt = AuthReceiptV1.model_validate(
         {
             "request_id": request_id,
             "authentication": authentication,
             "principal": principal,
-            "reason_code": (
-                None if authentication == "authenticated" else "authentication_rejected"
-            ),
+            "reason_code": reason_code,
             "verified_at": verified_at,
             "source": source,
         }
     )
     return AuthstructureReceiptArtifact(
         receipt=receipt,
-        canonical_receipt_bytes=canonical_bytes or expected_bytes,
+        canonical_receipt_bytes=expected_bytes,
     )
 
 
@@ -160,6 +241,89 @@ def _verifier(artifact: AuthstructureReceiptArtifact) -> AuthstructureVerifier:
     )
 
 
+def _with_receipt(
+    artifact: AuthstructureReceiptArtifact, receipt: AuthReceiptV1
+) -> AuthstructureReceiptArtifact:
+    return AuthstructureReceiptArtifact(
+        receipt=receipt,
+        canonical_receipt_bytes=artifact.canonical_receipt_bytes,
+    )
+
+
+def _tamper_signed_field(receipt: AuthReceiptV1, field: str) -> AuthReceiptV1:
+    principal = receipt.principal
+    assert principal is not None
+
+    if field == "identity":
+        identity = principal.identity.model_copy(update={"agent_id": "agent:tampered"})
+        return receipt.model_copy(
+            update={"principal": principal.model_copy(update={"identity": identity})}
+        )
+    if field == "capability":
+        capability = principal.capability.model_copy(
+            update={"token_key_id": "capability-key:tampered"}
+        )
+        return receipt.model_copy(
+            update={
+                "principal": principal.model_copy(update={"capability": capability})
+            }
+        )
+    if field == "scopes":
+        capability = principal.capability.model_copy(
+            update={"granted_scopes": frozenset({"tasks:admin"})}
+        )
+        return receipt.model_copy(
+            update={
+                "principal": principal.model_copy(update={"capability": capability})
+            }
+        )
+    if field == "audience":
+        capability = principal.capability.model_copy(
+            update={"audience": "another-service"}
+        )
+        return receipt.model_copy(
+            update={
+                "principal": principal.model_copy(update={"capability": capability})
+            }
+        )
+    if field == "request_id":
+        return receipt.model_copy(update={"request_id": "request:tampered"})
+    if field == "receipt_verified_at":
+        return receipt.model_copy(
+            update={"verified_at": receipt.verified_at - timedelta(seconds=1)}
+        )
+    if field == "principal_verified_at":
+        return receipt.model_copy(
+            update={
+                "principal": principal.model_copy(
+                    update={"verified_at": principal.verified_at + timedelta(seconds=1)}
+                )
+            }
+        )
+    if field == "principal_expires_at":
+        return receipt.model_copy(
+            update={
+                "principal": principal.model_copy(
+                    update={"expires_at": principal.expires_at + timedelta(minutes=1)}
+                )
+            }
+        )
+    if field.startswith("source_"):
+        source_field = field.removeprefix("source_")
+        replacement = {
+            "format": "authstructure.receipt/tampered",
+            "receipt_id": "receipt:tampered",
+            "receipt_key_id": "receipt-key:tampered",
+            "signer_namespace": "signer:tampered",
+        }[source_field]
+        return receipt.model_copy(
+            update={
+                "source": receipt.source.model_copy(update={source_field: replacement})
+            }
+        )
+    raise AssertionError(f"unknown tamper field: {field}")
+
+
 def _assert_denial_is_safe(
     denied: pytest.ExceptionInfo[AuthenticationDenied], expected_code: str
 ) -> None:
@@ -198,6 +362,58 @@ def test_auth_verifier_request_repr_omits_raw_transport_proof(
         authentication_request.body = b"replacement"  # type: ignore[misc]
 
 
+def test_auth_verifier_request_defensively_freezes_headers() -> None:
+    """Mutating caller-owned header storage cannot change transient proof."""
+    source_headers = {
+        "authorization": (RAW_AUTHORIZATION,),
+        "x-proof": ("proof:original",),
+    }
+    request = AuthenticationRequest(
+        transport="http",
+        request_id="request:1",
+        method="POST",
+        authority="routing.artemis.city",
+        raw_target=b"/v1/route",
+        headers=source_headers,
+        body=RAW_BODY,
+    )
+
+    source_headers["authorization"] = ("Bearer replacement",)
+    source_headers["x-proof"] = ("proof:replacement",)
+
+    assert request.headers["authorization"] == (RAW_AUTHORIZATION,)
+    assert request.headers["x-proof"] == ("proof:original",)
+    with pytest.raises(TypeError):
+        request.headers["x-proof"] = ("proof:mutated",)  # type: ignore[index]
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {1: ("value",)},
+        {"authorization": RAW_AUTHORIZATION},
+        {"authorization": (RAW_AUTHORIZATION, b"not-text")},
+    ],
+)
+def test_auth_verifier_request_rejects_malformed_header_shapes_safely(
+    headers: object,
+) -> None:
+    """Malformed nested headers cannot enter the transient request boundary."""
+    with pytest.raises(ValueError) as denied:
+        AuthenticationRequest(
+            transport="http",
+            request_id="request:1",
+            method="POST",
+            authority="routing.artemis.city",
+            raw_target=b"/v1/route",
+            headers=cast(dict[str, tuple[str, ...]], headers),
+            body=RAW_BODY,
+        )
+
+    assert str(denied.value) == "invalid_authentication_request_headers"
+    assert RAW_AUTHORIZATION not in repr(denied.value)
+
+
 def test_auth_config_missing_production_verifier_fails_closed(monkeypatch) -> None:
     """Missing integration config cannot activate a permissive verifier."""
     for key in (
@@ -228,6 +444,85 @@ def test_auth_config_complete_environment_still_fails_without_public_contract(
 
     with pytest.raises(AuthConfigurationError) as denied:
         load_auth_verifier("prod")
+
+    assert denied.value.code == "auth_verifier_unavailable"
+
+
+def _set_valid_authstructure_environment(monkeypatch) -> None:
+    monkeypatch.setenv("ARTEMIS_AUTHSTRUCTURE_URL", "https://auth.example.test/verify")
+    monkeypatch.setenv("ARTEMIS_AUTHSTRUCTURE_AUDIENCE", EXPECTED_AUDIENCE)
+    monkeypatch.setenv(
+        "ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE", EXPECTED_SIGNER_NAMESPACE
+    )
+    monkeypatch.setenv("ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID", EXPECTED_RECEIPT_KEY_ID)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://auth.example.test/verify",
+        "http://localhost:8080/verify",
+        "http://127.0.0.1:8080/verify",
+    ],
+)
+def test_auth_config_accepts_https_and_explicit_loopback_http(
+    monkeypatch, url: str
+) -> None:
+    """Development HTTP is limited to explicit loopback verifier endpoints."""
+    _set_valid_authstructure_environment(monkeypatch)
+    monkeypatch.setenv("ARTEMIS_AUTHSTRUCTURE_URL", url)
+
+    config = AuthstructureConfig.from_environment("dev")
+
+    assert config.url == url
+    assert config.audience == "artemis-city"
+    assert config.signer_namespace == "authstructure"
+    assert config.receipt_key_id == "receipt-key:production-1"
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("ARTEMIS_AUTHSTRUCTURE_URL", "http://auth.example.test/verify"),
+        ("ARTEMIS_AUTHSTRUCTURE_URL", "http://127.0.0.2/verify"),
+        ("ARTEMIS_AUTHSTRUCTURE_URL", "https://user:pass@auth.example.test"),
+        ("ARTEMIS_AUTHSTRUCTURE_URL", "https://auth.example.test?tenant=city"),
+        ("ARTEMIS_AUTHSTRUCTURE_URL", "https://auth.example.test#fragment"),
+        ("ARTEMIS_AUTHSTRUCTURE_URL", "https://bad host.example.test"),
+        ("ARTEMIS_AUTHSTRUCTURE_URL", "https:///missing-host"),
+        ("ARTEMIS_AUTHSTRUCTURE_URL", "https://auth.example.test:99999"),
+        ("ARTEMIS_AUTHSTRUCTURE_AUDIENCE", "artemis city"),
+        ("ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE", "authstructure\nother"),
+        ("ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID", "receipt key"),
+        ("ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID", ""),
+    ],
+)
+def test_auth_config_rejects_blank_or_malformed_operator_values_safely(
+    monkeypatch, key: str, value: str
+) -> None:
+    """Malformed public configuration cannot reach verifier construction."""
+    _set_valid_authstructure_environment(monkeypatch)
+    monkeypatch.setenv(key, value)
+
+    with pytest.raises(AuthConfigurationError) as denied:
+        AuthstructureConfig.from_environment("prod")
+
+    assert denied.value.code == "auth_verifier_unavailable"
+    assert str(denied.value) == "auth_verifier_unavailable"
+    if value:
+        assert value not in repr(denied.value)
+    assert denied.value.__cause__ is None
+
+
+def test_auth_config_direct_construction_cannot_bypass_validation() -> None:
+    """Callers cannot bypass semantic checks by skipping the env loader."""
+    with pytest.raises(AuthConfigurationError) as denied:
+        AuthstructureConfig(
+            url="http://auth.example.test/verify",
+            audience=EXPECTED_AUDIENCE,
+            signer_namespace=EXPECTED_SIGNER_NAMESPACE,
+            receipt_key_id=EXPECTED_RECEIPT_KEY_ID,
+        )
 
     assert denied.value.code == "auth_verifier_unavailable"
 
@@ -309,6 +604,146 @@ def test_authstructure_verify_rejects_malformed_receipt_artifact_safely(
     _assert_denial_is_safe(denied, "authentication_rejected")
 
 
+@pytest.mark.parametrize(
+    "field",
+    [
+        "identity",
+        "capability",
+        "scopes",
+        "audience",
+        "request_id",
+        "receipt_verified_at",
+        "principal_verified_at",
+        "principal_expires_at",
+        "source_format",
+        "source_receipt_id",
+        "source_receipt_key_id",
+        "source_signer_namespace",
+    ],
+)
+def test_authstructure_verify_binds_every_signed_authority_field(
+    authentication_request: AuthenticationRequest,
+    field: str,
+) -> None:
+    """Changing admitted authority without signed bytes must always deny."""
+    artifact = _artifact()
+    tampered = _with_receipt(artifact, _tamper_signed_field(artifact.receipt, field))
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(tampered).verify(authentication_request)
+
+    _assert_denial_is_safe(denied, "receipt_canonicalization_mismatch")
+    assert denied.value.__cause__ is None
+
+
+@pytest.mark.parametrize(
+    "receipt_updates",
+    [
+        {"version": "artemis.auth-receipt/tampered"},
+        {
+            "authentication": "rejected",
+            "principal": None,
+            "reason_code": "authentication_rejected",
+        },
+        {"reason_code": "authentication_rejected"},
+    ],
+)
+def test_authstructure_verify_revalidates_unchecked_receipt_copies(
+    authentication_request: AuthenticationRequest,
+    receipt_updates: dict[str, object],
+) -> None:
+    """Unchecked model copies cannot bypass receipt state validation."""
+    artifact = _artifact()
+    tampered = _with_receipt(
+        artifact, artifact.receipt.model_copy(update=receipt_updates)
+    )
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(tampered).verify(authentication_request)
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
+    assert denied.value.__cause__ is None
+
+
+@pytest.mark.parametrize(
+    ("identity_field", "echoed_proof"),
+    [
+        ("agent_id", RAW_AUTHORIZATION),
+        ("actor_subject_ref", RAW_BODY.decode()),
+        (
+            "tenant_id",
+            "/v1/route?proof=raw-target-proof-do-not-retain",
+        ),
+    ],
+)
+def test_authstructure_verify_rejects_signed_raw_request_echoes(
+    authentication_request: AuthenticationRequest,
+    identity_field: str,
+    echoed_proof: str,
+) -> None:
+    """Even signed receipts cannot retain exact transient request proof."""
+    artifact = _artifact(identity_overrides={identity_field: echoed_proof})
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(artifact).verify(authentication_request)
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
+    assert echoed_proof not in str(denied.value)
+    assert echoed_proof not in repr(denied.value)
+    assert denied.value.__cause__ is None
+
+
+def test_authstructure_verify_rejects_raw_proof_added_to_canonical_output(
+    authentication_request: AuthenticationRequest,
+) -> None:
+    """Signed canonical output cannot carry fields outside the safe projection."""
+    projection = json.loads(_artifact().canonical_receipt_bytes)
+    projection["transport_echo"] = RAW_AUTHORIZATION
+    artifact = _artifact(canonical_projection=projection)
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(artifact).verify(authentication_request)
+
+    _assert_denial_is_safe(denied, "receipt_canonicalization_mismatch")
+    assert denied.value.__cause__ is None
+
+
+def test_authstructure_artifact_repr_omits_receipt_and_canonical_bytes() -> None:
+    """Debug repr must not expose a malicious signed transport echo."""
+    projection = json.loads(_artifact().canonical_receipt_bytes)
+    projection["transport_echo"] = RAW_AUTHORIZATION
+    artifact = _artifact(canonical_projection=projection)
+
+    representation = repr(artifact)
+
+    assert RAW_AUTHORIZATION not in representation
+    assert "transport_echo" not in representation
+
+
+class _ExplodingPrincipal:
+    @property
+    def capability(self):
+        raise RuntimeError(RAW_AUTHORIZATION)
+
+
+def test_authstructure_verify_sanitizes_nested_artifact_failure(
+    authentication_request: AuthenticationRequest,
+) -> None:
+    """Unexpected nested artifact failures cannot escape admission processing."""
+    artifact = _artifact()
+    malformed_receipt = artifact.receipt.model_copy(
+        update={"principal": cast(PrincipalV1, _ExplodingPrincipal())}
+    )
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(_with_receipt(artifact, malformed_receipt)).verify(
+            authentication_request
+        )
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
+    assert denied.value.__cause__ is None
+
+
 def test_authstructure_verify_rejects_receipt_hash_mismatch(
     authentication_request: AuthenticationRequest,
 ) -> None:
@@ -341,6 +776,67 @@ def test_authstructure_verify_rejects_future_receipt_time(
         _verifier(artifact).verify(authentication_request)
 
     _assert_denial_is_safe(denied, "receipt_time_invalid")
+
+
+@pytest.mark.parametrize(
+    "clock",
+    [
+        lambda: NOW.replace(tzinfo=None),
+        lambda: (_ for _ in ()).throw(RuntimeError(RAW_AUTHORIZATION)),
+    ],
+)
+def test_authstructure_verify_sanitizes_unusable_clock(
+    authentication_request: AuthenticationRequest,
+    clock: Callable[[], datetime],
+) -> None:
+    """Naive and failed clocks must produce only a safe admission denial."""
+    verifier = AuthstructureVerifier(
+        boundary=_ReceiptBoundary(_artifact()),
+        expected_audience=EXPECTED_AUDIENCE,
+        expected_signer_namespace=EXPECTED_SIGNER_NAMESPACE,
+        expected_receipt_key_id=EXPECTED_RECEIPT_KEY_ID,
+        clock=clock,
+    )
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        verifier.verify(authentication_request)
+
+    _assert_denial_is_safe(denied, "receipt_time_invalid")
+    assert denied.value.__cause__ is None
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    [
+        ("receipt", NOW.replace(tzinfo=None)),
+        ("principal", (NOW - timedelta(minutes=5)).replace(tzinfo=None)),
+    ],
+)
+def test_authstructure_verify_revalidates_timestamp_awareness(
+    authentication_request: AuthenticationRequest,
+    field: str,
+    replacement: datetime,
+) -> None:
+    """Unchecked naive receipt or principal timestamps must fail closed."""
+    artifact = _artifact()
+    receipt = artifact.receipt
+    if field == "receipt":
+        malformed = receipt.model_copy(update={"verified_at": replacement})
+    else:
+        assert receipt.principal is not None
+        malformed = receipt.model_copy(
+            update={
+                "principal": receipt.principal.model_copy(
+                    update={"verified_at": replacement}
+                )
+            }
+        )
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(_with_receipt(artifact, malformed)).verify(authentication_request)
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
+    assert denied.value.__cause__ is None
 
 
 def test_authstructure_verify_rejects_expired_principal(
@@ -384,6 +880,7 @@ def test_authstructure_verify_sanitizes_boundary_failure(
         verifier.verify(authentication_request)
 
     _assert_denial_is_safe(denied, "auth_verifier_unavailable")
+    assert denied.value.__cause__ is None
 
 
 def test_authstructure_verify_returns_verified_credential_free_receipt(
@@ -394,7 +891,8 @@ def test_authstructure_verify_returns_verified_credential_free_receipt(
 
     receipt = _verifier(artifact).verify(authentication_request)
 
-    assert receipt is artifact.receipt
+    assert receipt == artifact.receipt
+    assert receipt is not artifact.receipt
     serialized = json.dumps(receipt.model_dump(mode="json"), sort_keys=True)
     assert RAW_AUTHORIZATION not in serialized
     assert RAW_BODY.decode() not in serialized
@@ -420,3 +918,171 @@ def test_auth_factory_root_requires_authenticated_receipt() -> None:
         AuthorityContextFactory().root(rejected_receipt)
 
     _assert_denial_is_safe(denied, "authentication_rejected")
+
+
+def test_fake_auth_verifier_returns_or_denies_without_retaining_request(
+    authentication_request: AuthenticationRequest,
+) -> None:
+    """The test fake must model success/denial without storing raw proof."""
+    receipt = _artifact().receipt
+    accepting = FakeAuthVerifier(receipt=receipt)
+    denying = FakeAuthVerifier(denial_code="principal_expired")
+
+    assert accepting.verify(authentication_request) is receipt
+    with pytest.raises(AuthenticationDenied) as denied:
+        denying.verify(authentication_request)
+
+    _assert_denial_is_safe(denied, "principal_expired")
+    assert denied.value.__cause__ is None
+    assert all(
+        value is not authentication_request for value in vars(accepting).values()
+    )
+
+
+_AUTHSTRUCTURE_TEMPLATE = """ARTEMIS_AUTHSTRUCTURE_URL=
+ARTEMIS_AUTHSTRUCTURE_AUDIENCE=artemis-city
+ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE=
+ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID=
+"""
+
+
+def _authstructure_env(values: dict[str, str]) -> str:
+    order = (
+        "ARTEMIS_AUTHSTRUCTURE_URL",
+        "ARTEMIS_AUTHSTRUCTURE_AUDIENCE",
+        "ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE",
+        "ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID",
+    )
+    return "".join(f"{key}={values[key]}\n" for key in order if key in values)
+
+
+def _setup_secrets_fixture(tmp_path: Path, values: dict[str, str]) -> tuple[Path, Path]:
+    repository_root = Path(__file__).resolve().parents[2]
+    script = tmp_path / "setup_secrets.sh"
+    shutil.copy2(repository_root / "setup_secrets.sh", script)
+
+    root_env = tmp_path / ".env"
+    (tmp_path / ".env.example").write_text(_AUTHSTRUCTURE_TEMPLATE)
+    root_env.write_text(_authstructure_env(values))
+
+    empty_pairs = (
+        ("app/api/.env.example", "app/api/.env"),
+        ("src/.env.example", "src/.env"),
+        (
+            "src/Artemis Agentic Memory Layer/.env.example",
+            "src/Artemis Agentic Memory Layer/.env",
+        ),
+    )
+    for example_name, env_name in empty_pairs:
+        example = tmp_path / example_name
+        env_file = tmp_path / env_name
+        example.parent.mkdir(parents=True, exist_ok=True)
+        env_file.parent.mkdir(parents=True, exist_ok=True)
+        example.write_text("")
+        env_file.write_text("")
+    return script, root_env
+
+
+def _valid_setup_values() -> dict[str, str]:
+    return {
+        "ARTEMIS_AUTHSTRUCTURE_URL": "https://auth.example.test/verify",
+        "ARTEMIS_AUTHSTRUCTURE_AUDIENCE": EXPECTED_AUDIENCE,
+        "ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE": EXPECTED_SIGNER_NAMESPACE,
+        "ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID": EXPECTED_RECEIPT_KEY_ID,
+    }
+
+
+@pytest.mark.parametrize(
+    ("changes", "expected_diagnostic"),
+    [
+        (
+            {"ARTEMIS_AUTHSTRUCTURE_URL": None},
+            "missing ARTEMIS_AUTHSTRUCTURE_URL",
+        ),
+        (
+            {"ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE": ""},
+            "ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE blank",
+        ),
+        (
+            {
+                "ARTEMIS_AUTHSTRUCTURE_URL": (
+                    "https://operator-secret@auth.example.test/verify"
+                )
+            },
+            "ARTEMIS_AUTHSTRUCTURE_URL malformed",
+        ),
+        (
+            {"ARTEMIS_AUTHSTRUCTURE_AUDIENCE": "artemis city"},
+            "ARTEMIS_AUTHSTRUCTURE_AUDIENCE malformed",
+        ),
+        (
+            {"ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID": "receipt key"},
+            "ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID malformed",
+        ),
+    ],
+)
+def test_setup_check_reports_missing_blank_and_malformed_authstructure_values(
+    tmp_path: Path,
+    changes: dict[str, str | None],
+    expected_diagnostic: str,
+) -> None:
+    """Read-only setup checks must distinguish every invalid config state."""
+    values = _valid_setup_values()
+    for key, value in changes.items():
+        if value is None:
+            values.pop(key)
+        else:
+            values[key] = value
+    script, _ = _setup_secrets_fixture(tmp_path, values)
+
+    result = subprocess.run(
+        ["bash", str(script), "--check"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = result.stdout + result.stderr
+
+    assert result.returncode == 1
+    assert expected_diagnostic in output
+    assert "operator-secret" not in output
+
+
+def test_setup_check_accepts_valid_authstructure_configuration(
+    tmp_path: Path,
+) -> None:
+    """A complete semantically valid operator configuration is in sync."""
+    script, _ = _setup_secrets_fixture(tmp_path, _valid_setup_values())
+
+    result = subprocess.run(
+        ["bash", str(script), "--check"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_setup_sync_and_regenerate_preserve_authstructure_values(
+    tmp_path: Path,
+) -> None:
+    """Neither setup mode may invent or rotate operator Authstructure fields."""
+    script, root_env = _setup_secrets_fixture(tmp_path, _valid_setup_values())
+    expected = root_env.read_bytes()
+
+    for mode in (None, "--regenerate"):
+        command = ["bash", str(script)]
+        if mode is not None:
+            command.append(mode)
+        result = subprocess.run(
+            command,
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert root_env.read_bytes() == expected
