@@ -4,9 +4,19 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import datetime
-from typing import Any, Literal
+from math import isfinite
+from types import MappingProxyType
+from typing import Any, Literal, NoReturn
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
+from pydantic_core import PydanticCustomError
 
 _FORBIDDEN_CREDENTIAL_FIELDS = frozenset(
     {
@@ -38,6 +48,71 @@ _REJECTED_REASON_CODES = frozenset(
         "untrusted_issuer",
     }
 )
+
+
+class FrozenJsonDict(Mapping[str, object]):
+    """A read-only JSON object used for signed receipt projections."""
+
+    __slots__ = ("_values",)
+
+    def __init__(self, values: Mapping[str, object]) -> None:
+        self._values = MappingProxyType(dict(values))
+
+    def __getitem__(self, key: str) -> object:
+        return self._values[key]
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def __len__(self) -> int:
+        return len(self._values)
+
+    @staticmethod
+    def _immutable(*args: object, **kwargs: object) -> NoReturn:
+        del args, kwargs
+        raise TypeError("canonical receipt projection is immutable")
+
+    __setitem__ = _immutable
+    __delitem__ = _immutable
+
+
+def _freeze_json_value(value: object) -> object:
+    if value is None or isinstance(value, (str, int, bool)):
+        return value
+    if isinstance(value, float):
+        if not isfinite(value):
+            raise ValueError("canonical_receipt must contain only JSON-safe values")
+        return value
+    if isinstance(value, Mapping):
+        frozen: dict[str, object] = {}
+        for key, nested_value in value.items():
+            if not isinstance(key, str):
+                raise PydanticCustomError(
+                    "json_safe_value",
+                    "canonical_receipt must contain only JSON-safe values",
+                )
+            frozen[key] = _freeze_json_value(nested_value)
+        return FrozenJsonDict(frozen)
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_json_value(item) for item in value)
+    raise ValueError("canonical_receipt must contain only JSON-safe values")
+
+
+def _freeze_json_object(value: object) -> FrozenJsonDict:
+    frozen = _freeze_json_value(value)
+    if not isinstance(frozen, FrozenJsonDict):
+        raise PydanticCustomError(
+            "json_object", "canonical_receipt must be a JSON object"
+        )
+    return frozen
+
+
+def _thaw_json_value(value: object) -> object:
+    if isinstance(value, FrozenJsonDict):
+        return {key: _thaw_json_value(nested) for key, nested in value.items()}
+    if isinstance(value, tuple):
+        return [_thaw_json_value(item) for item in value]
+    return value
 
 
 def _forbidden_credential_field(value: object) -> str | None:
@@ -72,7 +147,12 @@ def _require_aware(value: datetime) -> datetime:
 class AuthorityModel(BaseModel):
     """Strict immutable base for credential-free authority records."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, str_strip_whitespace=True)
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        extra="forbid",
+        frozen=True,
+        str_strip_whitespace=True,
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -134,7 +214,18 @@ class AuthReceiptSourceV1(AuthorityModel):
     record_hash: str = Field(min_length=1)
     receipt_key_id: str = Field(min_length=1)
     signer_namespace: str = Field(min_length=1)
-    canonical_receipt: dict[str, object]
+    canonical_receipt: FrozenJsonDict
+
+    @field_validator("canonical_receipt", mode="before")
+    @classmethod
+    def freeze_canonical_receipt(cls, value: object) -> FrozenJsonDict:
+        return _freeze_json_object(value)
+
+    @field_serializer("canonical_receipt")
+    def serialize_canonical_receipt(self, value: FrozenJsonDict) -> dict[str, object]:
+        serialized = _thaw_json_value(value)
+        assert isinstance(serialized, dict)
+        return serialized
 
 
 class AuthReceiptV1(AuthorityModel):

@@ -134,6 +134,47 @@ def test_receipt_projection_rejects_nested_credential_material() -> None:
         )
 
 
+def test_receipt_projection_is_recursively_immutable_after_validation() -> None:
+    source = AuthReceiptSourceV1(
+        format="authstructure.receipt/2",
+        receipt_id="receipt:verified-1",
+        record_hash="sha256:receipt-1",
+        receipt_key_id="key:receipt-1",
+        signer_namespace="authstructure",
+        canonical_receipt={"receipt": {"proof_ref": "proof:verified-1"}},
+    )
+
+    with pytest.raises(TypeError, match="immutable"):
+        source.canonical_receipt["receipt"]["private_key"] = "do-not-store"
+
+
+def test_receipt_projection_rejects_dict_mutation_bypass() -> None:
+    source = AuthReceiptSourceV1(
+        format="authstructure.receipt/2",
+        receipt_id="receipt:verified-1",
+        record_hash="sha256:receipt-1",
+        receipt_key_id="key:receipt-1",
+        signer_namespace="authstructure",
+        canonical_receipt={"proof_ref": "proof:verified-1"},
+    )
+
+    with pytest.raises(TypeError):
+        dict.__setitem__(source.canonical_receipt, "private_key", "do-not-store")
+
+
+@pytest.mark.parametrize("value", [b"opaque-bytes", object()])
+def test_receipt_projection_rejects_non_json_values(value: object) -> None:
+    with pytest.raises(ValidationError, match="JSON-safe"):
+        AuthReceiptSourceV1(
+            format="authstructure.receipt/2",
+            receipt_id="receipt:verified-1",
+            record_hash="sha256:receipt-1",
+            receipt_key_id="key:receipt-1",
+            signer_namespace="authstructure",
+            canonical_receipt={"safe_key": value},
+        )
+
+
 @pytest.mark.parametrize("field", ["bearerToken", "certificatePem"])
 def test_receipt_projection_rejects_normalized_nested_credential_aliases(
     field: str,
