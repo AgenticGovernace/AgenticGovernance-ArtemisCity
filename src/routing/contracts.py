@@ -43,8 +43,7 @@ KernelEventType = Literal[
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _BEARER_CREDENTIAL_RE = re.compile(
-    r"\bBearer[ \t]+[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+"
-    r"(?![A-Za-z0-9_-])",
+    r"\bBearer[ \t]+[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+){2,}" r"(?![A-Za-z0-9_-])",
     re.IGNORECASE,
 )
 _PRIVATE_KEY_RE = re.compile(

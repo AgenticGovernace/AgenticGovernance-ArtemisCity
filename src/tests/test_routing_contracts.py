@@ -8,6 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.auth.contracts import AuthorityContextV1
+from src.routing import contracts as routing_contracts
 from src.routing.contracts import (
     AuthorizedRouteRequestV1,
     ContinuationV1,
@@ -221,6 +222,26 @@ def test_task_payload_rejects_raw_bearer_and_private_key_material(
     valid_envelope["intent"] = intent
     with pytest.raises(ValidationError, match="private key"):
         TaskEnvelopeV1(**valid_envelope)
+
+
+def test_task_payload_rejects_four_segment_bearer_credential(
+    valid_submission: dict[str, object],
+) -> None:
+    """A fourth token segment must not be ignored after a three-segment prefix."""
+    valid_submission["content"] = "Authorization: Bearer a.b.c.d"
+
+    with pytest.raises(ValidationError, match="Bearer"):
+        TaskSubmissionV1(**valid_submission)
+
+
+def test_bearer_recognizer_consumes_four_segment_credential() -> None:
+    """A structured match must consume rather than truncate a fourth segment."""
+    match = routing_contracts._BEARER_CREDENTIAL_RE.search(
+        "Authorization: Bearer a.b.c.d"
+    )
+
+    assert match is not None
+    assert match.group() == "Bearer a.b.c.d"
 
 
 def test_task_payload_allows_benign_bearer_prose(
