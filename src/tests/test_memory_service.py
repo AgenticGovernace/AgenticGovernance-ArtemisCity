@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import threading
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -20,6 +21,7 @@ from src.memory.models import (
     MemoryRecord,
     MemoryValidationError,
     MemoryWriteCommand,
+    MemoryWriteReceipt,
     ProjectionState,
     WriteDisposition,
 )
@@ -452,7 +454,115 @@ def test_memory_write_command_rejects_unsafe_projection_paths(
         valid_command(projection_path=projection_path)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("namespace", "C:/tenant"),
+        ("namespace", "C:\\tenant"),
+        ("key", "C:/memory"),
+        ("key", "C:\\memory"),
+        ("projection_path", "C:/vault/memory.md"),
+        ("projection_path", "C:\\vault\\memory.md"),
+    ],
+)
+def test_memory_write_command_rejects_windows_drive_qualified_paths(
+    field: str, value: str
+) -> None:
+    with pytest.raises(MemoryValidationError):
+        valid_command(**{field: value})
+
+
 @pytest.mark.parametrize("field", ["principal_id", "parent_provenance_id"])
 def test_memory_write_command_requires_governed_identity_fields(field: str) -> None:
     with pytest.raises(MemoryValidationError):
         valid_command(**{field: " "})
+
+
+def test_memory_write_command_snapshots_and_recursively_freezes_metadata() -> None:
+    tags = ["alpha"]
+    permissions = {"read"}
+    nested: dict[str, object] = {"tags": tags, "permissions": permissions}
+    source: dict[str, object] = {"nested": nested}
+
+    command = valid_command(metadata=source)
+    tags.append("mutated")
+    permissions.add("write")
+    nested["new"] = True
+    source["root"] = "mutated"
+
+    assert command.metadata == {
+        "nested": {"tags": ("alpha",), "permissions": frozenset({"read"})}
+    }
+    with pytest.raises(TypeError):
+        command.metadata["root"] = "blocked"  # type: ignore[index]
+    frozen_nested = command.metadata["nested"]
+    assert isinstance(frozen_nested, Mapping)
+    with pytest.raises(TypeError):
+        frozen_nested["new"] = False  # type: ignore[index]
+    frozen_tags = frozen_nested["tags"]
+    with pytest.raises(AttributeError):
+        frozen_tags.append("blocked")  # type: ignore[union-attr]
+    frozen_permissions = frozen_nested["permissions"]
+    with pytest.raises(AttributeError):
+        frozen_permissions.add("blocked")  # type: ignore[union-attr]
+
+
+def test_memory_record_snapshots_metadata_and_remains_json_serializable() -> None:
+    values = [1, 2]
+    source: dict[str, object] = {"nested": {"values": values}}
+    record = MemoryRecord(
+        record_id="record-json",
+        memory_id="memory-json",
+        namespace="agents",
+        key="json",
+        projection_path="Memory/agents/json.md",
+        version=1,
+        content="content",
+        content_sha256="hash",
+        metadata=source,
+        idempotency_key="json-request",
+        principal_id=None,
+        parent_provenance_id=None,
+        completion_provenance_id=None,
+        created_at=datetime.now(UTC),
+    )
+    values.append(3)
+    source["new"] = "mutated"
+
+    assert record.metadata == {"nested": {"values": (1, 2)}}
+    assert json.loads(json.dumps(record.metadata)) == {"nested": {"values": [1, 2]}}
+    with pytest.raises(TypeError):
+        record.metadata["new"] = "blocked"  # type: ignore[index]
+
+
+def test_write_results_snapshot_and_freeze_projection_mappings() -> None:
+    record = (
+        InMemoryLedger().write_version(valid_command(requested_projections=())).record
+    )
+    states = {"obsidian": ProjectionState.PENDING}
+    event_ids = {"obsidian": "event-1"}
+    ledger_write = LedgerWrite(
+        record=record,
+        disposition=WriteDisposition.CREATED,
+        projection_states=states,
+        projection_event_ids=event_ids,
+    )
+    receipt = MemoryWriteReceipt(
+        record=record,
+        disposition=WriteDisposition.CREATED,
+        ledger_state=LedgerState.SUCCEEDED,
+        projection_states=states,
+        summary="created",
+    )
+    states["obsidian"] = ProjectionState.SUCCEEDED
+    event_ids["obsidian"] = "mutated"
+
+    assert ledger_write.projection_states == {"obsidian": ProjectionState.PENDING}
+    assert ledger_write.projection_event_ids == {"obsidian": "event-1"}
+    assert receipt.projection_states == {"obsidian": ProjectionState.PENDING}
+    with pytest.raises(TypeError):
+        ledger_write.projection_states["obsidian"] = ProjectionState.FAILED  # type: ignore[index]
+    with pytest.raises(TypeError):
+        ledger_write.projection_event_ids["obsidian"] = "blocked"  # type: ignore[index]
+    with pytest.raises(TypeError):
+        receipt.projection_states["obsidian"] = ProjectionState.FAILED  # type: ignore[index]
