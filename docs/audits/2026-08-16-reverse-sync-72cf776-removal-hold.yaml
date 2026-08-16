@@ -1,0 +1,69 @@
+---
+api_version: "artemis.quantumharmony.dev/v1"
+kind: "ReverseSyncRemovalHold"
+metadata:
+  name: "reverse-sync-72cf776-removal-hold"
+  hold_version: 1
+  hold_date: "2026-08-16"
+  owner_repository: "Artemis_City"
+  status: "active"
+source_manifest:
+  path: "docs/audits/2026-08-16-reverse-sync-72cf776-path-manifest.yaml"
+  sha256: "60d558d7d4f2881fed87a15d61b4ad018892aba8f2690d91f172b5be3b94914e"
+  source_commit: "72cf776a69b260d4bcc2c811179d49dc34dbbf0d"
+held_paths:
+  selection_rule: "classification == REMOVE_REVERSE_SYNC and source_status == A"
+  count: 217
+  line_encoding: "manifest order, UTF-8, one path per line, terminal LF"
+  line_sha256: "2f07edf48b8a82bd10a35826c3df009d4d60a3f54593db4a424d309d644b1f3b"
+  nul_encoding: "manifest order, UTF-8, NUL after each path"
+  nul_sha256: "3c9f34fb66d414f4e76736d6017297883ada63775ceba71e94cc406ef62e79c3"
+deferred_restorations:
+  count: 19
+  ordered_paths:
+    - ".devcontainer/devcontainer.json"
+    - ".github/workflows/promote.yml"
+    - ".vscode/settings.json"
+    - "app/web/frontend/.env.example"
+    - "benchmarks/bench_memory_ops.py"
+    - "examples/README.md"
+    - "examples/governance_demo/README.md"
+    - "examples/governance_demo/run.py"
+    - "examples/minimal_deployment/README.md"
+    - "examples/minimal_deployment/run.py"
+    - "examples/multi_agent_workflow/README.md"
+    - "examples/multi_agent_workflow/run.py"
+    - "sandbox_city/_Index_of_sandbox_city.md"
+    - "sandbox_city/index.md"
+    - "sandbox_city/semantic_zones.md"
+    - "app/scripts/data/vector_store.db"
+    - "supabase/migrations/artemis.sql"
+    - "monitoring/alerts.yml"
+    - "monitoring/prometheus.yml"
+  line_encoding: "brief order, UTF-8, one path per line, terminal LF"
+  line_sha256: "3852300a2ea1a41454b158db6e77f3abed5f649f2d4c173405bc33fe27c933ae"
+reason: "Keep reverse-sync comparison material until merge and reviews are complete."
+scope:
+  statement: "This hold authorizes no deletion, restore, move, rename, or content rewrite."
+  authorizes_deletion: false
+  authorizes_restore: false
+  authorizes_move: false
+  authorizes_rename: false
+  authorizes_content_rewrite: false
+quarantine_rule: "Retained paths are evidence only and receive no runtime, import, routing, test-collection, or release authority merely by being tracked."
+release_conditions:
+  - key: "relevant_merge_completed"
+    satisfied: false
+  - key: "review_signoffs_recorded"
+    satisfied: false
+  - key: "fresh_explicit_user_authorization"
+    satisfied: false
+  - key: "source_manifest_hash_unchanged"
+    satisfied: false
+  - key: "held_list_count_and_digests_unchanged"
+    satisfied: false
+  - key: "hold_presence_gate_green"
+    satisfied: false
+  - key: "release_package_gate_green"
+    satisfied: false
+review_signoffs: []
