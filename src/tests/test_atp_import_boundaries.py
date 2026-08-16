@@ -10,6 +10,8 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Any
 
+import pytest
+
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -23,6 +25,9 @@ def _run_fresh_process(tmp_path: Path, source: str) -> dict[str, Any]:
     )
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
     environment["ARTEMIS_LOG_DIR"] = str(tmp_path / "logs")
+    environment["ARTEMIS_LOG_FILE"] = str(tmp_path / "logs" / "mcp_obsidian.log")
+    environment.pop("PROMETHEUS_MULTIPROC_DIR", None)
+    environment.pop("prometheus_multiproc_dir", None)
     completed = subprocess.run(
         [sys.executable, "-c", dedent(source)],
         cwd=tmp_path,
@@ -164,6 +169,58 @@ def test_lazy_package_exports_remain_usable(tmp_path: Path) -> None:
         "sanitized": "safe value",
         "validator": True,
     }
+
+
+def test_fresh_process_isolates_inherited_logging_and_metric_paths(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    inherited_root = tmp_path.parent / f"{tmp_path.name}-inherited"
+    inherited_log = inherited_root / "operator.log"
+    inherited_metrics = inherited_root / "metrics"
+    inherited_legacy_metrics = inherited_root / "legacy-metrics"
+    inherited_metrics.mkdir(parents=True)
+    inherited_legacy_metrics.mkdir()
+    monkeypatch.setenv("ARTEMIS_LOG_FILE", str(inherited_log))
+    monkeypatch.setenv("PROMETHEUS_MULTIPROC_DIR", str(inherited_metrics))
+    monkeypatch.setenv("prometheus_multiproc_dir", str(inherited_legacy_metrics))
+
+    payload = _run_fresh_process(
+        tmp_path,
+        """
+        import json
+        import os
+        from pathlib import Path
+
+        from src.agents.atp.atp_parser import ATPParser
+        from src.utils import logger
+
+        _, metrics = ATPParser().parse_with_metrics(
+            "#Mode: Build" + chr(10) + "#Context: isolate child paths"
+        )
+        log_file = Path(os.environ["ARTEMIS_LOG_FILE"])
+        print(json.dumps({
+            "legacy_multiproc_dir": os.environ.get("prometheus_multiproc_dir"),
+            "log_file": str(log_file.resolve()),
+            "log_file_exists": log_file.is_file(),
+            "logger_name": logger.name,
+            "metrics_format": metrics["format_detected"],
+            "multiproc_dir": os.environ.get("PROMETHEUS_MULTIPROC_DIR"),
+        }, sort_keys=True))
+        """,
+    )
+
+    expected_log = (tmp_path / "logs" / "mcp_obsidian.log").resolve()
+    assert payload == {
+        "legacy_multiproc_dir": None,
+        "log_file": str(expected_log),
+        "log_file_exists": True,
+        "logger_name": "MCP_System",
+        "metrics_format": "hash",
+        "multiproc_dir": None,
+    }
+    assert inherited_log.exists() is False
+    assert list(inherited_metrics.iterdir()) == []
+    assert list(inherited_legacy_metrics.iterdir()) == []
 
 
 def test_parser_metrics_are_lazy_and_reimport_safe(tmp_path: Path) -> None:
