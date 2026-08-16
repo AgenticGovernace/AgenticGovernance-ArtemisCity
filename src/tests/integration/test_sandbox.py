@@ -17,10 +17,14 @@ for _key in [
 
 import pytest
 
-from src.integration.sandbox import (VIOLATION_UNAUTHORIZED_OPERATION,
-                                     VIOLATION_UNAUTHORIZED_PATH,
-                                     VIOLATION_UNAUTHORIZED_TOOL, AgentSandbox,
-                                     CheckResult, ToolPolicy)
+from src.integration.sandbox import (
+    VIOLATION_UNAUTHORIZED_OPERATION,
+    VIOLATION_UNAUTHORIZED_PATH,
+    VIOLATION_UNAUTHORIZED_TOOL,
+    AgentSandbox,
+    CheckResult,
+    ToolPolicy,
+)
 
 
 class TestToolPolicy:

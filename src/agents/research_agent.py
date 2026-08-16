@@ -1,6 +1,9 @@
 from .base_agent import BaseAgent
-from .fallback_policy import (degraded_metadata, provider_failure_result,
-                              synthetic_fallback_enabled)
+from .fallback_policy import (
+    degraded_metadata,
+    provider_failure_result,
+    synthetic_fallback_enabled,
+)
 from .llm_agent import LLMAgent
 
 

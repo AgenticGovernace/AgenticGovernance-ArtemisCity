@@ -27,9 +27,9 @@ from utils.helpers import logger
 class ApprovalLevel(Enum):
     """Determines how much oversight a proposal requires."""
 
-    AUTO_APPROVE = "auto"           # Composite score > 85%
-    MONITORED_APPROVE = "monitored" # Composite score 70-85%
-    HUMAN_REQUIRED = "human"        # Composite score < 70%
+    AUTO_APPROVE = "auto"  # Composite score > 85%
+    MONITORED_APPROVE = "monitored"  # Composite score 70-85%
+    HUMAN_REQUIRED = "human"  # Composite score < 70%
 
 
 class ProposalStatus(Enum):
@@ -49,8 +49,8 @@ class ProposalStatus(Enum):
 class WorkflowChange:
     """Describes a proposed modification to agent configuration or workflow."""
 
-    change_type: str              # e.g., "routing_weight", "config_update", "workflow_add"
-    target_component: str         # e.g., "agent_router", "memory_bus", "hebbian_layer"
+    change_type: str  # e.g., "routing_weight", "config_update", "workflow_add"
+    target_component: str  # e.g., "agent_router", "memory_bus", "hebbian_layer"
     description: str
     proposed_diff: Dict[str, Any] = field(default_factory=dict)
     rollback_data: Dict[str, Any] = field(default_factory=dict)
@@ -249,9 +249,7 @@ class SelfUpdateGovernor:
         else:
             return ApprovalLevel.HUMAN_REQUIRED
 
-    async def _run_sandbox_tests(
-        self, change: WorkflowChange
-    ) -> SandboxTestResults:
+    async def _run_sandbox_tests(self, change: WorkflowChange) -> SandboxTestResults:
         """
         Run synthetic queries against the proposed change in isolation.
 
@@ -290,8 +288,12 @@ class SelfUpdateGovernor:
         # Check for privilege escalation patterns
         diff_str = json.dumps(change.proposed_diff).lower()
         dangerous_patterns = [
-            "admin", "root", "sudo", "bypass_sandbox",
-            "disable_governance", "remove_whitelist",
+            "admin",
+            "root",
+            "sudo",
+            "bypass_sandbox",
+            "disable_governance",
+            "remove_whitelist",
         ]
         for pattern in dangerous_patterns:
             if pattern in diff_str:

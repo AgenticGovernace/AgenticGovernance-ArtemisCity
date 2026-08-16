@@ -9,9 +9,11 @@ import pytest
 
 from src.core.instructions import instruction_cache
 from src.core.instructions.instruction_cache import InstructionCache
-from src.core.instructions.instruction_loader import (InstructionLoader,
-                                                      InstructionScope,
-                                                      InstructionSet)
+from src.core.instructions.instruction_loader import (
+    InstructionLoader,
+    InstructionScope,
+    InstructionSet,
+)
 
 
 def test_instruction_set_orders_merges_and_renders_scopes() -> None:

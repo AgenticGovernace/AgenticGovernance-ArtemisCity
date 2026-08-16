@@ -8,15 +8,23 @@ import pytest
 
 from src.Experiments.legal_summarization.batch_runner import BatchRunner
 from src.Experiments.legal_summarization.dataset_loader import (
-    JudgmentRecord, LegalDatasetLoader, resolve_hf_token)
-from src.Experiments.legal_summarization.evaluation import (aggregate_metrics,
-                                                            evaluate_summary)
-from src.Experiments.legal_summarization.legal_summarizer_agent import \
-    LegalSummarizerAgent
+    JudgmentRecord,
+    LegalDatasetLoader,
+    resolve_hf_token,
+)
+from src.Experiments.legal_summarization.evaluation import (
+    aggregate_metrics,
+    evaluate_summary,
+)
+from src.Experiments.legal_summarization.legal_summarizer_agent import (
+    LegalSummarizerAgent,
+)
 from src.Experiments.legal_summarization.main import build_parser
 from src.Experiments.legal_summarization.run_store import RunStore
 from src.Experiments.legal_summarization.summarization_config import (
-    SummarizationConfig, SummarizationMode)
+    SummarizationConfig,
+    SummarizationMode,
+)
 
 
 def test_resolve_hf_token_prefers_official_environment(monkeypatch):

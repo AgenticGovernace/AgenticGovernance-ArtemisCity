@@ -7,7 +7,6 @@ import stat
 import subprocess
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MEMORY_LAYER = "src/Artemis Agentic Memory Layer"
 
@@ -30,7 +29,9 @@ def _copy_provisioner_fixture(tmp_path: Path) -> Path:
     return fixture
 
 
-def _run(fixture: Path, *args: str, input_text: str = "") -> subprocess.CompletedProcess[str]:
+def _run(
+    fixture: Path, *args: str, input_text: str = ""
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["bash", "setup_secrets.sh", *args],
         cwd=fixture,
@@ -48,7 +49,9 @@ def _env_value(path: Path, key: str) -> str:
     return ""
 
 
-def test_sync_backfills_every_runtime_template_and_check_detects_drift(tmp_path: Path) -> None:
+def test_sync_backfills_every_runtime_template_and_check_detects_drift(
+    tmp_path: Path,
+) -> None:
     fixture = _copy_provisioner_fixture(tmp_path)
     (fixture / ".env").write_text(
         "MCP_API_KEY=keep-mcp\n"
@@ -70,9 +73,7 @@ def test_sync_backfills_every_runtime_template_and_check_detects_drift(tmp_path:
     assert _env_value(fixture / ".env", "ARTEMIS_HEBBIAN_ROUTING") == "1"
     assert _env_value(fixture / "app/api/.env", "EXO_READ_TIMEOUT_SECONDS") == "900"
     assert _env_value(fixture / "src/.env", "ARTEMIS_VECTOR_BACKEND") == "sqlite"
-    assert _env_value(
-        fixture / f"{MEMORY_LAYER}/.env", "OBSIDIAN_CA_CERT"
-    ) == ""
+    assert _env_value(fixture / f"{MEMORY_LAYER}/.env", "OBSIDIAN_CA_CERT") == ""
     assert stat.S_IMODE((fixture / ".env").stat().st_mode) == 0o600
 
     check = _run(fixture, "--check")

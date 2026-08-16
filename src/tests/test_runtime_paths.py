@@ -8,8 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from src.runtime_paths import (REPO_ROOT, data_dir, data_path, log_path,
-                               logs_dir)
+from src.runtime_paths import REPO_ROOT, data_dir, data_path, log_path, logs_dir
 
 
 def test_pytest_session_isolated_from_live_runtime_state():

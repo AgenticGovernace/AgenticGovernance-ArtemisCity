@@ -10,14 +10,17 @@ import pytest
 
 from src.Experiments.legal_summarization.batch_runner import BatchRunner
 from src.Experiments.legal_summarization.dataset_loader import JudgmentRecord
-from src.Experiments.legal_summarization.eval_harness import (EvalResult,
-                                                              LegalEvalHarness)
-from src.Experiments.legal_summarization.evaluation import \
-    evaluate_summary_with_review
+from src.Experiments.legal_summarization.eval_harness import (
+    EvalResult,
+    LegalEvalHarness,
+)
+from src.Experiments.legal_summarization.evaluation import evaluate_summary_with_review
 from src.Experiments.legal_summarization.main import build_parser, main
 from src.Experiments.legal_summarization.run_store import RunStore
 from src.Experiments.legal_summarization.summarization_config import (
-    AudienceLevel, SummarizationConfig)
+    AudienceLevel,
+    SummarizationConfig,
+)
 
 
 def test_eval_harness_computes_multi_aspect_scores_and_grade():

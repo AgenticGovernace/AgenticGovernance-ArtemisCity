@@ -60,8 +60,7 @@ class RunLogger:
         """Create logging tables if they don't exist."""
         with sqlite3.connect(self.db_path) as conn:
             # Event log table - tracks all operations
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS event_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id TEXT NOT NULL,
@@ -73,12 +72,10 @@ class RunLogger:
                     duration_ms REAL,
                     created_at REAL NOT NULL
                 )
-            """
-            )
+            """)
 
             # Vector log table - tracks all semantic embeddings
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS vector_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id TEXT NOT NULL,
@@ -92,12 +89,10 @@ class RunLogger:
                     latency_ms REAL,
                     created_at REAL NOT NULL
                 )
-            """
-            )
+            """)
 
             # Database write log - tracks all DB operations
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS db_write_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id TEXT NOT NULL,
@@ -111,8 +106,7 @@ class RunLogger:
                     latency_ms REAL,
                     created_at REAL NOT NULL
                 )
-            """
-            )
+            """)
 
             # Create indexes for efficient querying
             conn.execute(
@@ -631,21 +625,34 @@ def get_recent_runs(db_path: str = "data/run_logs.db", limit: int = 20) -> List[
             ORDER BY start_time DESC
             LIMIT ?
             """,
-            (limit,)
+            (limit,),
         )
         runs = []
         for row in cursor.fetchall():
             run_dict = dict(row)
             # Convert timestamps to ISO format
-            start = run_dict['start_time']
-            end = run_dict['end_time']
-            run_dict['start_time'] = datetime.fromtimestamp(start).isoformat() if isinstance(start, (int, float)) else str(start)
-            run_dict['end_time'] = datetime.fromtimestamp(end).isoformat() if isinstance(end, (int, float)) else str(end)
+            start = run_dict["start_time"]
+            end = run_dict["end_time"]
+            run_dict["start_time"] = (
+                datetime.fromtimestamp(start).isoformat()
+                if isinstance(start, (int, float))
+                else str(start)
+            )
+            run_dict["end_time"] = (
+                datetime.fromtimestamp(end).isoformat()
+                if isinstance(end, (int, float))
+                else str(end)
+            )
             runs.append(run_dict)
         return runs
 
 
-def get_run_events(db_path: str = "data/run_logs.db", run_id: str = None, event_type: str = None, limit: int = 100) -> List[Dict]:
+def get_run_events(
+    db_path: str = "data/run_logs.db",
+    run_id: str = None,
+    event_type: str = None,
+    limit: int = 100,
+) -> List[Dict]:
     """
     Get events for a specific run, optionally filtered by event type.
 
@@ -670,7 +677,7 @@ def get_run_events(db_path: str = "data/run_logs.db", run_id: str = None, event_
                 ORDER BY created_at DESC
                 LIMIT ?
                 """,
-                (run_id, event_type, limit)
+                (run_id, event_type, limit),
             )
         else:
             cursor = conn.execute(
@@ -681,16 +688,16 @@ def get_run_events(db_path: str = "data/run_logs.db", run_id: str = None, event_
                 ORDER BY created_at DESC
                 LIMIT ?
                 """,
-                (run_id, limit)
+                (run_id, limit),
             )
 
         events = []
         for row in cursor.fetchall():
             event_dict = dict(row)
             # Parse metadata JSON if present
-            if event_dict['metadata']:
+            if event_dict["metadata"]:
                 try:
-                    event_dict['metadata'] = json.loads(event_dict['metadata'])
+                    event_dict["metadata"] = json.loads(event_dict["metadata"])
                 except:
                     pass
             events.append(event_dict)

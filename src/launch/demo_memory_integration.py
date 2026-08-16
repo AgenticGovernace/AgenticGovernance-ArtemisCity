@@ -12,8 +12,12 @@ _repo_root_str = str(_repo_root)
 if _repo_root_str not in sys.path:
     sys.path.insert(0, _repo_root_str)
 
-from src.integration import (ContextLoader, MemoryClient, TrustInterface,
-                             get_trust_interface)
+from src.integration import (
+    ContextLoader,
+    MemoryClient,
+    TrustInterface,
+    get_trust_interface,
+)
 
 
 def demo_memory_client():

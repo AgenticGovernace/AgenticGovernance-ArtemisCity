@@ -10,8 +10,7 @@ from datetime import datetime
 import pytest
 
 from src.integration.memory_client import MemoryClient
-from src.integration.trust_interface import (TrustInterface, TrustLevel,
-                                             TrustScore)
+from src.integration.trust_interface import TrustInterface, TrustLevel, TrustScore
 
 
 class TestMemoryClient:
