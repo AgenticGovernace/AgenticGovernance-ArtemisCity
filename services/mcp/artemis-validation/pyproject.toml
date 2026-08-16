@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "artemis-validation-mcp"
+version = "0.1.0"
+description = "Read-only MCP adapter for canonical Artemis ATP validation."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "artemis-city==1.0.0",
+    "mcp[cli]==2.0.0",
+    "pydantic>=2.4",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/artemis_validation_mcp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.uv.sources]
+artemis-city = { path = "../../..", editable = true }

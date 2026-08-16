@@ -194,6 +194,27 @@ class TestViolations:
         assert registry.get_violations("Alpha") == []
         assert len(registry.get_violations("Alpha", include_cleared=True)) == 1
 
+    def test_agent_records_expose_governance_status_partition(self, registry):
+        alpha = _StubAgent("Alpha", capabilities=["research"])
+        beta = _StubAgent("Beta", capabilities=["research"])
+        registry.register_agent(alpha)
+        registry.register_agent(beta)
+        for _ in range(QUARANTINE_THRESHOLD):
+            registry.record_violation("Alpha", "rate_limit", {})
+        records = registry.store.list_agent_records()
+        by_name = {record["name"]: record for record in records}
+        counts = {"active": 0, "quarantined": 0}
+        for record in records:
+            status = record["status"]
+            if status in counts:
+                counts[status] += 1
+        assert len(records) == 2
+        assert by_name["Alpha"]["status"] == "quarantined"
+        assert by_name["Alpha"]["violation_count"] == QUARANTINE_THRESHOLD
+        assert by_name["Beta"]["status"] == "active"
+        assert by_name["Beta"]["violation_count"] == 0
+        assert counts == {"active": 1, "quarantined": 1}
+
 
 # ---------------------------------------------------------------------------
 # Clearing / override

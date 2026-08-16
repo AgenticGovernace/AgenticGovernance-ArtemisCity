@@ -11,7 +11,7 @@
         run cli atp orchestrator kernel demo demo-artemis demo-memory demo-postal \
         hebbian agent-stats server frontend api dashboard-api express-api \
         legal-summarization legal-summarization-check \
-        build web-build docs docs-serve all ci
+        package-audit package-check build web-build docs docs-serve all ci
 
 .DEFAULT_GOAL := help
 
@@ -236,7 +236,15 @@ legal-summarization-check: ## Check legal evaluation dependencies without runnin
 # BUILD AND DOCUMENTATION
 # ============================================
 
-build: ## Build the Python package
+package-audit: ## Validate the active Python release hold contract
+	cd "$(ROOT_DIR)" && $(PYTHON) -m pytest -q -p no:cacheprovider \
+		src/tests/test_release_artifacts.py -k release_hold_contract
+
+package-check: package-audit ## Fail closed while the Python release hold is active
+	@echo "RELEASE_HOLD_ACTIVE: Python package release is blocked."
+	@exit 2
+
+build: package-check ## Build the Python package after the release hold is lifted
 	cd "$(ROOT_DIR)" && $(PYTHON) -m build
 
 web-build: ## Build the Express API and Vite frontend

@@ -38,6 +38,7 @@ dependencies = [
     "coverage==7.15.4",
     "datasets>=5.0.1",
     "diskcache==5.6.3",
+    "docker>=7.2.0",
     "email-validator==2.3.0",
     "fastapi>=0.109.1",
     "fastmcp==4.0.0b2",
@@ -126,7 +127,7 @@ exclude = ["/app/api/**", "/app/scripts/**", "/app/web/**"]
 [tool.pytest.ini_options]
 testpaths = ["src/tests"]
 python_files = ["test_*.py"]
-addopts = "-ra"
+addopts = '-ra --ignore="src/tests/integration/test_artemis_persona 2.py"'
 
 [dependency-groups]
 test = [

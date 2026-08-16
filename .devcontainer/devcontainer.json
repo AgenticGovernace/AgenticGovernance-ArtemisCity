@@ -1,11 +1,11 @@
 {
   "name": "Artemis City Dev",
   "dockerComposeFile": "docker-compose.yaml",
-  "service": "app",
-  "workspaceFolder": "/workspaces",
+  "service": "container",
+  "workspaceFolder": "./",
   "features": {
     "ghcr.io/devcontainers/features/python:1": {
-      "version": "3.12"
+      "version": "3.10"
     },
     "ghcr.io/devcontainers/features/node:2.1.0": {
       "version": "24"
@@ -25,13 +25,13 @@
     5432
   ],
   "forwardPortsActivity": {
-    "3000": "ignore",
-    "4000": "ignore",
-    "8000": "ignore",
-    "5432": "ignore"
+    "3000": "",
+    "4000": "",
+    "8000": "",
+    "5432": ""
   },
   "postCreateCommand": "bash -c 'cd /workspaces && make install-all'",
-  "remoteUser": "root",
+  "remoteUser": "$USER",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -44,10 +44,12 @@
         "EditorConfig.EditorConfig",
         "ms-vscode-remote.remote-containers",
         "ms-vscode.makefile-tools",
-        "docker.docker"
+        "docker.docker",
+        "VisualStudioExptTeam.intellicode-api-usage-examples",
+        "ms-vscode.vscode-typescript-tslint-plugin"
       ],
       "settings": {
-        "python.defaultInterpreterPath": "/workspaces/.venv/bin/python",
+        "python.defaultInterpreterPath": "./.venv/bin/python",
         "python.linting.enabled": true,
         "python.linting.pylintEnabled": true,
         "python.linting.mypyEnabled": true,

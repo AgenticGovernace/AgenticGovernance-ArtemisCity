@@ -41,7 +41,11 @@ never breaks routing — it simply falls back to whatever signals remain.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from math import isfinite
 from typing import Any, Dict, List, Optional
+
+from src.routing.authorization import AuthorizationDecision
+from src.routing.eligibility import EligibleCandidate
 
 try:  # repo root on path (tests / app)
     from src.utils.helpers import logger, sanitize_for_log
@@ -125,8 +129,195 @@ class RoutingDecision:
         }
 
 
+class HebbianRanker:
+    """Production rank-only boundary for an already eligible candidate tuple."""
+
+    def __init__(
+        self,
+        hebbian: Any,
+        alpha: float = DEFAULT_ALPHA,
+        neutral_prior: float = NEUTRAL_PRIOR,
+        beta: float = DEFAULT_BETA,
+    ) -> None:
+        self.hebbian = hebbian
+        parsed_alpha = float(alpha)
+        parsed_beta = float(beta)
+        parsed_neutral_prior = float(neutral_prior)
+        if not all(
+            isfinite(value)
+            for value in (parsed_alpha, parsed_beta, parsed_neutral_prior)
+        ):
+            raise ValueError("ranker configuration must contain only finite values")
+        self.alpha = max(0.0, min(1.0, parsed_alpha))
+        self.beta = max(0.0, min(1.0 - self.alpha, parsed_beta))
+        self.neutral_prior = parsed_neutral_prior
+
+    def rank(
+        self,
+        authorized: AuthorizationDecision,
+        candidates: tuple[EligibleCandidate, ...],
+    ) -> RoutingDecision:
+        """Order exactly the supplied eligible candidates without discovery."""
+        if not isinstance(candidates, tuple):
+            raise TypeError("eligible candidates must be supplied as a tuple")
+        if not candidates:
+            raise ValueError("No eligible candidates are available for ranking")
+        if any(
+            not isinstance(candidate, EligibleCandidate) for candidate in candidates
+        ):
+            raise TypeError("eligible candidates must use EligibleCandidate records")
+        if any(
+            not candidate.capabilities
+            or not candidate.capabilities.issubset(authorized.capabilities)
+            for candidate in candidates
+        ):
+            raise ValueError("candidate tuple contains unauthorized capabilities")
+
+        learning_scope = authorized.intent.capability
+        raw: dict[str, tuple[float | None, float, float | None, dict[str, Any]]] = {}
+        for candidate in candidates:
+            base = self._hebbian_weight(candidate.name, learning_scope)
+            pair_bonus = self._pair_bonus(candidate.name)
+            timing_score = self._timing_score(candidate.name, learning_scope)
+            stability = self._stability_signal(candidate.name, learning_scope)
+            effective = None
+            if base is not None or timing_score is not None or pair_bonus != 0.0:
+                effective = max(
+                    0.0,
+                    float(base or 0.0) + float(timing_score or 0.0) + pair_bonus,
+                )
+            raw[candidate.name] = (
+                base,
+                pair_bonus,
+                timing_score,
+                {**stability, "effective": effective},
+            )
+
+        max_hebbian = max(
+            (
+                float(values[3]["effective"])
+                for values in raw.values()
+                if values[3]["effective"] is not None
+            ),
+            default=0.0,
+        )
+        composite_weight = max(0.0, 1.0 - self.alpha - self.beta)
+        scored: list[CandidateScore] = []
+        for candidate in candidates:
+            base, pair_bonus, timing_score, signal = raw[candidate.name]
+            effective = signal["effective"]
+            if effective is None:
+                hebbian_raw = 0.0
+                hebbian_normalized = self.neutral_prior
+            else:
+                hebbian_raw = float(base or 0.0)
+                hebbian_normalized = (
+                    float(effective) / max_hebbian
+                    if max_hebbian > 0
+                    else self.neutral_prior
+                )
+            blended = (
+                composite_weight * candidate.composite_score
+                + self.alpha * hebbian_normalized
+                + self.beta * candidate.trust_score
+            )
+            scored.append(
+                CandidateScore(
+                    name=candidate.name,
+                    composite=candidate.composite_score,
+                    hebbian_weight=hebbian_raw,
+                    hebbian_norm=hebbian_normalized,
+                    trust_score=candidate.trust_score,
+                    blended=blended,
+                    pair_bonus=pair_bonus,
+                    timing_score=timing_score,
+                    hebbian_effective=float(effective or 0.0),
+                    oscillation_rate=float(signal["oscillation_rate"]),
+                    sentinel_alert=bool(signal["alert_active"]),
+                    sentinel_samples=int(signal["sample_count"]),
+                )
+            )
+
+        scored.sort(key=lambda candidate: candidate.name)
+        scored.sort(
+            key=lambda candidate: (candidate.blended, candidate.composite),
+            reverse=True,
+        )
+        best = scored[0]
+        return RoutingDecision(
+            agent_name=best.name,
+            alpha=self.alpha,
+            beta=self.beta,
+            candidates=scored,
+            capability=authorized.intent.capability,
+            routing_scope=learning_scope,
+            atp_action_type=authorized.intent.action_type,
+        )
+
+    def _hebbian_weight(self, name: str, task_type: str) -> Optional[float]:
+        try:
+            get_scoped = getattr(self.hebbian, "get_task_type_weight", None)
+            if callable(get_scoped):
+                scoped_weight = get_scoped(name, task_type)
+                if scoped_weight is not None:
+                    parsed = float(scoped_weight)
+                    return max(0.0, parsed) if isfinite(parsed) else None
+                has_scoped = getattr(self.hebbian, "has_task_type_history", None)
+                if callable(has_scoped) and has_scoped(name):
+                    return None
+            parsed = float(self.hebbian.get_agent_average_weight(name))
+            return max(0.0, parsed) if isfinite(parsed) else None
+        except Exception:  # noqa: BLE001 - optional learned evidence is fail-neutral
+            return 0.0
+
+    def _pair_bonus(self, name: str) -> float:
+        try:
+            getter = getattr(self.hebbian, "get_pair_bonus", None)
+            if not callable(getter):
+                return 0.0
+            parsed = float(getter(name))
+            return max(-0.5, min(0.5, parsed)) if isfinite(parsed) else 0.0
+        except Exception:  # noqa: BLE001 - optional learned evidence is fail-neutral
+            return 0.0
+
+    def _timing_score(self, name: str, task_type: str) -> Optional[float]:
+        try:
+            getter = getattr(self.hebbian, "get_timing_score", None)
+            if not callable(getter):
+                return None
+            score = getter(name, task_type)
+            if score is None:
+                return None
+            parsed = float(score)
+            return max(0.0, min(1.0, parsed)) if isfinite(parsed) else None
+        except Exception:  # noqa: BLE001 - optional learned evidence is fail-neutral
+            return None
+
+    def _stability_signal(self, name: str, task_type: str) -> dict[str, Any]:
+        neutral: dict[str, Any] = {
+            "oscillation_rate": 0.0,
+            "alert_active": False,
+            "sample_count": 0,
+        }
+        try:
+            getter = getattr(self.hebbian, "get_stability_signal", None)
+            if not callable(getter):
+                return neutral
+            signal = getter(name, task_type) or {}
+            oscillation_rate = float(signal.get("oscillation_rate", 0.0))
+            if not isfinite(oscillation_rate):
+                return neutral
+            return {
+                "oscillation_rate": max(0.0, min(1.0, oscillation_rate)),
+                "alert_active": bool(signal.get("alert_active", False)),
+                "sample_count": max(0, int(signal.get("sample_count", 0))),
+            }
+        except Exception:  # noqa: BLE001 - sentinel evidence is observational only
+            return neutral
+
+
 class HebbianRouter:
-    """Select the best agent for a task by blending composite + Hebbian + trust."""
+    """Compatibility route that retains legacy discovery and fallback behavior."""
 
     def __init__(
         self,

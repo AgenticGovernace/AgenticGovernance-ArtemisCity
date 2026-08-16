@@ -1,7 +1,73 @@
+import errno
+import ntpath
 import os
-from pathlib import Path
+import secrets
+import stat
+from pathlib import Path, PurePosixPath
 
 from ..utils.helpers import logger, sanitize_for_log
+
+_TEMP_FILE_ATTEMPTS = 10
+
+
+def _validated_relative_parts(relative_path: str) -> tuple[str, ...]:
+    """Return canonical POSIX components for one vault-relative path."""
+    if not isinstance(relative_path, str) or not relative_path:
+        raise ValueError("vault path must not be empty")
+    raw_parts = relative_path.split("/")
+    drive, _ = ntpath.splitdrive(relative_path)
+    if (
+        drive
+        or "\\" in relative_path
+        or "\x00" in relative_path
+        or any(part in {"", ".", ".."} or not part.strip() for part in raw_parts)
+    ):
+        raise ValueError("vault path must use one canonical POSIX form")
+    requested = PurePosixPath(relative_path)
+    if requested.is_absolute():
+        raise ValueError("vault path must be relative and remain within the vault root")
+    return requested.parts
+
+
+def _directory_open_flags() -> int:
+    """Build flags that reject symlinks while opening a directory."""
+    return os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+
+
+def _open_unique_temp_file(parent_fd: int) -> tuple[int, str]:
+    """Create a cryptographically named staging file below an open directory."""
+    flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW
+    name_max = os.fpathconf(parent_fd, "PC_NAME_MAX")
+    if name_max == -1:
+        name_max = 33
+    if name_max < 2:
+        raise OSError(errno.ENAMETOOLONG, "directory cannot hold a temporary name")
+    token_characters = min(32, name_max - 1)
+    for _ in range(_TEMP_FILE_ATTEMPTS):
+        candidate = f".{secrets.token_hex(16)[:token_characters]}"
+        try:
+            file_descriptor = os.open(candidate, flags, 0o666, dir_fd=parent_fd)
+        except FileExistsError:
+            continue
+        return file_descriptor, candidate
+    raise OSError(errno.EEXIST, "unable to create unique projection temporary file")
+
+
+class ObsidianProjectionError(OSError):
+    """Report a projection failure and whether replacement already succeeded."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        stage: str,
+        reason: str,
+        replacement_applied: bool,
+    ) -> None:
+        super().__init__(message)
+        self.stage = stage
+        self.reason = reason
+        self.replacement_applied = replacement_applied
 
 
 class ObsidianManager:
@@ -15,27 +81,104 @@ class ObsidianManager:
             from src.mcp.config import OBSIDIAN_VAULT_PATH as _vault
 
             vault_path = _vault
-        self.vault_path = Path(vault_path)
-        if not self.vault_path.is_dir():
+        configured_path = Path(vault_path)
+        try:
+            resolved_path = configured_path.resolve(strict=True)
+        except (FileNotFoundError, NotADirectoryError) as exc:
             logger.error("Obsidian vault path does not exist")
-            raise FileNotFoundError(f"Obsidian vault path not found: {self.vault_path}")
+            raise FileNotFoundError(
+                f"Obsidian vault path not found: {configured_path}"
+            ) from exc
+        if not resolved_path.is_dir():
+            logger.error("Obsidian vault path does not exist")
+            raise FileNotFoundError(f"Obsidian vault path not found: {configured_path}")
+        self.vault_path = resolved_path
+        root_stat = self.vault_path.stat()
+        self._vault_identity = (root_stat.st_dev, root_stat.st_ino)
         logger.info("Obsidian Manager initialized")
 
     def _get_full_path(self, relative_path: str) -> Path:
         """Resolve a vault-relative path and reject vault escapes."""
-        requested = Path(relative_path)
-        if requested.is_absolute() or ".." in requested.parts:
-            raise ValueError(
-                "vault path must be relative and remain within the vault root"
-            )
+        requested = PurePosixPath(*_validated_relative_parts(relative_path))
 
         vault_root = self.vault_path.resolve()
-        full_path = (vault_root / requested).resolve()
+        full_path = vault_root.joinpath(*requested.parts).resolve()
         try:
-            full_path.relative_to(vault_root)
+            resolved_relative = full_path.relative_to(vault_root)
         except ValueError as exc:
             raise ValueError("vault path escapes configured vault root") from exc
+        if resolved_relative.as_posix() != requested.as_posix():
+            raise ValueError("vault path must resolve to its canonical lexical path")
         return full_path
+
+    def _open_vault_root(self) -> int:
+        """Open the initialized vault identity without accepting path replacement."""
+        root_fd = os.open(self.vault_path, _directory_open_flags())
+        try:
+            root_stat = os.fstat(root_fd)
+            if (root_stat.st_dev, root_stat.st_ino) != self._vault_identity:
+                raise ValueError("configured vault root identity changed")
+            return root_fd
+        except BaseException:
+            os.close(root_fd)
+            raise
+
+    def _open_parent_directory(self, parent_parts: tuple[str, ...]) -> int:
+        """Traverse or create parents without following path components."""
+        current_fd = self._open_vault_root()
+        try:
+            for component in parent_parts:
+                try:
+                    next_fd = os.open(
+                        component, _directory_open_flags(), dir_fd=current_fd
+                    )
+                except FileNotFoundError:
+                    try:
+                        os.mkdir(component, 0o777, dir_fd=current_fd)
+                    except FileExistsError:
+                        pass
+                    os.fsync(current_fd)
+                    next_fd = os.open(
+                        component, _directory_open_flags(), dir_fd=current_fd
+                    )
+                except OSError as exc:
+                    component_stat = os.stat(
+                        component, dir_fd=current_fd, follow_symlinks=False
+                    )
+                    if stat.S_ISLNK(component_stat.st_mode):
+                        raise ValueError(
+                            "vault path must resolve to its canonical lexical path"
+                        ) from exc
+                    raise
+                else:
+                    try:
+                        os.fsync(current_fd)
+                    except BaseException:
+                        os.close(next_fd)
+                        raise
+                os.close(current_fd)
+                current_fd = next_fd
+            return current_fd
+        except BaseException:
+            os.close(current_fd)
+            raise
+
+    @staticmethod
+    def _existing_target_mode(parent_fd: int, target_name: str) -> int | None:
+        """Return a regular target's mode while rejecting a target symlink."""
+        try:
+            target_stat = os.stat(target_name, dir_fd=parent_fd, follow_symlinks=False)
+        except FileNotFoundError:
+            return None
+        if stat.S_ISLNK(target_stat.st_mode):
+            raise ValueError("vault target must not be a symbolic link")
+        return stat.S_IMODE(target_stat.st_mode)
+
+    def _get_folder_path(self, relative_folder_path: str) -> Path:
+        """Resolve a folder path while allowing the vault root as an empty sentinel."""
+        if relative_folder_path == "":
+            return self.vault_path.resolve()
+        return self._get_full_path(relative_folder_path)
 
     def read_note(self, relative_path: str) -> str | None:
         """Reads the content of an Obsidian note.
@@ -70,24 +213,83 @@ class ObsidianManager:
         Returns:
             None: This function does not return a value.
         """
-        full_path = self._get_full_path(relative_path)
-        full_path.parent.mkdir(parents=True, exist_ok=True)
         if overwrite:
-            tmp_path = full_path.with_name(full_path.name + ".tmp")
+            if os.name != "posix":
+                raise NotImplementedError(
+                    "durable Obsidian projection is currently POSIX-only"
+                )
+            if not isinstance(content, str):
+                raise TypeError("note content must be text")
+            encoded_content = content.encode("utf-8")
+            path_parts = _validated_relative_parts(relative_path)
+            target_name = path_parts[-1]
+            parent_fd: int | None = None
+            temp_name: str | None = None
+            temp_fd: int | None = None
+            stage = "parent_directory"
+            replacement_applied = False
             try:
-                with open(tmp_path, "w", encoding="utf-8") as f:
-                    f.write(content)
-                os.replace(tmp_path, full_path)
-            except Exception:
-                try:
-                    tmp_path.unlink()
-                except FileNotFoundError:
-                    pass
-                raise
+                parent_fd = self._open_parent_directory(path_parts[:-1])
+                target_mode = self._existing_target_mode(parent_fd, target_name)
+                stage = "temporary_write"
+                temp_fd, temp_name = _open_unique_temp_file(parent_fd)
+                if target_mode is not None:
+                    os.fchmod(temp_fd, target_mode)
+                stream = os.fdopen(temp_fd, "wb")
+                temp_fd = None
+                with stream as f:
+                    f.write(encoded_content)
+                    f.flush()
+                    os.fsync(f.fileno())
+                stage = "replacement"
+                os.replace(
+                    temp_name,
+                    target_name,
+                    src_dir_fd=parent_fd,
+                    dst_dir_fd=parent_fd,
+                )
+                replacement_applied = True
+
+                stage = "parent_directory_sync"
+                os.fsync(parent_fd)
+            except Exception as exc:
+                if temp_fd is not None:
+                    try:
+                        os.close(temp_fd)
+                    except OSError:
+                        pass
+                if (
+                    temp_name is not None
+                    and parent_fd is not None
+                    and not replacement_applied
+                ):
+                    try:
+                        os.unlink(temp_name, dir_fd=parent_fd)
+                    except FileNotFoundError:
+                        pass
+                if not isinstance(exc, OSError):
+                    raise
+                reason = {
+                    "parent_directory": "parent_directory_failed",
+                    "temporary_write": "temporary_write_failed",
+                    "replacement": "replacement_failed",
+                    "parent_directory_sync": "directory_sync_failed",
+                }.get(stage, "projection_failed")
+                raise ObsidianProjectionError(
+                    f"Obsidian projection failed during {stage}: {exc}",
+                    stage=stage,
+                    reason=reason,
+                    replacement_applied=replacement_applied,
+                ) from exc
+            finally:
+                if parent_fd is not None:
+                    os.close(parent_fd)
             logger.info(
                 "Wrote note: %s (mode: w, atomic)", sanitize_for_log(relative_path)
             )
         else:
+            full_path = self._get_full_path(relative_path)
+            full_path.parent.mkdir(parents=True, exist_ok=True)
             with open(full_path, "a", encoding="utf-8") as f:
                 f.write(content)
             logger.info("Wrote note: %s (mode: a)", sanitize_for_log(relative_path))
@@ -104,7 +306,7 @@ class ObsidianManager:
         Returns:
             list[str]: List containing the resulting items.
         """
-        full_path = self._get_full_path(relative_folder_path)
+        full_path = self._get_folder_path(relative_folder_path)
         if not full_path.is_dir():
             logger.warning(
                 "Folder not found: %s", sanitize_for_log(relative_folder_path)
@@ -129,7 +331,7 @@ class ObsidianManager:
         Returns:
             None: This function does not return a value.
         """
-        full_path = self._get_full_path(relative_folder_path)
+        full_path = self._get_folder_path(relative_folder_path)
         full_path.mkdir(parents=True, exist_ok=True)
         logger.info("Ensured folder exists: %s", sanitize_for_log(relative_folder_path))
 

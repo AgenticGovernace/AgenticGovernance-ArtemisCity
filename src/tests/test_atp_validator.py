@@ -284,6 +284,33 @@ class TestATPValidatorStrict:
         assert result.is_valid is False
         assert any("incomplete" in e.lower() for e in result.errors)
 
+    def test_commit_reflect_pair_is_an_error(self, validator):
+        """Strict governance rejects a literal Commit and Reflect mismatch."""
+        msg = _msg(
+            mode=ATPMode.COMMIT,
+            context="Commit the reviewed memory entry",
+            action_type=ATPActionType.REFLECT,
+            content="Record the reviewed memory entry now",
+        )
+
+        result = validator.validate(msg)
+
+        assert result.is_valid is False
+        assert any("Commit" in error and "Reflect" in error for error in result.errors)
+
+    def test_review_summarize_pair_is_valid(self, validator):
+        """Strict ATP accepts a policy-supported Review and Summarize pair."""
+        msg = _msg(
+            mode=ATPMode.REVIEW,
+            context="Summarize the reviewed notes",
+            action_type=ATPActionType.SUMMARIZE,
+            content="Summarize the reviewed notes for operators.",
+        )
+
+        result = validator.validate(msg)
+
+        assert result.is_valid is True
+
 
 # ---------------------------------------------------------------------------
 # Mode/action consistency
@@ -335,6 +362,23 @@ class TestModeActionConsistency:
         )
         result = validator.validate(msg)
         assert any("typically uses" in s for s in result.suggestions)
+
+    def test_commit_reflect_pair_remains_an_advisory_suggestion(self, validator):
+        """Non-strict validation keeps incompatible pairs advisory-compatible."""
+        msg = _msg(
+            mode=ATPMode.COMMIT,
+            context="Commit the reviewed memory entry",
+            action_type=ATPActionType.REFLECT,
+            content="Record the reviewed memory entry now",
+        )
+
+        result = validator.validate(msg)
+
+        assert result.is_valid is True
+        assert any(
+            "Commit" in suggestion and "Reflect" in suggestion
+            for suggestion in result.suggestions
+        )
 
     def test_unknown_action_no_suggestion(self, validator):
         """Test that unknown action no suggestion.

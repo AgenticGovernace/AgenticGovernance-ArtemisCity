@@ -2,13 +2,16 @@
 
 The parser and validator describe an ATP message. This module turns that
 description into a production task context without coupling the ATP package to
-the orchestrator. Explicit caller capabilities always win; otherwise the ATP
-action domain selects the capability used by the governed router.
+the orchestrator. ATP headers are always validated strictly, then capability
+is selected from the reviewed execution domain.
 """
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
+
+from src.routing.contracts import RequestedConstraintsV1
+from src.routing.intent import IntentResolver
 
 from .atp_models import ATPActionType, ATPMessage, ATPMode
 from .atp_parser import ATPParser
@@ -22,7 +25,7 @@ ACTION_CAPABILITIES = {
 }
 
 
-def validation_to_dict(result) -> Dict[str, Any]:
+def validation_to_dict(result) -> dict[str, Any]:
     """Serialize an ATP validation result for task/API metadata."""
     return {
         "is_valid": result.is_valid,
@@ -37,16 +40,13 @@ def validation_to_dict(result) -> Dict[str, Any]:
 def infer_capability(
     message: ATPMessage,
     *,
-    explicit_capability: Optional[str] = None,
+    explicit_capability: str | None = None,
     default_capability: str = "llm_chat",
 ) -> str:
     """Resolve the capability domain for one ATP message."""
     if explicit_capability and explicit_capability.strip():
         return explicit_capability.strip()
 
-    target = (message.target_zone or "").lower()
-    if "memory" in target:
-        return "memory_inspection"
     if message.action_type == ATPActionType.SUMMARIZE:
         return "text_summarization"
     if message.action_type == ATPActionType.SCAFFOLD:
@@ -61,11 +61,9 @@ def infer_capability(
 
 
 def resolve_task_context(
-    task_context: Dict[str, Any],
-    *,
-    strict: bool = False,
-    default_capability: str = "llm_chat",
-) -> Dict[str, Any]:
+    task_context: dict[str, Any],
+    **_deprecated_options: Any,
+) -> dict[str, Any]:
     """Parse ATP headers and attach their routing/execution context.
 
     Non-ATP tasks are returned unchanged. For ATP tasks, the agent receives
@@ -77,26 +75,24 @@ def resolve_task_context(
     if not isinstance(raw_input, str) or not raw_input.strip():
         return resolved
 
-    message, metrics = ATPParser().parse_with_metrics(raw_input)
-    if not message.has_atp_headers:
+    parser = ATPParser()
+    message, metrics = parser.parse_with_metrics(raw_input)
+    if not parser.is_atp_formatted(raw_input):
         return resolved
-
-    validation = ATPValidator(strict=strict).validate(message)
-    if not validation.is_valid:
-        detail = "; ".join(validation.errors) or "ATP validation failed"
-        raise ValueError(detail)
 
     explicit = bool(
         resolved.get("required_capability")
         and resolved.get("_capability_explicit", True)
     )
-    capability = infer_capability(
-        message,
-        explicit_capability=(
-            str(resolved["required_capability"]) if explicit else None
-        ),
-        default_capability=default_capability,
+    requested = RequestedConstraintsV1(
+        capability=str(resolved["required_capability"]) if explicit else None
     )
+    resolved_intent = IntentResolver.default().resolve(
+        raw_input,
+        typed_intent=None,
+        requested=requested,
+    )
+    capability = resolved_intent.capability
     action_domain = message.action_type.value.lower()
     if message.action_type == ATPActionType.UNKNOWN:
         action_domain = "unspecified"
@@ -107,7 +103,9 @@ def resolve_task_context(
             "routing_scope": f"atp:{action_domain}:{capability}",
             "atp_action_type": message.action_type.value,
             "atp": message.to_dict(),
-            "atp_validation": validation_to_dict(validation),
+            "atp_validation": validation_to_dict(
+                ATPValidator(strict=True).validate(message)
+            ),
             "atp_metrics": metrics,
             "atp_raw": raw_input,
         }

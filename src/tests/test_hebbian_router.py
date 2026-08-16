@@ -6,9 +6,14 @@ Uses lightweight fakes for the registry and Hebbian manager so the routing
 math is tested in isolation (no SQLite, no agents, no orchestrator).
 """
 
+from math import isfinite
+
 import pytest
 
-from src.integration.hebbian_router import HebbianRouter, RoutingDecision
+from src.integration.hebbian_router import HebbianRanker, HebbianRouter, RoutingDecision
+from src.routing.eligibility import EligibleCandidate
+
+from .test_routing_eligibility import _authorized, _filter, _record
 
 
 class _Agent:
@@ -129,6 +134,17 @@ def test_hebbian_router_alpha_zero_equals_composite():
     heb = FakeHebbian({"A": 100.0, "B": 0.0})  # A has huge weight, ignored
     router = HebbianRouter(reg, heb, alpha=0.0)
     assert router.route_name({"required_capability": "research"}) == "B"
+
+
+@pytest.mark.unit
+def test_hebbian_router_alpha_blend_uses_one_minus_alpha():
+    registry = FakeRegistry([_Agent("A", ["research"])], {"A": 0.5})
+    hebbian = FakeHebbian(scoped_weights={("A", "research"): 1.0})
+    decision = HebbianRouter(registry, hebbian, alpha=0.3).route(
+        {"required_capability": "research"}
+    )
+
+    assert decision.candidates[0].blended == pytest.approx(0.65)
 
 
 @pytest.mark.unit
@@ -343,7 +359,7 @@ def test_hebbian_router_clamps_alpha_plus_beta_to_one():
 
 @pytest.mark.unit
 def test_hebbian_router_trust_floor_with_no_survivors_raises():
-    """If the trust floor excludes every candidate, routing raises a trust-specific error."""
+    """A trust-floor-only denial reports the specific hard gate."""
     reg = _two_research_agents({"A": 0.9, "B": 0.6})
     trust = FakeTrust({"A": 0.1, "B": 0.1})
     router = HebbianRouter(reg, FakeHebbian(), trust_interface=trust, trust_floor=0.5)
@@ -427,3 +443,185 @@ def test_hebbian_router_exposes_sentinel_without_changing_ranking():
     candidate = next(item for item in decision.candidates if item.name == "A")
     assert candidate.sentinel_alert is True
     assert candidate.oscillation_rate == pytest.approx(0.6)
+
+
+@pytest.mark.unit
+def test_hebbian_ranker_scores_only_the_already_eligible_tuple():
+    """Learned evidence cannot discover or reintroduce an excluded agent."""
+    hebbian = FakeHebbian(
+        scoped_weights={
+            ("eligible-agent", "llm_chat"): 1.0,
+            ("quarantined-agent", "llm_chat"): 1000.0,
+        }
+    )
+    ranker = HebbianRanker(hebbian, alpha=1.0)
+    candidates = (
+        EligibleCandidate(
+            agent_id="agent:eligible-agent",
+            name="eligible-agent",
+            capabilities=frozenset({"llm_chat"}),
+            composite_score=0.2,
+            trust_score=0.8,
+        ),
+    )
+
+    decision = ranker.rank(_authorized(), candidates)
+
+    assert decision.agent_name == "eligible-agent"
+    assert [candidate.name for candidate in decision.candidates] == ["eligible-agent"]
+
+
+@pytest.mark.unit
+def test_quarantined_high_score_never_reaches_production_ranker():
+    """The eligibility-to-ranking handoff must exclude learned-score bypasses."""
+
+    class RecordingHebbian(FakeHebbian):
+        def __init__(self):
+            super().__init__(
+                scoped_weights={
+                    ("eligible-agent", "llm_chat"): 1.0,
+                    ("quarantined-agent", "llm_chat"): 1000.0,
+                }
+            )
+            self.seen = []
+
+        def get_task_type_weight(self, name, task_type):
+            self.seen.append(name)
+            return super().get_task_type_weight(name, task_type)
+
+    authorized = _authorized()
+    candidates = _filter(
+        (
+            _record("eligible-agent", composite_score=0.1),
+            _record(
+                "quarantined-agent",
+                quarantined=True,
+                composite_score=1.0,
+            ),
+        )
+    ).candidates(authorized)
+    hebbian = RecordingHebbian()
+
+    decision = HebbianRanker(hebbian, alpha=1.0).rank(authorized, candidates)
+
+    assert hebbian.seen == ["eligible-agent"]
+    assert decision.agent_name == "eligible-agent"
+
+
+@pytest.mark.unit
+def test_hebbian_ranker_requires_an_immutable_candidate_tuple():
+    """A mutable/list boundary could be altered between filtering and ranking."""
+    ranker = HebbianRanker(FakeHebbian())
+    candidate = EligibleCandidate(
+        agent_id="agent:a",
+        name="a",
+        capabilities=frozenset({"llm_chat"}),
+        composite_score=0.5,
+        trust_score=0.8,
+    )
+
+    with pytest.raises(TypeError, match="tuple"):
+        ranker.rank(_authorized(), [candidate])  # type: ignore[arg-type]
+
+
+@pytest.mark.unit
+def test_hebbian_ranker_breaks_exact_ties_by_name() -> None:
+    """Changing input order must not change a tied production route."""
+    ranker = HebbianRanker(FakeHebbian(), alpha=0.0, beta=0.0)
+    candidates = tuple(
+        EligibleCandidate(
+            agent_id=f"agent:{name}",
+            name=name,
+            capabilities=frozenset({"llm_chat"}),
+            composite_score=0.5,
+            trust_score=0.8,
+        )
+        for name in ("z-agent", "a-agent")
+    )
+
+    decision = ranker.rank(_authorized(), candidates)
+
+    assert decision.agent_name == "a-agent"
+
+
+@pytest.mark.unit
+def test_hebbian_ranker_has_no_fallback_or_discovery_path():
+    """An empty eligible tuple must stop instead of selecting a fallback."""
+    ranker = HebbianRanker(FakeHebbian(weights={"LLM": 1000.0}))
+
+    with pytest.raises(ValueError, match="No eligible candidates"):
+        ranker.rank(_authorized(), ())
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("field", ["alpha", "beta", "neutral_prior"])
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_hebbian_ranker_rejects_non_finite_configuration(
+    field: str, value: float
+) -> None:
+    """Non-finite blend configuration cannot enter production ranking."""
+    with pytest.raises(ValueError, match="finite"):
+        HebbianRanker(FakeHebbian(), **{field: value})
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("bad_value", [float("nan"), float("inf"), float("-inf")])
+def test_hebbian_ranker_neutralizes_non_finite_evidence_deterministically(
+    bad_value: float,
+) -> None:
+    """Non-finite optional evidence is neutral under either candidate order."""
+
+    class NonFiniteHebbian(FakeHebbian):
+        def get_task_type_weight(self, name, task_type):
+            return bad_value
+
+        def has_task_type_history(self, name):
+            return True
+
+        def get_pair_bonus(self, name):
+            return bad_value
+
+        def get_timing_score(self, name, task_type):
+            return bad_value
+
+        def get_stability_signal(self, name, task_type):
+            return {
+                "oscillation_rate": bad_value,
+                "alert_active": True,
+                "sample_count": 1,
+            }
+
+    def candidates(order):
+        return tuple(
+            EligibleCandidate(
+                agent_id=f"agent:{name}",
+                name=name,
+                capabilities=frozenset({"llm_chat"}),
+                composite_score=0.5,
+                trust_score=0.8,
+            )
+            for name in order
+        )
+
+    ranker = HebbianRanker(NonFiniteHebbian(), alpha=0.5, beta=0.25)
+    forward = ranker.rank(_authorized(), candidates(("z-agent", "a-agent")))
+    reverse = ranker.rank(_authorized(), candidates(("a-agent", "z-agent")))
+
+    assert forward.agent_name == reverse.agent_name == "a-agent"
+    for decision in (forward, reverse):
+        for score in decision.candidates:
+            assert all(
+                isfinite(value)
+                for value in (
+                    score.hebbian_weight,
+                    score.hebbian_norm,
+                    score.pair_bonus,
+                    score.hebbian_effective,
+                    score.oscillation_rate,
+                    score.blended,
+                )
+            )
+            assert score.hebbian_weight == 0.0
+            assert score.pair_bonus == 0.0
+            assert score.timing_score is None
+            assert score.oscillation_rate == 0.0

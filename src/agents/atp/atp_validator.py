@@ -199,11 +199,15 @@ class ATPValidator:
             and action not in expected_actions[mode]
             and action != ATPActionType.UNKNOWN
         ):
-            result.add_suggestion(
+            message = (
                 f"Mode '{mode.value}' typically uses "
                 f"{', '.join(a.value for a in expected_actions[mode])} actions, "
                 f"but '{action.value}' was specified"
             )
+            if self.strict:
+                result.add_error(message)
+            else:
+                result.add_suggestion(message)
 
     def _validate_target_zone(self, target_zone: str, result: ValidationResult) -> None:
         """Validate TargetZone format.

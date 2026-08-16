@@ -5,16 +5,19 @@ Artemis City is an agent-governance and memory-orchestration project built aroun
 - structured agent communication through the Artemis Transmission Protocol (ATP)
 - trust- and governance-aware task routing
 - an Obsidian-backed memory layer with semantic recall
-The repository is intentionally broader than a single service. It contains the authoritative Python orchestration core, API and dashboard surfaces, a historical shell for a currently unavailable Obsidian MCP server, and static concept demos used to explore the platform’s behavior.
+  The repository is intentionally broader than a single service. It contains the authoritative Python orchestration core, API and dashboard surfaces, a historical shell for a currently unavailable Obsidian MCP server, and static concept demos used to explore the platform’s behavior.
 
 ## Repository reality
 
 New contributors should start with this mental model:
 
-- `src/`  is the authoritative Python core.
-- `app/`  contains HTTP and UI surfaces that sit on top of the Python core.
-- `Concept_Demos/`  contains static browser prototypes and compatibility shims; maintained Python walkthroughs live in `src/launch/`.
-- `src/Artemis Agentic Memory Layer/` is a historical service shell; its package and Docker files are not present in this checkout.
+`src/`  is the authoritative Python core.
+
+`app/`  contains HTTP and UI surfaces that sit on top of the Python core.
+
+`Concept_Demos/`  contains static browser prototypes and compatibility shims; maintained Python walkthroughs live in `src/launch/`.
+
+`src/Artemis Agentic Memory Layer/` is a historical service shell; its package and Docker files are not present in this checkout.
 Some scripts and historical files still reflect earlier layouts. Prefer the paths documented below over older references in legacy notes.
 
 This restructure phase follows the active `src/` plus `app/api` bridge architecture. It intentionally does not create `ts_service` or `python_service` directories; older alignment notes that proposed those layouts are historical context only.
@@ -28,29 +31,30 @@ This is the main implementation surface for orchestration, governance, memory, a
 Key modules:
 
 - `src/mcp/orchestrator.py`
+
   - central coordinator for task execution
   - initializes the Obsidian manager, parser/generator utilities, Hebbian weights, governance monitor, vector store, memory bus, and agent registry
   - registers built-in agents and routes work to the best match
-
 - `src/integration/agent_registry.py`
+
   - stores agent metadata and scores
   - ranks agents using a weighted composite score: alignment `0.4`  + accuracy `0.4`  + efficiency `0.2`
   - tracks trust tiers, violation counts, and quarantine state
-
 - `src/integration/memory_bus.py`
+
   - write-through memory layer shared by the orchestrator
   - writes to the vector store first, then to Obsidian
   - rolls back the vector write if the Obsidian write fails
   - reads via exact note lookup, keyword scan, then vector fallback
-
 - `src/integration/trust_interface.py`
+
   - models trust levels and reinforcement/decay
   - gates operations based on trust level
-
 - `src/api_bridge.py`
-  - JSON stdin/stdout bridge used by the TypeScript API layer to invoke Python operations without embedding a Python web framework inside the core
 
+  - JSON stdin/stdout bridge used by the TypeScript API layer to invoke Python operations without embedding a Python web framework inside the core
 - `src/tests/`
+
   - primary Python test suite
   - `src/tests/conftest.py` adds the repo root to `sys.path` so `src.*` imports resolve consistently
 
@@ -76,17 +80,18 @@ Responsibilities:
 - authenticates requests through Express middleware
 - forwards Python-backed operations through `app/api/lib/pythonBridge.ts`
 - runs the bridge by spawning `python -m src.api_bridge`
-Supported external behavior is backed by bridge commands in `src/api_bridge.py`; routes exposed under `/api/v1` should update Python-owned state or read Python-owned stores.
+  Supported external behavior is backed by bridge commands in `src/api_bridge.py`; routes exposed under `/api/v1` should update Python-owned state or read Python-owned stores.
 
 ### Dashboard and web-facing code (`app/web/frontend/`)
 
 This directory currently contains mixed frontend and server-side TypeScript surfaces:
 
 - `app/web/frontend/src/`
+
   - React application source for dashboard pages such as Dashboard, Tasks, Reports, Agents, Database, and Executor
   - `vite.config.ts`  proxies `/api`  requests to `http://localhost:8000` , which matches the FastAPI dashboard backend
-
 - `app/web/frontend/controllers/` , `middleware/` , and `v1/`
+
   - additional TypeScript controllers and demo API routes used for agent, memory, ATP, trust, and LLM workflows
 
 Important note: this tree is still in transition. The checked-in package scripts are not a perfect reflection of the React/Vite client structure, so treat it as a mixed client/server workspace rather than a fully isolated frontend package.
@@ -132,7 +137,7 @@ Environment profiles live in `config/environments/`:
 - `dev.yaml`
 - `staging.yaml`
 - `prod.yaml`
-`ARTEMIS_ENV` selects which profile is active. CI validates all three environment files.
+  `ARTEMIS_ENV` selects which profile is active. CI validates all three environment files.
 
 ### External dependencies
 
@@ -355,8 +360,8 @@ If you are new to the repo, start in this order:
 6. `app/api/index.ts`
 7. `Concept_Demos/README.md`
 8. `docs/PROJECT_BOUNDARIES.md`
-That path gives you the orchestration core first, then the public API surfaces,
-then the demo and current project-boundary status.
+   That path gives you the orchestration core first, then the public API surfaces,
+   then the demo and current project-boundary status.
 
 ## Additional documentation
 
@@ -375,13 +380,13 @@ This repository is licensed under the Apache License 2.0. See `LICENSE` for deta
 
 ## Document Information
 
-| Field | Value |
-| ----- | ----- |
-| **Project** | Artemis City |
-| **Repository** | AgenticGovernace/AgenticGovernance-ArtemisCity |
-| **Version** | 0.1.0 |
-| **Status** | Alpha |
-| **Last Updated** | 2025 |
+| Field                  | Value                                          |
+| ---------------------- | ---------------------------------------------- |
+| **Project**      | Artemis City                                   |
+| **Repository**   | AgenticGovernace/AgenticGovernance-ArtemisCity |
+| **Version**      | 0.1.0                                          |
+| **Status**       | Alpha                                          |
+| **Last Updated** | 2025                                           |
 
 ---
 
@@ -502,7 +507,7 @@ def __init__(self):
 - Task execution with memory enrichment
 - Hebbian learning updates based on task outcomes
 - Obsidian vault integration for task persistence
-**Scoring Algorithm**:
+  **Scoring Algorithm**:
 
 ```
 Score = (Alignment × 0.4) + (Accuracy × 0.4) + (Efficiency × 0.2)
@@ -576,8 +581,7 @@ Unified memory access layer implementing write-through synchronization:
 2. Write to Obsidian (primary/explicit storage)
 3. Rollback vector write if Obsidian write fails
 4. Record governance events on failure
-**Read Hierarchy**:
-
+   **Read Hierarchy**:
 5. **Exact Match**: Direct Obsidian lookup (<50ms p95)
 6. **Keyword Match**: Obsidian metadata search (<150ms p95)
 7. **Semantic Match**: Vector similarity search (<300ms p95)
@@ -608,7 +612,7 @@ and persisted compounding routing intelligence
 - `src/governance/approvals.py`  - Self-update approval tiers
 - `src/governance/checkpoints.py`  - Checkpoint storage and rollback
 - `src/integration/sandbox.py`  - Per-agent sandbox enforcement
-**Trust Score Formula**:
+  **Trust Score Formula**:
 
 ```
 TrustScore = SuccessRate × 0.35 
@@ -620,12 +624,12 @@ TrustScore = SuccessRate × 0.35
 
 **Approval Tiers**:
 
-| Tier | Trust Score | Conditions | Approval |
-| ----- | ----- | ----- | ----- |
-| Auto | ≥ 0.9 | < 1% code change, backwards-compatible | Automatic |
-| Monitored | 0.7 - 0.9 | 1-10% change, new deps require review | Human approval |
-| Human | < 0.7 | > 10% change, breaking changes, policy changes | Senior review |
-**Sandbox Enforcement**:
+| Tier                           | Trust Score | Conditions                                     | Approval       |
+| ------------------------------ | ----------- | ---------------------------------------------- | -------------- |
+| Auto                           | ≥ 0.9      | < 1% code change, backwards-compatible         | Automatic      |
+| Monitored                      | 0.7 - 0.9   | 1-10% change, new deps require review          | Human approval |
+| Human                          | < 0.7       | > 10% change, breaking changes, policy changes | Senior review  |
+| **Sandbox Enforcement**: |             |                                                |                |
 
 - Tool whitelist per agent
 - Path-based ACL with glob patterns
@@ -640,16 +644,16 @@ TrustScore = SuccessRate × 0.35
 
 Serves dashboard-oriented endpoints with SQLite fallback mode:
 
-| Endpoint | Method | Description |
-| ----- | ----- | ----- |
-| `/api/agents`  | GET | List registered agents |
-| `/api/tasks`  | GET/POST | Task management |
-| `/api/reports`  | GET | Agent report summaries |
-| `/api/execute-task`  | POST | Execute specific task |
-| `/api/db/hebbian/stats`  | GET | Hebbian network statistics |
-| `/api/db/vectors/stats`  | GET | Vector store statistics |
-| `/api/cli/execute`  | POST | CLI-style instruction execution |
-**Authentication**: `X-API-Key` header
+| Endpoint                                       | Method   | Description                     |
+| ---------------------------------------------- | -------- | ------------------------------- |
+| `/api/agents`                                | GET      | List registered agents          |
+| `/api/tasks`                                 | GET/POST | Task management                 |
+| `/api/reports`                               | GET      | Agent report summaries          |
+| `/api/execute-task`                          | POST     | Execute specific task           |
+| `/api/db/hebbian/stats`                      | GET      | Hebbian network statistics      |
+| `/api/db/vectors/stats`                      | GET      | Vector store statistics         |
+| `/api/cli/execute`                           | POST     | CLI-style instruction execution |
+| **Authentication**: `X-API-Key` header |          |                                 |
 
 #### 3.3.2 TypeScript Express API
 
@@ -658,15 +662,15 @@ Serves dashboard-oriented endpoints with SQLite fallback mode:
 
 Public HTTP boundary with Python bridge integration:
 
-| Route | Description |
-| ----- | ----- |
-| `/api/v1/agents`  | Bridge-backed registry facade and agent status/mutation operations |
-| `/api/v1/registry`  | Bridge-backed registry operations |
-| `/api/v1/governance`  | Bridge-backed trust computation and update evaluation |
-| `/api/v1/memory`  | Bridge-backed exact read, write, list, search, stats, and delete |
-| `/api/v1/atp`  | Bridge-backed ATP parse, validate, queue, history, routing, format, and metadata |
-| `/api/v1/trust`  | Bridge-backed trust score, permission, report, and Hebbian weight operations |
-| `/api/v1/llm`  | LLM features |
+| Route                  | Description                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------- |
+| `/api/v1/agents`     | Bridge-backed registry facade and agent status/mutation operations               |
+| `/api/v1/registry`   | Bridge-backed registry operations                                                |
+| `/api/v1/governance` | Bridge-backed trust computation and update evaluation                            |
+| `/api/v1/memory`     | Bridge-backed exact read, write, list, search, stats, and delete                 |
+| `/api/v1/atp`        | Bridge-backed ATP parse, validate, queue, history, routing, format, and metadata |
+| `/api/v1/trust`      | Bridge-backed trust score, permission, report, and Hebbian weight operations     |
+| `/api/v1/llm`        | LLM features                                                                     |
 
 #### 3.3.3 Python Bridge Protocol
 
@@ -830,14 +834,14 @@ Target: [[Some Other Note]]
 
 #### 5.1.1 ATP Tags Specification
 
-| Tag | Values | Required | Purpose |
-| ----- | ----- | ----- | ----- |
-| `#Mode`  | `direct`, `batch`, `stream`, `async`  | Yes | Communication mode |
-| `#Context`  | UUID or string (max 64 chars) | Yes | Trace/correlation ID |
-| `#Priority`  | `critical`, `high`, `normal`, `low`  | Yes | Queue priority |
-| `#ActionType`  | See below | Yes | Operation type |
-| `#TargetZone`  | `kernel`, `registry`, `memory`, `sandbox`, `governance`  | Yes | Target component |
-| `#SpecialNotes`  | String (max 256 chars) | No | Metadata/hints |
+| Tag               | Values                                                            | Required | Purpose              |
+| ----------------- | ----------------------------------------------------------------- | -------- | -------------------- |
+| `#Mode`         | `direct`, `batch`, `stream`, `async`                      | Yes      | Communication mode   |
+| `#Context`      | UUID or string (max 64 chars)                                     | Yes      | Trace/correlation ID |
+| `#Priority`     | `critical`, `high`, `normal`, `low`                       | Yes      | Queue priority       |
+| `#ActionType`   | See below                                                         | Yes      | Operation type       |
+| `#TargetZone`   | `kernel`, `registry`, `memory`, `sandbox`, `governance` | Yes      | Target component     |
+| `#SpecialNotes` | String (max 256 chars)                                            | No       | Metadata/hints       |
 
 #### 5.1.2 ActionType Values
 
@@ -962,12 +966,12 @@ Content-Type: application/json
 
 **Common Error Codes**:
 
-| Code | HTTP | Meaning |
-| ----- | ----- | ----- |
-| `INVALID_REQUEST`  | 400 | Malformed request |
-| `NOT_FOUND`  | 404 | Resource not found |
-| `CONFLICT`  | 409 | Write conflict |
-| `RATE_LIMITED`  | 429 | Rate limit exceeded |
+| Code                | HTTP | Meaning             |
+| ------------------- | ---- | ------------------- |
+| `INVALID_REQUEST` | 400  | Malformed request   |
+| `NOT_FOUND`       | 404  | Resource not found  |
+| `CONFLICT`        | 409  | Write conflict      |
+| `RATE_LIMITED`    | 429  | Rate limit exceeded |
 
 ---
 
@@ -983,13 +987,13 @@ Content-Type: application/json
 
 Secrets are provisioned via `./setup_secrets.sh`:
 
-| File | Consumer |
-| ----- | ----- |
-| `.env`  | Python core, FastAPI dashboard |
-| `app/api/.env`  | TypeScript Express API |
-| `src/.env`  | Memory-layer Python |
+| File                                      | Consumer                                                                                    |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `.env`                                  | Python core, FastAPI dashboard                                                              |
+| `app/api/.env`                          | TypeScript Express API                                                                      |
+| `src/.env`                              | Memory-layer Python                                                                         |
 | `src/Artemis Agentic Memory Layer/.env` | Reserved for the unavailable standalone server; setup skips it when the directory is absent |
-**Generated Keys**:
+| **Generated Keys**:                 |                                                                                             |
 
 - `MCP_API_KEY`  - Shared across all components
 - `FASTAPI_API_KEY`  - Dashboard only
@@ -1020,7 +1024,7 @@ class AgentSandbox:
 - `rate_limit`
 - `missing_capability`
 - `unsafe_network`
-**Quarantine Rule**: Auto-quarantine after 3 violations
+  **Quarantine Rule**: Auto-quarantine after 3 violations
 
 ### 6.4 Access Control
 
@@ -1107,18 +1111,18 @@ CircleCI (`.circleci/config.yml`) runs on every branch:
 - `detect-secrets` gate against `.secrets.baseline`
 
 GitHub Actions retains only the promotion cascade (`promote.yml`)
----
+----------------------------------------------------
 
 ## 8. Rollout Plan
 
 ### 8.1 Environment Branching
 
-| Branch | Environment | Purpose | Approvals |
-| ----- | ----- | ----- | ----- |
-| `dev`  | dev | Integration of feature work | 0 |
-| `staging`  | staging | Pre-production rehearsal | 1 |
-| `prod`  | prod | Production (default branch) | 2 |
-**Promotion Flow**:
+| Branch                    | Environment | Purpose                     | Approvals |
+| ------------------------- | ----------- | --------------------------- | --------- |
+| `dev`                   | dev         | Integration of feature work | 0         |
+| `staging`               | staging     | Pre-production rehearsal    | 1         |
+| `prod`                  | prod        | Production (default branch) | 2         |
+| **Promotion Flow**: |             |                             |           |
 
 ```
 feature/* --PR--> dev --push--> [Promote cascade] --ff--> staging --ff--> prod
@@ -1136,26 +1140,27 @@ Environment profiles in `config/environments/`:
 - `dev.yaml`
 - `staging.yaml`
 - `prod.yaml`
-Selection via `ARTEMIS_ENV` environment variable.
+  Selection via `ARTEMIS_ENV` environment variable.
 
 ### 8.3 Deployment Checklist
 
 1. **Pre-deployment**:
-    - [ ] All tests passing in CI
-    - [ ] Security scans clean
-    - [ ] Environment config validated
-    - [ ] Checkpoint created
 
+   - [ ] All tests passing in CI
+   - [ ] Security scans clean
+   - [ ] Environment config validated
+   - [ ] Checkpoint created
 2. **Deployment**:
-    - [ ] Promotion PR approved
-    - [ ] Database migrations applied
-    - [ ] Environment variables configured
-    - [ ] Health checks passing
 
+   - [ ] Promotion PR approved
+   - [ ] Database migrations applied
+   - [ ] Environment variables configured
+   - [ ] Health checks passing
 3. **Post-deployment**:
-    - [ ] Smoke tests executed
-    - [ ] Metrics baseline established
-    - [ ] Rollback plan verified
+
+   - [ ] Smoke tests executed
+   - [ ] Metrics baseline established
+   - [ ] Rollback plan verified
 
 ### 8.4 Rollback Procedure
 
@@ -1181,11 +1186,11 @@ artemis_agent_success_rate
 
 **Latency SLAs**:
 
-| Operation | p50 | p95 | p99 |
-| ----- | ----- | ----- | ----- |
-| Task routing | 5ms | 15ms | 30ms |
-| Memory write | 50ms | 200ms | 400ms |
-| Memory read (exact) | 10ms | 50ms | 100ms |
+| Operation            | p50   | p95   | p99   |
+| -------------------- | ----- | ----- | ----- |
+| Task routing         | 5ms   | 15ms  | 30ms  |
+| Memory write         | 50ms  | 200ms | 400ms |
+| Memory read (exact)  | 10ms  | 50ms  | 100ms |
 | Memory read (vector) | 100ms | 300ms | 500ms |
 
 ---
@@ -1222,14 +1227,14 @@ artemis_agent_success_rate
 
 ### 9.2 Key Dependencies
 
-| Package | Purpose |
-| ----- | ----- |
-| fastapi | Dashboard API |
-| pydantic | Data validation |
-| sqlite3 | Persistent storage |
-| prometheus-client | Metrics |
-| pyyaml | Configuration |
-| python-dotenv | Environment loading |
+| Package           | Purpose             |
+| ----------------- | ------------------- |
+| fastapi           | Dashboard API       |
+| pydantic          | Data validation     |
+| sqlite3           | Persistent storage  |
+| prometheus-client | Metrics             |
+| pyyaml            | Configuration       |
+| python-dotenv     | Environment loading |
 
 ### 9.3 Quick Start Commands
 
@@ -1254,12 +1259,12 @@ make express-api      # TypeScript Express API
 
 ### 9.4 Related Documentation
 
-| Document | Location |
-| ----- | ----- |
-| Architecture | `docs/ARCHITECTURE.md`  |
-| Memory Bus | `docs/MEMORY_BUS.md`  |
-| API Reference | `docs/API_REFERENCE.md`  |
-| Test Plan | `docs/TEST_PLAN.md`  |
-| Living City Metaphor | `docs/LIVING_CITY.md`  |
-| Environments | `docs/ENVIRONMENTS.md`  |
-| Security | <p>`SECURITY.md` </p><p></p><p> </p> |
+| Document             | Location                  |
+| -------------------- | ------------------------- |
+| Architecture         | `docs/ARCHITECTURE.md`  |
+| Memory Bus           | `docs/MEMORY_BUS.md`    |
+| API Reference        | `docs/API_REFERENCE.md` |
+| Test Plan            | `docs/TEST_PLAN.md`     |
+| Living City Metaphor | `docs/LIVING_CITY.md`   |
+| Environments         | `docs/ENVIRONMENTS.md`  |
+| Security             |                           |

@@ -1,0 +1,108 @@
+---
+api_version: "artemis.quantumharmony.dev/v1"
+kind: "LegacyQuarantineAudit"
+metadata:
+  name: "reverse-sync-adjacent-current-tree-quarantine"
+  audit_version: 1
+  audit_date: "2026-08-16"
+  owner_repository: "Artemis_City"
+  status: "active"
+source_manifest:
+  path: "docs/audits/2026-08-16-reverse-sync-72cf776-path-manifest.yaml"
+  sha256: "60d558d7d4f2881fed87a15d61b4ad018892aba8f2690d91f172b5be3b94914e"
+upstream_hold:
+  path: "docs/audits/2026-08-16-reverse-sync-72cf776-removal-hold.yaml"
+  status: "active"
+  preservation_statement: >-
+    The 217-path hold and this adjacent quarantine are preservation records,
+    not mutation authority.
+quarantined_payloads:
+  count: 45
+  line_encoding: "sorted UTF-8 paths, one path per line, terminal LF"
+  line_sha256: "b45297b6c2de2bf734e7cb4faee9196ab3dd0e62f5a12048502e3b26af243873"
+  held_manifest_intersection:
+    count: 24
+    line_encoding: "sorted UTF-8 paths, one path per line, terminal LF"
+    line_sha256: "759c5ae61a5cbeed8e1d6128c6130340bd269ff631391f4d18334755c25ed453"
+    derivation: >-
+      Intersect the 45-path quarantine scope with the active reverse-sync
+      removal hold selection.
+  adjacent_current_tree:
+    count: 21
+    line_encoding: "sorted UTF-8 paths, one path per line, terminal LF"
+    line_sha256: "f2d025c92661781894b085552baa798a6d18e8536dc25ca2299552cf23ce55ad"
+adjacent_groups:
+  compatibility_facade:
+    - path: "src/Kernel/__init__.py"
+      import_contract: "src.Kernel is the only allowed compatibility import."
+  lower_case_byte_identical_duplicates:
+    - path: "src/Kernel/agent_router.py"
+      canonical_peer: "app/kernel/agent_router.py"
+    - path: "src/Kernel/agent_router.yaml"
+      canonical_peer: "app/kernel/agent_router.yaml"
+    - path: "src/Kernel/artemis_cli.py"
+      canonical_peer: "app/kernel/artemis_cli.py"
+    - path: "src/Kernel/cli.py"
+      canonical_peer: "app/kernel/cli.py"
+    - path: "src/Kernel/kernel.py"
+      canonical_peer: "app/kernel/kernel.py"
+    - path: "src/Kernel/memory_bus.py"
+      canonical_peer: "app/kernel/memory_bus.py"
+    - path: "src/Kernel/agents/__init__.py"
+      canonical_peer: "app/kernel/agents/__init__.py"
+    - path: "src/Kernel/agents/base.py"
+      canonical_peer: "app/kernel/agents/base.py"
+    - path: "src/Kernel/agents/daemon_agent.py"
+      canonical_peer: "app/kernel/agents/daemon_agent.py"
+    - path: "src/Kernel/agents/planner_agent.py"
+      canonical_peer: "app/kernel/agents/planner_agent.py"
+  generated_integration_state:
+    - path: "src/integration/state_kernel.json"
+      rationale: "Generated integration history is retained for comparison only."
+  duplicate_persona_tests:
+    - path: "src/tests/integration/test_artemis_persona 2.py"
+      canonical_peer: "src/tests/integration/test_artemis_persona.py"
+      evidence: "Copy-suffixed duplicate shadows the canonical src suite stem."
+    - path: "tests/integration/test_artemis_persona 2.py"
+      canonical_peer: "tests/integration/test_artemis_persona.py"
+      evidence: "Copy-suffixed duplicate shadows the canonical root suite stem."
+  dormant_mcp_common_incubator:
+    - path: "services/mcp/common/pyproject.toml"
+      rationale: "Dormant incubator payload only; publish authority is denied."
+    - path: "services/mcp/common/src/artemis_mcp_common/__init__.py"
+      rationale: "Dormant incubator payload only; runtime authority is denied."
+    - path: "services/mcp/common/src/artemis_mcp_common/gate.py"
+      rationale: "Dormant incubator payload only; runtime authority is denied."
+    - path: "services/mcp/common/src/artemis_mcp_common/models.py"
+      rationale: "Dormant incubator payload only; runtime authority is denied."
+    - path: "services/mcp/common/src/artemis_mcp_common/principals.py"
+      rationale: "Dormant incubator payload only; runtime authority is denied."
+    - path: "services/mcp/common/tests/test_gate.py"
+      rationale: "Dormant incubator payload only; test authority is denied."
+    - path: "services/mcp/common/tests/test_models.py"
+      rationale: "Dormant incubator payload only; test authority is denied."
+non_authority:
+  authorizes_deletion: false
+  authorizes_restore: false
+  authorizes_move: false
+  authorizes_rename: false
+  authorizes_content_rewrite: false
+  tracked_presence_grants_runtime_authority: false
+  tracked_presence_grants_import_authority: false
+  tracked_presence_grants_routing_authority: false
+  tracked_presence_grants_test_authority: false
+  tracked_presence_grants_release_authority: false
+  allowed_compatibility_imports:
+    - "src.Kernel"
+  forbidden_production_import_prefixes:
+    - "src.Kernel"
+    - "src.interface.Quantumharmony_cli"
+    - "artemis_mcp_common"
+  collection_exclusions:
+    - "src/tests/integration/test_artemis_persona 2.py"
+    - "tests/integration/test_artemis_persona 2.py"
+release_enforcement:
+  exact_allowlists_pending: true
+  mcp_common_production_authority: false
+  mcp_common_publish_authority: false
+review_signoffs: []
