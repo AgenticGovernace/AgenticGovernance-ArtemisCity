@@ -232,6 +232,15 @@ def test_task_payload_allows_benign_bearer_prose(
     assert TaskSubmissionV1(**valid_submission).content == valid_submission["content"]
 
 
+def test_task_payload_allows_sentence_ending_bearer_prose(
+    valid_submission: dict[str, object],
+) -> None:
+    """Sentence punctuation after ordinary Bearer prose is not token punctuation."""
+    valid_submission["content"] = "Bearer internationalization."
+
+    assert TaskSubmissionV1(**valid_submission).content == valid_submission["content"]
+
+
 def test_transport_submission_rejects_trusted_adapter_intent_source(
     valid_submission: dict[str, object],
 ) -> None:
