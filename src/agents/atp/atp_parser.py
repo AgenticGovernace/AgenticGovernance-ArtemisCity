@@ -14,34 +14,54 @@ Enhanced with parse-time metrics for observability and kernel routing.
 
 import re
 import time
-from typing import Dict, Optional, Tuple
-
-from prometheus_client import Counter, Histogram
-
-from src.utils.prometheus_guard import safe_metric
+from typing import Any, ClassVar
 
 from .atp_models import ATPActionType, ATPMessage, ATPMode, ATPPriority
 
-# safe_metric is reimport-tolerant; without it, sys.modules.pop + reimport of
-# this module crashes with "Duplicated timeseries". Prometheus is a declared
-# runtime dependency, so this instrumentation is always active.
-ATP_PARSE_LATENCY = safe_metric(
-    Histogram,
-    "artemis_atp_parse_latency_ms",
-    "ATP message parse latency in milliseconds",
-    buckets=[0.1, 0.5, 1, 2, 5, 10, 50],
-)
-ATP_PARSE_TOTAL = safe_metric(
-    Counter,
-    "artemis_atp_parse_total",
-    "Total ATP messages parsed",
-    ["format", "has_headers"],
-)
-ATP_PARSE_ERRORS = safe_metric(
-    Counter,
-    "artemis_atp_parse_errors_total",
-    "ATP parse errors",
-)
+_PARSE_METRICS: tuple[Any, Any, Any] | None = None
+ATP_PARSE_LATENCY: Any
+ATP_PARSE_TOTAL: Any
+ATP_PARSE_ERRORS: Any
+
+
+def _get_parse_metrics() -> tuple[Any, Any, Any]:
+    """Create parser metrics only for instrumented parsing."""
+    global _PARSE_METRICS, ATP_PARSE_ERRORS, ATP_PARSE_LATENCY, ATP_PARSE_TOTAL
+
+    if _PARSE_METRICS is None:
+        from prometheus_client import Counter, Histogram
+
+        from src.utils.prometheus_guard import safe_metric
+
+        _PARSE_METRICS = (
+            safe_metric(
+                Histogram,
+                "artemis_atp_parse_latency_ms",
+                "ATP message parse latency in milliseconds",
+                buckets=[0.1, 0.5, 1, 2, 5, 10, 50],
+            ),
+            safe_metric(
+                Counter,
+                "artemis_atp_parse_total",
+                "Total ATP messages parsed",
+                ["format", "has_headers"],
+            ),
+            safe_metric(
+                Counter,
+                "artemis_atp_parse_errors_total",
+                "ATP parse errors",
+            ),
+        )
+        ATP_PARSE_LATENCY, ATP_PARSE_TOTAL, ATP_PARSE_ERRORS = _PARSE_METRICS
+    return _PARSE_METRICS
+
+
+def __getattr__(name: str) -> Any:
+    """Resolve legacy metric exports without creating them at module import."""
+    if name not in {"ATP_PARSE_LATENCY", "ATP_PARSE_TOTAL", "ATP_PARSE_ERRORS"}:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    _get_parse_metrics()
+    return globals()[name]
 
 
 class ATPParser:
@@ -57,7 +77,7 @@ class ATPParser:
     BRACKET_PATTERN = r"\[\[(\w+)\]\]:\s*(.+?)(?=\s*\[\[\w+\]\]:|$)"
 
     # Known ATP tags
-    ATP_TAGS = {
+    ATP_TAGS: ClassVar[set[str]] = {
         "mode",
         "context",
         "priority",
@@ -101,7 +121,9 @@ class ATPParser:
 
         return message
 
-    def _extract_headers(self, text: str, pattern: re.Pattern) -> Tuple[dict, str]:
+    def _extract_headers(
+        self, text: str, pattern: re.Pattern[str]
+    ) -> tuple[dict[str, str], str]:
         """Extract ATP headers and remaining content.
 
         Args:
@@ -111,7 +133,7 @@ class ATPParser:
         Returns:
             Tuple of (headers dict, remaining content)
         """
-        headers = {}
+        headers: dict[str, str] = {}
         matches = pattern.findall(text)
 
         if not matches:
@@ -190,7 +212,7 @@ class ATPParser:
         except KeyError:
             return default
 
-    def detect_format(self, text: str) -> Optional[str]:
+    def detect_format(self, text: str) -> str | None:
         """Detect which ATP format is used in text.
 
         Args:
@@ -216,7 +238,7 @@ class ATPParser:
         """
         return self.detect_format(text) is not None
 
-    def parse_with_metrics(self, raw_input: str) -> Tuple[ATPMessage, Dict]:
+    def parse_with_metrics(self, raw_input: str) -> tuple[ATPMessage, dict[str, Any]]:
         """Parse ATP message and return both the message and parse metrics.
 
         Wraps the standard parse() call with timing instrumentation for
@@ -232,6 +254,7 @@ class ATPParser:
                 - has_headers: Whether ATP headers were found
                 - fields_populated: List of populated ATP fields
         """
+        parse_latency, parse_total, parse_errors = _get_parse_metrics()
         start_time = time.perf_counter()
 
         try:
@@ -267,8 +290,8 @@ class ATPParser:
                 "raw_length": len(raw_input),
             }
 
-            ATP_PARSE_LATENCY.observe(parse_latency_ms)
-            ATP_PARSE_TOTAL.labels(
+            parse_latency.observe(parse_latency_ms)
+            parse_total.labels(
                 format=format_detected or "none",
                 has_headers=str(has_headers).lower(),
             ).inc()
@@ -279,5 +302,5 @@ class ATPParser:
             return message, metrics
 
         except Exception:
-            ATP_PARSE_ERRORS.inc()
+            parse_errors.inc()
             raise
