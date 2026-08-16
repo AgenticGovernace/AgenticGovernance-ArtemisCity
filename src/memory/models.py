@@ -88,12 +88,7 @@ def _freeze_json_value(value: object) -> object:
     if isinstance(value, (list, tuple)):
         return tuple(_freeze_json_value(item) for item in value)
     if isinstance(value, (set, frozenset)):
-        try:
-            return frozenset(_freeze_json_value(item) for item in value)
-        except TypeError as error:
-            raise MemoryValidationError(
-                "metadata sets must contain hashable JSON-like values"
-            ) from error
+        raise MemoryValidationError("metadata sets are not JSON-compatible")
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     raise MemoryValidationError("metadata values must be JSON-like")

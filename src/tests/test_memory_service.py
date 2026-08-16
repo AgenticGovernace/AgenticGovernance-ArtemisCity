@@ -480,18 +480,26 @@ def test_memory_write_command_requires_governed_identity_fields(field: str) -> N
 
 def test_memory_write_command_snapshots_and_recursively_freezes_metadata() -> None:
     tags = ["alpha"]
-    permissions = {"read"}
-    nested: dict[str, object] = {"tags": tags, "permissions": permissions}
+    flags = [True]
+    nested: dict[str, object] = {
+        "tags": tags,
+        "flags": flags,
+        "window": ("morning", "evening"),
+    }
     source: dict[str, object] = {"nested": nested}
 
     command = valid_command(metadata=source)
     tags.append("mutated")
-    permissions.add("write")
+    flags.append(False)
     nested["new"] = True
     source["root"] = "mutated"
 
     assert command.metadata == {
-        "nested": {"tags": ("alpha",), "permissions": frozenset({"read"})}
+        "nested": {
+            "tags": ("alpha",),
+            "flags": (True,),
+            "window": ("morning", "evening"),
+        }
     }
     with pytest.raises(TypeError):
         command.metadata["root"] = "blocked"  # type: ignore[index]
@@ -502,9 +510,16 @@ def test_memory_write_command_snapshots_and_recursively_freezes_metadata() -> No
     frozen_tags = frozen_nested["tags"]
     with pytest.raises(AttributeError):
         frozen_tags.append("blocked")  # type: ignore[union-attr]
-    frozen_permissions = frozen_nested["permissions"]
-    with pytest.raises(AttributeError):
-        frozen_permissions.add("blocked")  # type: ignore[union-attr]
+
+
+@pytest.mark.parametrize("unsupported", [{"read"}, frozenset({"read"})])
+def test_memory_write_command_rejects_nested_non_json_sets(
+    unsupported: object,
+) -> None:
+    metadata = {"outer": [{"permissions": unsupported}]}
+
+    with pytest.raises(MemoryValidationError, match="sets are not JSON-compatible"):
+        valid_command(metadata=metadata)
 
 
 def test_memory_record_snapshots_metadata_and_remains_json_serializable() -> None:
@@ -560,6 +575,19 @@ def test_write_results_snapshot_and_freeze_projection_mappings() -> None:
     assert ledger_write.projection_states == {"obsidian": ProjectionState.PENDING}
     assert ledger_write.projection_event_ids == {"obsidian": "event-1"}
     assert receipt.projection_states == {"obsidian": ProjectionState.PENDING}
+    assert json.loads(
+        json.dumps(
+            {
+                "metadata": record.metadata,
+                "projection_states": ledger_write.projection_states,
+                "projection_event_ids": ledger_write.projection_event_ids,
+            }
+        )
+    ) == {
+        "metadata": {"task": "T-100"},
+        "projection_states": {"obsidian": "pending"},
+        "projection_event_ids": {"obsidian": "event-1"},
+    }
     with pytest.raises(TypeError):
         ledger_write.projection_states["obsidian"] = ProjectionState.FAILED  # type: ignore[index]
     with pytest.raises(TypeError):
