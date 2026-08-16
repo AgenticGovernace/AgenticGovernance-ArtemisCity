@@ -7,7 +7,7 @@ import subprocess
 import sys
 import tarfile
 import zipfile
-from collections import defaultdict
+from collections import Counter, defaultdict
 from functools import cache
 from pathlib import Path, PurePosixPath
 
@@ -106,6 +106,7 @@ EXPECTED_LIFT_CONDITIONS = {
     "fresh_user_release_authorization",
     "full_tests_green",
     "installed_wheel_imports_green",
+    "instruction_loader_import_green",
     "merge_complete",
     "minimal_dependencies_locked",
     "receipt_projection_immutable",
@@ -114,6 +115,78 @@ EXPECTED_LIFT_CONDITIONS = {
     "reproducible_artifacts_green",
     "runtime_paths_operator_writable",
     "tracked_allowlists_reviewed",
+}
+EXPECTED_BLOCKER_LIFT_CONDITIONS = {
+    "auth_receipt_schema_unpublishable": "auth_schemas_publishable",
+    "authstructure_conformance_missing": "authstructure_conformance_green",
+    "compatibility_facade_release_authority_undecided": (
+        "compatibility_facade_decided"
+    ),
+    "console_entry_point_undecided": "console_entry_point_decided",
+    "credential_value_filter_incomplete": "receipt_values_safe",
+    "fresh_user_release_authorization_pending": "fresh_user_release_authorization",
+    "full_tests_pending": "full_tests_green",
+    "installed_wheel_imports_unverified": "installed_wheel_imports_green",
+    "instruction_loader_import_broken": "instruction_loader_import_green",
+    "merge_pending": "merge_complete",
+    "minimal_dependencies_unlocked": "minimal_dependencies_locked",
+    "receipt_projection_mutable": "receipt_projection_immutable",
+    "reproducible_artifacts_unverified": "reproducible_artifacts_green",
+    "review_completion_pending": "release_review_complete",
+    "routing_envelope_schema_unpublishable": "auth_schemas_publishable",
+    "runtime_paths_not_operator_writable": "runtime_paths_operator_writable",
+    "tracked_release_allowlists_absent": "tracked_allowlists_reviewed",
+}
+BLOCKER_EVIDENCE_KEYS = {
+    "auth_receipt_schema_unpublishable": {
+        "probe",
+        "return_code",
+        "error_type",
+        "unsupported_type",
+    },
+    "authstructure_conformance_missing": {
+        "verifier_port",
+        "external_conformance_result",
+    },
+    "compatibility_facade_release_authority_undecided": {
+        "path",
+        "candidate_quarantine_intersection",
+    },
+    "console_entry_point_undecided": {"pyproject_project_scripts_present"},
+    "credential_value_filter_incomplete": {
+        "synthetic_bearer_under_noncredential_key_accepted"
+    },
+    "fresh_user_release_authorization_pending": {"authorization_records"},
+    "full_tests_pending": {"full_suite_result"},
+    "installed_wheel_imports_unverified": {"installed_candidate_wheel_result"},
+    "instruction_loader_import_broken": {
+        "probe",
+        "return_code",
+        "error_type",
+        "source_line",
+    },
+    "merge_pending": {"merge_signoffs"},
+    "minimal_dependencies_unlocked": {
+        "declared_runtime_dependency_count",
+        "reviewed_minimal_dependency_lock",
+    },
+    "receipt_projection_mutable": {"frozen_json_dict_values_reassignment_succeeded"},
+    "reproducible_artifacts_unverified": {"exact_candidate_rebuilds_compared"},
+    "review_completion_pending": {"human_review_signoffs"},
+    "routing_envelope_schema_unpublishable": {
+        "probe",
+        "return_code",
+        "error_type",
+        "unsupported_type",
+    },
+    "runtime_paths_not_operator_writable": {
+        "default_root_expression",
+        "installed_site_packages_write_risk",
+    },
+    "tracked_release_allowlists_absent": {
+        "wheel_allowlist_present",
+        "sdist_allowlist_present",
+    },
 }
 FORBIDDEN_PARTS = {
     "__pycache__",
@@ -149,12 +222,337 @@ QUARANTINE_EXTRA_PATHS = {
 }
 
 
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """Safe YAML loader that rejects duplicate mapping keys."""
+
+
+def _construct_unique_mapping(
+    loader: _UniqueKeyLoader,
+    node: yaml.nodes.MappingNode,
+    deep: bool = False,
+) -> dict[object, object]:
+    loader.flatten_mapping(node)
+    mapping: dict[object, object] = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in mapping:
+            raise yaml.constructor.ConstructorError(
+                "while constructing a mapping",
+                node.start_mark,
+                f"found duplicate key {key!r}",
+                key_node.start_mark,
+            )
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+_UniqueKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _construct_unique_mapping,
+)
+
+
 def _load_yaml(path: Path) -> dict[str, object]:
-    return yaml.safe_load(path.read_text(encoding="utf-8"))
+    document = yaml.load(path.read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)
+    assert isinstance(document, dict)
+    return document
+
+
+def _exact_mapping(
+    value: object,
+    expected_keys: set[str],
+    context: str,
+) -> dict[str, object]:
+    assert isinstance(value, dict), (
+        f"RELEASE_HOLD_SCHEMA: {context} must be a mapping, "
+        f"found {type(value).__name__}."
+    )
+    actual_keys = set(value)
+    assert actual_keys == expected_keys, (
+        f"RELEASE_HOLD_SCHEMA: {context} keys differ; "
+        f"missing={sorted(expected_keys - actual_keys)}, "
+        f"extra={sorted(actual_keys - expected_keys)}."
+    )
+    return value
+
+
+def _mapping_list(value: object, context: str) -> list[object]:
+    assert isinstance(value, list), (
+        f"RELEASE_HOLD_SCHEMA: {context} must be a list, "
+        f"found {type(value).__name__}."
+    )
+    return value
+
+
+def _assert_release_hold_schema(hold: dict[str, object]) -> None:
+    document = _exact_mapping(
+        hold,
+        {
+            "api_version",
+            "kind",
+            "metadata",
+            "observation",
+            "approved_release_allowlists",
+            "broad_clean_commit_artifacts",
+            "candidates",
+            "blockers",
+            "permissions",
+            "lift_conditions",
+            "signoffs",
+        },
+        "document",
+    )
+    _exact_mapping(
+        document["metadata"],
+        {"name", "hold_version", "hold_date", "owner_repository", "status"},
+        "metadata",
+    )
+    observation = _exact_mapping(
+        document["observation"],
+        {
+            "commit",
+            "branch",
+            "commit_time",
+            "evidence_source",
+            "dirty_at_evidence_refresh",
+            "dirty_path_count_at_evidence_refresh",
+            "dirty_status_encoding",
+            "dirty_status_line_sha256",
+            "dirty_observation_is_release_evidence",
+            "tool_versions",
+        },
+        "observation",
+    )
+    _exact_mapping(
+        observation["tool_versions"],
+        {"python", "git", "make", "build", "hatchling", "pytest", "pyyaml"},
+        "observation.tool_versions",
+    )
+
+    approved = _exact_mapping(
+        document["approved_release_allowlists"],
+        {"wheel", "sdist"},
+        "approved_release_allowlists",
+    )
+    for label in ("wheel", "sdist"):
+        _exact_mapping(
+            approved[label],
+            {
+                "path",
+                "present_at_observed_commit",
+                "present_in_worktree",
+                "authorized",
+            },
+            f"approved_release_allowlists.{label}",
+        )
+
+    broad = _exact_mapping(
+        document["broad_clean_commit_artifacts"],
+        {"source", "build_command", "normalized_member_encoding", "wheel", "sdist"},
+        "broad_clean_commit_artifacts",
+    )
+    _exact_mapping(
+        broad["source"],
+        {
+            "commit",
+            "tree",
+            "git_archive_sha256",
+            "pyproject_blob_oid",
+            "pyproject_sha256",
+        },
+        "broad_clean_commit_artifacts.source",
+    )
+    for label in ("wheel", "sdist"):
+        artifact = _exact_mapping(
+            broad[label],
+            {
+                "artifact_name",
+                "build_return_code",
+                "archive_sha256",
+                "member_count",
+                "normalized_member_line_sha256",
+                "protected_intersections",
+            },
+            f"broad_clean_commit_artifacts.{label}",
+        )
+        intersections = _exact_mapping(
+            artifact["protected_intersections"],
+            {"held", "retained_root", "quarantine"},
+            f"broad_clean_commit_artifacts.{label}.protected_intersections",
+        )
+        for partition in ("held", "retained_root", "quarantine"):
+            _exact_mapping(
+                intersections[partition],
+                {"count", "line_sha256"},
+                f"broad_clean_commit_artifacts.{label}.{partition}",
+            )
+
+    candidates = _exact_mapping(
+        document["candidates"],
+        {"wheel", "sdist"},
+        "candidates",
+    )
+    for label in ("wheel", "sdist"):
+        candidate = _exact_mapping(
+            candidates[label],
+            {
+                "path",
+                "role",
+                "approved",
+                "count",
+                "sorted_path_encoding",
+                "sorted_path_sha256",
+                "content_digest_encoding",
+                "path_nul_blob_nul_sha256",
+                "oid_manifest_encoding",
+                "path_tab_blob_oid_manifest_sha256",
+                "protected_intersections",
+                "experimental_artifact",
+            },
+            f"candidates.{label}",
+        )
+        intersections = _exact_mapping(
+            candidate["protected_intersections"],
+            {"held", "retained_root", "quarantine"},
+            f"candidates.{label}.protected_intersections",
+        )
+        for partition in ("held", "retained_root", "quarantine"):
+            _exact_mapping(
+                intersections[partition],
+                {"count", "line_sha256", "paths"},
+                f"candidates.{label}.{partition}",
+            )
+        _exact_mapping(
+            candidate["experimental_artifact"],
+            {
+                "status",
+                "reason_code",
+                "normalized_member_count",
+                "normalized_member_line_sha256",
+            },
+            f"candidates.{label}.experimental_artifact",
+        )
+
+    blockers = _exact_mapping(
+        document["blockers"],
+        {"recognized_reason_codes", "active"},
+        "blockers",
+    )
+    _mapping_list(
+        blockers["recognized_reason_codes"], "blockers.recognized_reason_codes"
+    )
+    active_blockers = _mapping_list(blockers["active"], "blockers.active")
+    for index, blocker_value in enumerate(active_blockers):
+        blocker = _exact_mapping(
+            blocker_value,
+            {"reason_code", "status", "lift_condition", "evidence"},
+            f"blockers.active[{index}]",
+        )
+        reason_code = blocker["reason_code"]
+        assert isinstance(reason_code, str) and reason_code in BLOCKER_EVIDENCE_KEYS, (
+            f"RELEASE_HOLD_SCHEMA: blockers.active[{index}] has unrecognized "
+            f"reason_code {reason_code!r}."
+        )
+        _exact_mapping(
+            blocker["evidence"],
+            BLOCKER_EVIDENCE_KEYS[reason_code],
+            f"blockers.active[{index}].evidence",
+        )
+
+    _exact_mapping(
+        document["permissions"],
+        {
+            "authorizes_allowlist_creation",
+            "authorizes_build",
+            "authorizes_configuration_change",
+            "authorizes_content_rewrite",
+            "authorizes_deletion",
+            "authorizes_move",
+            "authorizes_publish",
+            "authorizes_release",
+            "authorizes_rename",
+            "authorizes_restore",
+            "candidate_grants_release_authority",
+        },
+        "permissions",
+    )
+    lift_conditions = _mapping_list(document["lift_conditions"], "lift_conditions")
+    for index, condition in enumerate(lift_conditions):
+        _exact_mapping(
+            condition,
+            {"key", "satisfied"},
+            f"lift_conditions[{index}]",
+        )
+    _exact_mapping(
+        document["signoffs"],
+        {"human_review", "merge", "user_release_authorization"},
+        "signoffs",
+    )
 
 
 def _load_release_hold() -> dict[str, object]:
-    return _load_yaml(RELEASE_HOLD_PATH)
+    hold = _load_yaml(RELEASE_HOLD_PATH)
+    _assert_release_hold_schema(hold)
+    return hold
+
+
+def test_release_hold_contract_yaml_loader_rejects_duplicate_keys(
+    tmp_path: Path,
+) -> None:
+    duplicate_yaml = tmp_path / "duplicate.yaml"
+    duplicate_yaml.write_text(
+        "permissions:\n" "  authorizes_build: false\n" "  authorizes_build: true\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(yaml.constructor.ConstructorError, match="duplicate key"):
+        _load_yaml(duplicate_yaml)
+
+
+def _mapping_paths(
+    value: object,
+    path: tuple[str | int, ...] = (),
+) -> list[tuple[str | int, ...]]:
+    paths: list[tuple[str | int, ...]] = []
+    if isinstance(value, dict):
+        paths.append(path)
+        for key, child in value.items():
+            paths.extend(_mapping_paths(child, (*path, key)))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            paths.extend(_mapping_paths(child, (*path, index)))
+    return paths
+
+
+def test_release_hold_contract_schema_rejects_extra_fields_in_every_mapping(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_path = RELEASE_HOLD_PATH
+    original = _load_yaml(source_path)
+    mapping_paths = _mapping_paths(original)
+
+    assert mapping_paths
+    for mapping_path in mapping_paths:
+        document = _load_yaml(source_path)
+        target: object = document
+        for part in mapping_path:
+            target = target[part]  # type: ignore[index]
+        assert isinstance(target, dict)
+        target["unexpected_review_field"] = True
+
+        mutated_path = tmp_path / "release-hold-with-extra-field.yaml"
+        mutated_path.write_text(
+            yaml.safe_dump(document, sort_keys=False),
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(
+            sys.modules[__name__],
+            "RELEASE_HOLD_PATH",
+            mutated_path,
+        )
+        with pytest.raises(AssertionError, match="RELEASE_HOLD_SCHEMA"):
+            _load_release_hold()
 
 
 def _git_result(*args: str) -> subprocess.CompletedProcess[bytes]:
@@ -327,6 +725,21 @@ def test_release_hold_contract_is_strict_active_and_non_authorizing() -> None:
     assert all(entry["satisfied"] is False for entry in lift_conditions)
 
 
+def test_release_hold_contract_maps_every_blocker_to_exact_lift_condition() -> None:
+    hold = _load_release_hold()
+    conditions = {entry["key"] for entry in hold["lift_conditions"]}
+    blocker_mapping = {
+        entry["reason_code"]: entry.get("lift_condition")
+        for entry in hold["blockers"]["active"]
+    }
+
+    assert blocker_mapping == EXPECTED_BLOCKER_LIFT_CONDITIONS
+    assert set(blocker_mapping.values()) <= conditions
+    assert blocker_mapping["instruction_loader_import_broken"] == (
+        "instruction_loader_import_green"
+    )
+
+
 def test_release_hold_contract_keeps_approved_allowlists_absent() -> None:
     hold = _load_release_hold()
     approved = hold["approved_release_allowlists"]
@@ -484,13 +897,72 @@ def test_allowlist_comparator_accepts_normalized_wheel_dist_info(
     )
 
 
+def test_allowlist_comparator_rejects_duplicate_raw_wheel_members(
+    tmp_path: Path,
+) -> None:
+    allowlist = tmp_path / "wheel-allowlist.txt"
+    allowlist.write_text(
+        "app/__init__.py\n"
+        "{dist_info}/METADATA\n"
+        "{dist_info}/WHEEL\n"
+        "{dist_info}/RECORD\n",
+        encoding="utf-8",
+    )
+    members = [
+        "app/__init__.py",
+        "app/__init__.py",
+        "artemis_city-1.0.0.dist-info/METADATA",
+        "artemis_city-1.0.0.dist-info/WHEEL",
+        "artemis_city-1.0.0.dist-info/RECORD",
+    ]
+
+    with pytest.raises(AssertionError, match="RELEASE_ARTIFACT_DUPLICATE_MEMBER"):
+        _assert_members_match_allowlist(
+            member_names=members,
+            allowlist_path=allowlist,
+            artifact_label="wheel",
+            normalize_wheel_dist_info=True,
+        )
+
+
+def test_allowlist_comparator_rejects_shadow_wheel_dist_info_root(
+    tmp_path: Path,
+) -> None:
+    allowlist = tmp_path / "wheel-allowlist.txt"
+    allowlist.write_text(
+        "app/__init__.py\n"
+        "{dist_info}/METADATA\n"
+        "{dist_info}/WHEEL\n"
+        "{dist_info}/RECORD\n",
+        encoding="utf-8",
+    )
+    members = [
+        "app/__init__.py",
+        "artemis_city-1.0.0.dist-info/METADATA",
+        "artemis_city-1.0.0.dist-info/WHEEL",
+        "artemis_city-1.0.0.dist-info/RECORD",
+        "shadow-0.dist-info/METADATA",
+    ]
+
+    with pytest.raises(AssertionError, match="RELEASE_WHEEL_DIST_INFO_ROOT_COUNT"):
+        _assert_members_match_allowlist(
+            member_names=members,
+            allowlist_path=allowlist,
+            artifact_label="wheel",
+            normalize_wheel_dist_info=True,
+        )
+
+
 def test_allowlist_comparator_rejects_placeholder_allowlist(tmp_path: Path) -> None:
     allowlist = tmp_path / "wheel-allowlist.txt"
     allowlist.write_text("", encoding="utf-8")
 
     with pytest.raises(AssertionError, match="RELEASE_ALLOWLIST_MISMATCH"):
         _assert_members_match_allowlist(
-            member_names=["app/__init__.py"],
+            member_names=[
+                "app/__init__.py",
+                "artemis_city-1.0.0.dist-info/METADATA",
+            ],
             allowlist_path=allowlist,
             artifact_label="wheel",
             normalize_wheel_dist_info=True,
@@ -643,25 +1115,47 @@ def _assert_members_match_allowlist(
     normalize_wheel_dist_info: bool,
 ) -> None:
     _assert_allowlist_exists(allowlist_path, artifact_label)
+    duplicate_members = sorted(
+        member for member, count in Counter(member_names).items() if count > 1
+    )
+    assert not duplicate_members, (
+        "RELEASE_ARTIFACT_DUPLICATE_MEMBER: "
+        f"{artifact_label} repeats raw members {duplicate_members[:20]}."
+    )
+
+    if normalize_wheel_dist_info:
+        dist_info_roots = sorted(
+            {
+                path.parts[0]
+                for member_name in member_names
+                if (path := PurePosixPath(member_name)).parts
+                and path.parts[0].endswith(".dist-info")
+            }
+        )
+        assert len(dist_info_roots) == 1, (
+            "RELEASE_WHEEL_DIST_INFO_ROOT_COUNT: "
+            f"expected one raw .dist-info root, found {dist_info_roots}."
+        )
+
     normalized_members = sorted(
-        {
-            _normalize_allowlist_member(
-                member_name,
-                normalize_wheel_dist_info=normalize_wheel_dist_info,
-            )
-            for member_name in member_names
-        }
+        _normalize_allowlist_member(
+            member_name,
+            normalize_wheel_dist_info=normalize_wheel_dist_info,
+        )
+        for member_name in member_names
     )
     allowlist_members = sorted(
-        set(
-            _read_allowlist(
-                allowlist_path,
-                normalize_wheel_dist_info=normalize_wheel_dist_info,
-            )
+        _read_allowlist(
+            allowlist_path,
+            normalize_wheel_dist_info=normalize_wheel_dist_info,
         )
     )
-    missing = sorted(set(allowlist_members) - set(normalized_members))
-    unexpected = sorted(set(normalized_members) - set(allowlist_members))
+    missing = sorted(
+        (Counter(allowlist_members) - Counter(normalized_members)).elements()
+    )
+    unexpected = sorted(
+        (Counter(normalized_members) - Counter(allowlist_members)).elements()
+    )
     assert normalized_members == allowlist_members, (
         "RELEASE_ALLOWLIST_MISMATCH: "
         f"{artifact_label} differs from {_display_path(allowlist_path)}; "

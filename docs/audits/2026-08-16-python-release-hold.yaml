@@ -190,6 +190,7 @@ blockers:
   active:
     - reason_code: "auth_receipt_schema_unpublishable"
       status: "open"
+      lift_condition: "auth_schemas_publishable"
       evidence:
         probe: "AuthReceiptV1.model_json_schema()"
         return_code: 1
@@ -197,36 +198,44 @@ blockers:
         unsupported_type: "src.auth.contracts.FrozenJsonDict"
     - reason_code: "authstructure_conformance_missing"
       status: "open"
+      lift_condition: "authstructure_conformance_green"
       evidence:
         verifier_port: "src/auth/verifier.py"
         external_conformance_result: "not established"
     - reason_code: "compatibility_facade_release_authority_undecided"
       status: "open"
+      lift_condition: "compatibility_facade_decided"
       evidence:
         path: "src/Kernel/__init__.py"
         candidate_quarantine_intersection: true
     - reason_code: "console_entry_point_undecided"
       status: "open"
+      lift_condition: "console_entry_point_decided"
       evidence:
         pyproject_project_scripts_present: false
     - reason_code: "credential_value_filter_incomplete"
       status: "open"
+      lift_condition: "receipt_values_safe"
       evidence:
         synthetic_bearer_under_noncredential_key_accepted: true
     - reason_code: "fresh_user_release_authorization_pending"
       status: "open"
+      lift_condition: "fresh_user_release_authorization"
       evidence:
         authorization_records: []
     - reason_code: "full_tests_pending"
       status: "open"
+      lift_condition: "full_tests_green"
       evidence:
         full_suite_result: "not claimed"
     - reason_code: "installed_wheel_imports_unverified"
       status: "open"
+      lift_condition: "installed_wheel_imports_green"
       evidence:
         installed_candidate_wheel_result: "not attempted while hold is active"
     - reason_code: "instruction_loader_import_broken"
       status: "open"
+      lift_condition: "instruction_loader_import_green"
       evidence:
         probe: "import src.core.instructions.instruction_loader"
         return_code: 1
@@ -234,27 +243,33 @@ blockers:
         source_line: "src/core/instructions/instruction_loader.py:48"
     - reason_code: "merge_pending"
       status: "open"
+      lift_condition: "merge_complete"
       evidence:
         merge_signoffs: []
     - reason_code: "minimal_dependencies_unlocked"
       status: "open"
+      lift_condition: "minimal_dependencies_locked"
       evidence:
         declared_runtime_dependency_count: 36
         reviewed_minimal_dependency_lock: false
     - reason_code: "receipt_projection_mutable"
       status: "open"
+      lift_condition: "receipt_projection_immutable"
       evidence:
         frozen_json_dict_values_reassignment_succeeded: true
     - reason_code: "reproducible_artifacts_unverified"
       status: "open"
+      lift_condition: "reproducible_artifacts_green"
       evidence:
         exact_candidate_rebuilds_compared: false
     - reason_code: "review_completion_pending"
       status: "open"
+      lift_condition: "release_review_complete"
       evidence:
         human_review_signoffs: []
     - reason_code: "routing_envelope_schema_unpublishable"
       status: "open"
+      lift_condition: "auth_schemas_publishable"
       evidence:
         probe: "TaskEnvelopeV1.model_json_schema()"
         return_code: 1
@@ -262,11 +277,13 @@ blockers:
         unsupported_type: "src.auth.contracts.FrozenJsonDict"
     - reason_code: "runtime_paths_not_operator_writable"
       status: "open"
+      lift_condition: "runtime_paths_operator_writable"
       evidence:
         default_root_expression: "Path(__file__).resolve().parents[1]"
         installed_site_packages_write_risk: true
     - reason_code: "tracked_release_allowlists_absent"
       status: "open"
+      lift_condition: "tracked_allowlists_reviewed"
       evidence:
         wheel_allowlist_present: false
         sdist_allowlist_present: false
@@ -298,6 +315,8 @@ lift_conditions:
   - key: "full_tests_green"
     satisfied: false
   - key: "installed_wheel_imports_green"
+    satisfied: false
+  - key: "instruction_loader_import_green"
     satisfied: false
   - key: "merge_complete"
     satisfied: false
