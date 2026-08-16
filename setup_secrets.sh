@@ -167,6 +167,20 @@ is_derived_value() {
     [[ "$1" == "ARTEMIS_VECTOR_STORE_API_KEY" ]]
 }
 
+# Authstructure fields are public operator configuration. They are validated
+# by the runtime loader and are never generated, derived, propagated, or
+# rotated by this provisioner.
+is_operator_authstructure_config() {
+    case "$1" in
+        ARTEMIS_AUTHSTRUCTURE_URL|ARTEMIS_AUTHSTRUCTURE_AUDIENCE|ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE|ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 should_create() {
     local target="$1"
     if [[ -f "$target" ]]; then
@@ -305,6 +319,8 @@ sync_template() {
             expected="$(secret_value "$key")"
         elif is_derived_value "$key"; then
             expected="$QDRANT_KEY"
+        elif is_operator_authstructure_config "$key"; then
+            expected="$template_value"
         else
             expected="$template_value"
         fi
@@ -379,6 +395,7 @@ case "$MODE" in
         echo ""
         echo "Value ownership:"
         echo "  - MCP/API/deployment secrets are generated here and rotate with --regenerate."
+        echo "  - Authstructure public configuration is operator-supplied and never generated or rotated."
         echo "  - Existing ordinary settings and provider credentials are preserved."
         echo "  - Missing ordinary settings come from the matching .env.example."
         echo ""
