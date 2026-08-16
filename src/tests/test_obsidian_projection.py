@@ -1,3 +1,4 @@
+import errno
 import os
 import stat
 from concurrent.futures import ThreadPoolExecutor
@@ -415,6 +416,79 @@ def test_created_parent_sync_failure_precedes_temp_and_replacement(
     assert replacement_attempted is False
 
 
+def test_retry_syncs_existing_parent_entry_before_projection(manager, monkeypatch):
+    real_fsync = manager_module.os.fsync
+    real_open = manager_module.os.open
+    real_replace = manager_module.os.replace
+    vault_inode = manager.vault_path.stat().st_ino
+    phase = "first_attempt"
+    injected_failure = False
+    temp_attempts = 0
+    replacement_attempts = 0
+    retry_events: list[tuple[str, int]] = []
+
+    def fail_first_parent_sync(file_descriptor):
+        nonlocal injected_failure
+        if stat.S_ISDIR(os.fstat(file_descriptor).st_mode):
+            inode = os.fstat(file_descriptor).st_ino
+            if phase == "first_attempt" and inode == vault_inode:
+                injected_failure = True
+                raise OSError("simulated first parent-entry sync failure")
+            if phase == "retry":
+                retry_events.append(("dir_fsync", inode))
+        return real_fsync(file_descriptor)
+
+    def record_open(path, flags, mode=0o777, *, dir_fd=None):
+        nonlocal temp_attempts
+        if flags & os.O_CREAT:
+            temp_attempts += 1
+            if phase == "retry":
+                assert dir_fd is not None
+                retry_events.append(("temp_open", os.fstat(dir_fd).st_ino))
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    def record_replace(source, target, *, src_dir_fd, dst_dir_fd):
+        nonlocal replacement_attempts
+        replacement_attempts += 1
+        if phase == "retry":
+            retry_events.append(("replace", os.fstat(dst_dir_fd).st_ino))
+        return real_replace(
+            source,
+            target,
+            src_dir_fd=src_dir_fd,
+            dst_dir_fd=dst_dir_fd,
+        )
+
+    monkeypatch.setattr(manager_module.os, "fsync", fail_first_parent_sync)
+    monkeypatch.setattr(manager_module.os, "open", record_open)
+    monkeypatch.setattr(manager_module.os, "replace", record_replace)
+
+    with pytest.raises(manager_module.ObsidianProjectionError) as error_info:
+        manager.write_note("outer/projection.md", "retryable content")
+
+    assert injected_failure is True
+    assert error_info.value.stage == "parent_directory"
+    assert (manager.vault_path / "outer").is_dir()
+    assert temp_attempts == 0
+    assert replacement_attempts == 0
+
+    phase = "retry"
+    manager.write_note("outer/projection.md", "retryable content")
+
+    outer_inode = (manager.vault_path / "outer").stat().st_ino
+    assert retry_events == [
+        ("dir_fsync", vault_inode),
+        ("temp_open", outer_inode),
+        ("replace", outer_inode),
+        ("dir_fsync", outer_inode),
+    ]
+    assert temp_attempts == 1
+    assert replacement_attempts == 1
+    assert (manager.vault_path / "outer" / "projection.md").read_text(
+        encoding="utf-8"
+    ) == "retryable content"
+
+
 def test_windows_append_retains_legacy_behavior(manager, monkeypatch):
     note_path = manager.vault_path / "projection.md"
     note_path.write_text("existing", encoding="utf-8")
@@ -435,4 +509,37 @@ def test_maximum_length_target_name_uses_bounded_temporary_name(manager):
 
     assert (manager.vault_path / target_name).read_text(encoding="utf-8") == (
         "maximum-length target"
+    )
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX fpathconf behavior")
+def test_temporary_name_respects_held_parent_name_max(manager, monkeypatch):
+    real_fpathconf = manager_module.os.fpathconf
+    real_open = manager_module.os.open
+    constrained_name_max = 14
+    temporary_names: list[str] = []
+
+    def constrained_fpathconf(file_descriptor, name):
+        if name == "PC_NAME_MAX":
+            assert stat.S_ISDIR(os.fstat(file_descriptor).st_mode)
+            return constrained_name_max
+        return real_fpathconf(file_descriptor, name)
+
+    def enforce_name_max(path, flags, mode=0o777, *, dir_fd=None):
+        if flags & os.O_CREAT:
+            temporary_name = os.fspath(path)
+            temporary_names.append(temporary_name)
+            if len(os.fsencode(temporary_name)) > constrained_name_max:
+                raise OSError(errno.ENAMETOOLONG, "simulated constrained NAME_MAX")
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(manager_module.os, "fpathconf", constrained_fpathconf)
+    monkeypatch.setattr(manager_module.os, "open", enforce_name_max)
+
+    manager.write_note("projection.md", "bounded temporary name")
+
+    assert len(temporary_names) == 1
+    assert len(os.fsencode(temporary_names[0])) <= constrained_name_max
+    assert (manager.vault_path / "projection.md").read_text(encoding="utf-8") == (
+        "bounded temporary name"
     )

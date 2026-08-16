@@ -29,7 +29,12 @@ def _validated_projection_path(value: str) -> str:
 
 def _quoted(value: str | None) -> str:
     """Serialize a nullable string as a YAML-compatible JSON scalar."""
-    return json.dumps(value, ensure_ascii=True)
+    serialized = json.dumps(value, ensure_ascii=False)
+    return (
+        serialized.replace("\u0085", "\\u0085")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )
 
 
 def _render_note(record: MemoryRecord) -> str:

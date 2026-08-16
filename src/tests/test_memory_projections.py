@@ -148,13 +148,14 @@ def test_vector_projection_uses_logical_memory_id_and_canonical_metadata() -> No
 def test_obsidian_frontmatter_hostile_unicode_round_trips_through_yaml_parser() -> None:
     manager = RecordingObsidianManager()
     projection = ObsidianMemoryProjection(manager)
+    hostile_scalar = "\u0085-\u2028-\u2029-\N{CITYSCAPE AT DUSK}"
     expected_strings = {
-        "record_id": "record\u0085identifier",
-        "memory_id": "memory\u0085identifier",
-        "namespace": "reviewed\u0085namespace",
-        "key": "daily\u0085brief",
-        "content_sha256": "sha256\u0085digest",
-        "provenance_id": "completion\u0085provenance",
+        "record_id": f"record-{hostile_scalar}",
+        "memory_id": f"memory-{hostile_scalar}",
+        "namespace": f"reviewed-{hostile_scalar}",
+        "key": f"daily-{hostile_scalar}",
+        "content_sha256": f"sha256-{hostile_scalar}",
+        "provenance_id": f"completion-{hostile_scalar}",
     }
     record = memory_record(
         record_id=expected_strings["record_id"],

@@ -37,8 +37,14 @@ def _directory_open_flags() -> int:
 def _open_unique_temp_file(parent_fd: int) -> tuple[int, str]:
     """Create a cryptographically named staging file below an open directory."""
     flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW
+    name_max = os.fpathconf(parent_fd, "PC_NAME_MAX")
+    if name_max == -1:
+        name_max = 33
+    if name_max < 2:
+        raise OSError(errno.ENAMETOOLONG, "directory cannot hold a temporary name")
+    token_characters = min(32, name_max - 1)
     for _ in range(_TEMP_FILE_ATTEMPTS):
-        candidate = f".artemis-{secrets.token_hex(16)}.tmp"
+        candidate = f".{secrets.token_hex(16)[:token_characters]}"
         try:
             file_descriptor = os.open(candidate, flags, 0o666, dir_fd=parent_fd)
         except FileExistsError:
@@ -131,8 +137,7 @@ class ObsidianManager:
                         os.mkdir(component, 0o777, dir_fd=current_fd)
                     except FileExistsError:
                         pass
-                    else:
-                        os.fsync(current_fd)
+                    os.fsync(current_fd)
                     next_fd = os.open(
                         component, _directory_open_flags(), dir_fd=current_fd
                     )
@@ -145,6 +150,12 @@ class ObsidianManager:
                             "vault path must resolve to its canonical lexical path"
                         ) from exc
                     raise
+                else:
+                    try:
+                        os.fsync(current_fd)
+                    except BaseException:
+                        os.close(next_fd)
+                        raise
                 os.close(current_fd)
                 current_fd = next_fd
             return current_fd
