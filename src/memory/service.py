@@ -7,6 +7,7 @@ from collections.abc import Iterable
 from .models import (
     ClaimDisposition,
     LedgerWrite,
+    MemoryLedgerUnavailable,
     MemoryRecord,
     MemoryValidationError,
     MemoryWriteCommand,
@@ -46,6 +47,8 @@ class MemoryService:
         final_states = self._ledger.projection_status(
             command.namespace, ledger_write.record.record_id
         )
+        if final_states is None:
+            raise MemoryLedgerUnavailable("written memory record no longer exists")
         return MemoryWriteReceipt(
             record=ledger_write.record,
             disposition=ledger_write.disposition,
@@ -74,8 +77,8 @@ class MemoryService:
 
     def projection_status(
         self, namespace: str, record_id: str
-    ) -> dict[str, ProjectionState]:
-        """Return projection state for one immutable record and namespace."""
+    ) -> dict[str, ProjectionState] | None:
+        """Return states, or ``None`` when the namespaced record is absent."""
         validate_namespace(namespace)
         validate_required_text(record_id, "record_id")
         return self._ledger.projection_status(namespace, record_id)

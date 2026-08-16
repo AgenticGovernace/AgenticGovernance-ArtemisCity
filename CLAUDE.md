@@ -649,6 +649,7 @@ file as-is.
 | `docs/Agent Implementation Guide.md` | Dual-track Concept_Demos → src/ graduation path |
 | `docs/LIVING_CITY.md` | The Mayor / Postmaster / City Manager metaphor |
 | `docs/ENVIRONMENTS.md` | `dev → staging → prod` branch flow and `ARTEMIS_ENV` |
+| `docs/CODING_STANDARDS.md` | Coding, safety, testing, and incremental adoption rules |
 | `AGENTS.md` | Tool-neutral mirror of `CLAUDE.md` (for non-Claude agents) |
 | `docs/TEST_PLAN.md` | Test plan (pyramid, coverage bars, naming convention) |
 | `SECURITY.md` | Secret handling, key rotation, incident response |
@@ -716,6 +717,8 @@ Response:
 | `INVALID_REQUEST`, `INVALID_JSON` | 400 |
 | `UNKNOWN_COMMAND`, `BRIDGE_ERROR`, `INTERNAL_ERROR` | 500 |
 | `BRIDGE_UNAVAILABLE` | 500 (set by the TS layer when the subprocess cannot be spawned) |
+| `MEMORY_IDEMPOTENCY_CONFLICT`, `MEMORY_DELETE_UNSUPPORTED` | 409 |
+| `MEMORY_STORAGE_UNAVAILABLE`, `MEMORY_DATABASE_CONFIGURATION_ERROR` | 503 |
 
 ### Adding a new bridge command
 

@@ -5,7 +5,10 @@ from __future__ import annotations
 import shutil
 import stat
 import subprocess
+import sys
+import os
 from pathlib import Path
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MEMORY_LAYER = "src/Artemis Agentic Memory Layer"
@@ -29,9 +32,7 @@ def _copy_provisioner_fixture(tmp_path: Path) -> Path:
     return fixture
 
 
-def _run(
-    fixture: Path, *args: str, input_text: str = ""
-) -> subprocess.CompletedProcess[str]:
+def _run(fixture: Path, *args: str, input_text: str = "") -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["bash", "setup_secrets.sh", *args],
         cwd=fixture,
@@ -49,9 +50,22 @@ def _env_value(path: Path, key: str) -> str:
     return ""
 
 
+<<<<<<< Updated upstream
+def test_sync_backfills_every_runtime_template_and_check_detects_drift(tmp_path: Path) -> None:
+=======
+<<<<<<< Updated upstream
 def test_sync_backfills_every_runtime_template_and_check_detects_drift(
     tmp_path: Path,
 ) -> None:
+=======
+def _has_active_declaration(path: Path, key: str) -> bool:
+    """Return whether an environment file declares a key, even when blank."""
+    return any(line.startswith(f"{key}=") for line in path.read_text().splitlines())
+
+
+def test_sync_backfills_every_runtime_template_and_check_detects_drift(tmp_path: Path) -> None:
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
     fixture = _copy_provisioner_fixture(tmp_path)
     (fixture / ".env").write_text(
         "MCP_API_KEY=keep-mcp\n"
@@ -73,7 +87,9 @@ def test_sync_backfills_every_runtime_template_and_check_detects_drift(
     assert _env_value(fixture / ".env", "ARTEMIS_HEBBIAN_ROUTING") == "1"
     assert _env_value(fixture / "app/api/.env", "EXO_READ_TIMEOUT_SECONDS") == "900"
     assert _env_value(fixture / "src/.env", "ARTEMIS_VECTOR_BACKEND") == "sqlite"
-    assert _env_value(fixture / f"{MEMORY_LAYER}/.env", "OBSIDIAN_CA_CERT") == ""
+    assert _env_value(
+        fixture / f"{MEMORY_LAYER}/.env", "OBSIDIAN_CA_CERT"
+    ) == ""
     assert stat.S_IMODE((fixture / ".env").stat().st_mode) == 0o600
 
     check = _run(fixture, "--check")
@@ -120,3 +136,128 @@ def test_regenerate_rotates_owned_secrets_and_propagates_them(tmp_path: Path) ->
     assert _env_value(fixture / ".env", "REDIS_PASSWORD") != "old-redis"
     assert _env_value(fixture / ".env", "QDRANT_API_KEY") != "old-qdr"
     assert _env_value(fixture / ".env", "GRAFANA_PASSWORD") != "old-grafana"
+
+
+def test_sync_preserves_operator_memory_database_urls(tmp_path: Path) -> None:
+    """Sync must not replace database endpoints supplied by the operator."""
+    fixture = _copy_provisioner_fixture(tmp_path)
+    (fixture / ".env").write_text(
+        "ARTEMIS_MEMORY_DATABASE_URL=postgresql://runtime-operator/db\n"
+        "ARTEMIS_MEMORY_MIGRATION_DATABASE_URL=postgresql://migration-operator/db\n"
+    )
+    (fixture / "src").mkdir(exist_ok=True)
+    (fixture / "src/.env").write_text(
+        "ARTEMIS_MEMORY_DATABASE_URL=postgresql://runtime-operator/db\n"
+        "ARTEMIS_MEMORY_MIGRATION_DATABASE_URL=postgresql://migration-operator/db\n"
+    )
+
+    result = _run(fixture, input_text="y\ny\n")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    for relative in (".env", "src/.env"):
+        env_file = fixture / relative
+        assert _env_value(env_file, "ARTEMIS_MEMORY_DATABASE_URL") == (
+            "postgresql://runtime-operator/db"
+        )
+        assert _env_value(env_file, "ARTEMIS_MEMORY_MIGRATION_DATABASE_URL") == (
+            "postgresql://migration-operator/db"
+        )
+
+
+def test_first_setup_leaves_memory_database_urls_blank(tmp_path: Path) -> None:
+    """New environment files must not fabricate a database endpoint."""
+    fixture = _copy_provisioner_fixture(tmp_path)
+
+    result = _run(fixture, input_text="y\ny\ny\ny\n")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    for relative in (".env", "src/.env", "app/api/.env"):
+        env_file = fixture / relative
+        assert _has_active_declaration(env_file, "ARTEMIS_MEMORY_DATABASE_URL")
+        assert _env_value(env_file, "ARTEMIS_MEMORY_DATABASE_URL") == ""
+
+    for relative in (".env", "src/.env"):
+        env_file = fixture / relative
+        assert _has_active_declaration(
+            env_file, "ARTEMIS_MEMORY_MIGRATION_DATABASE_URL"
+        )
+        assert _env_value(env_file, "ARTEMIS_MEMORY_MIGRATION_DATABASE_URL") == ""
+
+    express_env = fixture / "app/api/.env"
+    assert _env_value(express_env, "ARTEMIS_MEMORY_BACKEND") == "legacy"
+    assert _env_value(
+        express_env, "ARTEMIS_MEMORY_DB_CONNECT_TIMEOUT_SECONDS"
+    ) == "10"
+    assert _env_value(
+        express_env, "ARTEMIS_MEMORY_DB_STATEMENT_TIMEOUT_MS"
+    ) == "5000"
+    assert not _has_active_declaration(
+        express_env, "ARTEMIS_MEMORY_MIGRATION_DATABASE_URL"
+    )
+
+
+def test_regenerate_preserves_operator_memory_database_urls(tmp_path: Path) -> None:
+    """Rotating owned secrets must not rotate operator database endpoints."""
+    fixture = _copy_provisioner_fixture(tmp_path)
+    for relative in (".env", "src/.env"):
+        env_file = fixture / relative
+        env_file.parent.mkdir(parents=True, exist_ok=True)
+        env_file.write_text(
+            "ARTEMIS_MEMORY_DATABASE_URL=postgresql://runtime-operator/db\n"
+            "ARTEMIS_MEMORY_MIGRATION_DATABASE_URL=postgresql://migration-operator/db\n"
+        )
+
+    result = _run(fixture, "--regenerate", input_text="y\ny\n")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    for relative in (".env", "src/.env"):
+        env_file = fixture / relative
+        assert _env_value(env_file, "ARTEMIS_MEMORY_DATABASE_URL") == (
+            "postgresql://runtime-operator/db"
+        )
+        assert _env_value(env_file, "ARTEMIS_MEMORY_MIGRATION_DATABASE_URL") == (
+            "postgresql://migration-operator/db"
+        )
+
+
+def test_pytest_startup_clears_live_memory_database_urls_before_import() -> None:
+    """A subprocess must lose inherited live endpoints before application import."""
+    environment = {
+        "ARTEMIS_MEMORY_BACKEND": "neon",
+        "ARTEMIS_MEMORY_DATABASE_URL": "postgresql://live-runtime/db",
+        "ARTEMIS_MEMORY_MIGRATION_DATABASE_URL": "postgresql://live-migration/db",
+        "OBSIDIAN_API_KEY": "operator-secret-must-not-survive-pytest-startup",
+        "ARTEMIS_TASK5_PYTEST_GUARD_PROBE": "1",
+    }
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-p",
+            "no:cacheprovider",
+            "src/tests/test_setup_secrets.py::test_pytest_environment_guard_probe",
+            "-q",
+        ],
+        cwd=REPO_ROOT,
+        env={**os.environ, **environment},
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_pytest_environment_guard_probe() -> None:
+    """Assert the subprocess-only pytest startup contract before app imports."""
+    if os.getenv("ARTEMIS_TASK5_PYTEST_GUARD_PROBE") != "1":
+        return
+
+    assert "ARTEMIS_MEMORY_DATABASE_URL" not in os.environ
+    assert "ARTEMIS_MEMORY_MIGRATION_DATABASE_URL" not in os.environ
+    assert "OBSIDIAN_API_KEY" not in os.environ
+    from src.integration import memory_store_factory
+
+    assert memory_store_factory.create_sql_memory_store() is None

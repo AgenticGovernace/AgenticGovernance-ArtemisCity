@@ -50,6 +50,7 @@ def orchestrator(monkeypatch):
     instance.obs_generator.generate_agent_report.return_value = "# Agent report"
     instance.obs_generator.generate_task_note.return_value = "# Task note"
     instance.memory_bus = Mock()
+    instance.memory_bus.sql_store = None
     instance.agent_registry = Mock()
     instance.hebbian = Mock()
     instance.learning_governance = Mock()
@@ -810,13 +811,59 @@ def test_pending_task_discovery_filters_and_infers_capability(orchestrator):
     assert len(tasks) == 1
     path, task = tasks[0]
     assert path == "Agent Inputs/pending.md"
-    assert task["task_id"].startswith("task_")
+    assert task["task_id"] == "task_" + hashlib.sha256(
+        b"Agent Inputs/pending.md"
+    ).hexdigest()[:12]
     assert task["required_capability"] == "research"
     assert orchestrator.obs_parser.parse_task_note.call_count == 3
 
 
+def test_sql_pending_task_discovery_uses_canonical_heads_not_vault(orchestrator):
+    """A stale Obsidian projection cannot make a completed SQL task pending again."""
+    orchestrator.memory_bus.sql_store = object()
+    orchestrator.memory_bus.list_current.return_value = [
+        {
+            "relative_path": "Agent Inputs/current.md",
+            "content": "canonical-completed",
+        },
+        {
+            "relative_path": "Agent Inputs/pending.md",
+            "content": "canonical-pending",
+        },
+        {
+            "relative_path": "Agent Inputs/archive/nested.md",
+            "content": "nested-pending",
+        },
+    ]
+    orchestrator.obs_parser.parse_task_note.side_effect = lambda content: {
+        "canonical-completed": {"title": "Done", "status": "completed"},
+        "canonical-pending": {
+            "title": "Pending",
+            "status": "pending",
+            "required_capability": "research",
+        },
+        "nested-pending": {
+            "title": "Nested",
+            "status": "pending",
+            "required_capability": "research",
+        },
+    }[content]
+    orchestrator.obs_manager.list_notes_in_folder.side_effect = AssertionError(
+        "SQL task discovery must not enumerate a derived vault projection"
+    )
+
+    tasks = orchestrator.check_for_new_tasks_from_obsidian()
+
+    assert [path for path, _task in tasks] == ["Agent Inputs/pending.md"]
+    orchestrator.memory_bus.list_current.assert_called_once_with(
+        orchestrator_module.AGENT_INPUT_DIR
+    )
+    orchestrator.obs_manager.list_notes_in_folder.assert_not_called()
+    orchestrator.obs_manager.read_note.assert_not_called()
+
+
 def test_status_update_writes_through_memory_with_filesystem_fallback(orchestrator):
-    orchestrator.obs_manager.read_note.return_value = "status: pending"
+    orchestrator.memory_bus.read_exact.return_value = {"content": "status: pending"}
     orchestrator.obs_parser.update_status_in_note.return_value = "status: completed"
 
     orchestrator.update_task_status_in_obsidian(
@@ -826,6 +873,8 @@ def test_status_update_writes_through_memory_with_filesystem_fallback(orchestrat
         "Agent Inputs/task.md",
         "status: completed",
         metadata={"task_id": "task-1", "status": "completed"},
+        provenance_id=None,
+        source_agent="Artemis Orchestrator",
     )
     orchestrator.obs_manager.write_note.assert_not_called()
 
@@ -840,12 +889,255 @@ def test_status_update_writes_through_memory_with_filesystem_fallback(orchestrat
         "Agent Inputs/task.md", "status: completed"
     )
 
-    orchestrator.obs_manager.read_note.return_value = None
+    orchestrator.memory_bus.read_exact.return_value = None
     orchestrator.obs_parser.update_status_in_note.reset_mock()
     orchestrator.update_task_status_in_obsidian(
         "Agent Inputs/missing.md", "failed", "missing"
     )
     orchestrator.obs_parser.update_status_in_note.assert_not_called()
+
+
+def test_sql_status_update_uses_canonical_exact_read_and_reports_pending(
+    orchestrator, caplog
+):
+    """Pending SQL bytes, not stale vault bytes, become the next status revision."""
+    orchestrator.memory_bus.sql_store = object()
+    orchestrator.obs_manager.read_note.return_value = "status: stale"
+    orchestrator.memory_bus.read_exact.return_value = {
+        "content": "status: pending\ncanonical: true"
+    }
+    orchestrator.obs_parser.update_status_in_note.return_value = (
+        "status: completed\ncanonical: true"
+    )
+    orchestrator.memory_bus.write_note_with_embedding.return_value = {
+        "status": "accepted",
+        "sync_pending": True,
+        "obsidian_status": "pending",
+        "vector_status": "delivered",
+        "idempotency_key": "status-retry-1",
+        "event_id": "status-event-1",
+    }
+
+    with caplog.at_level("INFO"):
+        receipt_state = orchestrator.update_task_status_in_obsidian(
+            "Agent Inputs/task.md", "completed", "task-1"
+        )
+
+    orchestrator.memory_bus.read_exact.assert_called_once_with("Agent Inputs/task.md")
+    orchestrator.obs_parser.update_status_in_note.assert_called_once_with(
+        "status: pending\ncanonical: true", "completed", "task-1"
+    )
+    orchestrator.obs_manager.read_note.assert_not_called()
+    assert "Status update accepted" in caplog.text
+    assert "projection pending" in caplog.text
+    assert "status-retry-1" in caplog.text
+    assert "status-event-1" in caplog.text
+    assert receipt_state["idempotency_key"] == "status-retry-1"
+    assert orchestrator.get_memory_projection_receipt("Agent Inputs/task.md") == (
+        receipt_state
+    )
+
+    orchestrator.memory_bus.write_note_with_embedding.reset_mock()
+    orchestrator.update_task_status_in_obsidian(
+        "Agent Inputs/task.md",
+        "completed",
+        "task-1",
+        idempotency_key=receipt_state["idempotency_key"],
+    )
+    assert (
+        orchestrator.memory_bus.write_note_with_embedding.call_args.kwargs[
+            "idempotency_key"
+        ]
+        == "status-retry-1"
+    )
+
+
+def test_sql_status_update_missing_head_does_not_rewrite_stale_vault(orchestrator):
+    """A missing canonical task cannot create a revision from orphaned vault bytes."""
+    orchestrator.memory_bus.sql_store = object()
+    orchestrator.memory_bus.read_exact.return_value = None
+    orchestrator.obs_manager.read_note.return_value = "status: stale"
+
+    orchestrator.update_task_status_in_obsidian(
+        "Agent Inputs/missing.md", "completed", "missing"
+    )
+
+    orchestrator.obs_manager.read_note.assert_not_called()
+    orchestrator.obs_parser.update_status_in_note.assert_not_called()
+    orchestrator.memory_bus.write_note_with_embedding.assert_not_called()
+
+
+def test_report_accepted_receipt_records_projection_truth(orchestrator):
+    """A durable pending report is recorded as accepted rather than fully synced."""
+    orchestrator.memory_bus.write_note_with_embedding.return_value = {
+        "status": "accepted",
+        "sync_pending": True,
+        "obsidian_status": "pending",
+        "vector_status": "delivered",
+        "idempotency_key": "report-retry-1",
+        "event_id": "report-event-1",
+    }
+
+    assert orchestrator._persist_agent_report(
+        "Report Agent",
+        "report-pending",
+        {"provenance_id": "run-1"},
+        {"status": "success"},
+    ) is True
+
+    persisted = next(
+        call
+        for call in orchestrator._log_provenance_action.call_args_list
+        if call.args[1] == "memory_persisted"
+    )
+    assert persisted.args[3]["status"] == "accepted"
+    assert persisted.args[3]["sync_pending"] is True
+    assert persisted.args[3]["obsidian_status"] == "pending"
+    assert persisted.args[3]["vector_status"] == "delivered"
+    assert persisted.args[3]["idempotency_key"] == "report-retry-1"
+    assert persisted.args[3]["event_id"] == "report-event-1"
+
+
+def test_create_task_accepted_receipt_logs_projection_pending(orchestrator, caplog):
+    """Task creation distinguishes canonical acceptance from vault delivery."""
+    orchestrator.memory_bus.write_note_with_embedding.return_value = {
+        "status": "accepted",
+        "sync_pending": True,
+        "obsidian_status": "pending",
+        "vector_status": "delivered",
+        "idempotency_key": "task-retry-1",
+        "event_id": "task-event-1",
+    }
+
+    with caplog.at_level("INFO"):
+        path = orchestrator.create_new_task_in_obsidian(
+            {"task_id": "pending-task", "title": "Pending Task"}, "pending.md"
+        )
+
+    assert path == "Agent Inputs/pending.md"
+    assert "Task note accepted" in caplog.text
+    assert "projection pending" in caplog.text
+    assert "task-retry-1" in caplog.text
+    assert "task-event-1" in caplog.text
+    assert "Created new task note in Obsidian" not in caplog.text
+    receipt_state = orchestrator.get_memory_projection_receipt(path)
+    assert receipt_state["idempotency_key"] == "task-retry-1"
+
+    orchestrator.memory_bus.write_note_with_embedding.reset_mock()
+    orchestrator.create_new_task_in_obsidian(
+        {"task_id": "pending-task", "title": "Pending Task"},
+        "pending.md",
+        idempotency_key=receipt_state["idempotency_key"],
+    )
+    assert (
+        orchestrator.memory_bus.write_note_with_embedding.call_args.kwargs[
+            "idempotency_key"
+        ]
+        == "task-retry-1"
+    )
+
+
+def test_raw_artifact_accepted_receipt_tracks_projection_pending(orchestrator):
+    """Raw artifact metadata preserves durable-vs-projected receipt state."""
+    raw_output = "long raw output" * 4
+    orchestrator.exo_summary_threshold_chars = 10
+    orchestrator.memory_bus.write_note_with_embedding.return_value = {
+        "status": "accepted",
+        "sync_pending": True,
+        "obsidian_status": "pending",
+        "vector_status": "skipped",
+    }
+    orchestrator.hebbian_router.route.return_value = _Decision("Summarizer Agent")
+    orchestrator.assign_and_execute_task = Mock(
+        return_value={"status": "failed", "summary": "compression failed"}
+    )
+
+    result = orchestrator._compress_long_exo_output(
+        {"task_id": "raw-pending", "provenance_id": "prov"},
+        {"source_context": {}},
+        {
+            "status": "success",
+            "summary": raw_output,
+            "raw_output": raw_output,
+            "provider": "exo",
+        },
+    )
+
+    compression = result["output_compression"]
+    assert compression["raw_artifact_persisted"] is True
+    assert compression["raw_artifact_status"] == "accepted"
+    assert compression["raw_artifact_sync_pending"] is True
+
+
+def test_sql_memory_failure_logs_no_driver_details(orchestrator, caplog):
+    """SQL-mode orchestrator logging never emits a chained driver DSN."""
+    from src.integration.sql_memory_store import MemoryStoreError
+
+    orchestrator.memory_bus.sql_store = object()
+    orchestrator.memory_bus.write_note_with_embedding.side_effect = MemoryStoreError(
+        "driver failed at postgres://fake-secret-host/db"
+    )
+
+    with caplog.at_level("ERROR"), pytest.raises(MemoryStoreError):
+        orchestrator.create_new_task_in_obsidian(
+            {"task_id": "safe-log", "title": "Safe Log"}, "safe-log.md"
+        )
+
+    assert "postgres://" not in caplog.text
+    assert "canonical memory write failed" in caplog.text.lower()
+
+
+def test_orchestrator_injects_the_shared_sql_store_factory(monkeypatch):
+    """Runtime boot shares the factory store with the memory bus."""
+    sql_store = object()
+    captured: dict[str, object] = {}
+    factory = Mock(return_value=sql_store)
+
+    class FakeMemoryBus:
+        def __init__(self, *args, **kwargs):
+            captured.update(kwargs)
+            self.sql_store = kwargs.get("sql_store")
+
+    registry = SimpleNamespace(get_all_agents=list)
+    monkeypatch.setenv("ARTEMIS_MEMORY_DECAY_ENABLED", "0")
+    monkeypatch.setattr(orchestrator_module, "create_sql_memory_store", factory)
+    obsidian_factory = Mock(
+        side_effect=AssertionError("SQL-mode boot must not construct Obsidian eagerly")
+    )
+    vector_factory = Mock(
+        side_effect=AssertionError("SQL-mode boot must not construct vectors eagerly")
+    )
+    monkeypatch.setattr(orchestrator_module, "ObsidianManager", obsidian_factory)
+    monkeypatch.setattr(orchestrator_module, "ObsidianParser", lambda: object())
+    monkeypatch.setattr(orchestrator_module, "ObsidianGenerator", lambda: object())
+    monkeypatch.setattr(orchestrator_module, "HebbianWeightManager", lambda: object())
+    monkeypatch.setattr(orchestrator_module, "create_vector_store", vector_factory)
+    monkeypatch.setattr(orchestrator_module, "GovernanceMonitor", lambda: object())
+    monkeypatch.setattr(orchestrator_module, "MemoryBus", FakeMemoryBus)
+    monkeypatch.setattr(orchestrator_module, "AgentRegistry", lambda: registry)
+    monkeypatch.setattr(
+        orchestrator_module, "HebbianRouter", lambda *args, **kwargs: object()
+    )
+    monkeypatch.setattr(
+        orchestrator_module,
+        "LearningGovernanceCoordinator",
+        lambda *args, **kwargs: SimpleNamespace(reconcile_agent=lambda _: None),
+    )
+    monkeypatch.setattr(orchestrator_module, "CheckpointStore", lambda: object())
+    monkeypatch.setattr(orchestrator_module, "_get_run_logger", lambda: None)
+    monkeypatch.setattr(Orchestrator, "_register_agents", lambda self: None)
+    monkeypatch.setattr(Orchestrator, "_validate_kernel_state", lambda self: None)
+    monkeypatch.setattr(
+        "src.integration.trust_interface.TrustInterface", lambda: object()
+    )
+
+    instance = Orchestrator()
+
+    factory.assert_called_once_with()
+    obsidian_factory.assert_not_called()
+    vector_factory.assert_not_called()
+    assert instance.memory_bus.sql_store is sql_store
+    assert captured["sql_store"] is sql_store
 
 
 def test_create_task_infers_capability_and_falls_back_to_vault(orchestrator):
@@ -864,6 +1156,8 @@ def test_create_task_infers_capability_and_falls_back_to_vault(orchestrator):
         "Agent Inputs/case.md",
         "# Task note",
         metadata={"task_id": "created-1", "created_by": "orchestrator"},
+        provenance_id=None,
+        source_agent="Artemis Orchestrator",
     )
 
     orchestrator.memory_bus.write_note_with_embedding.reset_mock()
@@ -889,6 +1183,39 @@ def test_create_task_infers_capability_and_falls_back_to_vault(orchestrator):
     path = orchestrator.create_new_task_in_obsidian(no_capability, "unroutable.md")
     assert path == "Agent Inputs/unroutable.md"
     assert "required_capability" not in no_capability
+
+
+def test_sql_task_write_failure_does_not_fall_back_to_obsidian(orchestrator):
+    """An explicit SQL backend cannot be bypassed by a direct vault write."""
+    orchestrator.memory_bus.sql_store = object()
+    orchestrator.memory_bus.write_note_with_embedding.side_effect = OSError(
+        "canonical store unavailable"
+    )
+
+    with pytest.raises(OSError, match="canonical store unavailable"):
+        orchestrator.create_new_task_in_obsidian(
+            {"task_id": "created-4", "title": "SQL Task"}, "sql-task.md"
+        )
+
+    orchestrator.obs_manager.write_note.assert_not_called()
+
+
+def test_sql_report_write_failure_does_not_write_directly_to_obsidian(orchestrator):
+    """A canonical report failure leaves no competing direct projection."""
+    orchestrator.memory_bus.sql_store = object()
+    orchestrator.memory_bus.write_note_with_embedding.side_effect = OSError(
+        "canonical store unavailable"
+    )
+
+    persisted = orchestrator._persist_agent_report(
+        "Report Agent",
+        "report-1",
+        {"provenance_id": "run-1"},
+        {"status": "success"},
+    )
+
+    assert persisted is False
+    orchestrator.obs_manager.write_note.assert_not_called()
 
 
 def test_execute_all_pending_tasks_tracks_complete_skip_and_exception(orchestrator):

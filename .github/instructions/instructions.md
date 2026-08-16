@@ -178,6 +178,8 @@ ack/decline, fault-awareness), use the **artemis-transmission-protocol** skill.
 - **`docs/`** owns the deep specs: `ARCHITECTURE.md`, `MEMORY_BUS.md`,
   `API_REFERENCE.md`, `GOVERNANCE.md`, `ENVIRONMENTS.md`, `TEST_PLAN.md`,
   `LIVING_CITY.md`.
+- **`docs/CODING_STANDARDS.md`** owns coding, safety, testing, and incremental
+  adoption rules for production Python and TypeScript.
 - **This card** is the personality/global layer only; when it and an
   authoritative doc disagree, **the doc wins**.
 

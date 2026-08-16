@@ -1,7 +1,6 @@
 import pytest
-from pydantic import ValidationError
-
 from artemis_mcp_common.models import AtpEnvelope, ServicePrincipal
+from pydantic import ValidationError
 
 
 def test_atp_envelope_rejects_authority_alias():

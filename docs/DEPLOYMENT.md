@@ -20,23 +20,30 @@
 
 ### Infrastructure Dependencies
 
-1. **Obsidian Vault** (persistent storage)
+1. **PostgreSQL / Neon memory ledger** (canonical memory storage)
+
+   - PostgreSQL 16-compatible service; Neon is supported
+   - Pooled endpoint for runtime traffic and direct endpoint for manually run
+     `psql` migrations
+   - Backup and retention policy for immutable revisions and the outbox
+2. **Obsidian Vault** (human-readable projection)
 
    - Local filesystem or network mount
    - At least 10GB initial capacity
+   - Projection target, not canonical memory authority in SQL mode
    - Regular backup strategy
-2. **Vector Store** (semantic search)
+3. **Vector Store** (semantic search)
 
    - Qdrant 1.0+ (recommended)
    - Weaviate 1.0+ (alternative)
    - Milvus 2.0+ (alternative)
    - Minimum 5GB storage
-3. **Message Broker** (async operations)
+4. **Message Broker** (async operations)
 
    - Redis 6.0+ (recommended)
    - RabbitMQ 3.8+ (alternative)
    - For Hebbian sync batching and task queuing
-4. **Monitoring Stack**
+5. **Monitoring Stack**
 
    - Prometheus 2.30+ (metrics)
    - Grafana 8.0+ (visualization)
@@ -142,7 +149,7 @@ services:
       - "8001:8001"
     environment:
       - ARTEMIS_ENV=production
-      - ARTEMIS_OBSIDIAN_VAULT_PATH=/data/vault
+      - OBSIDIAN_VAULT_PATH=/data/vault
       - ARTEMIS_VECTOR_STORE_URL=http://vector-store:6333
       - ARTEMIS_REDIS_URL=redis://redis:6379
       - ARTEMIS_MEMORY_WRITE_TIMEOUT_MS=200
@@ -266,6 +273,10 @@ The provisioner uses four value classes:
 - **Ordinary defaults** are copied from the matching runtime template only
   when a key is absent or commented out. Existing non-secret values are
   preserved, including local paths and service overrides.
+- **Operator-supplied memory and vault settings**
+  (`ARTEMIS_MEMORY_DATABASE_URL`, `ARTEMIS_MEMORY_MIGRATION_DATABASE_URL`,
+  `OBSIDIAN_VAULT_PATH`, and `OBSIDIAN_API_KEY`) are preserved in both normal
+  sync and `--regenerate` mode. They are never generated or rotated.
 - **Provider credentials and optional values** (`OPENAI_API_KEY`, `EXO_API_KEY`,
   `HF_TOKEN`, `OBSIDIAN_API_KEY`, and similar) remain blank until an operator
   supplies them; the script never fabricates them.
@@ -293,7 +304,7 @@ ARTEMIS_REGISTRY_URL=http://registry:8002
 ARTEMIS_MEMORY_BUS_URL=http://memory-bus:8001
 
 # Storage
-ARTEMIS_OBSIDIAN_VAULT_PATH=/data/vault
+OBSIDIAN_VAULT_PATH=/data/vault
 ARTEMIS_VECTOR_STORE_URL=http://vector-store:6333
 ARTEMIS_VECTOR_STORE_API_KEY=${QDRANT_API_KEY}
 
@@ -302,6 +313,15 @@ ARTEMIS_REDIS_URL=redis://redis:6379
 REDIS_PASSWORD=<generate-a-strong-random-secret>
 
 # Memory Bus
+ARTEMIS_MEMORY_BACKEND=legacy
+# Operator supplied: runtime uses Neon/Postgres pooled URL; do not commit it.
+ARTEMIS_MEMORY_DATABASE_URL=
+# Operator supplied: direct endpoint for manual psql migration only; do not commit it.
+ARTEMIS_MEMORY_MIGRATION_DATABASE_URL=
+ARTEMIS_MEMORY_DB_CONNECT_TIMEOUT_SECONDS=10
+ARTEMIS_MEMORY_DB_STATEMENT_TIMEOUT_MS=5000
+ARTEMIS_MEMORY_OUTBOX_MAX_ATTEMPTS=10
+ARTEMIS_MEMORY_OUTBOX_RETRY_BASE_SECONDS=1
 ARTEMIS_MEMORY_WRITE_TIMEOUT_MS=200
 ARTEMIS_MEMORY_SYNC_TIMEOUT_MS=300
 ARTEMIS_MEMORY_CACHE_SIZE_MB=100
@@ -332,6 +352,85 @@ ARTEMIS_PROMETHEUS_ENABLED=true
 ARTEMIS_METRICS_PORT=9090
 ARTEMIS_LOG_FORMAT=json
 ```
+
+### Canonical memory ledger rollout
+
+Keep `ARTEMIS_MEMORY_BACKEND=legacy` until the database migration and rollout
+checks are complete. To enable the canonical ledger, set the backend to
+`postgres` or `neon` and provide both database URLs through the deployment
+secret mechanism:
+
+- `ARTEMIS_MEMORY_DATABASE_URL` is the pooled runtime endpoint used by Artemis
+  processes.
+- `ARTEMIS_MEMORY_MIGRATION_DATABASE_URL` is the direct endpoint used only by
+  the explicit manual `psql` command below; do not route application traffic
+  through it. The application does not run DDL and no repository migration
+  runner currently consumes this variable.
+- `ARTEMIS_MEMORY_DB_CONNECT_TIMEOUT_SECONDS` bounds connection establishment.
+- `ARTEMIS_MEMORY_DB_STATEMENT_TIMEOUT_MS` is a required positive integer and
+  becomes the PostgreSQL statement deadline on every runtime connection. The
+  two outbox retry values are reserved/inert in this first slice; they are not
+  controls for an implemented worker or retry loop.
+
+Invalid backend selection or a missing/invalid database setting is surfaced as
+`MEMORY_DATABASE_CONFIGURATION_ERROR` (HTTP 503). Connections are lazy; a
+runtime connection or query failure after configuration is valid is
+`MEMORY_STORAGE_UNAVAILABLE` (HTTP 503). Exact SQL reads do not initialize the
+local vector or vault projection, and writes commit SQL before attempting to
+construct either projection.
+
+Compose forwards the selected backend, pooled runtime URL, connection timeout,
+and statement timeout to both `kernel` and `express-api`, because the public
+Express boundary launches its own Python bridge process. Both services mount
+the same `/data/vault` Obsidian projection. The direct migration URL is
+intentionally not injected into either long-running container; use it only from
+the operator-controlled migration shell. The Express image installs the bridge
+dependency boundary from `requirements-bridge.txt`, including the PostgreSQL
+driver. Verify an actual image build in prepared CI before rollout; the source
+and Compose structural tests do not substitute for a Docker-engine build.
+
+The current vector factory supports local SQLite and the existing direct
+PostgreSQL/Supabase-compatible adapter; it does **not** consume
+`ARTEMIS_VECTOR_STORE_URL`. Consequently the Compose Qdrant service is not yet
+the MemoryBus semantic projection, and the Express container's default local
+SQLite vector file is ephemeral. Do not claim durable or cross-container
+semantic search in this first slice. Before enabling it, select and verify one
+shared persistent vector adapter or add a deterministic rebuild worker from
+canonical SQL. Exact SQL reads/writes and Obsidian projection are unaffected by
+this limitation.
+
+Never place either URL, an Obsidian bearer token, or a populated vault path in
+a committed `.env.example`, log, or browser-facing configuration. The
+provisioner preserves supplied values; it does not validate connectivity or
+apply migrations. Apply the schema explicitly from an operator-controlled
+shell:
+
+```bash
+psql "$ARTEMIS_MEMORY_MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/0001_memory_write_through.sql
+```
+
+The migration is internally atomic: it holds a transaction-scoped advisory
+migration lock, records `0001_memory_write_through` before domain DDL, and
+commits the version row and schema together. A successful repeat fails before
+domain DDL with SQLSTATE `P0001` and `migration 0001_memory_write_through is
+already applied`. Live first application and repeat-application behavior have
+not been verified against PostgreSQL and
+are required rollout gates; unit tests validate only the migration's structure.
+
+In SQL mode, a completed database commit plus failed Obsidian projection is
+returned as `accepted` with `sync_pending=true`. It is durable and must be
+manually retried by replaying the same write with the explicitly retained
+idempotency key after connectivity returns; do not perform a competing direct
+vault write. If the caller omits the key, the bridge creates and returns a new
+UUID for that invocation, and a later keyless call is a new revision rather
+than a retry. The first slice has no background worker, automatic backoff, or
+dead-letter transition, so pending outbox rows remain pending unless replayed.
+
+For this initial rollout, run one task-executing orchestrator worker; atomic
+multi-worker task claims are not implemented yet. Existing deployments must
+also rebuild or reset the derived vector index once because canonical path IDs
+replace the older underscore-normalized IDs. Build `app/api` before starting
+the Express service because `app/api/dist` is an ignored generated artifact.
 
 ## Installation & Startup
 
@@ -496,9 +595,12 @@ Before going live, verify all items:
 ### Pre-Deployment
 
 - [ ] All environment variables configured (`.env`)
+- [ ] Runtime pooled database URL and migration direct URL supplied through the
+  deployment secret mechanism (not a checked-in file)
 - [ ] SSL/TLS certificates provisioned (if using HTTPS)
-- [ ] Obsidian vault initialized and backed up
-- [ ] Database migrations applied (if any)
+- [ ] Obsidian vault initialized, backed up, and treated as a projection target
+- [ ] Database migration applied with the documented manual `psql` command and
+  direct migration URL
 - [ ] Service discovery configured (if using Kubernetes)
 - [ ] Backup strategy documented (daily snapshots)
 - [ ] Log aggregation configured (optional: ELK, Loki)
@@ -528,11 +630,13 @@ Before going live, verify all items:
 - [ ] Load balancer configured (if multiple replicas)
 - [ ] Session affinity configured (if needed)
 - [ ] Database connection pooling enabled
+- [ ] Manual idempotent replay procedure reviewed for pending projections
 - [ ] Circuit breakers configured
 
 ### Data & Backups
 
 - [ ] Vault backup schedule created (daily minimum)
+- [ ] Canonical SQL ledger backup and restore procedure tested
 - [ ] Vector store backup strategy defined
 - [ ] Redis persistence enabled (appendonly)
 - [ ] Checkpoint retention policy set (60 days minimum)
@@ -552,25 +656,26 @@ Before going live, verify all items:
 
 ### Horizontal Scaling
 
-For high-load deployments, replicate stateless services:
+The initial SQL-authoritative rollout supports **one task-executing kernel**.
+Task discovery and the pending-to-running transition do not yet use a SQL
+compare-and-set lease, so multiple kernel replicas could execute the same
+pending task. Keep the kernel at one replica until that claim contract exists.
+
+Only independently deployed stateless services may be replicated today:
 
 ```yaml
 kernel:
   deploy:
-    replicas: 3
-  labels:
-    - "loadbalancer=true"
+    replicas: 1  # Required while task claiming is single-worker.
 
 registry:
   deploy:
     replicas: 2
-
-memory-bus:
-  deploy:
-    replicas: 2
-  environment:
-    - ARTEMIS_CACHE_SHARED=true  # Use shared cache (Redis)
 ```
+
+`MemoryBus` is currently an in-process kernel component, not a standalone
+Compose service. A future standalone projector or horizontally scaled kernel
+must first add an atomic SQL task lease and an outbox claim/worker contract.
 
 ### Load Balancing
 
@@ -579,8 +684,6 @@ Use Nginx or HAProxy in front:
 ```nginx
 upstream kernel {
   server kernel-1:8000;
-  server kernel-2:8000;
-  server kernel-3:8000;
 }
 
 server {
@@ -608,17 +711,19 @@ docker-compose down
 docker-compose up --force-recreate
 ```
 
-### Memory Bus Sync Lag Exceeds SLA
+### Memory Bus Projection Is Pending
 
 ```bash
-# Check Vector Store health
-curl http://localhost:6333/health
+# Confirm the SQL backend and runtime URL are configured without printing it.
+./setup_secrets.sh --check
 
-# Check Redis queue depth
-redis-cli LLEN artemis:sync:queue
+# MemoryBus runs inside the kernel in this release.
+docker-compose logs kernel
 
-# Monitor batching
-docker-compose logs memory-bus | grep "batch"
+# Restore Obsidian projection connectivity, then have the caller replay the
+# same write with the retained receipt idempotency key. Omitting it starts a
+# new operation. This first slice has no worker to retry it.
+# Do not rewrite the note manually as compensation.
 ```
 
 ### Agent Quarantine Threshold
@@ -651,9 +756,9 @@ sleep 30
 # 4. Verify metrics
 curl http://localhost:9090/api/v1/query?query=up
 
-# 5. Continue with other services
-docker-compose up -d memory-bus
-docker-compose up -d registry
+# 5. Continue with the public Express boundary. MemoryBus and registry remain
+#    in-process kernel components in this release.
+docker-compose up -d express-api
 ```
 
 ### Rollback
@@ -669,6 +774,12 @@ docker-compose up -d
 # Restore from checkpoint (if needed)
 ./scripts/restore_checkpoint.sh <checkpoint_id>
 ```
+
+For a memory-ledger rollout rollback, set
+`ARTEMIS_MEMORY_BACKEND=legacy` through the deployment environment and redeploy
+the prior compatible release. This stops new SQL-mode writes; it does not
+delete committed revisions or pending outbox events. Preserve the database and
+manually replay pending projections before re-enabling `postgres` or `neon`.
 
 ## Performance Tuning
 

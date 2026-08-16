@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
-from dataclasses import dataclass, field
 import os
 import secrets
-from typing import Sequence
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass, field
 
 from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.auth.provider import AccessToken

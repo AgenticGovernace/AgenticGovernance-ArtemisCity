@@ -131,6 +131,7 @@ def test_setup_example_task_note_writes_through_memory_bus(tmp_path) -> None:
     obs_manager = MagicMock()
     obs_manager._get_full_path.return_value = tmp_path / "missing.md"
     memory_bus = MagicMock()
+    memory_bus.sql_store = None
 
     launch_main.setup_example_task_note(obs_manager, memory_bus)
 
@@ -150,6 +151,7 @@ def test_setup_example_task_note_falls_back_when_memory_bus_fails(tmp_path) -> N
     obs_manager = MagicMock()
     obs_manager._get_full_path.return_value = tmp_path / "missing.md"
     memory_bus = MagicMock()
+    memory_bus.sql_store = None
     memory_bus.write_note_with_embedding.side_effect = RuntimeError("offline")
 
     launch_main.setup_example_task_note(obs_manager, memory_bus)
@@ -158,6 +160,37 @@ def test_setup_example_task_note_falls_back_when_memory_bus_fails(tmp_path) -> N
     assert relative_path.endswith("Example Research Task.md")
     assert "task_id:" in content
     assert obs_manager.write_note.call_args.kwargs == {"overwrite": False}
+
+
+def test_setup_example_task_note_sql_mode_never_constructs_vault_projection() -> None:
+    """SQL demo setup checks canonical state and does not require Obsidian."""
+
+    class UnavailableProjection:
+        def __getattr__(self, _name):
+            raise AssertionError("SQL demo must not construct Obsidian")
+
+    memory_bus = MagicMock()
+    memory_bus.sql_store = object()
+    memory_bus.read_exact.return_value = None
+
+    launch_main.setup_example_task_note(UnavailableProjection(), memory_bus)
+
+    memory_bus.read_exact.assert_called_once()
+    memory_bus.write_note_with_embedding.assert_called_once()
+
+
+def test_setup_example_task_note_sql_failure_never_writes_obsidian() -> None:
+    """An explicit SQL failure cannot become an Obsidian-only demo write."""
+    obs_manager = MagicMock()
+    memory_bus = MagicMock()
+    memory_bus.sql_store = object()
+    memory_bus.read_exact.return_value = None
+    memory_bus.write_note_with_embedding.side_effect = RuntimeError("sql offline")
+
+    with pytest.raises(RuntimeError, match="sql offline"):
+        launch_main.setup_example_task_note(obs_manager, memory_bus)
+
+    obs_manager.write_note.assert_not_called()
 
 
 def test_setup_example_task_note_can_write_without_memory_bus(tmp_path) -> None:
@@ -283,6 +316,23 @@ def test_main_reports_missing_vault_and_does_not_boot_orchestrator(
     run_logger.finalize_run.assert_called_once_with(
         status="error", summary={"error": "vault_not_found"}
     )
+
+
+def test_main_sql_mode_boots_without_constructing_missing_vault(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Explicit SQL mode lets the orchestrator own lazy projection startup."""
+    orchestrator, run_logger = _mock_launch_runtime(
+        monkeypatch, _launch_args(), vault_exists=False
+    )
+    monkeypatch.setenv("ARTEMIS_MEMORY_BACKEND", "neon")
+    constructor = launch_main.src.mcp.orchestrator.Orchestrator
+
+    launch_main.main()
+
+    constructor.assert_called_once_with()
+    orchestrator.check_for_new_tasks_from_obsidian.assert_called_once_with()
+    run_logger.finalize_run.assert_called_once()
 
 
 @pytest.mark.parametrize(

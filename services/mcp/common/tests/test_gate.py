@@ -1,19 +1,18 @@
 """Behavioral tests for governed MCP principal and ATP authorization."""
 
 import asyncio
-from datetime import timezone
+from datetime import UTC
 
 import pytest
-from mcp.server.auth.provider import AccessToken
-from pydantic import ValidationError
-
-from artemis_mcp_common.gate import GovernedGate, GovernanceDenied
+from artemis_mcp_common.gate import GovernanceDenied, GovernedGate
 from artemis_mcp_common.models import AtpEnvelope, ServicePrincipal
 from artemis_mcp_common.principals import (
     BearerPrincipalProvider,
     LocalPrincipalProvider,
     StaticBearerTokenVerifier,
 )
+from mcp.server.auth.provider import AccessToken
+from pydantic import ValidationError
 
 
 def _approved_envelope() -> AtpEnvelope:
@@ -108,7 +107,7 @@ def test_gate_returns_timezone_aware_context_for_authorized_request():
 
     assert context.principal == principal
     assert context.capability == "memory:write"
-    assert context.accepted_at.tzinfo == timezone.utc
+    assert context.accepted_at.tzinfo == UTC
 
 
 def test_bearer_principal_uses_sdk_auth_context(monkeypatch):

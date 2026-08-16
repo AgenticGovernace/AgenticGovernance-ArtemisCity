@@ -488,6 +488,46 @@ def test_import_fallback_and_orchestrator_constructor_failure(
     assert constructor_failure.import_error is None
 
 
+def test_sql_required_gate_is_derived_after_config_environment_load(
+    tmp_path: Path, dashboard, monkeypatch: pytest.MonkeyPatch
+):
+    """A backend loaded by core config must still disable stale-vault fallback."""
+    monkeypatch.setenv("ARTEMIS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
+    monkeypatch.delenv("ARTEMIS_MEMORY_BACKEND", raising=False)
+
+    real_import = builtins.__import__
+
+    def load_backend_with_config(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "src.mcp.config":
+            monkeypatch.setenv("ARTEMIS_MEMORY_BACKEND", "neon")
+        return real_import(name, globals, locals, fromlist, level)
+
+    fake_orchestrator_module = ModuleType("src.mcp.orchestrator")
+
+    class BrokenSqlOrchestrator:
+        def __init__(self):
+            raise RuntimeError("canonical store unavailable")
+
+    fake_orchestrator_module.Orchestrator = BrokenSqlOrchestrator
+    monkeypatch.setitem(sys.modules, "src.mcp.orchestrator", fake_orchestrator_module)
+    monkeypatch.setattr(builtins, "__import__", load_backend_with_config)
+
+    spec = importlib.util.spec_from_file_location(
+        "_dashboard_config_import_order", dashboard.__file__
+    )
+    assert spec is not None and spec.loader is not None
+    loaded = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = loaded
+    try:
+        spec.loader.exec_module(loaded)
+    finally:
+        sys.modules.pop(spec.name, None)
+
+    assert loaded.orchestrator is None
+    assert loaded._SQL_MEMORY_REQUIRED is True
+
+
 def test_vault_helpers_validate_paths_and_list_only_markdown(
     tmp_path: Path, dashboard, monkeypatch: pytest.MonkeyPatch
 ):
@@ -644,6 +684,27 @@ def test_fallback_tasks_reports_and_safe_report_reads(
         assert symlink_escape.json() == {"detail": "Invalid report filename."}
 
 
+def test_explicit_sql_startup_failure_never_serves_stale_vault_fallback(
+    dashboard, client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    """Missing SQL runtime state is a 503, not an implicit projection fallback."""
+    vault = dashboard._get_vault_path()
+    (vault / dashboard.AGENT_INPUT_DIR / "stale.md").write_text(
+        "---\ntask_id: stale\nstatus: pending\n---\n# stale",
+        encoding="utf-8",
+    )
+    (vault / dashboard.AGENT_OUTPUT_DIR / "stale.md").write_text(
+        "# stale report", encoding="utf-8"
+    )
+    monkeypatch.setattr(dashboard, "orchestrator", None)
+    monkeypatch.setattr(dashboard, "_SQL_MEMORY_REQUIRED", True)
+
+    assert client.get("/api/tasks").status_code == 503
+    assert client.get("/api/tasks/stale").status_code == 503
+    assert client.get("/api/reports").status_code == 503
+    assert client.get("/api/reports/stale.md").status_code == 503
+
+
 def test_live_agents_tasks_reports_and_creation(
     dashboard, client: TestClient, monkeypatch: pytest.MonkeyPatch
 ):
@@ -713,6 +774,86 @@ def test_live_task_detail_finds_completed_task_by_exact_id(
     }
     orch.obs_manager.read_note.assert_called_once_with("Agent Inputs/completed.md")
     assert client.get("/api/tasks/missing").status_code == 404
+
+
+def test_sql_task_detail_and_execution_do_not_require_obsidian_projection(
+    dashboard, client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    """A SQL-only pending task remains visible and executable through FastAPI."""
+    orch = _Orchestrator()
+    bus = MagicMock()
+    bus.sql_store = object()
+    bus.list_current.return_value = [
+        {
+            "relative_path": "Agent Inputs/sql-pending.md",
+            "content": "canonical task bytes",
+        }
+    ]
+    bus.read_exact.return_value = {
+        "relative_path": "Agent Inputs/sql-pending.md",
+        "content": "canonical task bytes",
+    }
+    orch.memory_bus = bus
+    orch.obs_parser.parse_task_note.return_value = {
+        "task_id": "T-sql",
+        "status": "pending",
+        "agent": "Missing",
+        "required_capability": "search",
+        "title": "SQL pending",
+    }
+    monkeypatch.setattr(dashboard, "orchestrator", orch)
+
+    detail = client.get("/api/tasks/T-sql")
+    executed = client.post(
+        "/api/execute-task",
+        json={"relative_path": "Agent Inputs/sql-pending.md"},
+    )
+
+    assert detail.status_code == 200
+    assert detail.json()["title"] == "SQL pending"
+    assert executed.status_code == 200
+    assert executed.json()["results"]["summary"] == "routed"
+    bus.list_current.assert_called_with("Agent Inputs")
+    bus.read_exact.assert_called_with("Agent Inputs/sql-pending.md")
+    orch.obs_manager.list_notes_in_folder.assert_not_called()
+    orch.obs_manager.read_note.assert_not_called()
+
+
+def test_sql_report_list_and_read_do_not_require_obsidian_projection(
+    dashboard, client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    """A SQL-only report is visible through both dashboard report endpoints."""
+    orch = _Orchestrator()
+    bus = MagicMock()
+    bus.sql_store = object()
+    bus.list_current.return_value = [
+        {
+            "relative_path": "Agent Outputs/Alpha_Report_T-sql_4.md",
+            "content": "# canonical report",
+        }
+    ]
+    bus.read_exact.return_value = {
+        "relative_path": "Agent Outputs/Alpha_Report_T-sql_4.md",
+        "content": "# canonical report",
+    }
+    orch.memory_bus = bus
+
+    class UnavailableProjection:
+        def __getattr__(self, _name):
+            raise AssertionError("SQL report reads must not construct Obsidian")
+
+    orch.obs_manager = UnavailableProjection()
+    monkeypatch.setattr(dashboard, "orchestrator", orch)
+
+    reports = client.get("/api/reports")
+    report = client.get("/api/reports/Alpha_Report_T-sql_4.md")
+
+    assert reports.status_code == 200
+    assert reports.json()[0]["task_id"] == "T-sql"
+    assert report.status_code == 200
+    assert report.json()["content"] == "# canonical report"
+    bus.list_current.assert_called_once_with("Agent Outputs")
+    bus.read_exact.assert_called_once_with("Agent Outputs/Alpha_Report_T-sql_4.md")
 
 
 def test_task_activity_is_exact_governed_projection_with_server_report_link(
@@ -930,6 +1071,37 @@ def test_execute_pending_task_direct_and_capability_routes(
     no_capability = client.post("/api/execute-task", json={"relative_path": "z.md"})
     assert no_capability.status_code == 400
     assert orch.status_updates[-1][1] == "no_capability"
+
+
+@pytest.mark.parametrize("sql_mode", [False, True])
+def test_execute_task_rejects_paths_outside_direct_input_queue(
+    dashboard,
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    sql_mode: bool,
+):
+    """Caller paths cannot execute nested, output, traversal, or non-note files."""
+    orch = _Orchestrator()
+    if sql_mode:
+        bus = MagicMock()
+        bus.sql_store = object()
+        orch.memory_bus = bus
+    monkeypatch.setattr(dashboard, "orchestrator", orch)
+
+    for invalid_path in (
+        "../escape.md",
+        "Agent Outputs/report.md",
+        "Agent Inputs/nested/task.md",
+        "Agent Inputs/task.txt",
+    ):
+        response = client.post(
+            "/api/execute-task", json={"relative_path": invalid_path}
+        )
+        assert response.status_code == 400
+
+    orch.obs_manager.read_note.assert_not_called()
+    if sql_mode:
+        orch.memory_bus.read_exact.assert_not_called()
 
 
 def test_execute_pending_and_batch_error_paths(

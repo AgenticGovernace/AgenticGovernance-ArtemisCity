@@ -57,8 +57,8 @@ class MemoryLedger(Protocol):
 
     def projection_status(
         self, namespace: str, record_id: str
-    ) -> dict[str, ProjectionState]:
-        """Return version-specific projection states within a namespace."""
+    ) -> dict[str, ProjectionState] | None:
+        """Return states, or ``None`` when the namespaced record is absent."""
         ...
 
 

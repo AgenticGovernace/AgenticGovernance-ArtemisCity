@@ -43,9 +43,12 @@ Key modules:
 - `src/integration/memory_bus.py`
 
   - write-through memory layer shared by the orchestrator
-  - writes to the vector store first, then to Obsidian
-  - rolls back the vector write if the Obsidian write fails
-  - reads via exact note lookup, keyword scan, then vector fallback
+  - in explicit PostgreSQL/Neon mode, commits immutable SQL state before lazy
+    vector and Obsidian projections
+  - preserves accepted SQL writes when a projection is unavailable and returns
+    `sync_pending=true`
+  - serves exact/list/stat authority from SQL; query search then uses the
+    derived vector index, while vault keyword scan is legacy-only
 - `src/integration/trust_interface.py`
 
   - models trust levels and reinforcement/decay
@@ -886,37 +889,36 @@ POST /api/v1/memory/write
 Content-Type: application/json
 
 {
-  "operation": "write",
-  "document": {
-    "path": "path/to/document.md",
-    "content": "# Heading\n\nContent...",
-    "frontmatter": {
-      "hebbian_weights": { "agent_uuid": 0.75 },
-      "tags": ["tag1", "tag2"]
-    }
-  },
-  "metadata": {
-    "source_agent": "uuid",
-    "conflict_resolution": "last_write_wins"
-  }
+  "path": "path/to/document.md",
+  "content": "# Heading\n\nContent...",
+  "metadata": { "tags": ["tag1", "tag2"] },
+  "embed": true,
+  "idempotency_key": "optional-operation-key",
+  "provenance_id": "optional-uuid",
+  "source_agent": "optional-agent-name"
 }
 ```
 
-**Semantic Search**:
+The endpoint returns 200 after synchronized projection or 202 with
+`sync_pending=true` after a durable SQL commit whose projection is pending.
+Retain the receipt's idempotency key for deterministic replay.
+
+**Search**:
 
 ```http
-POST /api/v1/memory/search/semantic
+POST /api/v1/memory/search
 Content-Type: application/json
 
 {
   "query": "Find information about data processing",
-  "top_k": 10,
-  "filters": {
-    "hebbian_weight_min": 0.3,
-    "created_after": "2025-01-01T00:00:00Z"
-  }
+  "path": "",
+  "tags": ["optional"],
+  "limit": 10
 }
 ```
+
+SQL mode searches an optional exact path and then the derived vector index;
+Obsidian keyword scan is legacy-only.
 
 #### 5.2.3 Governance Operations
 

@@ -525,7 +525,7 @@ class TestCLIEnvelopeCoverage:
         assert status == 1
         assert envelope == {
             "ok": False,
-            "error": "handler exploded",
+            "error": "bridge command failed",
             "code": "INTERNAL_ERROR",
         }
 
@@ -914,8 +914,8 @@ class TestMemoryAdapterCoverage:
             ("manager", "memory.read", {"path": "note.md"}),
             ("dependencies", "memory.write", {"path": "note.md", "content": "x"}),
             ("manager", "memory.list", {}),
-            ("dependencies", "memory.delete", {"path": "note.md"}),
-            ("dependencies", "memory.stats", {}),
+            ("dependencies_for_store", "memory.delete", {"path": "note.md"}),
+            ("dependencies_for_store", "memory.stats", {}),
             ("dependencies", "memory.search", {"query": "x"}),
         ],
     )
@@ -928,13 +928,15 @@ class TestMemoryAdapterCoverage:
     ) -> None:
         """Core memory ValueError values are normalized by each adapter."""
 
-        def fail(_: dict[str, Any]) -> Any:
+        def fail(*_args: object) -> Any:
             """Raise a representative path validation error."""
             raise ValueError("vault path rejected")
 
-        target = (
-            "_memory_manager" if dependency == "manager" else "_memory_dependencies"
-        )
+        target = {
+            "manager": "_memory_manager",
+            "dependencies": "_memory_dependencies",
+            "dependencies_for_store": "_memory_dependencies_for_store",
+        }[dependency]
         monkeypatch.setattr(bridge, target, fail)
         with pytest.raises(BridgeError, match="vault path rejected") as exc_info:
             dispatch(command, payload)

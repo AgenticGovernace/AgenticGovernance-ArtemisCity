@@ -13,7 +13,7 @@ import yaml
 @pytest.fixture
 def docker_compose_path():
     """Fixture to get the path to docker-compose.yaml."""
-    return Path(__file__).parent.parent.parent / "docker-compose.yaml"
+    return Path(__file__).parent.parent / "docker-compose.yaml"
 
 
 @pytest.fixture

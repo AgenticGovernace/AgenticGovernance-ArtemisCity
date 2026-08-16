@@ -30,7 +30,15 @@ const CODE_TO_STATUS: Record<string, number> = {
   BRIDGE_ERROR: 500,
   INTERNAL_ERROR: 500,
   BRIDGE_UNAVAILABLE: 500,
+  MEMORY_IDEMPOTENCY_CONFLICT: 409,
+  MEMORY_STORAGE_UNAVAILABLE: 503,
+  MEMORY_DATABASE_CONFIGURATION_ERROR: 503,
+  MEMORY_DELETE_UNSUPPORTED: 409,
 };
+
+export function bridgeCodeToHttpStatus(code: string): number {
+  return CODE_TO_STATUS[code] ?? 500;
+}
 
 let cachedRepoRoot: string | null = null;
 
@@ -106,7 +114,8 @@ export function callBridge(command: string, payload: Record<string, unknown> = {
     });
 
     child.on('error', (err: Error) => {
-      reject(new APIError(`Failed to spawn Python bridge: ${err.message}`, 500, 'BRIDGE_UNAVAILABLE'));
+      console.error(`[python-bridge] spawn failed (${err.name})`);
+      reject(new APIError('Python bridge is unavailable', 500, 'BRIDGE_UNAVAILABLE'));
     });
 
     child.on('close', () => {
@@ -114,9 +123,12 @@ export function callBridge(command: string, payload: Record<string, unknown> = {
       try {
         envelope = JSON.parse(stdout) as BridgeEnvelope;
       } catch {
+        console.error(
+          `[python-bridge] invalid response (stdout_bytes=${Buffer.byteLength(stdout)}, stderr_bytes=${Buffer.byteLength(stderr)})`
+        );
         reject(
           new APIError(
-            `Invalid bridge response: ${stdout || stderr || 'no output'}`,
+            'Python bridge returned an invalid response',
             500,
             'BRIDGE_ERROR'
           )
@@ -124,12 +136,12 @@ export function callBridge(command: string, payload: Record<string, unknown> = {
         return;
       }
 
-      if (envelope.ok) {
+      if (envelope.ok === true) {
         resolvePromise(envelope.data);
         return;
       }
 
-      const status = CODE_TO_STATUS[envelope.code] ?? 500;
+      const status = bridgeCodeToHttpStatus(envelope.code);
       reject(new APIError(envelope.error, status, envelope.code));
     });
 

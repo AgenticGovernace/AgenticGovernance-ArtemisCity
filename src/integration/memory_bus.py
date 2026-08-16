@@ -1,26 +1,41 @@
-"""
-Hybrid memory bus that keeps Obsidian (explicit, auditable memory) and the
-vector store (fast semantic recall) in sync.
+"""Canonical memory coordination with explicit SQL-first and legacy modes.
 
-Implements a write-through protocol and a simple read hierarchy inspired by
-the architecture described in Agent_Architecture__From_Prototypes_to_Production.
+When a SQL store is injected, PostgreSQL owns revisions and exact reads while
+vector and Obsidian storage are retryable derived projections. Without a SQL
+store, the compatibility path writes vector storage before the local vault.
 """
 
 from __future__ import annotations
 
 import time
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Dict, List, Optional
+from pathlib import Path, PurePath
+from typing import Any, Callable, Dict, List, Optional
+from uuid import uuid4
 
 from src.obsidian_integration import ObsidianManager
+from src.obsidian_integration.manager import ObsidianProjectionError
 from src.utils.helpers import logger, sanitize_for_log
 
 from ..mcp.vector_store import LocalVectorStore
 from .memory_decay import MemoryDecayService, MemoryNode
+from .sql_memory_store import MemoryWriteReceipt, SqlMemoryStore
 
 # Lazy import to avoid circular dependency
 _run_logger = None
+
+
+class LazyProjection:
+    """Construct a derived storage adapter only when its first method is used."""
+
+    def __init__(self, factory: Callable[[], Any]) -> None:
+        self._factory = factory
+        self._instance: Any | None = None
+
+    def __getattr__(self, name: str) -> Any:
+        if self._instance is None:
+            self._instance = self._factory()
+        return getattr(self._instance, name)
 
 
 def _get_run_logger():
@@ -83,11 +98,10 @@ if METRICS_ENABLED:
 
 
 class MemoryBus:
-    """
-    Coordinates knowledge writes and reads across Obsidian and the vector store.
+    """Coordinate canonical writes, projections, and hierarchical recall.
 
-    - Writes go to the vector store first, then Obsidian (write-through).
-    - Reads prioritize exact note lookup, then lightweight keyword scan, then vector recall.
+    SQL mode commits first and fences per-path projection across processes.
+    Legacy mode retains the vector-first and vault-second compatibility flow.
     """
 
     def __init__(
@@ -97,13 +111,19 @@ class MemoryBus:
         search_dirs: Optional[List[str]] = None,
         governance_monitor=None,
         memory_decay_service: Optional[MemoryDecayService] = None,
+        sql_store: SqlMemoryStore | None = None,
     ):
         self.obsidian_manager = obsidian_manager
         self.vector_store = vector_store
         self.search_dirs = search_dirs or []
-        self._vault_path: Optional[Path] = getattr(obsidian_manager, "vault_path", None)
+        self._vault_path: Optional[Path] = (
+            None
+            if sql_store is not None
+            else getattr(obsidian_manager, "vault_path", None)
+        )
         self.governance_monitor = governance_monitor
         self.memory_decay_service = memory_decay_service
+        self.sql_store = sql_store
         self._load_decay_records()
 
     def write_note_with_embedding(
@@ -112,6 +132,10 @@ class MemoryBus:
         content: str,
         metadata: Optional[Dict] = None,
         embed: bool = True,
+        *,
+        idempotency_key: str | None = None,
+        provenance_id: str | None = None,
+        source_agent: str | None = None,
     ) -> Dict:
         """
         Persist note content to the vector store (semantic) and Obsidian (explicit).
@@ -125,6 +149,17 @@ class MemoryBus:
         Returns:
             Dictionary with latency metrics and doc identifiers.
         """
+        if self.sql_store is not None:
+            return self._write_sql_first(
+                relative_path,
+                content,
+                metadata=metadata,
+                embed=embed,
+                idempotency_key=idempotency_key,
+                provenance_id=provenance_id,
+                source_agent=source_agent,
+            )
+
         start = time.perf_counter()
         doc_id = self._normalize_doc_id(relative_path)
 
@@ -153,7 +188,9 @@ class MemoryBus:
             # Roll back the semantic write to avoid divergence.
             # write_note is now atomic (temp file + os.replace), so a
             # partial file can't be left behind by this failure.
-            if embed:
+            if embed and not (
+                isinstance(exc, ObsidianProjectionError) and exc.replacement_applied
+            ):
                 try:
                     self.vector_store.delete(doc_id)
                 except (
@@ -208,6 +245,327 @@ class MemoryBus:
 
         return result
 
+    def _write_sql_first(
+        self,
+        relative_path: str,
+        content: str,
+        *,
+        metadata: Optional[Dict],
+        embed: bool,
+        idempotency_key: str | None,
+        provenance_id: str | None,
+        source_agent: str | None,
+    ) -> Dict:
+        """Commit a canonical revision before updating any projection."""
+        self._validate_sql_write(relative_path, content)
+        if idempotency_key is not None and (
+            not isinstance(idempotency_key, str) or not idempotency_key.strip()
+        ):
+            raise ValueError("idempotency_key must be a nonempty string")
+        start = time.perf_counter()
+        key = idempotency_key or str(uuid4())
+
+        receipt = self.sql_store.stage_write(
+            relative_path=relative_path,
+            content=content,
+            metadata=metadata,
+            idempotency_key=key,
+            provenance_id=provenance_id,
+            source_agent=source_agent,
+        )
+        revision = receipt.revision
+        doc_id = self._normalize_doc_id(revision.relative_path)
+        write_metadata = dict(revision.metadata)
+        write_metadata["path"] = revision.relative_path
+        try:
+            with self.sql_store.projection_guard(revision.relative_path) as current:
+                return self._project_sql_receipt(
+                    receipt,
+                    current=current,
+                    doc_id=doc_id,
+                    write_metadata=write_metadata,
+                    embed=embed,
+                    start=start,
+                )
+        except Exception:
+            self._record_governance_failure(
+                doc_id, revision.relative_path, "projection_guard_failed"
+            )
+            self._mark_sql_projection_pending(receipt, "projection_guard_failed")
+            return self._sql_write_result(
+                receipt,
+                doc_id=doc_id,
+                vector_latency_ms=None,
+                file_latency_ms=None,
+                total_latency_ms=(time.perf_counter() - start) * 1000,
+                status="accepted",
+                obsidian_status="pending",
+                vector_status="pending" if embed else "skipped",
+            )
+
+    def _project_sql_receipt(
+        self,
+        receipt: MemoryWriteReceipt,
+        *,
+        current,
+        doc_id: str,
+        write_metadata: dict,
+        embed: bool,
+        start: float,
+    ) -> Dict:
+        """Project one receipt while its database path fence is held."""
+        revision = receipt.revision
+        vector_latency_ms = None
+        file_latency_ms = None
+        if current is not None and (
+            current.record_id != revision.record_id
+            or current.revision != revision.revision
+        ):
+            try:
+                self.sql_store.mark_delivered(receipt.event_id)
+            except Exception:
+                self._record_governance_failure(
+                    doc_id, revision.relative_path, "delivery_ack_failed"
+                )
+                self._mark_sql_projection_pending(receipt, "delivery_ack_failed")
+                return self._sql_write_result(
+                    receipt,
+                    doc_id=doc_id,
+                    vector_latency_ms=vector_latency_ms,
+                    file_latency_ms=file_latency_ms,
+                    total_latency_ms=(time.perf_counter() - start) * 1000,
+                    status="accepted",
+                    obsidian_status="pending",
+                    vector_status="skipped",
+                )
+            self._record_governance_success()
+            return self._sql_write_result(
+                receipt,
+                doc_id=doc_id,
+                vector_latency_ms=vector_latency_ms,
+                file_latency_ms=file_latency_ms,
+                total_latency_ms=(time.perf_counter() - start) * 1000,
+                status="superseded",
+                obsidian_status="superseded",
+                vector_status="skipped",
+            )
+
+        if embed:
+            try:
+                vector_start = time.perf_counter()
+                self.vector_store.upsert(doc_id, revision.content, write_metadata)
+                vector_latency_ms = (time.perf_counter() - vector_start) * 1000
+                if METRICS_ENABLED:
+                    try:
+                        WRITE_VECTOR_LATENCY.observe(vector_latency_ms)
+                    except Exception:  # pragma: no cover - non-authoritative metric
+                        logger.warning("MemoryBus vector metrics are unavailable.")
+            except Exception:
+                self._record_governance_failure(
+                    doc_id, revision.relative_path, "vector_projection_failed"
+                )
+                self._mark_sql_projection_pending(receipt, "vector_projection_failed")
+                return self._sql_write_result(
+                    receipt,
+                    doc_id=doc_id,
+                    vector_latency_ms=None,
+                    file_latency_ms=None,
+                    total_latency_ms=(time.perf_counter() - start) * 1000,
+                    status="accepted",
+                    obsidian_status="pending",
+                    vector_status="pending",
+                )
+
+        try:
+            file_start = time.perf_counter()
+            self.obsidian_manager.write_note(revision.relative_path, revision.content)
+            file_latency_ms = (time.perf_counter() - file_start) * 1000
+            if METRICS_ENABLED:
+                try:
+                    WRITE_FILE_LATENCY.observe(file_latency_ms)
+                except Exception:  # pragma: no cover - non-authoritative metric
+                    logger.warning("MemoryBus file metrics are unavailable.")
+        except Exception as exc:
+            self._record_governance_failure(
+                doc_id, revision.relative_path, "obsidian_projection_failed"
+            )
+            error_code = getattr(exc, "reason", "obsidian_projection_failed")
+            self._mark_sql_projection_pending(receipt, error_code)
+            return self._sql_write_result(
+                receipt,
+                doc_id=doc_id,
+                vector_latency_ms=vector_latency_ms,
+                file_latency_ms=file_latency_ms,
+                total_latency_ms=(time.perf_counter() - start) * 1000,
+                status="accepted",
+                obsidian_status="pending",
+                vector_status="delivered" if embed else "skipped",
+            )
+
+        try:
+            self.sql_store.mark_delivered(receipt.event_id)
+        except Exception:
+            self._record_governance_failure(
+                doc_id, revision.relative_path, "delivery_ack_failed"
+            )
+            self._mark_sql_projection_pending(receipt, "delivery_ack_failed")
+            return self._sql_write_result(
+                receipt,
+                doc_id=doc_id,
+                vector_latency_ms=vector_latency_ms,
+                file_latency_ms=file_latency_ms,
+                total_latency_ms=(time.perf_counter() - start) * 1000,
+                status="accepted",
+                obsidian_status="pending",
+                vector_status="delivered" if embed else "skipped",
+            )
+
+        self._record_governance_success()
+        if embed:
+            self._register_decay_record(doc_id, revision.content)
+        return self._sql_write_result(
+            receipt,
+            doc_id=doc_id,
+            vector_latency_ms=vector_latency_ms,
+            file_latency_ms=file_latency_ms,
+            total_latency_ms=(time.perf_counter() - start) * 1000,
+            status="success",
+            obsidian_status="delivered",
+            vector_status="delivered" if embed else "skipped",
+        )
+
+    def _sql_write_result(
+        self,
+        receipt: MemoryWriteReceipt,
+        *,
+        doc_id: str,
+        vector_latency_ms: float | None,
+        file_latency_ms: float | None,
+        total_latency_ms: float,
+        status: str,
+        obsidian_status: str,
+        vector_status: str,
+    ) -> Dict:
+        """Return the compatibility receipt augmented with canonical identity."""
+        revision = receipt.revision
+        if METRICS_ENABLED:
+            try:
+                WRITE_TOTAL_LATENCY.observe(total_latency_ms)
+                SYNC_LAG_GAUGE.set(total_latency_ms)
+            except Exception:  # pragma: no cover - metrics must never affect storage
+                logger.warning("MemoryBus write metrics are unavailable.")
+        result = {
+            "status": status,
+            "doc_id": doc_id,
+            "path": revision.relative_path,
+            "vector_latency_ms": vector_latency_ms,
+            "file_latency_ms": file_latency_ms,
+            "total_latency_ms": total_latency_ms,
+            "memory_id": revision.memory_id,
+            "record_id": revision.record_id,
+            "revision": revision.revision,
+            "content_sha256": revision.content_sha256,
+            "idempotency_key": revision.idempotency_key,
+            "event_id": receipt.event_id,
+            "sql_status": "committed",
+            "obsidian_status": obsidian_status,
+            "vector_status": vector_status,
+            "sync_pending": obsidian_status == "pending",
+            "duplicate": receipt.duplicate,
+        }
+        run_logger = _get_run_logger()
+        if run_logger:
+            try:
+                run_logger.log_memory_bus_operation(
+                    operation="write",
+                    path=revision.relative_path,
+                    status=status,
+                    vector_latency_ms=vector_latency_ms,
+                    file_latency_ms=file_latency_ms,
+                    total_latency_ms=total_latency_ms,
+                    metadata={
+                        "doc_id": doc_id,
+                        "memory_id": revision.memory_id,
+                        "record_id": revision.record_id,
+                        "revision": revision.revision,
+                        "sync_pending": result["sync_pending"],
+                    },
+                )
+            except Exception:  # pragma: no cover - receipt truth is authoritative
+                logger.warning("MemoryBus run logging is unavailable.")
+        return result
+
+    def _mark_sql_projection_pending(
+        self, receipt: MemoryWriteReceipt, error_code: str
+    ) -> None:
+        """Best-effort outbox bookkeeping that never masks a committed revision."""
+        try:
+            self.sql_store.mark_projection_failed(receipt.event_id, error_code)
+        except Exception:  # pragma: no cover - best-effort state repair
+            logger.warning(
+                "MemoryBus could not mark projection pending for %s.",
+                sanitize_for_log(receipt.event_id),
+            )
+
+    def read_exact(self, relative_path: str) -> Dict | None:
+        """Return one exact canonical or legacy note without search fallback."""
+        exact_start = time.perf_counter()
+        revision = (
+            self.sql_store.get_current(relative_path)
+            if self.sql_store is not None
+            else None
+        )
+        if self.sql_store is not None:
+            content = revision.content if revision is not None else None
+        else:
+            content = self.obsidian_manager.read_note(relative_path)
+        if content is None:
+            return None
+        result = {
+            "source": "exact",
+            "path": relative_path,
+            "content": content,
+            "score": 1.0,
+            "latency_ms": (time.perf_counter() - exact_start) * 1000,
+        }
+        if revision is not None:
+            result["metadata"] = revision.metadata
+            result["record_id"] = revision.record_id
+            result["revision"] = revision.revision
+            result["provenance_id"] = getattr(revision, "provenance_id", None)
+            result["source_agent"] = getattr(revision, "source_agent", None)
+        return result
+
+    def list_current(
+        self, relative_path_prefix: str, limit: int | None = None
+    ) -> List[Dict]:
+        """List canonical SQL heads beneath one vault-relative folder prefix."""
+        if self.sql_store is None:
+            raise RuntimeError("canonical memory listing requires SQL mode")
+        return [
+            {
+                "doc_id": revision.relative_path,
+                "relative_path": revision.relative_path,
+                "content": revision.content,
+                "metadata": revision.metadata,
+                "revision": revision.revision,
+                "record_id": revision.record_id,
+                "provenance_id": getattr(revision, "provenance_id", None),
+                "source_agent": getattr(revision, "source_agent", None),
+                "source": "sql",
+            }
+            for revision in self.sql_store.list_current(relative_path_prefix, limit)
+        ]
+
+    @staticmethod
+    def _validate_sql_write(relative_path: str, content: str) -> None:
+        """Reject invalid canonical writes before any persistence side effect."""
+        path = PurePath(relative_path)
+        if not relative_path or path.is_absolute() or ".." in path.parts:
+            raise ValueError("memory path must be vault-relative")
+        if not content:
+            raise ValueError("memory content must not be empty")
+
     def read(
         self,
         query: str,
@@ -221,8 +579,8 @@ class MemoryBus:
 
         Args:
             query (str): Search query or prompt text to evaluate.
-            relative_path (Optional[str]): Vault-relative path associated with the note or
-                record.
+            relative_path (Optional[str]): Vault-relative path associated with
+                the note or record.
             max_results (int): Maximum number of retrieval results to return.
 
         Returns:
@@ -232,18 +590,9 @@ class MemoryBus:
         results: List[Dict] = []
 
         if relative_path:
-            exact_start = time.perf_counter()
-            content = self.obsidian_manager.read_note(relative_path)
-            if content:
-                results.append(
-                    {
-                        "source": "exact",
-                        "path": relative_path,
-                        "content": content,
-                        "score": 1.0,
-                        "latency_ms": (time.perf_counter() - exact_start) * 1000,
-                    }
-                )
+            exact = self.read_exact(relative_path)
+            if exact is not None:
+                results.append(exact)
                 if METRICS_ENABLED:
                     READ_SOURCE_COUNTER.labels(source="exact").inc()
 
@@ -283,30 +632,36 @@ class MemoryBus:
             record.setdefault("total_latency_ms", total_latency_ms)
             path = record.get("path")
             if isinstance(path, str) and path:
-                self._record_memory_access(self._normalize_doc_id(path))
+                try:
+                    self._record_memory_access(self._normalize_doc_id(path))
+                except Exception:  # pragma: no cover - derived learning is best effort
+                    logger.warning("Memory access learning is unavailable.")
 
         # Log to run logger
         run_logger = _get_run_logger()
         if run_logger:
             sources_used = list(set(r.get("source", "unknown") for r in results))
-            run_logger.log_memory_bus_operation(
-                operation="read",
-                path=relative_path or f"query:{query[:50]}",
-                status="success",
-                total_latency_ms=total_latency_ms,
-                metadata={
-                    "query_length": len(query),
-                    "max_results": max_results,
-                    "results_count": len(results),
-                    "sources_used": sources_used,
-                },
-            )
+            try:
+                run_logger.log_memory_bus_operation(
+                    operation="read",
+                    path=relative_path or f"query:{query[:50]}",
+                    status="success",
+                    total_latency_ms=total_latency_ms,
+                    metadata={
+                        "query_length": len(query),
+                        "max_results": max_results,
+                        "results_count": len(results),
+                        "sources_used": sources_used,
+                    },
+                )
+            except Exception:  # pragma: no cover - observability is best effort
+                logger.warning("Memory read observability is unavailable.")
 
         return results
 
     def _load_decay_records(self) -> None:
         """Hydrate the decay service from durable vector-store metadata."""
-        if self.memory_decay_service is None:
+        if self.memory_decay_service is None or self.sql_store is not None:
             return
         loader = getattr(self.vector_store, "get_decay_records", None)
         if not callable(loader):
@@ -335,9 +690,12 @@ class MemoryBus:
     def _register_decay_record(self, doc_id: str, content: str) -> None:
         if self.memory_decay_service is None:
             return
-        self.memory_decay_service.register_node(
-            MemoryNode(node_id=doc_id, content=content, weight=1.0)
-        )
+        try:
+            self.memory_decay_service.register_node(
+                MemoryNode(node_id=doc_id, content=content, weight=1.0)
+            )
+        except Exception:  # pragma: no cover - derived learning is non-authoritative
+            logger.warning("Memory decay registration is unavailable.")
 
     def _persist_decay_node(self, node: MemoryNode) -> None:
         updater = getattr(self.vector_store, "update_decay_state", None)
@@ -385,7 +743,11 @@ class MemoryBus:
             "path": path,
             "error": error,
         }
-        alert = self.governance_monitor.record_failure(event)
+        try:
+            alert = self.governance_monitor.record_failure(event)
+        except Exception:  # pragma: no cover - observability cannot alter storage truth
+            logger.warning("Memory governance failure recording is unavailable.")
+            return
         if alert:
             logger.error(
                 "GOVERNANCE ALERT: repeated memory bus failures; rollback recommended."
@@ -394,7 +756,10 @@ class MemoryBus:
     def _record_governance_success(self):
         """Reset failure streak after successful operations."""
         if self.governance_monitor:
-            self.governance_monitor.record_success()
+            try:
+                self.governance_monitor.record_success()
+            except Exception:  # pragma: no cover - observability is non-authoritative
+                logger.warning("Memory governance success recording is unavailable.")
 
     def _keyword_scan(self, query: str, limit: int) -> List[Dict]:
         """Lightweight keyword search across configured folders."""
@@ -431,5 +796,5 @@ class MemoryBus:
 
     @staticmethod
     def _normalize_doc_id(relative_path: str) -> str:
-        """Create a stable doc id from a vault-relative path."""
-        return relative_path.replace(" ", "_")
+        """Use the exact canonical path as the collision-free projection id."""
+        return relative_path

@@ -351,158 +351,71 @@ deltas before that terminal compression step.
   "offset": 0
 }
 ```
-## Planned Memory Bus API
+## Memory Bus API
+
+These mounted Express routes delegate to the Python Memory Bus. In explicit
+PostgreSQL/Neon mode, SQL is canonical and Obsidian/vector state is a derived
+projection.
+
 ### Write Document
-**Endpoint:** `POST /api/v1/memory/write` 
 
-**Request:**
+**Endpoint:** `POST /api/v1/memory/write`
 
 ```json
 {
-  "operation": "write|update|delete",
-  "vault": "vault-id",
-  "document": {
-    "path": "path/to/document.md",
-    "content": "# Heading\n\nMarkdown content",
-    "frontmatter": {
-      "hebbian_weights": {
-        "agent_uuid": 0.75
-      },
-      "tags": ["tag1", "tag2"],
-      "created_at": "2026-02-21T10:00:00Z"
-    }
-  },
-  "metadata": {
-    "source_agent": "uuid",
-    "priority": "high|normal|low",
-    "conflict_resolution": "last_write_wins|abort|merge"
+  "path": "Notes/example.md",
+  "content": "# Canonical memory",
+  "metadata": {"kind": "brief"},
+  "embed": true,
+  "idempotency_key": "optional-operation-key",
+  "provenance_id": "optional-uuid",
+  "source_agent": "optional-agent-name"
+}
+```
+
+`path` and `content` are required. All other fields are optional. Reuse the
+same `idempotency_key` only to replay the same path/content operation.
+
+Synchronized writes return HTTP 200. A durable SQL commit whose projection is
+pending returns HTTP 202; this is accepted, not failed:
+
+```json
+{
+  "success": true,
+  "message": "Memory write accepted; projection pending",
+  "data": {
+    "status": "accepted",
+    "record_id": "uuid",
+    "event_id": "uuid",
+    "revision": 1,
+    "idempotency_key": "operation-key",
+    "sql_status": "committed",
+    "obsidian_status": "pending",
+    "vector_status": "pending",
+    "sync_pending": true,
+    "duplicate": false
   }
 }
 ```
-**Response (200 OK):**
 
-```json
-{
-  "status": "success|conflict",
-  "write_id": "uuid",
-  "timestamp": "2026-02-21T10:30:00.123Z",
-  "latency_ms": 145,
-  "content_hash": "sha256_hash",
-  "sync_pending": true,
-  "estimated_sync_completion": "2026-02-21T10:30:00.300Z"
-}
-```
-### Read Document (Exact)
-**Endpoint:** `GET /api/v1/memory/read/exact?path={path}` 
+Retain `idempotency_key` to replay a pending projection. The initial slice has
+no background outbox worker.
 
-**Response:**
+### Read, Search, List, and Stats
 
-```json
-{
-  "status": "success|not_found",
-  "document": {
-    "path": "path/to/document.md",
-    "content": "# Heading\n\nMarkdown content",
-    "frontmatter": {
-      "hebbian_weights": {},
-      "created_at": "2026-02-21T10:00:00Z"
-    }
-  },
-  "latency_ms": 45
-}
-```
-### Search Documents (Keyword)
-**Endpoint:** `POST /api/v1/memory/search/keyword` 
+- `POST /api/v1/memory/read` with `{"path":"Notes/example.md"}` performs an
+  exact read. SQL mode never substitutes stale Obsidian bytes for a missing
+  SQL head.
+- `POST /api/v1/memory/search` accepts `query`, optional `path`, `tags`, and
+  `limit`. SQL mode uses an optional exact SQL path and the derived vector
+  index; Obsidian keyword scan is legacy-only.
+- `POST /api/v1/memory/list` accepts optional `path`. SQL responses are labeled
+  `source=sql`.
+- `GET /api/v1/memory/stats` reports canonical SQL note/byte counts in SQL
+  mode. `vector_count` is `null` and `projection_stats` is `not_checked`.
 
-**Request:**
-
-```json
-{
-  "terms": ["term1", "term2"],
-  "fields": ["title", "tags", "content"],
-  "match_mode": "all|any",
-  "limit": 20
-}
-```
-**Response:**
-
-```json
-{
-  "matches": [
-    {
-      "path": "path/to/document.md",
-      "title": "Document Title",
-      "excerpt": "...snippet of matching content...",
-      "relevance_score": 0.95
-    }
-  ],
-  "total_matches": 1,
-  "search_latency_ms": 125
-}
-```
-### Search Documents (Semantic)
-**Endpoint:** `POST /api/v1/memory/search/semantic` 
-
-**Request:**
-
-```json
-{
-  "query": "Find information about data processing",
-  "embedding": "optional_precomputed_vector",
-  "top_k": 10,
-  "filters": {
-    "hebbian_weight_min": 0.3,
-    "created_after": "2026-01-01T00:00:00Z"
-  }
-}
-```
-**Response:**
-
-```json
-{
-  "matches": [
-    {
-      "path": "path/to/document.md",
-      "content_preview": "First 200 chars of content",
-      "similarity_score": 0.92,
-      "source_level": "vector_store",
-      "hebbian_weights": {
-        "agent_uuid": 0.75
-      }
-    }
-  ],
-  "total_matches": 15,
-  "search_latency_ms": 275
-}
-```
-### Get Memory Health
-**Endpoint:** `GET /api/v1/memory/health` 
-
-**Response:**
-
-```json
-{
-  "status": "healthy|degraded|unhealthy",
-  "components": {
-    "obsidian": {
-      "status": "up",
-      "latency_ms": 5,
-      "sync_lag_ms": 0
-    },
-    "vector_store": {
-      "status": "up",
-      "latency_ms": 150,
-      "sync_lag_ms": 45
-    }
-  },
-  "stats": {
-    "total_documents": 10523,
-    "total_size_mb": 256,
-    "cache_hit_ratio": 0.75,
-    "last_sync": "2026-02-21T10:30:15Z"
-  }
-}
-```
+`POST /api/v1/memory/delete` retains legacy behavior. SQL mode returns
+`MEMORY_DELETE_UNSUPPORTED` (HTTP 409) until canonical tombstones exist.
 ## Planned Agent Registry API
 ### Register Agent
 **Endpoint:** `POST /api/v1/registry/agents` 

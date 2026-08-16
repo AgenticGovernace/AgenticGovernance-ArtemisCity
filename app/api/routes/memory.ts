@@ -82,7 +82,7 @@ router.post('/write', async (req: Request, res: Response) => {
       return;
     }
 
-    const result = await controller.writeFile(path, content, metadata);
+    const result = await controller.writeFile(path, content, { metadata });
     res.json({
       success: true,
       data: result,

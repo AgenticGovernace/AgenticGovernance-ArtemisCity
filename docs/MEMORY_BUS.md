@@ -1,439 +1,239 @@
-<p><a target="_blank" href="https://app.eraser.io/workspace/obOCznjMqNpj2mv9zAvw" id="edit-in-eraser-github-link"><img alt="Edit in Eraser" src="https://firebasestorage.googleapis.com/v0/b/second-petal-295822.appspot.com/o/images%2Fgithub%2FOpen%20in%20Eraser.svg?alt=media&amp;token=968381c8-a7e7-472a-8ed6-4a6626da5501"></a></p>
-
 # Memory Bus Specification
-## Overview
-The Memory Bus provides unified, synchronized access to heterogeneous storage backends (Obsidian vaults and vector databases). It implements write-through semantics, hierarchical read strategies, and conflict resolution to maintain consistency across explicit and semantic memory layers.
 
-## Architecture
-### Components
-**Memory Bus Coordinator:**
+## Authority and rollout
 
-- Central synchronization point for all memory operations
-- Maintains consistency invariants
-- Routes read requests through hierarchy
-- Ensures write-through propagation
-- Manages backpressure and queuing
-**Storage Backends:**
-1. **Obsidian Vault (Primary)**
-    - Authoritative store for explicit knowledge
-    - YAML frontmatter for metadata (weights, timestamps, embeddings)
-    - Full-text indexing via Obsidian plugins
-    - Sub-second latency, high reliability
+The Memory Bus is the single write coordinator for durable agent memory. In
+`legacy` mode it retains the existing vault-backed behavior for a reversible
+rollout. In explicit `postgres` or `neon` mode, PostgreSQL is authoritative:
+it owns memory identity, content, revisions, idempotency, and projection state.
+Obsidian is a human-readable projection, and the vector store remains a derived
+semantic index. Neither may become an Obsidian-only substitute for a failed SQL
+write.
 
-2. **Vector Store (Secondary)**
-    - Semantic search capability via embeddings
-    - k-NN queries for similar memories
-    - Metadata filtering (Hebbian scores, dates)
-    - Approximately 100-300ms latency for indexing
+`ARTEMIS_MEMORY_BACKEND=legacy` is the default. An operator must deliberately
+select `postgres` or `neon`. An unsupported backend or missing/invalid runtime
+database setting fails closed as `MEMORY_DATABASE_CONFIGURATION_ERROR`. The
+store connects lazily; a connection or query failure after valid configuration
+is reported separately as `MEMORY_STORAGE_UNAVAILABLE`.
 
-## Write Protocol
-### Write-Through Semantics
-All memory mutations follow strict write-through ordering:
+## SQL ledger and outbox
 
-```
-1. Validate write request
-   ├─ Schema compliance
-   ├─ Access control check
-   └─ Conflict detection
-2. Acquire write lock (distributed)
-3. Persist to Obsidian (primary)
-   └─ Atomic YAML update
-   └─ Fsync to disk
-   └─ Confirm persistence
-4. Trigger async propagation to vector store
-   └─ Serialize metadata
-   └─ Queue embedding job
-   └─ Enqueue to message broker
-5. Return confirmation to caller
-   └─ Ack includes write timestamp
-   └─ Includes data hash for verification
-6. Background sync
-   └─ Vector store index update
-   └─ Metadata sync within 200ms (p95)
-   └─ Confirmation logged
-```
-### Write Request Format
-```json
-{
-  "operation": "write|update|delete",
-  "content_id": "uuid",
-  "vault": "obsidian_vault_id",
-  "document": {
-    "path": "path/to/document.md",
-    "content": "markdown content",
-    "frontmatter": {
-      "hebbian_weights": {
-        "agent_id": 0.75
-      },
-      "created_at": "2026-02-21T10:30:00Z",
-      "last_modified": "2026-02-21T10:35:00Z",
-      "embedding_metadata": {
-        "model": "text-embedding-3-large",
-        "dimensions": 3072,
-        "hash": "sha256_hash"
-      }
-    }
-  },
-  "metadata": {
-    "source_agent": "agent_uuid",
-    "priority": "high|normal|low",
-    "requires_sync": true,
-    "conflict_resolution": "last_write_wins|abort|merge"
-  }
-}
-```
-### Write Confirmation Response
-```json
-{
-  "status": "success|conflict|timeout",
-  "write_id": "uuid",
-  "timestamp": "2026-02-21T10:30:00.123Z",
-  "latency_ms": 145,
-  "content_hash": "sha256_hash",
-  "sync_pending": true,
-  "estimated_sync_completion": "2026-02-21T10:30:00.300Z"
-}
+One short PostgreSQL transaction creates an immutable memory revision, updates
+the current head for its vault-relative path, and inserts one uniquely keyed
+Obsidian outbox event. The database schema is in
+`db/migrations/0001_memory_write_through.sql`.
+
+```text
+Caller
+  -> validate vault-relative path and content
+  -> commit record + head + outbox event in one SQL transaction
+  -> construct each local projection only when it is first needed
+  -> update vector projection when embed=True
+  -> immediately attempt deterministic full-file Obsidian projection
+  -> mark outbox delivered only after projection acknowledgement
 ```
 
-### Raw Exo artifacts and compressed context
+The projector holds the same PostgreSQL transaction-scoped advisory path locks
+as canonical writers while it compares the event with the current head and
+updates both derived projections. This closes the stale-event check/write race
+across processes. The initial slice performs one immediate projection attempt;
+it does not run a background projector or automatic retry loop.
 
-Long Exo generations use two related writes:
+## Client-visible outcomes
 
-1. The complete normalized provider text is written under `Agent Outputs/` with
-   `artifact_kind: raw_exo_output`, its length, SHA-256, model, task, and parent
-   provenance ID. This write sets `embed=False` so oversized raw text is not
-   inserted into semantic recall.
-2. A Hebbian-routed summarizer produces bounded follow-on context. The normal
-   agent report is written through the Memory Bus and may be embedded for
-   retrieval.
+| Condition | Result |
+|---|---|
+| SQL commit and Obsidian projection succeed | `status=success`, `sync_pending=false` |
+| SQL commit succeeds but vector projection fails | `status=accepted`, `vector_status=pending`, `sync_pending=true`; Obsidian is not attempted |
+| SQL commit succeeds but projection or acknowledgement fails | `status=accepted`, `sync_pending=true` |
+| SQL transaction fails | raise a storage error; do not write Obsidian |
+| Idempotent replay of the same request | return the original revision and receipt with `duplicate=true` |
+| Same idempotency key with different path or content | raise an idempotency conflict |
+| Replay of an older explicit key after a newer revision | `status=superseded`, `obsidian_status=superseded`, `sync_pending=false`; do not overwrite current projections |
 
-`output_compression` links both layers with the raw path/hash, durability state,
-chosen summarizer, full routing decision, learning scope, and lengths. If both
-raw-artifact and report persistence fail, the caller retains `raw_output`; the
-system never discards the only remaining copy.
+An `accepted` result is durable: callers can read the committed SQL revision
+immediately even though its Obsidian mirror is pending. It is not a failed
+write, and it must not be converted to a direct Obsidian fallback.
 
-Provider failure/degraded-baseline results are still available to run
-provenance, but their `learning_eligible: false` classification prevents them
-from changing Hebbian or trust stores.
-## Read Protocol
-### Hierarchical Read Strategy
-Reads use a cascading approach to balance latency and accuracy:
+Receipts retain compatibility fields and include `memory_id`, `record_id`,
+`revision`, `content_sha256`, `idempotency_key`, `sql_status`,
+`obsidian_status`, `vector_status`, `sync_pending`, and `duplicate`.
+`vector_status` is `delivered` after a successful embedding, `skipped` when
+`embed=False`, and `pending` after a post-commit vector failure.
 
-**Level 1: Exact Match (Obsidian)**
+Each SQL-mode invocation without an `idempotency_key` receives a new opaque UUID
+operation key, returned in the receipt. Repeating the same content without
+supplying a prior key is a new write: `A -> B -> A` creates revisions 1, 2, and
+3. Idempotent retry is guaranteed only when the caller supplies and reuses the
+same nonempty string key (including by taking the generated key from an earlier
+receipt and explicitly sending it on replay).
 
-- Direct path lookup in Obsidian vault
-- Condition: Known document path
-- Latency SLA: <50ms (p95)
-- Return: Exact document with parsed metadata
-**Level 2: Keyword Match (Obsidian Metadata)**
-- Full-text search across Obsidian vault
-- Condition: Title/tag-based search, document not found
-- Latency SLA: <150ms (p95)
-- Return: Ranked results by relevance metadata
-**Level 3: Semantic Match (Vector Store)**
-- Vector similarity search
-- Condition: No exact/keyword matches, semantic required
-- Latency SLA: <300ms (p95)
-- Return: Top-k results by cosine similarity
-### Read Request Format
-```json
-{
-  "operation": "read",
-  "query_type": "exact|keyword|semantic",
-  "exact_path": "optional/path/to/document.md",
-  "keyword_search": {
-    "terms": ["term1", "term2"],
-    "fields": ["title", "tags", "content"],
-    "match_mode": "all|any"
-  },
-  "semantic_search": {
-    "query_text": "natural language query",
-    "embedding": "pre-computed_vector",
-    "top_k": 10,
-    "filters": {
-      "hebbian_weight_min": 0.3,
-      "created_after": "2026-01-01T00:00:00Z"
-    }
-  },
-  "metadata": {
-    "use_cache": true,
-    "timeout_ms": 500,
-    "consistency_level": "eventual|strong"
-  }
-}
-```
-### Read Response Format
-```json
-{
-  "status": "success|not_found|timeout",
-  "matches": [
-    {
-      "content_id": "uuid",
-      "path": "path/to/document.md",
-      "content": "markdown content",
-      "frontmatter": {
-        "hebbian_weights": {},
-        "created_at": "2026-02-21T10:00:00Z"
-      },
-      "relevance_score": 0.95,
-      "source_level": 1,
-      "latency_ms": 45
-    }
-  ],
-  "total_matches": 1,
-  "search_latency_ms": 45,
-  "note": "Served from Obsidian (exact match)"
-}
-```
-## Conflict Resolution
-### Detection
-Conflicts arise when simultaneous writes target the same document or related semantic entities.
-
-**Detection Methods:**
-
-- Write timestamp comparison (last-write-wins default)
-- Content hash mismatches
-- Vector embedding delta > threshold
-- Concurrent write attempt detection via locks
-### Resolution Strategies
-**1. Last-Write-Wins (Default)**
-
-- Obsidian timestamp governs
-- Earlier write discarded
-- Discarded writes logged for audit
-- Suitable for non-critical metadata
-**2. Abort**
-- Both writes rejected
-- Caller receives conflict error
-- Caller must retry with explicit merge
-- Suitable for high-consistency requirements
-**3. Merge**
-- Attempt automatic merge of content
-- Frontmatter metadata merged (union of keys)
-- Content diffs computed and merged (trivial 3-way)
-- Manual resolution if merge fails
-- Suitable for collaborative scenarios
-### Example: Content Merge
-```yaml
-Agent A writes:
----
-hebbian_weights:
-  agent_1: 0.8
----
-Task data A
-
-Agent B writes (concurrent):
----
-hebbian_weights:
-  agent_2: 0.7
----
-Task data B
-
-Result (merge):
----
-hebbian_weights:
-  agent_1: 0.8
-  agent_2: 0.7
----
-Task data A [MERGE CONFLICT: human review needed]
-```
-## Latency SLAs
-### Write Operations
-| Percentile | Latency | Notes |
-| ----- | ----- | ----- |
-| p50 | 30ms | Direct Obsidian write |
-| p95 | 200ms | Includes distributed lock overhead |
-| p99 | 400ms | With retries for transient failures |
-### Sync Operations (Obsidian → Vector Store)
-| Percentile | Latency | Notes |
-| ----- | ----- | ----- |
-| p50 | 50ms | Quick embedding + indexing |
-| p95 | 300ms | Includes batch processing |
-| p99 | 600ms | Busy system or large document |
-### Read Operations
-| Operation | p50 | p95 | p99 |
-| ----- | ----- | ----- | ----- |
-| Exact match | 5ms | 50ms | 100ms |
-| Keyword search | 40ms | 150ms | 250ms |
-| Semantic search | 150ms | 300ms | 500ms |
-## Prometheus Metrics
-### Write Metrics
-```
-artemis_memory_write_latency_ms (histogram)
-  Labels: operation_type, status, conflict_resolution
-artemis_memory_write_count (counter)
-  Labels: operation, status, conflict_detected
-artemis_memory_write_bytes (counter)
-  Labels: storage_backend, operation_type
-artemis_memory_sync_lag_ms (gauge)
-  Labels: storage_backend
-  Current lag between primary and secondary stores
-```
-### Read Metrics
-```
-artemis_memory_read_latency_ms (histogram)
-  Labels: query_type, result_count, cache_hit
-artemis_memory_read_count (counter)
-  Labels: query_type, status, cache_hit
-artemis_memory_cache_hit_ratio (gauge)
-  Labels: cache_level
-artemis_memory_read_hierarchy_escalation (counter)
-  Labels: from_level, to_level
-  Times cascaded to deeper read levels
-```
-### Consistency Metrics
-```
-artemis_memory_conflicts_detected (counter)
-  Labels: resolution_strategy, auto_resolved
-artemis_memory_consistency_checks (counter)
-  Labels: check_type, status
-artemis_memory_desync_duration_seconds (histogram)
-  Labels: storage_backend
-  Time to recover from desynchronization
-```
-## Obsidian Integration
-### Frontmatter Schema
-```yaml
----
-# Hebbian learning weights (agent_id -> weight)
-hebbian_weights:
-  agent_uuid_1: 0.75
-  agent_uuid_2: 0.45
-
-# Timestamps
-created_at: 2026-02-21T10:00:00Z
-last_modified: 2026-02-21T10:35:00Z
-
-# Vector embedding metadata
-embedding:
-  model: text-embedding-3-large
-  dimensions: 3072
-  hash: sha256_hash
-  created_at: 2026-02-21T10:00:00Z
-
-# Task execution metadata
-execution_history:
-  - agent: agent_uuid_1
-    status: success
-    timestamp: 2026-02-21T10:15:00Z
-    duration_ms: 250
-
-# Tags for keyword search
-tags:
-  - task-type-analysis
-  - high-priority
-  - agent-1-successful
-
-# Decay metadata (for archival)
-decay_score: 0.92  # decayed from 1.0 over 30 days
-archived: false
-archival_candidate_at: 2026-08-21T10:00:00Z
----
-```
-### Write Sync Flow
-```
-Agent → Memory Bus → Obsidian (atomic update)
-└→ Extract metadata
-   ├→ Compute embeddings
-   └→ Queue to vector store
-      └→ Async indexing
-```
-## Vector Store Integration
-### Embedding Configuration
-- **Model**: text-embedding-3-large (OpenAI, or equivalent)
-- **Dimensions**: 3072
-- **Batch Size**: 100 documents
-- **Indexing**: FAISS or similar (configurable)
-### Metadata Filters
-All vector search supports metadata filtering:
+The mounted Express endpoint is `POST /api/v1/memory/write`. Its JSON body is:
 
 ```json
 {
-  "filters": {
-    "hebbian_weight_min": 0.5,
-    "created_after": "2026-01-01T00:00:00Z",
-    "agent_successful": true,
-    "tags": ["critical", "learned"]
-  }
+  "path": "Notes/example.md",
+  "content": "# Canonical memory",
+  "metadata": {},
+  "embed": true,
+  "idempotency_key": "optional-operation-key",
+  "provenance_id": "optional-uuid",
+  "source_agent": "optional-agent-name"
 }
 ```
-## Error Handling
-### Transient Failures
-**Write Timeout:**
 
-- Retry with exponential backoff (50ms, 100ms, 200ms)
-- Max retries: 3
-- Return error if all attempts fail
-**Read Timeout:**
-- Escalate to next read level if available
-- Return partial results if semantic search times out
-- Log timeout for monitoring
-### Permanent Failures
-**Obsidian Unavailable:**
+It returns HTTP 200 when the requested projections are synchronized and HTTP
+202 when SQL accepted the revision but `sync_pending=true`. Both responses put
+the canonical receipt in `data`. The idempotency key returned there must be
+retained if the caller may need to replay a pending projection.
 
-- Queue writes to local buffer
-- Persist buffer to local SQLite
-- Sync when Obsidian recovers
-- Alert monitoring system
-**Vector Store Unavailable:**
-- Disable semantic search
-- Degrade to keyword search
-- Continue write-through (async propagation queued)
-- Backfill vector store on recovery
-### Consistency Recovery
-**Desynchronization Detected:**
+Write paths are NFC-normalized POSIX-style vault-relative file paths. They must
+use `/`, name a suffixed file leaf such as `.md`, and contain no `.`/`..`, empty
+segments, backslashes, case-insensitive aliases, or parent directory segment
+that looks like a file (for example `v1.0/note.md`). Invalid paths are rejected
+before SQL.
 
-1. Halt new writes
-2. Rebuild vector store from Obsidian source-of-truth
-3. Verify all documents re-indexed
-4. Resume normal operation
-5. Log incident with duration
-## Backpressure & Queuing
-If write throughput exceeds storage capacity:
+## Reads and projections
 
-1. **Queue Phase**: Buffer writes in memory (bounded queue, 10MB max)
-2. **Spillover Phase**: Write queue to local SQLite (unbounded)
-3. **Backpressure Response**: Return 503 Service Unavailable to new writes
-4. **Recovery**: Drain queue as storage catches up
-## Caching Strategy
-**Read Cache (LRU, 100MB):**
+In SQL mode, exact-path reads query the SQL current head before consulting
+Obsidian, so read-after-write works during a projection outage. The public
+exact-read boundary never converts keyword or vector results into an exact
+match, and a missing SQL head does not expose orphaned vault bytes. SQL-mode
+query search uses an optional exact SQL path followed by the derived vector
+index; it does not scan the Obsidian projection for keywords. Consequently, a
+record written with `embed=False` or with a pending vector projection remains
+exact-path readable but is not query-discoverable until its vector projection
+exists. Vault keyword fallback remains available only in `legacy` mode.
+`embed=False` disables only the vector projection; canonical SQL still commits.
+The bridge does not construct the local vector or Obsidian adapter for an exact
+SQL read. On writes it commits SQL before the first adapter construction
+attempt, so an unavailable adapter becomes a pending projection rather than a
+gate on canonical durability.
 
-- Cache hit on exact path lookups
-- Invalidate on write operations
-- TTL: 5 minutes for keyword/semantic results
-- Metrics: Cache hit ratio by query type
-**Write Deduplication:**
-- Detect duplicate writes within 1-second window
-- Return cached response
-- Prevent duplicate vector embeddings
-## Security
-### Access Control
-All read/write operations checked against:
+`memory.list` and `memory.stats` also query canonical SQL heads in SQL mode.
+Their responses are labeled `source=sql`. SQL stats return
+`vector_count=null` and `projection_stats=not_checked`; they do not fabricate a
+derived-index count or hide a canonical database outage.
 
-- Agent permissions (registry entry)
-- Path-based ACLs (Obsidian configuration)
-- Capability tags (agent must have relevant capability)
-### Audit Trail
-All operations logged:
+Canonical delete/tombstone semantics are not part of this slice. The bridge
+rejects `memory.delete` in SQL mode with `MEMORY_DELETE_UNSUPPORTED` before it
+constructs or mutates local projections. Legacy delete behavior is unchanged.
 
+Obsidian projection uses deterministic full-file overwrite. The local adapter
+writes a unique same-directory temporary file, flushes and fsyncs it, replaces
+the target atomically, then fsyncs the parent directory. A replacement failure
+leaves the old note intact.
+
+## Projection replay in this slice
+
+When the immediate projection attempt fails, the committed SQL revision and
+pending outbox row remain durable and the caller receives `accepted` with
+`sync_pending=true`. There is no background projection worker, automatic or
+bounded exponential backoff, max-attempt/dead transition, or operator command
+that resumes a worker in this first slice. A pending row can remain pending
+indefinitely when nobody replays it.
+
+Retry is caller-driven: after restoring projection connectivity, replay the
+same write with the same idempotency key. That idempotent replay reuses the
+original committed revision and attempts its deterministic projection again; it
+does not append, create a new revision, or substitute an Obsidian-only write.
+Delivered duplicates also rerun the requested deterministic projections. This
+is necessary when an earlier replay used `embed=False`: a later replay with
+`embed=True` performs a real idempotent vector upsert before reporting
+`vector_status=delivered`.
+
+When a newer revision becomes the head for the same path, its SQL transaction
+marks older pending/processing Obsidian events delivered with
+`superseded_by_newer_revision`. Obsolete revisions therefore do not accumulate
+as actionable outbox work and cannot overwrite the current projection.
+
+Internal orchestrator writes retain the returned operation key and event ID in
+their structured receipt/log state. Task creation and status updates accept an
+optional replay key, and `get_memory_projection_receipt(path)` returns the
+latest retained handle so the current committed revision can be resubmitted.
+This is caller/operator replay, not an automatic outbox worker.
+
+## Initial rollout constraints
+
+- Run exactly one task-executing orchestrator worker. Pending-task discovery is
+  SQL-authoritative, but this slice does not yet provide an atomic SQL
+  compare-and-set claim or lease for competing workers.
+- Existing installations must rebuild or reset the derived vector index once.
+  Older releases replaced spaces with underscores in vector IDs; retaining
+  those rows beside canonical-path IDs can produce stale duplicate search hits.
+  This does not delete or rewrite canonical SQL revisions.
+- Build the Express API (`npm run build` in `app/api`) before `npm start`.
+  `app/api/dist` is ignored and must be generated from the checked-in
+  TypeScript source for each deployment.
+- Apply the migration only to an isolated/disposable database first. Live Neon
+  syntax, first application, and repeat-application behavior remain rollout
+  gates until exercised against PostgreSQL.
+
+The Express bridge maps canonical-memory failures as follows:
+
+| Bridge code | HTTP status |
+|---|---:|
+| `MEMORY_IDEMPOTENCY_CONFLICT` | 409 |
+| `MEMORY_STORAGE_UNAVAILABLE` | 503 |
+| `MEMORY_DATABASE_CONFIGURATION_ERROR` | 503 |
+| `MEMORY_DELETE_UNSUPPORTED` | 409 |
+
+`ARTEMIS_MEMORY_OUTBOX_MAX_ATTEMPTS` and
+`ARTEMIS_MEMORY_OUTBOX_RETRY_BASE_SECONDS` are reserved/inert configuration
+fields in this slice. They are not implemented runtime controls and must not
+be interpreted as a retry schedule or dead-letter policy.
+
+## Configuration and ownership
+
+```dotenv
+ARTEMIS_MEMORY_BACKEND=legacy
+ARTEMIS_MEMORY_DATABASE_URL=
+ARTEMIS_MEMORY_MIGRATION_DATABASE_URL=
+ARTEMIS_MEMORY_DB_CONNECT_TIMEOUT_SECONDS=10
+ARTEMIS_MEMORY_DB_STATEMENT_TIMEOUT_MS=5000
+ARTEMIS_MEMORY_OUTBOX_MAX_ATTEMPTS=10
+ARTEMIS_MEMORY_OUTBOX_RETRY_BASE_SECONDS=1
+OBSIDIAN_VAULT_PATH=
+OBSIDIAN_API_KEY=
 ```
-timestamp | operation | agent_id | content_id | status | latency_ms
-2026-02-21T10:30:00Z | write | uuid_1 | uuid_2 | success | 145
-```
-## Configuration
-### Environment Variables
+
+Both database URLs, the Obsidian vault path, and Obsidian credentials are
+operator-supplied. `setup_secrets.sh` preserves configured values during sync
+and `--regenerate`; it never generates, rotates, logs, or copies them into
+client assets. Leave all of them blank in committed templates.
+
+For Neon, `ARTEMIS_MEMORY_DATABASE_URL` is the pooled runtime endpoint and
+`ARTEMIS_MEMORY_MIGRATION_DATABASE_URL` is the direct endpoint for a manually
+invoked `psql` migration command. The application never runs DDL, and no
+repository migration runner currently consumes that variable. Do not point
+application runtime traffic at the direct URL. The migration is internally
+atomic: it holds a transaction-scoped advisory migration lock, records version
+`0001_memory_write_through` before its domain DDL, and commits both the version
+row and schema changes together. A repeat fails before domain DDL with
+`P0001` and `migration 0001_memory_write_through is already applied`. Run the
+internally transactional migration with fail-fast `psql` handling:
+
 ```bash
-ARTEMIS_OBSIDIAN_VAULT_PATH=/path/to/vault
-ARTEMIS_VECTOR_STORE_URL=http://localhost:6333  # Qdrant example
-ARTEMIS_MEMORY_WRITE_TIMEOUT_MS=200
-ARTEMIS_MEMORY_SYNC_TIMEOUT_MS=300
-ARTEMIS_MEMORY_CACHE_SIZE_MB=100
-ARTEMIS_MEMORY_QUEUE_MAX_BYTES=10485760  # 10MB
-ARTEMIS_EMBEDDING_MODEL=text-embedding-3-large
-ARTEMIS_EMBEDDING_BATCH_SIZE=100
+psql "$ARTEMIS_MEMORY_MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/0001_memory_write_through.sql
 ```
 
+Live first application and repeat-application behavior have not been verified
+against PostgreSQL and remain deployment gates; the application never runs this
+DDL.
 
+Both connection and statement timeout settings must be positive integers. The
+runtime passes the statement deadline to PostgreSQL as a connection option;
+neither setting is interpolated into SQL or exposed in error responses.
 
+Tests clear live database URLs and Obsidian credentials before application
+imports and use injected fakes or a disposable local vault.
 
-<!--- Eraser file: https://app.eraser.io/workspace/obOCznjMqNpj2mv9zAvw --->
+## Rollback
+
+To roll back an application deployment, set `ARTEMIS_MEMORY_BACKEND=legacy`
+and redeploy the prior compatible release. This stops new SQL-ledger writes but
+does not delete existing SQL revisions or outbox events. Preserve the ledger
+and take a database backup before any data-retention decision. Return to SQL
+mode only after verifying the configured pooled URL, migration state, and
+any pending outbox rows. Those rows require caller-driven idempotent replay in
+this slice; they are not drained by a background worker.

@@ -12,6 +12,14 @@ export interface SearchOptions {
   limit?: number;
 }
 
+export interface MemoryWriteOptions {
+  metadata?: Record<string, unknown>;
+  embed?: boolean;
+  idempotencyKey?: string;
+  provenanceId?: string;
+  sourceAgent?: string;
+}
+
 export class MemoryController {
   async readFile(filePath: string): Promise<unknown> {
     return callBridge('memory.read', { path: filePath });
@@ -20,12 +28,16 @@ export class MemoryController {
   async writeFile(
     filePath: string,
     content: string,
-    metadata?: Record<string, unknown>
+    options: MemoryWriteOptions = {}
   ): Promise<unknown> {
     return callBridge('memory.write', {
       path: filePath,
       content,
-      metadata: metadata ?? undefined,
+      metadata: options.metadata,
+      embed: options.embed,
+      idempotency_key: options.idempotencyKey,
+      provenance_id: options.provenanceId,
+      source_agent: options.sourceAgent,
     });
   }
 

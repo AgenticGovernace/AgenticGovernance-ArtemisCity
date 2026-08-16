@@ -69,6 +69,31 @@ class TestDockerCompose:
         networks = kernel.get("networks", [])
         assert "artemis" in networks
 
+    def test_memory_backend_reaches_both_python_runtime_surfaces(
+        self, docker_compose_config
+    ):
+        """Compose must not leave kernel or the Express bridge in legacy mode."""
+        expected = {
+            "ARTEMIS_MEMORY_BACKEND=${ARTEMIS_MEMORY_BACKEND:-legacy}",
+            "ARTEMIS_MEMORY_DATABASE_URL=${ARTEMIS_MEMORY_DATABASE_URL:-}",
+            "ARTEMIS_MEMORY_DB_CONNECT_TIMEOUT_SECONDS=${ARTEMIS_MEMORY_DB_CONNECT_TIMEOUT_SECONDS:-10}",
+            "ARTEMIS_MEMORY_DB_STATEMENT_TIMEOUT_MS=${ARTEMIS_MEMORY_DB_STATEMENT_TIMEOUT_MS:-5000}",
+            "OBSIDIAN_VAULT_PATH=/data/vault",
+        }
+        services = docker_compose_config["services"]
+        for service_name in ("kernel", "express-api"):
+            environment = set(services[service_name].get("environment", []))
+            assert expected <= environment
+            assert "./vault:/data/vault" in services[service_name].get("volumes", [])
+
+        # The privileged direct migration endpoint is operator-only and must
+        # not be injected into long-running application containers.
+        for service_name in ("kernel", "express-api"):
+            assert all(
+                not item.startswith("ARTEMIS_MEMORY_MIGRATION_DATABASE_URL=")
+                for item in services[service_name].get("environment", [])
+            )
+
     def test_security_requirements(self, docker_compose_config):
         """Test that sensitive services enforce security configurations."""
         services = docker_compose_config["services"]
@@ -115,3 +140,20 @@ class TestDockerCompose:
         # Check vector-store volume mount
         vector_store = docker_compose_config["services"]["vector-store"]
         assert "vector-data:/qdrant/storage" in vector_store.get("volumes", [])
+
+    def test_express_image_packages_the_python_bridge_runtime(
+        self, docker_compose_path
+    ):
+        """The deployed Express process must be able to spawn SQL memory commands."""
+        repo_root = docker_compose_path.parent
+        dockerfile = (repo_root / "src" / "Dockerfile").read_text(encoding="utf-8")
+        requirements = (
+            repo_root / "requirements-bridge.txt"
+        ).read_text(encoding="utf-8")
+
+        assert "python3 -m venv /opt/artemis-venv" in dockerfile
+        assert "requirements-bridge.txt" in dockerfile
+        assert "/workspace/app/api/dist/" in dockerfile
+        assert 'CMD ["node", "app/api/dist/index.js"]' in dockerfile
+        assert "psycopg2-binary" in requirements
+        assert "pydantic" in requirements
