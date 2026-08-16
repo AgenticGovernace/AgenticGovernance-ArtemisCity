@@ -691,3 +691,5 @@ Artemis_City.code-workspace
 .agents/skills/bigquery-ai-ml/references/vector_search.md
 docs/Archived/CLAUDE.md
 docs/Archived/Coverage report.html
+/src/utils/monitoring/data
+/docs/superpowers
