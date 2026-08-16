@@ -40,8 +40,9 @@ EXPECTED_ADJACENT_COUNT = 21
 EXPECTED_ADJACENT_LINE_SHA256 = (
     "f2d025c92661781894b085552baa798a6d18e8536dc25ca2299552cf23ce55ad"
 )
+ALLOWED_COMPATIBILITY_IMPORTS = ("src.Kernel",)
 FORBIDDEN_IMPORT_PREFIXES = (
-    "src.Kernel.",
+    "src.Kernel",
     "src.interface.Quantumharmony_cli",
     "artemis_mcp_common",
 )
@@ -119,11 +120,11 @@ def _quarantined_payload_paths() -> list[str]:
 
 
 def _authoritative_python_paths() -> list[Path]:
-    quarantined = set(_quarantined_payload_paths())
+    non_authoritative = set(_quarantined_payload_paths()) | _active_held_paths()
     authoritative: list[Path] = []
     for path in _production_python_paths():
         rel_path = path.relative_to(ROOT).as_posix()
-        if rel_path in quarantined:
+        if rel_path in non_authoritative:
             continue
         authoritative.append(path)
     return authoritative
@@ -147,7 +148,15 @@ def _load_yaml(path: Path) -> dict[str, object]:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
-def _held_manifest_paths() -> set[str]:
+def _active_held_paths() -> set[str]:
+    hold = _load_yaml(HOLD_PATH)
+    assert hold["metadata"]["status"] == "active"
+    assert hold["source_manifest"]["sha256"] == EXPECTED_MANIFEST_SHA256
+    assert hold["held_paths"]["selection_rule"] == (
+        "classification == REMOVE_REVERSE_SYNC and source_status == A"
+    )
+    manifest_sha256 = hashlib.sha256(MANIFEST_PATH.read_bytes()).hexdigest()
+    assert manifest_sha256 == EXPECTED_MANIFEST_SHA256
     manifest = _load_yaml(MANIFEST_PATH)
     manifest_paths = manifest["paths"]
     return {
@@ -186,6 +195,15 @@ def _import_targets(path: Path) -> list[str]:
     return targets
 
 
+def _is_forbidden_import_target(target: str) -> bool:
+    if target in ALLOWED_COMPATIBILITY_IMPORTS:
+        return False
+    return any(
+        target == prefix or target.startswith(f"{prefix}.")
+        for prefix in FORBIDDEN_IMPORT_PREFIXES
+    )
+
+
 def _violation(prefix: str, detail: str) -> str:
     return f"LEGACY_QUARANTINE_VIOLATION {prefix}: {detail}"
 
@@ -201,6 +219,28 @@ def test_production_python_paths_include_top_level_and_nested_modules() -> None:
     assert "src/Kernel/__init__.py" not in rel_paths
     assert "src/interface/Quantumharmony_cli.py" not in rel_paths
     assert not any("/tests/" in rel_path or rel_path.startswith("tests/") for rel_path in rel_paths)
+
+
+def test_authoritative_python_paths_exclude_all_held_production_python() -> None:
+    held_paths = _active_held_paths()
+    production_python = {
+        path.relative_to(ROOT).as_posix() for path in _production_python_paths()
+    }
+    held_production_python = held_paths & production_python
+    held_outside_quarantine = held_production_python - set(
+        _quarantined_payload_paths()
+    )
+    authoritative_python = {
+        path.relative_to(ROOT).as_posix() for path in _authoritative_python_paths()
+    }
+    held_authority_overlap = held_production_python & authoritative_python
+
+    assert len(held_paths) == 217
+    assert len(held_production_python) == 37
+    assert len(held_outside_quarantine) == 34
+    assert len(held_authority_overlap) == 0, _violation(
+        "held-python-authority", str(sorted(held_authority_overlap))
+    )
 
 
 def test_tracked_paths_do_not_casefold_collide() -> None:
@@ -219,7 +259,7 @@ def test_legacy_quarantine_audit_matches_current_tree_scope() -> None:
     payload_paths = _quarantined_payload_paths()
     audit = _load_yaml(QUARANTINE_AUDIT_PATH)
     hold = _load_yaml(HOLD_PATH)
-    held_manifest_paths = _held_manifest_paths()
+    held_manifest_paths = _active_held_paths()
     held_payload_paths = [path for path in payload_paths if path in held_manifest_paths]
     adjacent_payload_paths = [
         path for path in payload_paths if path not in held_manifest_paths
@@ -421,15 +461,15 @@ def test_authoritative_python_does_not_import_quarantined_prefixes() -> None:
     for path in _authoritative_python_paths():
         rel_path = path.relative_to(ROOT).as_posix()
         for target in _import_targets(path):
-            if target == "src.Kernel":
-                continue
-            if any(
-                target == prefix or target.startswith(f"{prefix}.")
-                for prefix in FORBIDDEN_IMPORT_PREFIXES
-            ):
+            if _is_forbidden_import_target(target):
                 violations.append(f"{rel_path}:{target}")
 
     assert not violations, _violation("forbidden-imports", str(sorted(violations)))
+
+
+def test_forbidden_import_matcher_allows_only_exact_kernel_facade() -> None:
+    assert _is_forbidden_import_target("src.Kernel.agents")
+    assert not _is_forbidden_import_target("src.Kernel")
 
 
 def test_runtime_identity_is_not_codex_branded() -> None:

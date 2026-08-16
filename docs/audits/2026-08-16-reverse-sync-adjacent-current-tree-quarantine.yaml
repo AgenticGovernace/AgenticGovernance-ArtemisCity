@@ -95,7 +95,7 @@ non_authority:
   allowed_compatibility_imports:
     - "src.Kernel"
   forbidden_production_import_prefixes:
-    - "src.Kernel."
+    - "src.Kernel"
     - "src.interface.Quantumharmony_cli"
     - "artemis_mcp_common"
   collection_exclusions:
