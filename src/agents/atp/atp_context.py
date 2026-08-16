@@ -75,8 +75,9 @@ def resolve_task_context(
     if not isinstance(raw_input, str) or not raw_input.strip():
         return resolved
 
-    message, metrics = ATPParser().parse_with_metrics(raw_input)
-    if not message.has_atp_headers:
+    parser = ATPParser()
+    message, metrics = parser.parse_with_metrics(raw_input)
+    if not parser.is_atp_formatted(raw_input):
         return resolved
 
     explicit = bool(

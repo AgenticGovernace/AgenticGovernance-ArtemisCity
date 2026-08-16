@@ -8,6 +8,32 @@ from typing import Any
 
 import yaml
 
+_POLICY_VERSION = "artemis.intent-policy/1"
+_REVIEWED_PAIRS = {
+    "Build": {"Scaffold": ("text_generation",), "Execute": ("llm_chat",)},
+    "Review": {
+        "Summarize": ("text_summarization",),
+        "Reflect": ("reasoning",),
+    },
+    "Organize": {"Scaffold": ("text_generation",), "Execute": ("llm_chat",)},
+    "Capture": {"Summarize": ("text_summarization",)},
+    "Synthesize": {
+        "Summarize": ("text_summarization",),
+        "Reflect": ("reasoning",),
+    },
+    "Commit": {"Execute": ("llm_chat",)},
+    "Reflect": {
+        "Reflect": ("reasoning",),
+        "Summarize": ("text_summarization",),
+    },
+}
+_REVIEWED_FALLBACK_CAPABILITY = "llm_chat"
+_REVIEWED_FALLBACK_PAIRS = (
+    ("Build", "Execute"),
+    ("Organize", "Execute"),
+    ("Commit", "Execute"),
+)
+
 
 @dataclass(frozen=True)
 class IntentPolicy:
@@ -24,8 +50,10 @@ class IntentPolicy:
         with Path(path).open(encoding="utf-8") as policy_file:
             raw: Any = yaml.safe_load(policy_file)
 
-        if not isinstance(raw, dict):
-            raise TypeError("intent policy must be a mapping")
+        if not isinstance(raw, dict) or set(raw) != {"version", "pairs", "fallback"}:
+            raise ValueError("intent policy must use the reviewed V1 document shape")
+        if raw["version"] != _POLICY_VERSION:
+            raise ValueError("intent policy version is not reviewed")
         pairs = raw.get("pairs")
         fallback = raw.get("fallback")
         if not isinstance(pairs, dict) or not isinstance(fallback, dict):
@@ -52,28 +80,37 @@ class IntentPolicy:
                 normalized_actions[action] = tuple(capabilities)
             normalized_pairs[mode] = normalized_actions
 
-        fallback_capability = fallback.get("capability")
-        allowed_pairs = fallback.get("allowed_pairs")
-        if not isinstance(fallback_capability, str) or not fallback_capability:
-            raise ValueError("intent policy fallback requires a capability")
+        if normalized_pairs != _REVIEWED_PAIRS:
+            raise ValueError("intent policy pairs are not the reviewed V1 domains")
+        if set(fallback) != {"capability", "allowed_pairs"}:
+            raise ValueError("intent policy fallback must use the reviewed V1 shape")
+        fallback_capability = fallback["capability"]
+        allowed_pairs = fallback["allowed_pairs"]
+        if fallback_capability != _REVIEWED_FALLBACK_CAPABILITY:
+            raise ValueError("intent policy fallback capability is not reviewed")
         if not isinstance(allowed_pairs, list):
             raise TypeError("intent policy fallback requires allowed_pairs")
-        fallback_pairs = frozenset(
-            (pair[0], pair[1])
-            for pair in allowed_pairs
-            if isinstance(pair, list)
-            and len(pair) == 2
-            and all(isinstance(value, str) and value for value in pair)
+        parsed_fallback_pairs: list[tuple[str, str]] = []
+        for pair in allowed_pairs:
+            if (
+                not isinstance(pair, list)
+                or len(pair) != 2
+                or not all(isinstance(value, str) and value for value in pair)
+            ):
+                raise ValueError(
+                    "intent policy fallback pairs must contain mode/action strings"
+                )
+            parsed_fallback_pairs.append((pair[0], pair[1]))
+        if len(set(parsed_fallback_pairs)) != len(parsed_fallback_pairs):
+            raise ValueError("intent policy fallback pairs must not be duplicated")
+        if tuple(parsed_fallback_pairs) != _REVIEWED_FALLBACK_PAIRS:
+            raise ValueError("intent policy fallback pairs are not reviewed")
+        return cls(
+            _POLICY_VERSION,
+            normalized_pairs,
+            fallback_capability,
+            frozenset(parsed_fallback_pairs),
         )
-        if len(fallback_pairs) != len(allowed_pairs):
-            raise ValueError(
-                "intent policy fallback pairs must contain mode/action strings"
-            )
-
-        version = raw.get("version")
-        if not isinstance(version, str) or not version:
-            raise ValueError("intent policy requires a version")
-        return cls(version, normalized_pairs, fallback_capability, fallback_pairs)
 
     def domain_for(self, mode: str, action_type: str) -> tuple[str, ...] | None:
         """Return the allowed capability domain for one declared ATP pair."""

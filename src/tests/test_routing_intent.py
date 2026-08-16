@@ -24,6 +24,16 @@ ATP_COMMIT_REFLECT = """#Mode: Commit
 Record the reviewed decision for operators.
 """
 
+ATP_INVALID_HASH = """#Mode: not-a-mode
+
+Execute the trusted adapter request.
+"""
+
+ATP_INVALID_BRACKET = """[[Mode]]: not-a-mode
+
+Execute the trusted adapter request.
+"""
+
 
 @pytest.fixture
 def resolver() -> IntentResolver:
@@ -71,3 +81,58 @@ def test_typed_adapter_is_rejected_when_atp_headers_are_present(resolver):
             requested=RequestedConstraintsV1(),
         )
     assert denied.value.code == "ambiguous_intent_source"
+
+
+@pytest.mark.parametrize("content", [ATP_INVALID_HASH, ATP_INVALID_BRACKET])
+def test_invalid_raw_atp_syntax_cannot_fall_through_to_a_typed_adapter(
+    resolver, content
+):
+    with pytest.raises(IntentDenied) as denied:
+        resolver.resolve(
+            content=content,
+            typed_intent=execute_chat_intent(),
+            requested=RequestedConstraintsV1(),
+        )
+    assert denied.value.code == "ambiguous_intent_source"
+
+
+@pytest.mark.parametrize("content", [ATP_INVALID_HASH, ATP_INVALID_BRACKET])
+def test_invalid_raw_atp_syntax_without_adapter_is_invalid_atp(resolver, content):
+    with pytest.raises(IntentDenied) as denied:
+        resolver.resolve(
+            content=content,
+            typed_intent=None,
+            requested=RequestedConstraintsV1(),
+        )
+    assert denied.value.code == "invalid_atp"
+
+
+@pytest.mark.parametrize(
+    "modified_policy",
+    [
+        ("artemis.intent-policy/1", "artemis.intent-policy/999"),
+        (
+            "Review:\n    Summarize: [text_summarization]",
+            "Review:\n    Summarize: [memory:write]",
+        ),
+        ("fallback:\n", "unreviewed: true\nfallback:\n"),
+        ("  Capture:\n    Summarize: [text_summarization]\n", ""),
+        (
+            "    - [Build, Execute]\n",
+            "    - [Build, Execute]\n    - [Build, Execute]\n",
+        ),
+    ],
+)
+def test_policy_loader_rejects_any_unreviewed_v1_mutation(tmp_path, modified_policy):
+    policy_path = (
+        Path(__file__).resolve().parents[2] / "config/routing/intent-policy.v1.yaml"
+    )
+    original, replacement = modified_policy
+    candidate = tmp_path / "intent-policy.v1.yaml"
+    candidate.write_text(
+        policy_path.read_text(encoding="utf-8").replace(original, replacement),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        IntentPolicy.load(candidate)

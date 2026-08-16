@@ -3,6 +3,7 @@
 import pytest
 
 from src.agents.atp.atp_context import resolve_task_context
+from src.routing.intent import IntentDenied
 
 ATP_SUMMARY = """#Mode: Synthesize
 #Context: Condense the release notes
@@ -12,6 +13,11 @@ ATP_SUMMARY = """#Mode: Synthesize
 #SpecialNotes: Preserve decisions
 
 Summarize the release notes for operators.
+"""
+
+ATP_INVALID_BRACKET = """[[Mode]]: not-a-mode
+
+Reject this malformed ATP message.
 """
 
 
@@ -48,3 +54,9 @@ def test_non_atp_context_is_unchanged():
 def test_atp_context_rejects_incomplete_header_without_a_caller_strictness_flag():
     with pytest.raises(ValueError, match="Incomplete ATP headers"):
         resolve_task_context({"content": "#Mode: Build\nCreate it."})
+
+
+def test_atp_context_rejects_raw_bracket_atp_with_an_invalid_value():
+    with pytest.raises(IntentDenied) as denied:
+        resolve_task_context({"content": ATP_INVALID_BRACKET})
+    assert denied.value.code == "invalid_atp"

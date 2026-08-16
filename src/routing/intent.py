@@ -43,17 +43,18 @@ class IntentResolver:
         from src.agents.atp.atp_parser import ATPParser
         from src.agents.atp.atp_validator import ATPValidator
 
-        message = ATPParser().parse(content)
-        if message.has_atp_headers:
-            validation = ATPValidator(strict=True).validate(message)
-            if not validation.is_valid:
-                detail = "; ".join(validation.errors) or "ATP validation failed"
-                raise IntentDenied("invalid_atp", detail)
+        parser = ATPParser()
+        message = parser.parse(content)
+        if parser.is_atp_formatted(content):
             if typed_intent is not None:
                 raise IntentDenied(
                     "ambiguous_intent_source",
                     "ATP headers and typed-adapter intent cannot be combined",
                 )
+            validation = ATPValidator(strict=True).validate(message)
+            if not validation.is_valid:
+                detail = "; ".join(validation.errors) or "ATP validation failed"
+                raise IntentDenied("invalid_atp", detail)
             if not message.context or not message.context.strip():
                 raise IntentDenied("invalid_atp", "ATP context is required")
             intent = TaskIntentV1(
