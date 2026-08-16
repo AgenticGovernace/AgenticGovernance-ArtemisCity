@@ -75,6 +75,8 @@ class ArtemisCliAgent(Agent):
         response = f"I am ArtemisCliAgent. I processed your request: '{content}'. (LLM Simulation)"
 
         # Write to memory
-        memory.write(response, metadata={"source": "ArtemisCliAgent", "trigger": content})
+        memory.write(
+            response, metadata={"source": "ArtemisCliAgent", "trigger": content}
+        )
 
         return response

@@ -42,7 +42,9 @@ class CodexAgent(Agent):
         content = request.get("content", "")
 
         # Simulate LLM call
-        response = f"I am Codex. I processed your request: '{content}'. (LLM Simulation)"
+        response = (
+            f"I am Codex. I processed your request: '{content}'. (LLM Simulation)"
+        )
 
         # Write to memory
         memory.write(response, metadata={"source": "CodexAgent", "trigger": content})

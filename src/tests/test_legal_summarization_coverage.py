@@ -18,14 +18,21 @@ import src.Experiments.legal_summarization.dataset_loader as dataset_loader_modu
 from src.Experiments.legal_summarization import main as cli
 from src.Experiments.legal_summarization.batch_runner import BatchRunner
 from src.Experiments.legal_summarization.dataset_loader import (
-    JudgmentRecord, LegalDatasetLoader, huggingface_runtime_status,
-    resolve_hf_token)
+    JudgmentRecord,
+    LegalDatasetLoader,
+    huggingface_runtime_status,
+    resolve_hf_token,
+)
 from src.Experiments.legal_summarization.evaluation import evaluate_summary
-from src.Experiments.legal_summarization.legal_summarizer_agent import \
-    LegalSummarizerAgent
+from src.Experiments.legal_summarization.legal_summarizer_agent import (
+    LegalSummarizerAgent,
+)
 from src.Experiments.legal_summarization.run_store import RunStore
 from src.Experiments.legal_summarization.summarization_config import (
-    AggregationLevel, AudienceLevel, SummarizationConfig)
+    AggregationLevel,
+    AudienceLevel,
+    SummarizationConfig,
+)
 
 
 def test_cli_direct_file_bootstrap_adds_repo_root(

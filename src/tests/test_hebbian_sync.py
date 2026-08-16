@@ -5,8 +5,7 @@ Naming follows docs/TEST_PLAN.md: test_<module>_<function>_<scenario>.
 
 import pytest
 
-from src.integration.hebbian_sync import (BatchResult, HebbianSyncService,
-                                          WeightUpdate)
+from src.integration.hebbian_sync import BatchResult, HebbianSyncService, WeightUpdate
 
 
 @pytest.mark.unit

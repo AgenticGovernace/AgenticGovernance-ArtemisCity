@@ -7,8 +7,7 @@ sys.modules.pop("src.integration.agent_registry", None)
 import pytest
 
 from src.agents.base_agent import BaseAgent
-from src.integration.agent_registry import (AgentRegistry, AgentRegistryStore,
-                                            AgentScore)
+from src.integration.agent_registry import AgentRegistry, AgentRegistryStore, AgentScore
 
 
 # ---------------------------------------------------------------------------

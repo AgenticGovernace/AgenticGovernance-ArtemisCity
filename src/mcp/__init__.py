@@ -31,7 +31,10 @@ if __name__ == "__main__" and not __package__:
 
 from . import config  # noqa: E402  (direct-execution guard must run first)
 from .config import (  # noqa: E402  (direct-execution guard must run first)
-    AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH)
+    AGENT_INPUT_DIR,
+    AGENT_OUTPUT_DIR,
+    OBSIDIAN_VAULT_PATH,
+)
 
 _LAZY_EXPORTS = {
     "Orchestrator": (".orchestrator", "Orchestrator"),

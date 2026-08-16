@@ -2,9 +2,7 @@ from datetime import datetime
 from utils.helpers import logger
 
 
-def generate_agent_report(
-        agent_name: str, task_id: str, results: dict
-) -> str:
+def generate_agent_report(agent_name: str, task_id: str, results: dict) -> str:
     """Generates a Markdown report from agent results."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     report_title = f"Agent Report: {agent_name} - {task_id}"

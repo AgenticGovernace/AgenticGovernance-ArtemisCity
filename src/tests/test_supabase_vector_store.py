@@ -13,8 +13,11 @@ from types import SimpleNamespace
 import pytest
 
 import src.mcp.supabase_vector_store as svs
-from src.mcp.supabase_vector_store import (SupabaseVectorStore, _redact_dsn,
-                                           _vector_literal)
+from src.mcp.supabase_vector_store import (
+    SupabaseVectorStore,
+    _redact_dsn,
+    _vector_literal,
+)
 from src.mcp.vector_store import LocalVectorStore, create_vector_store
 
 FAKE_DSN = "postgresql://postgres:secret@db.example.supabase.co:5432/postgres"
