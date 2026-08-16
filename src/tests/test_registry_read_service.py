@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 import inspect
 import traceback
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path
 
 import pytest
@@ -78,16 +78,10 @@ class _SecretRegistryErrorGetPort:
         return ()
 
 
-class _SecretRegistryErrorSequence(Sequence[Mapping[str, object]]):
+class _SecretRegistryErrorSequence(list[Mapping[str, object]]):
     """Store sequence that leaks through iteration unless the boundary sanitizes it."""
 
-    def __getitem__(self, index: int) -> Mapping[str, object]:
-        raise AssertionError("iteration should be used")
-
-    def __len__(self) -> int:
-        return 1
-
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Mapping[str, object]]:
         raise RegistryRecordError("iterator-registry-secret")
 
 
