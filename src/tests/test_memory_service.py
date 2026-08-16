@@ -522,9 +522,25 @@ def test_memory_write_command_rejects_nested_non_json_sets(
         valid_command(metadata=metadata)
 
 
+@pytest.mark.parametrize(
+    "unsupported",
+    [float("nan"), float("inf"), float("-inf")],
+    ids=["nan", "positive-infinity", "negative-infinity"],
+)
+def test_memory_write_command_rejects_nested_non_finite_floats(
+    unsupported: float,
+) -> None:
+    metadata = {"outer": [{"score": unsupported}]}
+
+    with pytest.raises(MemoryValidationError, match="floats must be finite"):
+        valid_command(metadata=metadata)
+
+
 def test_memory_record_snapshots_metadata_and_remains_json_serializable() -> None:
     values = [1, 2]
-    source: dict[str, object] = {"nested": {"values": values}}
+    source: dict[str, object] = {
+        "nested": {"values": values, "score": 1.25, "enabled": True}
+    }
     record = MemoryRecord(
         record_id="record-json",
         memory_id="memory-json",
@@ -544,8 +560,12 @@ def test_memory_record_snapshots_metadata_and_remains_json_serializable() -> Non
     values.append(3)
     source["new"] = "mutated"
 
-    assert record.metadata == {"nested": {"values": (1, 2)}}
-    assert json.loads(json.dumps(record.metadata)) == {"nested": {"values": [1, 2]}}
+    assert record.metadata == {
+        "nested": {"values": (1, 2), "score": 1.25, "enabled": True}
+    }
+    assert json.loads(json.dumps(record.metadata, allow_nan=False)) == {
+        "nested": {"values": [1, 2], "score": 1.25, "enabled": True}
+    }
     with pytest.raises(TypeError):
         record.metadata["new"] = "blocked"  # type: ignore[index]
 
@@ -594,3 +614,59 @@ def test_write_results_snapshot_and_freeze_projection_mappings() -> None:
         ledger_write.projection_event_ids["obsidian"] = "blocked"  # type: ignore[index]
     with pytest.raises(TypeError):
         receipt.projection_states["obsidian"] = ProjectionState.FAILED  # type: ignore[index]
+
+
+@pytest.mark.parametrize(
+    "states",
+    [
+        {"": ProjectionState.PENDING},
+        {"obsidian": "pending"},
+        {"obsidian": [ProjectionState.PENDING]},
+    ],
+)
+def test_write_results_reject_invalid_projection_state_evidence(
+    states: dict[str, object],
+) -> None:
+    record = (
+        InMemoryLedger().write_version(valid_command(requested_projections=())).record
+    )
+
+    with pytest.raises(MemoryValidationError, match="projection"):
+        LedgerWrite(
+            record=record,
+            disposition=WriteDisposition.CREATED,
+            projection_states=states,  # type: ignore[arg-type]
+            projection_event_ids={},
+        )
+    with pytest.raises(MemoryValidationError, match="projection"):
+        MemoryWriteReceipt(
+            record=record,
+            disposition=WriteDisposition.CREATED,
+            ledger_state=LedgerState.SUCCEEDED,
+            projection_states=states,  # type: ignore[arg-type]
+            summary="invalid",
+        )
+
+
+@pytest.mark.parametrize(
+    "event_ids",
+    [
+        {"": "event-1"},
+        {"obsidian": " "},
+        {"obsidian": ["event-1"]},
+    ],
+)
+def test_ledger_write_rejects_invalid_projection_event_evidence(
+    event_ids: dict[str, object],
+) -> None:
+    record = (
+        InMemoryLedger().write_version(valid_command(requested_projections=())).record
+    )
+
+    with pytest.raises(MemoryValidationError, match="projection event ID"):
+        LedgerWrite(
+            record=record,
+            disposition=WriteDisposition.CREATED,
+            projection_states={},
+            projection_event_ids=event_ids,  # type: ignore[arg-type]
+        )

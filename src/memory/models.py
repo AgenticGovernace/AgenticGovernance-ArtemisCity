@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import math
 import ntpath
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import NoReturn
+from typing import NoReturn, cast
 
 
 class MemoryError(Exception):
@@ -89,7 +90,11 @@ def _freeze_json_value(value: object) -> object:
         return tuple(_freeze_json_value(item) for item in value)
     if isinstance(value, (set, frozenset)):
         raise MemoryValidationError("metadata sets are not JSON-compatible")
-    if value is None or isinstance(value, (str, int, float, bool)):
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise MemoryValidationError("metadata floats must be finite")
+        return value
+    if value is None or isinstance(value, (str, int, bool)):
         return value
     raise MemoryValidationError("metadata values must be JSON-like")
 
@@ -107,6 +112,35 @@ def validate_required_text(value: str, field_name: str) -> None:
     """Reject missing or whitespace-only domain identifiers."""
     if not isinstance(value, str) or not value.strip():
         raise MemoryValidationError(f"{field_name} must be a non-empty string")
+
+
+def _freeze_projection_states(
+    value: Mapping[str, ProjectionState],
+) -> Mapping[str, ProjectionState]:
+    if not isinstance(value, Mapping):
+        raise MemoryValidationError("projection states must be a mapping")
+    frozen: dict[str, object] = {}
+    for projection, state in value.items():
+        validate_required_text(projection, "projection name")
+        if not isinstance(state, ProjectionState):
+            raise MemoryValidationError(
+                "projection state values must be ProjectionState"
+            )
+        frozen[projection] = state
+    return cast(Mapping[str, ProjectionState], _FrozenDict(frozen))
+
+
+def _freeze_projection_event_ids(
+    value: Mapping[str, str],
+) -> Mapping[str, str]:
+    if not isinstance(value, Mapping):
+        raise MemoryValidationError("projection event IDs must be a mapping")
+    frozen: dict[str, object] = {}
+    for projection, event_id in value.items():
+        validate_required_text(projection, "projection event ID key")
+        validate_required_text(event_id, "projection event ID")
+        frozen[projection] = event_id
+    return cast(Mapping[str, str], _FrozenDict(frozen))
 
 
 def validate_relative_path(value: str, field_name: str) -> None:
@@ -218,12 +252,12 @@ class LedgerWrite:
         object.__setattr__(
             self,
             "projection_states",
-            _FrozenDict(dict(self.projection_states)),
+            _freeze_projection_states(self.projection_states),
         )
         object.__setattr__(
             self,
             "projection_event_ids",
-            _FrozenDict(dict(self.projection_event_ids)),
+            _freeze_projection_event_ids(self.projection_event_ids),
         )
 
 
@@ -241,5 +275,5 @@ class MemoryWriteReceipt:
         object.__setattr__(
             self,
             "projection_states",
-            _FrozenDict(dict(self.projection_states)),
+            _freeze_projection_states(self.projection_states),
         )
