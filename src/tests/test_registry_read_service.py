@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+import traceback
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
@@ -47,6 +48,92 @@ class _StoredAgent(BaseAgent):
         return {"status": "success", "summary": "stored"}
 
 
+class _ExplodingGetPort:
+    """Port double that exposes whether get failures are sanitized."""
+
+    def get_agent_record(self, name: str) -> Mapping[str, object] | None:
+        raise RuntimeError(f"backend exploded for {name}")
+
+    def list_agent_records(self) -> Sequence[Mapping[str, object]]:
+        return ()
+
+
+class _ExplodingListPort:
+    """Port double that exposes whether list failures are sanitized."""
+
+    def get_agent_record(self, name: str) -> Mapping[str, object] | None:
+        return None
+
+    def list_agent_records(self) -> Sequence[Mapping[str, object]]:
+        raise RuntimeError("backend failed at /private/registry-secret.db")
+
+
+class _SecretRegistryErrorGetPort:
+    """Port double that raises the service's error type with an unsafe message."""
+
+    def get_agent_record(self, name: str) -> Mapping[str, object] | None:
+        raise RegistryRecordError("port-registry-secret")
+
+    def list_agent_records(self) -> Sequence[Mapping[str, object]]:
+        return ()
+
+
+class _SecretRegistryErrorSequence(Sequence[Mapping[str, object]]):
+    """Store sequence that leaks through iteration unless the boundary sanitizes it."""
+
+    def __getitem__(self, index: int) -> Mapping[str, object]:
+        raise AssertionError("iteration should be used")
+
+    def __len__(self) -> int:
+        return 1
+
+    def __iter__(self):
+        raise RegistryRecordError("iterator-registry-secret")
+
+
+class _SecretRegistryErrorListPort:
+    """Port double returning a hostile list iterator."""
+
+    def get_agent_record(self, name: str) -> Mapping[str, object] | None:
+        return None
+
+    def list_agent_records(self) -> Sequence[Mapping[str, object]]:
+        return _SecretRegistryErrorSequence()
+
+
+class _SingleRecordPort:
+    """Read port for projection failures that avoids inspecting the record itself."""
+
+    def __init__(self, record: Mapping[str, object]) -> None:
+        self._record = record
+
+    def get_agent_record(self, name: str) -> Mapping[str, object] | None:
+        return self._record
+
+    def list_agent_records(self) -> Sequence[Mapping[str, object]]:
+        return (self._record,)
+
+
+class _ExplodingRecord(Mapping[str, object]):
+    """Canonical-shaped mapping that fails while a public key is extracted."""
+
+    def __getitem__(self, key: str) -> object:
+        raise RuntimeError("stored-secret-value")
+
+    def __iter__(self):
+        return iter(())
+
+    def __len__(self) -> int:
+        return 3
+
+
+class _ExplodingCapabilities(list[str]):
+    """Canonical-shaped capabilities that fail during validation iteration."""
+
+    def __iter__(self):
+        raise RuntimeError("stored-capability-secret")
+
+
 def _record(name: str = "research") -> dict[str, object]:
     return {
         "name": name,
@@ -59,6 +146,19 @@ def _record(name: str = "research") -> dict[str, object]:
         "hebbian_weight": 0.75,
         "routing_intelligence": 0.9,
     }
+
+
+def _assert_sanitized_record_error(
+    error: pytest.ExceptionInfo[RegistryRecordError], secret: str
+) -> None:
+    """Assert that a failed read cannot reveal a lower-layer exception."""
+    raised = error.value
+    rendered = "".join(traceback.format_exception(raised))
+
+    assert str(raised) == "registry record is malformed"
+    assert secret not in rendered
+    assert raised.__cause__ is None
+    assert raised.__suppress_context__ is True
 
 
 def test_get_agent_projects_only_the_public_canonical_fields() -> None:
@@ -154,7 +254,81 @@ def test_malformed_canonical_records_fail_closed_with_a_static_error(
     with pytest.raises(RegistryRecordError) as error:
         service.list_agents()
 
-    assert str(error.value) == "registry record is malformed"
+    _assert_sanitized_record_error(error, "research")
+
+
+def test_get_port_failure_does_not_expose_the_caller_name() -> None:
+    """A get-port exception must not leak an agent name to a read caller."""
+    service = RegistryReadService(_ExplodingGetPort())
+    private_name = "caller-private-name"
+
+    with pytest.raises(RegistryRecordError) as error:
+        service.get_agent(private_name)
+
+    _assert_sanitized_record_error(error, private_name)
+
+
+def test_get_capabilities_sanitizes_get_port_failure() -> None:
+    """Capabilities reads retain the same failure boundary as agent reads."""
+    service = RegistryReadService(_ExplodingGetPort())
+    private_name = "capability-private-name"
+
+    with pytest.raises(RegistryRecordError) as error:
+        service.get_capabilities(private_name)
+
+    _assert_sanitized_record_error(error, private_name)
+
+
+def test_list_port_failure_does_not_expose_backend_details() -> None:
+    """A list-port exception cannot reveal paths or other backend diagnostics."""
+    service = RegistryReadService(_ExplodingListPort())
+
+    with pytest.raises(RegistryRecordError) as error:
+        service.list_agents()
+
+    _assert_sanitized_record_error(error, "/private/registry-secret.db")
+
+
+def test_get_port_registry_error_cannot_supply_a_public_message() -> None:
+    """Even a same-class exception from a port is untrusted input."""
+    service = RegistryReadService(_SecretRegistryErrorGetPort())
+
+    with pytest.raises(RegistryRecordError) as error:
+        service.get_agent("research")
+
+    _assert_sanitized_record_error(error, "port-registry-secret")
+
+
+def test_list_iterator_registry_error_cannot_supply_a_public_message() -> None:
+    """Even a same-class exception from store iteration is untrusted input."""
+    service = RegistryReadService(_SecretRegistryErrorListPort())
+
+    with pytest.raises(RegistryRecordError) as error:
+        service.list_agents()
+
+    _assert_sanitized_record_error(error, "iterator-registry-secret")
+
+
+def test_mapping_key_failure_does_not_expose_stored_details() -> None:
+    """Record key extraction is inside the same sanitizing error boundary."""
+    service = RegistryReadService(_SingleRecordPort(_ExplodingRecord()))
+
+    with pytest.raises(RegistryRecordError) as error:
+        service.get_agent("research")
+
+    _assert_sanitized_record_error(error, "stored-secret-value")
+
+
+def test_capability_iteration_failure_does_not_expose_stored_details() -> None:
+    """Capability validation iteration is inside the sanitizing error boundary."""
+    record = _record()
+    record["capabilities"] = _ExplodingCapabilities(["search"])
+    service = RegistryReadService(_SingleRecordPort(record))
+
+    with pytest.raises(RegistryRecordError) as error:
+        service.get_agent("research")
+
+    _assert_sanitized_record_error(error, "stored-capability-secret")
 
 
 def test_real_store_adapter_preserves_sqlite_order_and_nullable_description(
