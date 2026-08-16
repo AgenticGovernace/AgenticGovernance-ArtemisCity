@@ -8,7 +8,10 @@ math is tested in isolation (no SQLite, no agents, no orchestrator).
 
 import pytest
 
-from src.integration.hebbian_router import HebbianRouter, RoutingDecision
+from src.integration.hebbian_router import HebbianRanker, HebbianRouter, RoutingDecision
+from src.routing.eligibility import EligibleCandidate
+
+from .test_routing_eligibility import _authorized, _filter, _record
 
 
 class _Agent:
@@ -354,7 +357,7 @@ def test_hebbian_router_clamps_alpha_plus_beta_to_one():
 
 @pytest.mark.unit
 def test_hebbian_router_trust_floor_with_no_survivors_raises():
-    """If the trust floor excludes every candidate, routing raises a trust-specific error."""
+    """A trust-floor-only denial reports the specific hard gate."""
     reg = _two_research_agents({"A": 0.9, "B": 0.6})
     trust = FakeTrust({"A": 0.1, "B": 0.1})
     router = HebbianRouter(reg, FakeHebbian(), trust_interface=trust, trust_floor=0.5)
@@ -438,3 +441,111 @@ def test_hebbian_router_exposes_sentinel_without_changing_ranking():
     candidate = next(item for item in decision.candidates if item.name == "A")
     assert candidate.sentinel_alert is True
     assert candidate.oscillation_rate == pytest.approx(0.6)
+
+
+@pytest.mark.unit
+def test_hebbian_ranker_scores_only_the_already_eligible_tuple():
+    """Learned evidence cannot discover or reintroduce an excluded agent."""
+    hebbian = FakeHebbian(
+        scoped_weights={
+            ("eligible-agent", "llm_chat"): 1.0,
+            ("quarantined-agent", "llm_chat"): 1000.0,
+        }
+    )
+    ranker = HebbianRanker(hebbian, alpha=1.0)
+    candidates = (
+        EligibleCandidate(
+            agent_id="agent:eligible-agent",
+            name="eligible-agent",
+            capabilities=frozenset({"llm_chat"}),
+            composite_score=0.2,
+            trust_score=0.8,
+        ),
+    )
+
+    decision = ranker.rank(_authorized(), candidates)
+
+    assert decision.agent_name == "eligible-agent"
+    assert [candidate.name for candidate in decision.candidates] == ["eligible-agent"]
+
+
+@pytest.mark.unit
+def test_quarantined_high_score_never_reaches_production_ranker():
+    """The eligibility-to-ranking handoff must exclude learned-score bypasses."""
+
+    class RecordingHebbian(FakeHebbian):
+        def __init__(self):
+            super().__init__(
+                scoped_weights={
+                    ("eligible-agent", "llm_chat"): 1.0,
+                    ("quarantined-agent", "llm_chat"): 1000.0,
+                }
+            )
+            self.seen = []
+
+        def get_task_type_weight(self, name, task_type):
+            self.seen.append(name)
+            return super().get_task_type_weight(name, task_type)
+
+    authorized = _authorized()
+    candidates = _filter(
+        (
+            _record("eligible-agent", composite_score=0.1),
+            _record(
+                "quarantined-agent",
+                quarantined=True,
+                composite_score=1.0,
+            ),
+        )
+    ).candidates(authorized)
+    hebbian = RecordingHebbian()
+
+    decision = HebbianRanker(hebbian, alpha=1.0).rank(authorized, candidates)
+
+    assert hebbian.seen == ["eligible-agent"]
+    assert decision.agent_name == "eligible-agent"
+
+
+@pytest.mark.unit
+def test_hebbian_ranker_requires_an_immutable_candidate_tuple():
+    """A mutable/list boundary could be altered between filtering and ranking."""
+    ranker = HebbianRanker(FakeHebbian())
+    candidate = EligibleCandidate(
+        agent_id="agent:a",
+        name="a",
+        capabilities=frozenset({"llm_chat"}),
+        composite_score=0.5,
+        trust_score=0.8,
+    )
+
+    with pytest.raises(TypeError, match="tuple"):
+        ranker.rank(_authorized(), [candidate])  # type: ignore[arg-type]
+
+
+@pytest.mark.unit
+def test_hebbian_ranker_breaks_exact_ties_by_name() -> None:
+    """Changing input order must not change a tied production route."""
+    ranker = HebbianRanker(FakeHebbian(), alpha=0.0, beta=0.0)
+    candidates = tuple(
+        EligibleCandidate(
+            agent_id=f"agent:{name}",
+            name=name,
+            capabilities=frozenset({"llm_chat"}),
+            composite_score=0.5,
+            trust_score=0.8,
+        )
+        for name in ("z-agent", "a-agent")
+    )
+
+    decision = ranker.rank(_authorized(), candidates)
+
+    assert decision.agent_name == "a-agent"
+
+
+@pytest.mark.unit
+def test_hebbian_ranker_has_no_fallback_or_discovery_path():
+    """An empty eligible tuple must stop instead of selecting a fallback."""
+    ranker = HebbianRanker(FakeHebbian(weights={"LLM": 1000.0}))
+
+    with pytest.raises(ValueError, match="No eligible candidates"):
+        ranker.rank(_authorized(), ())
