@@ -448,7 +448,6 @@ def test_src_entry_shows_wrapper_help(
             "src.launch.main",
             ["--skip-demos"],
         ),
-        (["--atp", "status"], "src.interface.artemis_cli", ["status"]),
         (["status"], "src.interface.artemis_cli", ["status"]),
         (
             ["--orchestrator", "--help"],
@@ -473,6 +472,25 @@ def test_src_entry_dispatches_and_forwards_arguments(
 
     sub_main.assert_called_once_with()
     assert sys.argv == ["python -m src", *forwarded]
+
+
+def test_src_entry_rejects_atp_until_adapter_lands(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The reserved ATP wrapper must fail closed until its adapter exists."""
+    ordinary_cli = MagicMock()
+    monkeypatch.setattr("src.interface.artemis_cli.main", ordinary_cli)
+    monkeypatch.setattr(sys, "argv", ["python -m src", "--atp", "status"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        src.entry()
+
+    assert exc_info.value.code == 2
+    assert capsys.readouterr().err == (
+        "--atp is reserved for the forthcoming Routing Kernel ATP adapter; "
+        "use the default CLI or --orchestrator for now.\n"
+    )
+    ordinary_cli.assert_not_called()
 
 
 def test_src_module_entrypoint_calls_package_dispatch(

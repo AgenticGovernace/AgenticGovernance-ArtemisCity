@@ -4,13 +4,18 @@ Enables running the project as a module:
 
     python -m src                          # Interactive Artemis CLI (default)
     python -m src --orchestrator           # MCP orchestrator pipeline
-    python -m src --atp                    # ATP-enabled CLI
+    python -m src --atp                    # Reserved ATP entrypoint
     python -m src "status"                 # One-shot Artemis command
     python -m src --plan plan.json         # Execute a plan file
 """
 
 import argparse
 import sys
+
+ATP_ADAPTER_PENDING_MESSAGE = (
+    "--atp is reserved for the forthcoming Routing Kernel ATP adapter; "
+    "use the default CLI or --orchestrator for now.\n"
+)
 
 
 def entry() -> None:
@@ -27,7 +32,7 @@ def entry() -> None:
     parser.add_argument(
         "--atp",
         action="store_true",
-        help="Run the ATP (Artemis Transmission Protocol) CLI.",
+        help="Reserved for the forthcoming Routing Kernel ATP adapter.",
     )
     parser.add_argument(
         "-h",
@@ -43,6 +48,9 @@ def entry() -> None:
         sys.exit(0)
     if args.help:
         forwarded_args.append("--help")
+    if args.atp:
+        sys.stderr.write(ATP_ADAPTER_PENDING_MESSAGE)
+        raise SystemExit(2)
 
     sys.argv = [sys.argv[0], *forwarded_args]
 
