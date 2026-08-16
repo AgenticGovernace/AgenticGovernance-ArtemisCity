@@ -223,6 +223,15 @@ def test_task_payload_rejects_raw_bearer_and_private_key_material(
         TaskEnvelopeV1(**valid_envelope)
 
 
+def test_task_payload_allows_benign_bearer_prose(
+    valid_submission: dict[str, object],
+) -> None:
+    """A Bearer word followed by ordinary prose is not credential material."""
+    valid_submission["content"] = "Bearer internationalization improves global UX."
+
+    assert TaskSubmissionV1(**valid_submission).content == valid_submission["content"]
+
+
 def test_transport_submission_rejects_trusted_adapter_intent_source(
     valid_submission: dict[str, object],
 ) -> None:
