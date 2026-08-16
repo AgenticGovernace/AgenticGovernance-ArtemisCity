@@ -10,7 +10,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
-from urllib.parse import parse_qsl, urlsplit
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 from .contracts import AuthReceiptV1
 from .verifier import AuthenticationDenied, AuthenticationRequest
@@ -361,8 +361,7 @@ class AuthstructureVerifier:
             for value in values:
                 if not value:
                     continue
-                if cls._has_uri_userinfo(value):
-                    leaves.add(value)
+                leaves.update(cls._uri_proof_leaves(value))
                 if not sensitive_name:
                     continue
                 leaves.add(value)
@@ -399,12 +398,13 @@ class AuthstructureVerifier:
         except (UnicodeDecodeError, ValueError):
             pass
         else:
-            target_leaves = {
-                value
-                for name, value in query_pairs
-                if value
-                and (cls._is_sensitive_proof_name(name) or cls._has_uri_userinfo(value))
-            }
+            target_leaves: set[str] = set()
+            for name, value in query_pairs:
+                if not value:
+                    continue
+                if cls._is_sensitive_proof_name(name):
+                    target_leaves.add(value)
+                target_leaves.update(cls._uri_proof_leaves(value))
             leaves.update(target_leaves)
             if target_leaves:
                 leaves.add(raw_target)
@@ -414,14 +414,14 @@ class AuthstructureVerifier:
     def _named_structured_proof_leaves(cls, value: object) -> frozenset[str]:
         leaves: set[str] = set()
         if isinstance(value, str):
-            if cls._has_uri_userinfo(value):
-                leaves.add(value)
+            leaves.update(cls._uri_proof_leaves(value))
         elif isinstance(value, tuple):
             for name, nested in value:
                 if cls._is_sensitive_proof_name(name):
-                    leaves.update(
-                        leaf for leaf in cls._parsed_json_string_leaves(nested) if leaf
-                    )
+                    for leaf in cls._parsed_json_string_leaves(nested):
+                        if leaf:
+                            leaves.add(leaf)
+                            leaves.update(cls._uri_proof_leaves(leaf))
                 else:
                     leaves.update(cls._named_structured_proof_leaves(nested))
         elif isinstance(value, list):
@@ -518,12 +518,21 @@ class AuthstructureVerifier:
         return re.sub(r"[^a-z0-9]+", "", name.casefold())
 
     @staticmethod
-    def _has_uri_userinfo(value: str) -> bool:
+    def _uri_proof_leaves(value: str) -> frozenset[str]:
         try:
             parsed = urlsplit(value)
         except ValueError:
-            return False
+            return frozenset()
         if not parsed.scheme or not parsed.netloc or "@" not in parsed.netloc:
-            return False
+            return frozenset()
         userinfo, _separator, host = parsed.netloc.rpartition("@")
-        return bool(userinfo and host)
+        if not userinfo or not host:
+            return frozenset()
+
+        leaves = {value, userinfo, unquote(userinfo)}
+        username, password_separator, password = userinfo.partition(":")
+        if username:
+            leaves.update((username, unquote(username)))
+        if password_separator and password:
+            leaves.update((password, unquote(password)))
+        return frozenset(leaf for leaf in leaves if leaf)

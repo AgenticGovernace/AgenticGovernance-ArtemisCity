@@ -11,6 +11,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal, cast
+from urllib.parse import quote
 
 import pytest
 
@@ -66,6 +67,59 @@ _ARTEMIS_CREDENTIAL_FIELD_NAMES = (
     "SUPABASE_DB_URL",
     "VITE_FASTAPI_API_KEY",
     "VITE_MCP_API_KEY",
+)
+
+_URI_PROOF_CASES = (
+    pytest.param(
+        "redis://token-only-userinfo-proof@cache.example.test/0",
+        "token-only-userinfo-proof",
+        id="token-only-userinfo",
+    ),
+    pytest.param(
+        "postgresql://username-only-proof:@db.example.test/artemis",
+        "username-only-proof",
+        id="username-only",
+    ),
+    pytest.param(
+        "postgresql://component-username:component-password@db.example.test/artemis",
+        "component-password",
+        id="password",
+    ),
+    pytest.param(
+        "postgresql://encoded%2Dusername:encoded%2Dpassword@db.example.test/artemis",
+        "encoded%2Dusername:encoded%2Dpassword",
+        id="raw-percent-encoded-userinfo",
+    ),
+    pytest.param(
+        "postgresql://encoded%2Dusername:encoded%2Dpassword@db.example.test/artemis",
+        "encoded-username:encoded-password",
+        id="decoded-percent-encoded-userinfo",
+    ),
+    pytest.param(
+        "postgresql://encoded%2Dusername:encoded%2Dpassword@db.example.test/artemis",
+        "encoded%2Dusername",
+        id="raw-percent-encoded-username",
+    ),
+    pytest.param(
+        "postgresql://encoded%2Dusername:encoded%2Dpassword@db.example.test/artemis",
+        "encoded-username",
+        id="decoded-percent-encoded-username",
+    ),
+    pytest.param(
+        "postgresql://encoded%2Dusername:encoded%2Dpassword@db.example.test/artemis",
+        "encoded%2Dpassword",
+        id="raw-percent-encoded-password",
+    ),
+    pytest.param(
+        "postgresql://encoded%2Dusername:encoded%2Dpassword@db.example.test/artemis",
+        "encoded-password",
+        id="decoded-percent-encoded-password",
+    ),
+    pytest.param(
+        "postgresql://full-dsn-user:full-dsn-password@db.example.test/artemis",
+        "postgresql://full-dsn-user:full-dsn-password@db.example.test/artemis",
+        id="complete-uri",
+    ),
 )
 
 _AUTHSTRUCTURE_URL_CASES = (
@@ -1197,34 +1251,25 @@ def test_authstructure_verify_preserves_repository_metadata_field_controls(
     assert receipt.principal is not None
 
 
-@pytest.mark.parametrize(
-    ("headers", "raw_target", "body"),
-    [
-        (
-            {"database-url": ("postgresql://user:password@db.example.test/artemis",)},
-            b"/v1/route",
-            b"{}",
-        ),
-        (
-            {},
-            b"/v1/route?url=postgresql%3A%2F%2Fuser%3Apassword%40db.example.test%2Fartemis",
-            b"{}",
-        ),
-        (
-            {},
-            b"/v1/route",
-            b'{"database":{"url":"postgresql://user:password@db.example.test/artemis"}}',
-        ),
-    ],
-)
-def test_authstructure_verify_rejects_uri_userinfo_structured_leaves(
-    headers: dict[str, tuple[str, ...]],
-    raw_target: bytes,
-    body: bytes,
-) -> None:
-    """A URI userinfo component is credential proof even under a generic name."""
-    dsn = "postgresql://user:password@db.example.test/artemis"
-    request = AuthenticationRequest(
+def _request_with_uri_ingress(
+    ingress: Literal["header", "query", "nested-json"], uri: str
+) -> AuthenticationRequest:
+    headers: dict[str, tuple[str, ...]] = {}
+    raw_target = b"/v1/route"
+    body = b"{}"
+    benign_url = "https://service.example.test/resource"
+    if ingress == "header":
+        headers = {"resource-url": (benign_url, uri)}
+    elif ingress == "query":
+        raw_target = (
+            f"/v1/route?url={quote(benign_url, safe='')}&url={quote(uri, safe='')}"
+        ).encode()
+    else:
+        body = (
+            f'{{"outer":{{"url":{json.dumps(benign_url)},'
+            f'"url":{json.dumps(uri)}}}}}'
+        ).encode()
+    return AuthenticationRequest(
         transport="http",
         request_id="request:1",
         method="POST",
@@ -1233,60 +1278,43 @@ def test_authstructure_verify_rejects_uri_userinfo_structured_leaves(
         headers=headers,
         body=body,
     )
+
+
+@pytest.mark.parametrize("ingress", ["header", "query", "nested-json"])
+@pytest.mark.parametrize(("uri", "echoed_proof"), _URI_PROOF_CASES)
+def test_authstructure_verify_rejects_uri_userinfo_proof_components(
+    ingress: Literal["header", "query", "nested-json"],
+    uri: str,
+    echoed_proof: str,
+) -> None:
+    """A receipt cannot echo a URI or any raw/decoded userinfo component."""
+    request = _request_with_uri_ingress(ingress, uri)
 
     with pytest.raises(AuthenticationDenied) as denied:
-        _verifier(_artifact(identity_overrides={"agent_id": dsn})).verify(request)
+        _verifier(_artifact(identity_overrides={"agent_id": echoed_proof})).verify(
+            request
+        )
 
     _assert_denial_is_safe(denied, "authentication_rejected")
-    assert dsn not in str(denied.value)
-    assert dsn not in repr(denied.value)
+    for secret in (uri, echoed_proof):
+        assert secret not in str(denied.value)
+        assert secret not in repr(denied.value)
 
 
 @pytest.mark.parametrize(
-    ("headers", "raw_target", "body", "benign_url"),
+    "benign_url",
     [
-        (
-            {"database-url": ("postgresql://db.example.test/artemis",)},
-            b"/v1/route",
-            b"{}",
-            "postgresql://db.example.test/artemis",
-        ),
-        (
-            {},
-            b"/v1/route?url=postgresql%3A%2F%2Fdb.example.test%2Fartemis",
-            b"{}",
-            "postgresql://db.example.test/artemis",
-        ),
-        (
-            {},
-            b"/v1/route",
-            b'{"database":{"url":"postgresql://db.example.test/artemis"}}',
-            "postgresql://db.example.test/artemis",
-        ),
-        (
-            {"service-url": ("https://auth.example.test/verify",)},
-            b"/v1/route",
-            b"{}",
-            "https://auth.example.test/verify",
-        ),
+        "postgresql://db.example.test/artemis",
+        "https://auth.example.test/verify",
     ],
 )
+@pytest.mark.parametrize("ingress", ["header", "query", "nested-json"])
 def test_authstructure_verify_allows_urls_without_userinfo(
-    headers: dict[str, tuple[str, ...]],
-    raw_target: bytes,
-    body: bytes,
+    ingress: Literal["header", "query", "nested-json"],
     benign_url: str,
 ) -> None:
-    """Generic service and database URLs remain benign without userinfo."""
-    request = AuthenticationRequest(
-        transport="http",
-        request_id="request:1",
-        method="POST",
-        authority="routing.artemis.city",
-        raw_target=raw_target,
-        headers=headers,
-        body=body,
-    )
+    """Duplicate structured URL fields remain benign without userinfo."""
+    request = _request_with_uri_ingress(ingress, benign_url)
 
     receipt = _verifier(_artifact(identity_overrides={"agent_id": benign_url})).verify(
         request
