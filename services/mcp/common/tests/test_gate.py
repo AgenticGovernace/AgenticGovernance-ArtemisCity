@@ -44,6 +44,15 @@ def test_local_principal_fails_closed_for_whitespace_only_identity(monkeypatch):
         LocalPrincipalProvider.from_environment().current()
 
 
+def test_local_principal_fails_closed_for_blank_capability_list(monkeypatch):
+    """Comma and whitespace separators must not create a local capability grant."""
+    monkeypatch.setenv("ARTEMIS_MCP_PRINCIPAL_ID", "local-operator")
+    monkeypatch.setenv("ARTEMIS_MCP_CAPABILITIES", " ,\t,  , ")
+
+    with pytest.raises(GovernanceDenied, match="principal configuration"):
+        LocalPrincipalProvider.from_environment().current()
+
+
 def test_incomplete_atp_envelope_is_rejected_by_contract():
     """Authority-bearing ATP metadata must include its provenance parent."""
     with pytest.raises(ValidationError, match="parent_provenance_id"):
