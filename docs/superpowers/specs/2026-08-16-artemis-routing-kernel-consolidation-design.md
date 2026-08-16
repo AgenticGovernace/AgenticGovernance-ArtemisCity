@@ -2,9 +2,16 @@
 
 **Date:** 2026-08-16
 
-**Status:** Approved direction; pending written-spec review
+**Status:** Approved for implementation
 
 **Branch:** `feature/routing-kernel-consolidation`
+
+**Implementation plans:**
+
+1. `docs/superpowers/plans/2026-08-16-artemis-routing-kernel-containment.md`
+2. `docs/superpowers/plans/2026-08-16-artemis-routing-kernel-core.md`
+3. `docs/superpowers/plans/2026-08-16-artemis-task-ledger-back-orchestration.md`
+4. `docs/superpowers/plans/2026-08-16-artemis-ingress-repository-linking-release.md`
 
 ## Purpose
 
