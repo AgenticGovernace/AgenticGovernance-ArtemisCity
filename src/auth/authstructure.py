@@ -23,9 +23,19 @@ _SENSITIVE_PROOF_NAMES = frozenset(
     {
         "accesskey",
         "accesstoken",
+        "anacondaapikey",
+        "anthropicapikey",
         "apikey",
         "apisecret",
         "apitoken",
+        "artemisapikeydefault",
+        "artemisembeddingapikey",
+        "artemismcpbearertoken",
+        "artemismemorydatabaseurl",
+        "artemismemorymigrationdatabaseurl",
+        "artemissupabasedburl",
+        "artemistestdatabaseurl",
+        "artemisvectorstoreapikey",
         "authorization",
         "authorizationcode",
         "authtoken",
@@ -41,15 +51,23 @@ _SENSITIVE_PROOF_NAMES = frozenset(
         "credential",
         "credentials",
         "dpop",
+        "dockerpassword",
+        "exoapikey",
+        "fastapiapikey",
+        "gfsecurityadminpassword",
         "githubtoken",
+        "grafanapassword",
         "hftoken",
+        "huggingfaceapikey",
         "idtoken",
         "jwt",
+        "mcpapikey",
         "neonapikey",
+        "obsidianapikey",
         "openaiapikey",
-        "anthropicapikey",
         "passphrase",
         "password",
+        "postgrespassword",
         "privatekey",
         "providerapikey",
         "providerapitoken",
@@ -57,6 +75,8 @@ _SENSITIVE_PROOF_NAMES = frozenset(
         "providertoken",
         "proof",
         "proxyauthorization",
+        "qdrantapikey",
+        "redispassword",
         "refreshtoken",
         "requestproof",
         "requestsignature",
@@ -66,7 +86,10 @@ _SENSITIVE_PROOF_NAMES = frozenset(
         "setcookie",
         "signature",
         "stripesecretkey",
+        "supabasedburl",
         "token",
+        "vitefastapiapikey",
+        "vitemcpapikey",
         "xaccesstoken",
         "xapikey",
         "xapisecret",
@@ -79,6 +102,7 @@ _SENSITIVE_PROOF_NAMES = frozenset(
         "xsessiontoken",
     }
 )
+_ARTEMIS_API_KEY_FAMILY_PREFIX = "artemisapikey"
 _AUTHORIZATION_PROOF_NAMES = frozenset({"authorization", "proxyauthorization"})
 _COOKIE_PROOF_NAME = "cookie"
 _SET_COOKIE_PROOF_NAME = "setcookie"
@@ -333,10 +357,13 @@ class AuthstructureVerifier:
         leaves: set[str] = set()
         for name, values in request.headers.items():
             normalized_name = cls._normalize_proof_name(name)
-            if normalized_name not in _SENSITIVE_PROOF_NAMES:
-                continue
+            sensitive_name = cls._is_sensitive_proof_name(name)
             for value in values:
                 if not value:
+                    continue
+                if cls._has_uri_userinfo(value):
+                    leaves.add(value)
+                if not sensitive_name:
                     continue
                 leaves.add(value)
                 if normalized_name in _AUTHORIZATION_PROOF_NAMES:
@@ -375,7 +402,8 @@ class AuthstructureVerifier:
             target_leaves = {
                 value
                 for name, value in query_pairs
-                if cls._is_sensitive_proof_name(name) and value
+                if value
+                and (cls._is_sensitive_proof_name(name) or cls._has_uri_userinfo(value))
             }
             leaves.update(target_leaves)
             if target_leaves:
@@ -385,7 +413,10 @@ class AuthstructureVerifier:
     @classmethod
     def _named_structured_proof_leaves(cls, value: object) -> frozenset[str]:
         leaves: set[str] = set()
-        if isinstance(value, tuple):
+        if isinstance(value, str):
+            if cls._has_uri_userinfo(value):
+                leaves.add(value)
+        elif isinstance(value, tuple):
             for name, nested in value:
                 if cls._is_sensitive_proof_name(name):
                     leaves.update(
@@ -476,10 +507,23 @@ class AuthstructureVerifier:
 
     @staticmethod
     def _is_sensitive_proof_name(name: str) -> bool:
-        return (
-            AuthstructureVerifier._normalize_proof_name(name) in _SENSITIVE_PROOF_NAMES
+        normalized = AuthstructureVerifier._normalize_proof_name(name)
+        return normalized in _SENSITIVE_PROOF_NAMES or (
+            normalized.startswith(_ARTEMIS_API_KEY_FAMILY_PREFIX)
+            and len(normalized) > len(_ARTEMIS_API_KEY_FAMILY_PREFIX)
         )
 
     @staticmethod
     def _normalize_proof_name(name: str) -> str:
         return re.sub(r"[^a-z0-9]+", "", name.casefold())
+
+    @staticmethod
+    def _has_uri_userinfo(value: str) -> bool:
+        try:
+            parsed = urlsplit(value)
+        except ValueError:
+            return False
+        if not parsed.scheme or not parsed.netloc or "@" not in parsed.netloc:
+            return False
+        userinfo, _separator, host = parsed.netloc.rpartition("@")
+        return bool(userinfo and host)

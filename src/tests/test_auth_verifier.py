@@ -38,6 +38,36 @@ EXPECTED_AUDIENCE = "artemis-city"
 EXPECTED_SIGNER_NAMESPACE = "authstructure"
 EXPECTED_RECEIPT_KEY_ID = "receipt-key:production-1"
 
+_ARTEMIS_CREDENTIAL_FIELD_NAMES = (
+    "ANACONDA_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "ARTEMIS_API_KEY_DEFAULT",
+    "ARTEMIS_EMBEDDING_API_KEY",
+    "ARTEMIS_MEMORY_DATABASE_URL",
+    "ARTEMIS_MEMORY_MIGRATION_DATABASE_URL",
+    "ARTEMIS_MCP_BEARER_TOKEN",
+    "ARTEMIS_SUPABASE_DB_URL",
+    "ARTEMIS_TEST_DATABASE_URL",
+    "ARTEMIS_VECTOR_STORE_API_KEY",
+    "DOCKER_PASSWORD",
+    "EXO_API_KEY",
+    "FASTAPI_API_KEY",
+    "GF_SECURITY_ADMIN_PASSWORD",
+    "GITHUB_TOKEN",
+    "GRAFANA_PASSWORD",
+    "HF_TOKEN",
+    "HUGGINGFACE_API_KEY",
+    "MCP_API_KEY",
+    "OBSIDIAN_API_KEY",
+    "OPENAI_API_KEY",
+    "POSTGRES_PASSWORD",
+    "QDRANT_API_KEY",
+    "REDIS_PASSWORD",
+    "SUPABASE_DB_URL",
+    "VITE_FASTAPI_API_KEY",
+    "VITE_MCP_API_KEY",
+)
+
 _AUTHSTRUCTURE_URL_CASES = (
     ("https://auth.example.test", True),
     ("https://auth.example.test/verify/v1", True),
@@ -1020,6 +1050,250 @@ def test_authstructure_verify_rejects_prefixed_and_provider_proof_aliases(
         _verifier(_artifact(identity_overrides={"agent_id": proof})).verify(request)
 
     _assert_denial_is_safe(denied, "authentication_rejected")
+
+
+@pytest.mark.parametrize("credential_name", _ARTEMIS_CREDENTIAL_FIELD_NAMES)
+def test_authstructure_verify_rejects_repository_credential_headers(
+    credential_name: str,
+) -> None:
+    """Every repository-declared credential header remains transient proof."""
+    proof = "repository-header-credential-do-not-retain"
+    request = AuthenticationRequest(
+        transport="http",
+        request_id="request:1",
+        method="POST",
+        authority="routing.artemis.city",
+        raw_target=b"/v1/route",
+        headers={credential_name: (proof,)},
+        body=b"{}",
+    )
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(_artifact(identity_overrides={"agent_id": proof})).verify(request)
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
+
+
+@pytest.mark.parametrize("credential_name", _ARTEMIS_CREDENTIAL_FIELD_NAMES)
+def test_authstructure_verify_rejects_repository_credential_query_fields(
+    credential_name: str,
+) -> None:
+    """Every repository-declared credential query field remains transient."""
+    proof = "repository-query-credential-do-not-retain"
+    request = AuthenticationRequest(
+        transport="http",
+        request_id="request:1",
+        method="POST",
+        authority="routing.artemis.city",
+        raw_target=f"/v1/route?{credential_name}={proof}".encode(),
+        headers={},
+        body=b"{}",
+    )
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(_artifact(identity_overrides={"agent_id": proof})).verify(request)
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
+
+
+@pytest.mark.parametrize("credential_name", _ARTEMIS_CREDENTIAL_FIELD_NAMES)
+def test_authstructure_verify_rejects_nested_duplicate_repository_credentials(
+    credential_name: str,
+) -> None:
+    """Nested duplicate credential fields cannot hide their first value."""
+    first_proof = "repository-json-first-credential-do-not-retain"
+    second_proof = "repository-json-second-credential-do-not-retain"
+    body = (
+        f'{{"outer":{{"{credential_name}":"{first_proof}",'
+        f'"{credential_name}":"{second_proof}"}}}}'
+    ).encode()
+    request = AuthenticationRequest(
+        transport="http",
+        request_id="request:1",
+        method="POST",
+        authority="routing.artemis.city",
+        raw_target=b"/v1/route",
+        headers={},
+        body=body,
+    )
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(_artifact(identity_overrides={"agent_id": first_proof})).verify(
+            request
+        )
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
+
+
+@pytest.mark.parametrize(
+    "credential_name",
+    [
+        "ARTEMIS_API_KEY_ADMIN",
+        "ARTEMIS_API_KEY_OPERATOR_7",
+        "artemisApiKeyServiceAccount",
+    ],
+)
+def test_authstructure_verify_rejects_dynamic_artemis_api_key_names(
+    credential_name: str,
+) -> None:
+    """The runtime ARTEMIS_API_KEY_<NAME> credential family is closed as proof."""
+    proof = "dynamic-artemis-api-key-do-not-retain"
+    request = AuthenticationRequest(
+        transport="http",
+        request_id="request:1",
+        method="POST",
+        authority="routing.artemis.city",
+        raw_target=b"/v1/route",
+        headers={credential_name: (proof,)},
+        body=b"{}",
+    )
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(_artifact(identity_overrides={"agent_id": proof})).verify(request)
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
+
+
+@pytest.mark.parametrize(
+    "metadata_name",
+    [
+        "ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID",
+        "ARTEMIS_AUTHSTRUCTURE_URL",
+        "ARTEMIS_MCP_AUTH_ISSUER_URL",
+        "ARTEMIS_MCP_CAPABILITIES",
+        "ARTEMIS_MCP_HTTP_CLIENT_ID",
+        "ARTEMIS_MCP_HTTP_SCOPES",
+        "ARTEMIS_MCP_HTTP_SUBJECT",
+        "ARTEMIS_MCP_PRINCIPAL_ID",
+        "ARTEMIS_MCP_RESOURCE_SERVER_URL",
+        "ARTEMIS_VECTOR_STORE_URL",
+        "MCP_BASE_URL",
+        "OBSIDIAN_VAULT_PATH",
+        "OBSIDIAN_CA_CERT",
+        "EXO_MODEL_URL",
+        "x-request-key-id",
+        "token-key-id",
+        "certificate-serial",
+        "certificate-thumbprint",
+    ],
+)
+def test_authstructure_verify_preserves_repository_metadata_field_controls(
+    metadata_name: str,
+) -> None:
+    """Repository endpoints, paths, certificates, and identifiers are not proof."""
+    metadata_value = "credential-like-metadata-control"
+    request = AuthenticationRequest(
+        transport="http",
+        request_id="request:1",
+        method="POST",
+        authority="routing.artemis.city",
+        raw_target=b"/v1/route",
+        headers={metadata_name: (metadata_value,)},
+        body=b"{}",
+    )
+
+    receipt = _verifier(_artifact()).verify(request)
+
+    assert receipt.principal is not None
+
+
+@pytest.mark.parametrize(
+    ("headers", "raw_target", "body"),
+    [
+        (
+            {"database-url": ("postgresql://user:password@db.example.test/artemis",)},
+            b"/v1/route",
+            b"{}",
+        ),
+        (
+            {},
+            b"/v1/route?url=postgresql%3A%2F%2Fuser%3Apassword%40db.example.test%2Fartemis",
+            b"{}",
+        ),
+        (
+            {},
+            b"/v1/route",
+            b'{"database":{"url":"postgresql://user:password@db.example.test/artemis"}}',
+        ),
+    ],
+)
+def test_authstructure_verify_rejects_uri_userinfo_structured_leaves(
+    headers: dict[str, tuple[str, ...]],
+    raw_target: bytes,
+    body: bytes,
+) -> None:
+    """A URI userinfo component is credential proof even under a generic name."""
+    dsn = "postgresql://user:password@db.example.test/artemis"
+    request = AuthenticationRequest(
+        transport="http",
+        request_id="request:1",
+        method="POST",
+        authority="routing.artemis.city",
+        raw_target=raw_target,
+        headers=headers,
+        body=body,
+    )
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(_artifact(identity_overrides={"agent_id": dsn})).verify(request)
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
+    assert dsn not in str(denied.value)
+    assert dsn not in repr(denied.value)
+
+
+@pytest.mark.parametrize(
+    ("headers", "raw_target", "body", "benign_url"),
+    [
+        (
+            {"database-url": ("postgresql://db.example.test/artemis",)},
+            b"/v1/route",
+            b"{}",
+            "postgresql://db.example.test/artemis",
+        ),
+        (
+            {},
+            b"/v1/route?url=postgresql%3A%2F%2Fdb.example.test%2Fartemis",
+            b"{}",
+            "postgresql://db.example.test/artemis",
+        ),
+        (
+            {},
+            b"/v1/route",
+            b'{"database":{"url":"postgresql://db.example.test/artemis"}}',
+            "postgresql://db.example.test/artemis",
+        ),
+        (
+            {"service-url": ("https://auth.example.test/verify",)},
+            b"/v1/route",
+            b"{}",
+            "https://auth.example.test/verify",
+        ),
+    ],
+)
+def test_authstructure_verify_allows_urls_without_userinfo(
+    headers: dict[str, tuple[str, ...]],
+    raw_target: bytes,
+    body: bytes,
+    benign_url: str,
+) -> None:
+    """Generic service and database URLs remain benign without userinfo."""
+    request = AuthenticationRequest(
+        transport="http",
+        request_id="request:1",
+        method="POST",
+        authority="routing.artemis.city",
+        raw_target=raw_target,
+        headers=headers,
+        body=body,
+    )
+
+    receipt = _verifier(_artifact(identity_overrides={"agent_id": benign_url})).verify(
+        request
+    )
+
+    assert receipt.principal is not None
+    assert receipt.principal.identity.agent_id == benign_url
 
 
 @pytest.mark.parametrize(
