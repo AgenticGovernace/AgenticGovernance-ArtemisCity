@@ -110,6 +110,20 @@ active_declares() {
     grep -qE "^$key=" "$file"
 }
 
+# Count active declarations without reading any value. Authstructure operator
+# fields require exactly one declaration before their value may be inspected.
+active_declaration_count() {
+    local key="$1" file="$2"
+    if [[ ! -f "$file" ]]; then
+        printf '0'
+        return
+    fi
+    awk -v k="$key" '
+        $0 ~ "^" k "=" { count += 1 }
+        END { print count + 0 }
+    ' "$file"
+}
+
 # Replace the first active/commented declaration, or append KEY=VALUE. Values
 # are passed through awk rather than sed so URLs, colons, and ampersands do not
 # become replacement expressions. Generated secret values are hex-safe.
@@ -256,7 +270,7 @@ is_valid_authstructure_value() {
 # operator-supplied and valid before prompts, file creation, secret discovery,
 # rotation, or reconciliation. Diagnostics expose only the key and safe state.
 preflight_authstructure_for_mutation() {
-    local entry example target _label line key value state
+    local entry example target _label line key value state declaration_count
     local invalid=0
 
     for entry in "${TARGETS[@]}"; do
@@ -271,14 +285,19 @@ preflight_authstructure_for_mutation() {
             state=""
             if [[ ! -f "$target" ]]; then
                 state="missing target"
-            elif ! active_declares "$key" "$target"; then
-                state="missing"
             else
-                value="$(read_env_value "$key" "$target")"
-                if [[ -z "$value" ]]; then
-                    state="blank"
-                elif ! is_valid_authstructure_value "$key" "$value"; then
-                    state="malformed"
+                declaration_count="$(active_declaration_count "$key" "$target")"
+                if (( declaration_count == 0 )); then
+                    state="missing"
+                elif (( declaration_count > 1 )); then
+                    state="duplicate"
+                else
+                    value="$(read_env_value "$key" "$target")"
+                    if [[ -z "$value" ]]; then
+                        state="blank"
+                    elif ! is_valid_authstructure_value "$key" "$value"; then
+                        state="malformed"
+                    fi
                 fi
             fi
 
@@ -420,7 +439,7 @@ sync_key() {
 # value, and the vector-store API key is a derived alias of QDRANT_API_KEY.
 sync_template() {
     local example="$1" target="$2"
-    local line key template_value expected
+    local line key template_value expected declaration_count
     local changed=0
 
     [[ -f "$target" ]] || return 0
@@ -442,11 +461,21 @@ sync_template() {
         fi
 
         if is_operator_authstructure_config "$key"; then
-            if ! active_declares "$key" "$target"; then
+            declaration_count="$(active_declaration_count "$key" "$target")"
+            if (( declaration_count == 0 )); then
                 if [[ "$MODE" == "check" ]]; then
                     echo -e "  $YELLOW""drift$NC $target — missing $key"
                 else
                     echo -e "  $YELLOW""incomplete$NC $target — missing $key; operator action required"
+                fi
+                changed=1
+                continue
+            fi
+            if (( declaration_count > 1 )); then
+                if [[ "$MODE" == "check" ]]; then
+                    echo -e "  $YELLOW""drift$NC $target — $key duplicate"
+                else
+                    echo -e "  $YELLOW""incomplete$NC $target — $key duplicate; operator action required"
                 fi
                 changed=1
                 continue

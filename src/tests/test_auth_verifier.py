@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 from collections.abc import Callable
@@ -881,6 +882,147 @@ def test_authstructure_verify_rejects_exact_sensitive_header_leaves(
 
 
 @pytest.mark.parametrize(
+    ("header_name", "header_value", "echoed_proof"),
+    [
+        (
+            "Authorization",
+            "Bearer bearer-component-do-not-retain",
+            "bearer-component-do-not-retain",
+        ),
+        (
+            "Proxy-Authorization",
+            "Basic proxy-component-do-not-retain",
+            "proxy-component-do-not-retain",
+        ),
+        (
+            "Cookie",
+            "session=cookie-component-do-not-retain; theme=light",
+            "cookie-component-do-not-retain",
+        ),
+        (
+            "Set-Cookie",
+            "session=set-cookie-component-do-not-retain; Path=/; HttpOnly",
+            "set-cookie-component-do-not-retain",
+        ),
+        (
+            "Cookie",
+            'session="quoted;cookie=component-do-not-retain"; theme=light',
+            "quoted;cookie=component-do-not-retain",
+        ),
+        (
+            "Set-Cookie",
+            'session="quoted;set-cookie=component-do-not-retain"; Path=/',
+            "quoted;set-cookie=component-do-not-retain",
+        ),
+        (
+            "Cookie",
+            "session=first-cookie-secret; session=second-cookie-secret",
+            "first-cookie-secret",
+        ),
+        (
+            "Cookie",
+            "session=first-cookie-secret; session=second-cookie-secret",
+            "second-cookie-secret",
+        ),
+    ],
+)
+def test_authstructure_verify_rejects_sensitive_header_components(
+    header_name: str,
+    header_value: str,
+    echoed_proof: str,
+) -> None:
+    """Extracted bearer, proxy, and cookie values cannot enter receipts."""
+    request = AuthenticationRequest(
+        transport="http",
+        request_id="request:1",
+        method="POST",
+        authority="routing.artemis.city",
+        raw_target=b"/v1/route",
+        headers={header_name: (header_value,)},
+        body=b"{}",
+    )
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(_artifact(identity_overrides={"agent_id": echoed_proof})).verify(
+            request
+        )
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
+    assert echoed_proof not in str(denied.value)
+    assert echoed_proof not in repr(denied.value)
+
+
+def test_authstructure_verify_rejects_embedded_sensitive_header_component() -> None:
+    """A long extracted bearer token remains proof inside a larger receipt leaf."""
+    token = "bearer-component-do-not-retain"
+    request = AuthenticationRequest(
+        transport="http",
+        request_id="request:1",
+        method="POST",
+        authority="routing.artemis.city",
+        raw_target=b"/v1/route",
+        headers={"Authorization": (f"Bearer {token}",)},
+        body=b"{}",
+    )
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(
+            _artifact(identity_overrides={"agent_id": f"prefix::{token}::suffix"})
+        ).verify(request)
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
+
+
+@pytest.mark.parametrize(
+    "header_name",
+    [
+        "x_access_token",
+        "XAccessToken",
+        "x-refresh-token",
+        "XRefreshToken",
+        "x_session_token",
+        "XSessionToken",
+        "x-bearer-token",
+        "XBearerToken",
+        "provider-secret",
+        "ProviderSecret",
+        "provider_api_token",
+        "ProviderAPIToken",
+        "aws-secret-access-key",
+        "AWSSecretAccessKey",
+        "x_api_key",
+        "XApiKey",
+        "XAPIKey",
+        "openai-api-key",
+        "OpenAIAPIKey",
+        "github-token",
+        "GitHubToken",
+        "stripe-secret-key",
+        "StripeSecretKey",
+    ],
+)
+def test_authstructure_verify_rejects_prefixed_and_provider_proof_aliases(
+    header_name: str,
+) -> None:
+    """Whole-name aliases normalize across separators, camel case, and acronyms."""
+    proof = "provider-credential-do-not-retain"
+    request = AuthenticationRequest(
+        transport="http",
+        request_id="request:1",
+        method="POST",
+        authority="routing.artemis.city",
+        raw_target=b"/v1/route",
+        headers={header_name: (proof,)},
+        body=b"{}",
+    )
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(_artifact(identity_overrides={"agent_id": proof})).verify(request)
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
+
+
+@pytest.mark.parametrize(
     "echoed_proof",
     [
         "raw-body-proof-do-not-retain",
@@ -937,6 +1079,10 @@ def test_authstructure_verify_rejects_every_sensitive_query_occurrence(
         (
             b'{"proof":"duplicate-first-secret","proof":"second-secret"}',
             "duplicate-first-secret",
+        ),
+        (
+            b'{"outer":{"proof":"nested-first-secret","proof":"nested-second-secret"}}',
+            "nested-first-secret",
         ),
     ],
 )
@@ -1002,9 +1148,14 @@ def test_authstructure_verify_rejects_embedded_high_information_proof(
     ("metadata_name", "metadata_value"),
     [
         ("x-request-key-id", "request-key:1"),
+        ("XRequestKeyId", "request-key:1"),
+        ("XREQUESTKEYID", "request-key:1"),
         ("token-key-id", "capability-key:1"),
+        ("token_key_id", "capability-key:1"),
         ("certificate-serial", "serial:0123"),
+        ("CertificateSerial", "serial:0123"),
         ("certificate-thumbprint", "thumbprint:abc123"),
+        ("certificateThumbprint", "thumbprint:abc123"),
     ],
 )
 def test_authstructure_verify_does_not_classify_security_metadata_as_proof(
@@ -1052,6 +1203,38 @@ def test_authstructure_artifact_repr_omits_receipt_and_canonical_bytes() -> None
 
     assert RAW_AUTHORIZATION not in representation
     assert "transport_echo" not in representation
+
+
+def test_authstructure_verify_sanitizes_parsed_secret_representation(
+    monkeypatch,
+) -> None:
+    """A parser failure containing parsed proof structure cannot surface it."""
+    parsed_secret = "parsed-cookie-secret-do-not-retain"
+    artifact = _artifact()
+    request = AuthenticationRequest(
+        transport="http",
+        request_id="request:1",
+        method="POST",
+        authority="routing.artemis.city",
+        raw_target=b"/v1/route",
+        headers={},
+        body=f'{{"cookie":"{parsed_secret}"}}'.encode(),
+    )
+    real_json_loads = json.loads
+
+    def reject_with_parsed_repr(*args, **kwargs):
+        if args and args[0] == artifact.canonical_receipt_bytes:
+            return real_json_loads(*args, **kwargs)
+        raise RuntimeError(repr((("cookie", parsed_secret),)))
+
+    monkeypatch.setattr("src.auth.authstructure.json.loads", reject_with_parsed_repr)
+
+    with pytest.raises(AuthenticationDenied) as denied:
+        _verifier(artifact).verify(request)
+
+    _assert_denial_is_safe(denied, "authentication_rejected")
+    assert parsed_secret not in str(denied.value)
+    assert parsed_secret not in repr(denied.value)
 
 
 class _ExplodingPrincipal:
@@ -1304,6 +1487,37 @@ def _authstructure_env(values: dict[str, str]) -> str:
     return "".join(f"{key}={values[key]}\n" for key in order if key in values)
 
 
+def _duplicated_authstructure_env(
+    values: dict[str, str],
+    duplicate_key: str,
+    *,
+    invalid_first: bool,
+) -> bytes:
+    invalid_value = (
+        "https://operator-secret@auth.example.test/verify"
+        if duplicate_key == "ARTEMIS_AUTHSTRUCTURE_URL"
+        else "operator-secret malformed"
+    )
+    duplicate_values = (
+        (invalid_value, values[duplicate_key])
+        if invalid_first
+        else (values[duplicate_key], invalid_value)
+    )
+    lines = [f"{key}={value}" for key, value in values.items() if key != duplicate_key]
+    lines.extend(f"{duplicate_key}={value}" for value in duplicate_values)
+    lines.extend(
+        (
+            "MCP_API_KEY=owned-secret-must-not-rotate",
+            "FASTAPI_API_KEY=owned-secret-must-not-rotate",
+            "ARTEMIS_API_KEY_DEFAULT=owned-secret-must-not-rotate:admin:read",
+            "REDIS_PASSWORD=owned-secret-must-not-rotate",
+            "QDRANT_API_KEY=owned-secret-must-not-rotate",
+            "GRAFANA_PASSWORD=owned-secret-must-not-rotate",
+        )
+    )
+    return ("\n".join(lines) + "\n").encode()
+
+
 def _setup_secrets_fixture(tmp_path: Path, values: dict[str, str]) -> tuple[Path, Path]:
     repository_root = Path(__file__).resolve().parents[2]
     script = tmp_path / "setup_secrets.sh"
@@ -1374,7 +1588,13 @@ def _valid_setup_values() -> dict[str, str]:
     }
 
 
-def _run_setup(script: Path, cwd: Path, mode: str) -> subprocess.CompletedProcess[str]:
+def _run_setup(
+    script: Path,
+    cwd: Path,
+    mode: str,
+    *,
+    environment: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     command = ["bash", str(script)]
     if mode == "regenerate":
         command.append("--regenerate")
@@ -1387,6 +1607,7 @@ def _run_setup(script: Path, cwd: Path, mode: str) -> subprocess.CompletedProces
         text=True,
         input="y\n",
         check=False,
+        env=environment,
     )
 
 
@@ -1462,6 +1683,75 @@ def test_setup_check_accepts_valid_authstructure_configuration(
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("duplicate_key", tuple(_valid_setup_values()))
+@pytest.mark.parametrize("invalid_first", [False, True])
+def test_setup_check_rejects_duplicate_authstructure_declarations_without_values(
+    tmp_path: Path,
+    duplicate_key: str,
+    invalid_first: bool,
+) -> None:
+    """Check mode reports duplicate operator keys without choosing a value."""
+    values = _valid_setup_values()
+    script, root_env = _setup_secrets_fixture(tmp_path, values)
+    content = _duplicated_authstructure_env(
+        values,
+        duplicate_key,
+        invalid_first=invalid_first,
+    )
+    root_env.write_bytes(content)
+
+    result = _run_setup(script, tmp_path, "check")
+    output = result.stdout + result.stderr
+
+    assert result.returncode == 1
+    assert root_env.read_bytes() == content
+    assert f"{duplicate_key} duplicate" in output
+    assert "operator-secret" not in output
+
+
+@pytest.mark.parametrize("mode", ["sync", "regenerate"])
+@pytest.mark.parametrize("duplicate_key", tuple(_valid_setup_values()))
+@pytest.mark.parametrize("invalid_first", [False, True])
+def test_setup_mutating_modes_preflight_duplicate_authstructure_declarations(
+    tmp_path: Path,
+    mode: str,
+    duplicate_key: str,
+    invalid_first: bool,
+) -> None:
+    """Duplicate operator keys stop before every prompt, rotation, and write."""
+    values = _valid_setup_values()
+    root_env_bytes = _duplicated_authstructure_env(
+        values,
+        duplicate_key,
+        invalid_first=invalid_first,
+    )
+    script, _, targets = _realistic_setup_fixture(tmp_path, root_env_bytes)
+    before = {target: target.read_bytes() for target in targets}
+    binary_dir = tmp_path / "bin"
+    binary_dir.mkdir()
+    openssl_marker = tmp_path / "openssl-called"
+    fake_openssl = binary_dir / "openssl"
+    fake_openssl.write_text(
+        '#!/usr/bin/env bash\nprintf called > "$ARTEMIS_TEST_OPENSSL_MARKER"\n'
+    )
+    fake_openssl.chmod(0o755)
+    environment = dict(os.environ)
+    environment["PATH"] = f"{binary_dir}:{environment['PATH']}"
+    environment["ARTEMIS_TEST_OPENSSL_MARKER"] = str(openssl_marker)
+
+    result = _run_setup(script, tmp_path, mode, environment=environment)
+    output = result.stdout + result.stderr
+
+    assert result.returncode == 1
+    assert all(target.read_bytes() == content for target, content in before.items())
+    assert not openssl_marker.exists()
+    assert f"{duplicate_key} duplicate" in output
+    assert "operator action required" in output
+    assert "Create from its .env.example?" not in output
+    assert "Setup complete." not in output
+    assert "operator-secret" not in output
 
 
 def test_setup_sync_and_regenerate_preserve_authstructure_values(

@@ -16,30 +16,23 @@ from .contracts import AuthReceiptV1
 from .verifier import AuthenticationDenied, AuthenticationRequest
 
 AUTHSTRUCTURE_RECEIPT_FORMAT = "authstructure.receipt/2"
+# Exact whole-name aliases are compared after removing ASCII separators and
+# case. This makes snake, kebab, camel, and acronym spellings equivalent while
+# keeping identifier metadata such as ``token-key-id`` outside the grammar.
 _SENSITIVE_PROOF_NAMES = frozenset(
     {
-        "access-token",
-        "access-key",
         "accesskey",
         "accesstoken",
-        "api-key",
-        "api-token",
         "apikey",
+        "apisecret",
         "apitoken",
-        "auth-token",
         "authorization",
-        "authorization-code",
         "authorizationcode",
         "authtoken",
-        "bearer-token",
+        "awssecretaccesskey",
         "bearertoken",
-        "certificate-pem",
-        "certificatepem",
         "certificate",
-        "client-certificate",
-        "client-credentials",
-        "client-proof",
-        "client-secret",
+        "certificatepem",
         "clientcertificate",
         "clientcredentials",
         "clientproof",
@@ -47,47 +40,52 @@ _SENSITIVE_PROOF_NAMES = frozenset(
         "cookie",
         "credential",
         "credentials",
-        "dpo-p",
         "dpop",
-        "id-token",
+        "githubtoken",
+        "hftoken",
         "idtoken",
         "jwt",
+        "neonapikey",
+        "openaiapikey",
+        "anthropicapikey",
         "passphrase",
         "password",
-        "private-key",
         "privatekey",
+        "providerapikey",
+        "providerapitoken",
+        "providersecret",
+        "providertoken",
         "proof",
-        "proxy-authorization",
-        "refresh-token",
+        "proxyauthorization",
         "refreshtoken",
-        "request-proof",
-        "request-signature",
         "requestproof",
         "requestsignature",
         "secret",
-        "secret-key",
         "secretkey",
-        "session-token",
         "sessiontoken",
-        "set-cookie",
+        "setcookie",
         "signature",
+        "stripesecretkey",
         "token",
-        "x-api-key",
-        "x-apikey",
-        "x-auth-token",
-        "x-client-proof",
-        "x-request-signature",
+        "xaccesstoken",
+        "xapikey",
+        "xapisecret",
+        "xapitoken",
+        "xauthtoken",
+        "xbearertoken",
+        "xclientproof",
+        "xrefreshtoken",
+        "xrequestsignature",
+        "xsessiontoken",
     }
 )
+_AUTHORIZATION_PROOF_NAMES = frozenset({"authorization", "proxyauthorization"})
+_COOKIE_PROOF_NAME = "cookie"
+_SET_COOKIE_PROOF_NAME = "setcookie"
 # Every nonempty value under an exact sensitive alias is proof. Exact receipt
 # leaf matches always deny; sufficiently high-information values also deny when
 # contained in a larger receipt leaf, such as a prefixed Authorization echo.
 _PROOF_CONTAINMENT_MIN_LENGTH = 16
-
-
-@dataclass(frozen=True)
-class _DuplicatePreservingJsonObject:
-    pairs: tuple[tuple[str, object], ...]
 
 
 @dataclass(frozen=True, repr=False)
@@ -322,12 +320,6 @@ class AuthstructureVerifier:
     def _string_leaves(cls, value: object) -> Sequence[str]:
         if isinstance(value, str):
             return (value,)
-        if isinstance(value, _DuplicatePreservingJsonObject):
-            return tuple(
-                leaf
-                for _name, nested in value.pairs
-                for leaf in cls._string_leaves(nested)
-            )
         if isinstance(value, Mapping):
             return tuple(
                 leaf for nested in value.values() for leaf in cls._string_leaves(nested)
@@ -340,16 +332,27 @@ class AuthstructureVerifier:
     def _structured_proof_leaves(cls, request: AuthenticationRequest) -> frozenset[str]:
         leaves: set[str] = set()
         for name, values in request.headers.items():
-            if cls._is_sensitive_proof_name(name):
-                leaves.update(value for value in values if value)
+            normalized_name = cls._normalize_proof_name(name)
+            if normalized_name not in _SENSITIVE_PROOF_NAMES:
+                continue
+            for value in values:
+                if not value:
+                    continue
+                leaves.add(value)
+                if normalized_name in _AUTHORIZATION_PROOF_NAMES:
+                    payload = cls._authorization_payload(value)
+                    if payload:
+                        leaves.add(payload)
+                elif normalized_name == _COOKIE_PROOF_NAME:
+                    leaves.update(cls._cookie_values(value, first_only=False))
+                elif normalized_name == _SET_COOKIE_PROOF_NAME:
+                    leaves.update(cls._cookie_values(value, first_only=True))
 
         try:
             body_text = request.body.decode("utf-8")
             body_value = json.loads(
                 body_text,
-                object_pairs_hook=lambda pairs: _DuplicatePreservingJsonObject(
-                    tuple(pairs)
-                ),
+                object_pairs_hook=lambda pairs: tuple(pairs),
             )
         except (UnicodeDecodeError, json.JSONDecodeError):
             pass
@@ -382,19 +385,101 @@ class AuthstructureVerifier:
     @classmethod
     def _named_structured_proof_leaves(cls, value: object) -> frozenset[str]:
         leaves: set[str] = set()
-        if isinstance(value, _DuplicatePreservingJsonObject):
-            for name, nested in value.pairs:
+        if isinstance(value, tuple):
+            for name, nested in value:
                 if cls._is_sensitive_proof_name(name):
-                    leaves.update(leaf for leaf in cls._string_leaves(nested) if leaf)
+                    leaves.update(
+                        leaf for leaf in cls._parsed_json_string_leaves(nested) if leaf
+                    )
                 else:
                     leaves.update(cls._named_structured_proof_leaves(nested))
-        elif isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        elif isinstance(value, list):
             for nested in value:
                 leaves.update(cls._named_structured_proof_leaves(nested))
         return frozenset(leaves)
 
+    @classmethod
+    def _parsed_json_string_leaves(cls, value: object) -> Sequence[str]:
+        if isinstance(value, str):
+            return (value,)
+        if isinstance(value, tuple):
+            return tuple(
+                leaf
+                for _name, nested in value
+                for leaf in cls._parsed_json_string_leaves(nested)
+            )
+        if isinstance(value, list):
+            return tuple(
+                leaf
+                for nested in value
+                for leaf in cls._parsed_json_string_leaves(nested)
+            )
+        return ()
+
+    @staticmethod
+    def _authorization_payload(value: str) -> str | None:
+        parts = value.split(None, 1)
+        if len(parts) != 2:
+            return None
+        payload = parts[1].strip()
+        return payload or None
+
+    @staticmethod
+    def _cookie_values(value: str, *, first_only: bool) -> frozenset[str]:
+        leaves: set[str] = set()
+        segments = AuthstructureVerifier._cookie_segments(value)
+        if first_only:
+            segments = segments[:1]
+        for segment in segments:
+            if "=" not in segment:
+                continue
+            _name, raw_cookie_value = segment.split("=", 1)
+            cookie_value = raw_cookie_value.strip()
+            if cookie_value:
+                leaves.add(cookie_value)
+            if cookie_value.startswith(('"', "'")):
+                quote = cookie_value[0]
+                inner = (
+                    cookie_value[1:-1]
+                    if cookie_value.endswith(quote) and len(cookie_value) >= 2
+                    else cookie_value[1:]
+                )
+                if inner:
+                    leaves.add(inner)
+                    leaves.add(re.sub(r"\\(.)", r"\1", inner))
+        return frozenset(leaves)
+
+    @staticmethod
+    def _cookie_segments(value: str) -> tuple[str, ...]:
+        segments: list[str] = []
+        start = 0
+        quote: str | None = None
+        escaped = False
+        for index, character in enumerate(value):
+            if escaped:
+                escaped = False
+                continue
+            if character == "\\" and quote is not None:
+                escaped = True
+                continue
+            if character in {'"', "'"}:
+                if quote is None:
+                    quote = character
+                elif quote == character:
+                    quote = None
+                continue
+            if character == ";" and quote is None:
+                segments.append(value[start:index])
+                start = index + 1
+        segments.append(value[start:])
+        return tuple(segments)
+
     @staticmethod
     def _is_sensitive_proof_name(name: str) -> bool:
-        camel_separated = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "-", name)
-        normalized = re.sub(r"[^a-z0-9]+", "-", camel_separated.casefold()).strip("-")
-        return normalized in _SENSITIVE_PROOF_NAMES
+        return (
+            AuthstructureVerifier._normalize_proof_name(name) in _SENSITIVE_PROOF_NAMES
+        )
+
+    @staticmethod
+    def _normalize_proof_name(name: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "", name.casefold())
