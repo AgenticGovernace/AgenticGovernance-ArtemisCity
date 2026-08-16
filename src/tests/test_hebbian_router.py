@@ -132,6 +132,17 @@ def test_hebbian_router_alpha_zero_equals_composite():
 
 
 @pytest.mark.unit
+def test_hebbian_router_alpha_blend_uses_one_minus_alpha():
+    registry = FakeRegistry([_Agent("A", ["research"])], {"A": 0.5})
+    hebbian = FakeHebbian(scoped_weights={("A", "research"): 1.0})
+    decision = HebbianRouter(registry, hebbian, alpha=0.3).route(
+        {"required_capability": "research"}
+    )
+
+    assert decision.candidates[0].blended == pytest.approx(0.65)
+
+
+@pytest.mark.unit
 def test_hebbian_router_prefers_task_type_history_over_global_average():
     """Routing uses scoped performance instead of unrelated task history."""
     reg = _two_research_agents({"A": 0.6, "B": 0.6})
