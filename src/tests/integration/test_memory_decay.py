@@ -4,9 +4,9 @@ Tests the ``MemoryDecayService`` and ``MemoryNode`` classes from
 ``src.integration.memory_decay``.
 """
 
-import sys
 import builtins
 import logging
+import sys
 from pathlib import Path
 
 _repo = str(Path(__file__).resolve().parents[3])

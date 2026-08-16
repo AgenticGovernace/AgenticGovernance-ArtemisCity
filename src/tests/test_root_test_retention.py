@@ -11,7 +11,6 @@ import shlex
 import subprocess
 import sys
 import tomllib
-from collections import Counter
 from pathlib import Path
 
 import yaml
