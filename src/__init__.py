@@ -1,1 +1,58 @@
-"""Top-level package marker for MCP src modules."""
+"""Package entry point for Artemis City.
+
+Enables running the project as a module:
+
+    python -m src                          # Interactive Artemis CLI (default)
+    python -m src --orchestrator           # MCP orchestrator pipeline
+    python -m src --atp                    # ATP-enabled CLI
+    python -m src "status"                 # One-shot Artemis command
+    python -m src --plan plan.json         # Execute a plan file
+"""
+
+import argparse
+import sys
+
+
+def entry() -> None:
+    """Dispatch ``python -m src`` arguments to the selected Artemis CLI."""
+    parser = argparse.ArgumentParser(
+        description="Artemis City — Agentic Governance Platform",
+        add_help=False,
+    )
+    parser.add_argument(
+        "--orchestrator",
+        action="store_true",
+        help="Run the MCP orchestrator pipeline.",
+    )
+    parser.add_argument(
+        "--atp",
+        action="store_true",
+        help="Run the ATP (Artemis Transmission Protocol) CLI.",
+    )
+    parser.add_argument(
+        "-h",
+        "--help",
+        action="store_true",
+        help="Show this help message and exit.",
+    )
+    args, remaining = parser.parse_known_args()
+
+    forwarded_args = list(remaining)
+    if args.help and not args.orchestrator and not args.atp and not remaining:
+        parser.print_help()
+        sys.exit(0)
+    if args.help:
+        forwarded_args.append("--help")
+
+    sys.argv = [sys.argv[0], *forwarded_args]
+
+    if args.orchestrator:
+        from src.launch.main import main
+    else:
+        from src.interface.artemis_cli import main
+
+    main()
+
+
+if __name__ == "__main__":
+    entry()
