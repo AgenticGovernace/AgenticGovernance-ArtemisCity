@@ -1,0 +1,24 @@
+name: prod
+description: Production environment. Changes only flow here via a staging promotion PR.
+
+mcp:
+  base_url: https://mcp.artemis.invalid
+  log_level: WARN
+
+obsidian:
+  base_url: https://obsidian.artemis.invalid
+
+exo:
+  base_url: https://exo.artemis.invalid
+
+vector_store:
+  path: data/vector_store.prod.db
+
+governance:
+  strict_atp: true
+  trust_default_level: 1
+
+deploy:
+  branch: prod
+  github_environment: prod
+  approvals_required: 2

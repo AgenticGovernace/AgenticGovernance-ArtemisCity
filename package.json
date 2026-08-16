@@ -4,7 +4,9 @@
   "private": true,
   "description": "Workspace coordinator for Artemis City JavaScript projects.",
   "keywords": [
-    "ATP"
+    "ATP",
+    "Artemis",
+    "Agentic OS"
   ],
   "homepage": "https://github.com/AgenticGovernace/Artemis_City",
   "bugs": {
@@ -42,7 +44,7 @@
     "test": "npm --workspace app/api run test"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,

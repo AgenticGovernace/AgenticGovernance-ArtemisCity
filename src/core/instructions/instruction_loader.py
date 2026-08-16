@@ -3,12 +3,7 @@
 This module implements cascading instruction loading from multiple scopes:
 global → project root → current directory → agent-specific
 """
-
-#  Copyright (c) 2026. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-#  Morbi non lorem porttitor neque feugiat blandit. Ut vitae ipsum eget quam lacinia accumsan.
-#  Etiam sed turpis ac ipsum condimentum fringilla. Maecenas magna.
-#  Proin dapibus sapien vel ante. Aliquam erat volutpat. Pellentesque sagittis ligula eget metus.
-#  Vestibulum commodo. Ut rhoncus gravida arcu.
+# TODO the return functions of the lower functions is set to none as default with no space for return object. 
 
 import os
 from dataclasses import dataclass, field
@@ -35,7 +30,6 @@ class InstructionScope:
     def __str__(self) -> str:
         return f"[{self.level}] {self.path} (priority: {self.priority})"
 
-
 @dataclass
 class InstructionSet:
     """Collection of instructions from multiple scopes.
@@ -50,6 +44,7 @@ class InstructionSet:
     merged_content: str = ""
     metadata: Dict = field(default_factory=dict)
 
+    def add_scope(self, scope: InstructionScope) -> None:
     def add_scope(self, scope: InstructionScope) -> None:
         """Add an instruction scope and re-sort by priority.
 
@@ -92,11 +87,11 @@ class InstructionSet:
 
 class InstructionLoader:
     """Loads and merges instructions from multiple hierarchical scopes.
-
+    # TODO the below needs to be adjusted to match the agent scaffolder skills layer with agents/ and .agents used. Daemon is just a mass codex replace 
     Scope priority (ascending):
-    1. Global (~/.Daemon/instructions.md, ~/.artemis/config.md)
-    2. Project root (Daemon.md, WARP.md, .artemis/instructions.md)
-    3. Current directory (Daemon.md, instructions.md)
+    1. Global (~.agents/instructions.md, ~/.artemis/instructions.md)
+    2. Project root (Artemis.md, WARP.md, .agents/instructions.md)
+    3. Current directory ([agent].md, instructions.md)
     4. Agent-specific (agents/<agent_name>/instructions.md)
     """
 
