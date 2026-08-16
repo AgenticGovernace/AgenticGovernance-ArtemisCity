@@ -12,7 +12,7 @@ import weakref
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 import pytest
 from artemis_validation_mcp.models import (
@@ -649,6 +649,161 @@ class MCPFailingValidationService(ATPValidationService):
             "LEAKED-SERVICE-SENTINEL",
             {"raw": raw_input},
         )
+
+
+OUTPUT_CONVERSION_SECRET = "OUTPUT-CONVERSION-SECRET"
+
+
+class SecretMalformedResult:
+    def __str__(self) -> str:
+        return OUTPUT_CONVERSION_SECRET
+
+    def __repr__(self) -> str:
+        return OUTPUT_CONVERSION_SECRET
+
+
+class MalformedResultValidationService(ATPValidationService):
+    def parse(self, raw_input: str) -> ParsedATP:
+        del raw_input
+        return cast(ParsedATP, SecretMalformedResult())
+
+    def validate(
+        self,
+        raw_input: str,
+        strict: bool = True,
+    ) -> ATPValidationReport:
+        del raw_input, strict
+        return cast(ATPValidationReport, SecretMalformedResult())
+
+    def format(
+        self,
+        header: ATPHeaderInput,
+        syntax: Literal["hash", "bracket"] = "bracket",
+    ) -> str:
+        del header, syntax
+        return cast(str, SecretMalformedResult())
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("tool_name", "arguments"),
+    [
+        ("parse-atp", {"raw_input": "private parse input"}),
+        (
+            "validate-atp",
+            {"raw_input": "private validation input", "strict": True},
+        ),
+        (
+            "format-atp",
+            {
+                "mode": "Build",
+                "context": "Private formatting input",
+                "action_type": "Execute",
+            },
+        ),
+    ],
+)
+async def test_malformed_service_results_are_sanitized_before_sdk_conversion(
+    tool_name: str,
+    arguments: dict[str, object],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    server, _, _ = _server(service=MalformedResultValidationService())
+    caplog.clear()
+    captured_error: MCPError | None = None
+
+    async with Client(server) as client:
+        try:
+            result = await client.call_tool(tool_name, arguments)
+        except MCPError as error:
+            captured_error = error
+        else:
+            wire_output = f"{result!s} {result!r} {result.model_dump_json()}"
+            assert OUTPUT_CONVERSION_SECRET not in wire_output
+            assert "error executing tool" not in wire_output.lower()
+            assert "validation error" not in wire_output.lower()
+            pytest.fail("malformed service result was not rejected")
+
+    assert captured_error is not None
+    assert captured_error.code == INTERNAL_ERROR
+    assert captured_error.message == "Validation service failed."
+    assert captured_error.data == {"code": "validation_service_failed"}
+    graph = _exception_graph(captured_error)
+    assert graph == [captured_error]
+    observed = " ".join(
+        [
+            *(f"{linked!s} {linked!r}" for linked in graph),
+            caplog.text,
+        ]
+    )
+    assert OUTPUT_CONVERSION_SECRET not in observed
+    assert "error executing tool" not in observed.lower()
+    assert "validation error" not in observed.lower()
+    assert "input_value" not in observed.lower()
+
+
+@pytest.mark.asyncio
+async def test_direct_call_tool_expiry_precedes_strict_input_and_core() -> None:
+    service = RecordingValidationService()
+    clock = MutableClock()
+    server, _, _ = _server(service=service, clock=clock)
+    clock.value = NOW + timedelta(minutes=6)
+
+    with pytest.raises(MCPError) as captured:
+        await server.call_tool(
+            "parse-atp",
+            {"raw_input": "private", "extra": "must-not-validate-first"},
+        )
+
+    assert captured.value.code == INVALID_REQUEST
+    assert captured.value.message == "Validation service authority has expired."
+    assert captured.value.data == {"code": "validation_authority_expired"}
+    assert "private" not in str(captured.value)
+    assert service.calls == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "clock_value",
+    [RuntimeError("private direct clock failure"), NOW.replace(tzinfo=None)],
+)
+async def test_direct_call_tool_clock_failure_precedes_input_and_core(
+    clock_value: datetime | Exception,
+) -> None:
+    service = RecordingValidationService()
+    clock = MutableClock()
+    server, _, _ = _server(service=service, clock=clock)
+    clock.value = clock_value
+
+    with pytest.raises(MCPError) as captured:
+        await server.call_tool(
+            "parse-atp",
+            {"raw_input": "private", "extra": "must-not-validate-first"},
+        )
+
+    assert captured.value.code == INTERNAL_ERROR
+    assert captured.value.message == "Validation service authority is unavailable."
+    assert captured.value.data == {"code": "validation_authority_unavailable"}
+    assert "private direct clock failure" not in str(captured.value)
+    assert service.calls == []
+
+
+@pytest.mark.asyncio
+async def test_direct_call_tool_strict_input_precedes_core() -> None:
+    service = RecordingValidationService()
+    server, _, _ = _server(service=service)
+
+    with pytest.raises(MCPError) as captured:
+        await server.call_tool(
+            "parse-atp",
+            {"raw_input": "private", "extra": "forbidden"},
+        )
+
+    assert captured.value.code == INVALID_PARAMS
+    assert captured.value.message == "Invalid validation tool input."
+    assert captured.value.data == {"code": "invalid_validation_input"}
+    assert "private" not in str(captured.value)
+    assert service.calls == []
 
 
 @pytest.mark.asyncio

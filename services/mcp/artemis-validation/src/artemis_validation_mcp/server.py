@@ -5,13 +5,15 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal, Never
 
-from mcp.server.context import CallNext, HandlerResult, ServerRequestContext
+from mcp.server.context import CallNext, Context, HandlerResult, ServerRequestContext
 from mcp.server.mcpserver import MCPServer
 from mcp.shared.exceptions import MCPError
 from mcp.types import (
     INTERNAL_ERROR,
     INVALID_PARAMS,
     INVALID_REQUEST,
+    CallToolResult,
+    InputRequiredResult,
     Tool,
     ToolAnnotations,
 )
@@ -155,40 +157,47 @@ class _AuthorityExpiryMiddleware:
         call_next: CallNext,
     ) -> HandlerResult:
         if ctx.method == "tools/call":
-            current: datetime | None = None
-            try:
-                now = self._clock()
-                if not isinstance(now, datetime):
-                    raise TypeError
-                if now.tzinfo is None or now.utcoffset() is None:
-                    raise ValueError
-                current = now.astimezone(UTC)
-            except Exception:  # noqa: BLE001
-                current = None
-            if current is None:
-                raise MCPError(
-                    INTERNAL_ERROR,
-                    "Validation service authority is unavailable.",
-                    {"code": "validation_authority_unavailable"},
-                )
-            expired: bool | None = None
-            try:
-                expired = current >= self._expires_at
-            except Exception:  # noqa: BLE001
-                expired = None
-            if expired is None:
-                raise MCPError(
-                    INTERNAL_ERROR,
-                    "Validation service authority is unavailable.",
-                    {"code": "validation_authority_unavailable"},
-                )
-            if expired:
-                raise MCPError(
-                    INVALID_REQUEST,
-                    "Validation service authority has expired.",
-                    {"code": "validation_authority_expired"},
-                )
+            _require_current_authority(self._expires_at, self._clock)
         return await call_next(ctx)
+
+
+def _require_current_authority(
+    expires_at: datetime,
+    clock: Callable[[], datetime],
+) -> None:
+    current: datetime | None = None
+    try:
+        now = clock()
+        if not isinstance(now, datetime):
+            raise TypeError
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError
+        current = now.astimezone(UTC)
+    except Exception:  # noqa: BLE001
+        current = None
+    if current is None:
+        raise MCPError(
+            INTERNAL_ERROR,
+            "Validation service authority is unavailable.",
+            {"code": "validation_authority_unavailable"},
+        )
+    expired: bool | None = None
+    try:
+        expired = current >= expires_at
+    except Exception:  # noqa: BLE001
+        expired = None
+    if expired is None:
+        raise MCPError(
+            INTERNAL_ERROR,
+            "Validation service authority is unavailable.",
+            {"code": "validation_authority_unavailable"},
+        )
+    if expired:
+        raise MCPError(
+            INVALID_REQUEST,
+            "Validation service authority has expired.",
+            {"code": "validation_authority_expired"},
+        )
 
 
 def _invalid_input_error() -> MCPError:
@@ -214,6 +223,26 @@ def _call_service[ResultT](operation: Callable[[], ResultT]) -> ResultT:
     raise AssertionError("unreachable service result state")
 
 
+def _require_strict_tool_input(
+    input_models: Mapping[str, type[BaseModel]],
+    tool_name: object,
+    arguments: object,
+) -> None:
+    invalid = False
+    try:
+        input_model = (
+            input_models.get(tool_name) if isinstance(tool_name, str) else None
+        )
+        if input_model is not None:
+            if not isinstance(arguments, Mapping):
+                raise TypeError
+            input_model.model_validate(arguments)
+    except Exception:  # noqa: BLE001
+        invalid = True
+    if invalid:
+        raise _invalid_input_error()
+
+
 class _StrictInputMiddleware:
     def __init__(
         self,
@@ -228,24 +257,18 @@ class _StrictInputMiddleware:
     ) -> HandlerResult:
         if ctx.method == "tools/call":
             invalid = False
+            tool_name: object = None
+            arguments: object = {}
             try:
                 if not isinstance(ctx.params, Mapping):
                     raise TypeError
                 tool_name = ctx.params.get("name")
                 arguments = ctx.params.get("arguments", {})
-                input_model = (
-                    self._input_models.get(tool_name)
-                    if isinstance(tool_name, str)
-                    else None
-                )
-                if input_model is not None:
-                    if not isinstance(arguments, Mapping):
-                        raise TypeError
-                    input_model.model_validate(arguments)
             except Exception:  # noqa: BLE001
                 invalid = True
             if invalid:
                 raise _invalid_input_error()
+            _require_strict_tool_input(self._input_models, tool_name, arguments)
         return await call_next(ctx)
 
 
@@ -258,6 +281,7 @@ class _ValidationMCPServer(MCPServer):
         input_models: Mapping[str, type[BaseModel]],
     ) -> None:
         self._authority_lease = authority_lease
+        self._clock = clock
         self._input_models = dict(input_models)
         super().__init__(
             name="artemis-validation",
@@ -269,6 +293,16 @@ class _ValidationMCPServer(MCPServer):
                 _StrictInputMiddleware(self._input_models),
             ],
         )
+
+    async def call_tool(
+        self,
+        name: str,
+        arguments: dict[str, Any],
+        context: Context[Any, Any] | None = None,
+    ) -> CallToolResult | InputRequiredResult:
+        _require_current_authority(self._authority_lease.expires_at, self._clock)
+        _require_strict_tool_input(self._input_models, name, arguments)
+        return await super().call_tool(name, arguments, context)
 
     def run(
         self,
@@ -359,8 +393,9 @@ def create_server(
             request = None
         if request is None:
             raise _invalid_input_error()
-        parsed = _call_service(lambda: validation.parse(request.raw_input))
-        return ParseATPResult.from_parsed(parsed)
+        return _call_service(
+            lambda: ParseATPResult.from_parsed(validation.parse(request.raw_input))
+        )
 
     @mcp_server.tool(
         name="validate-atp",
@@ -380,9 +415,12 @@ def create_server(
             request = None
         if request is None:
             raise _invalid_input_error()
-        return _call_service(
-            lambda: validation.validate(request.raw_input, request.strict)
-        )
+
+        def validated_result() -> ATPValidationReport:
+            report = validation.validate(request.raw_input, request.strict)
+            return ATPValidationReport.model_validate(report.model_dump(mode="python"))
+
+        return _call_service(validated_result)
 
     @mcp_server.tool(
         name="format-atp",
@@ -416,12 +454,13 @@ def create_server(
         if request is None:
             raise _invalid_input_error()
         header = request.to_header()
-        formatted = _call_service(lambda: validation.format(header, request.syntax))
-        return FormatATPResult(
-            header=header,
-            syntax=request.syntax,
-            formatted=formatted,
-            summary=f"ATP header formatted using {request.syntax} syntax.",
+        return _call_service(
+            lambda: FormatATPResult(
+                header=header,
+                syntax=request.syntax,
+                formatted=validation.format(header, request.syntax),
+                summary=f"ATP header formatted using {request.syntax} syntax.",
+            )
         )
 
     return mcp_server
