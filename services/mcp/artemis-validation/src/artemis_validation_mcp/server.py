@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -28,7 +29,7 @@ from src.auth.verifier import (
     AuthVerifier,
 )
 from src.routing.authorization import AuthorizationDenied
-from src.validation import ATPValidationReport, ATPValidationService
+from src.validation import ATPValidationReport, ATPValidationService, ParsedATP
 
 from .models import (
     FormatATPInput,
@@ -393,9 +394,18 @@ def create_server(
             request = None
         if request is None:
             raise _invalid_input_error()
-        return _call_service(
-            lambda: ParseATPResult.from_parsed(validation.parse(request.raw_input))
-        )
+
+        def parsed_result() -> ParseATPResult:
+            parsed = validation.parse(request.raw_input)
+            canonical_parsed = ParsedATP.model_validate(
+                parsed.model_dump(mode="json", warnings="error")
+            )
+            result = ParseATPResult.from_parsed(canonical_parsed)
+            return ParseATPResult.model_validate(
+                result.model_dump(mode="json", warnings="error")
+            )
+
+        return _call_service(parsed_result)
 
     @mcp_server.tool(
         name="validate-atp",
@@ -418,7 +428,10 @@ def create_server(
 
         def validated_result() -> ATPValidationReport:
             report = validation.validate(request.raw_input, request.strict)
-            return ATPValidationReport.model_validate(report.model_dump(mode="python"))
+            payload = report.model_dump(mode="json", warnings="error")
+            return ATPValidationReport.model_validate_json(
+                json.dumps(payload, allow_nan=False)
+            )
 
         return _call_service(validated_result)
 

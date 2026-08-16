@@ -8,6 +8,7 @@ import os
 import socket
 import subprocess
 import sys
+import warnings
 import weakref
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -684,6 +685,40 @@ class MalformedResultValidationService(ATPValidationService):
         return cast(str, SecretMalformedResult())
 
 
+SAME_CLASS_OUTPUT_SECRET = "SAME-CLASS-OUTPUT-SECRET"
+
+
+class SecretDynamicValue:
+    def __str__(self) -> str:
+        return SAME_CLASS_OUTPUT_SECRET
+
+    def __repr__(self) -> str:
+        return SAME_CLASS_OUTPUT_SECRET
+
+
+class SameClassMalformedValidationService(ATPValidationService):
+    def parse(self, raw_input: str) -> ParsedATP:
+        values = super().parse(raw_input).model_dump(mode="python")
+        values["mode"] = SecretDynamicValue()
+        return ParsedATP.model_construct(**values)
+
+    def validate(
+        self,
+        raw_input: str,
+        strict: bool = True,
+    ) -> ATPValidationReport:
+        report = super().validate(raw_input, strict)
+        malformed_parsed = report.parsed.model_copy(
+            update={"mode": SecretDynamicValue()}
+        )
+        return report.model_copy(
+            update={
+                "parsed": malformed_parsed,
+                "valid": SecretDynamicValue(),
+            }
+        )
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("tool_name", "arguments"),
@@ -740,6 +775,67 @@ async def test_malformed_service_results_are_sanitized_before_sdk_conversion(
     assert "error executing tool" not in observed.lower()
     assert "validation error" not in observed.lower()
     assert "input_value" not in observed.lower()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("tool_name", "arguments"),
+    [
+        ("parse-atp", {"raw_input": "private same-class parse input"}),
+        (
+            "validate-atp",
+            {
+                "raw_input": "private same-class validation input",
+                "strict": True,
+            },
+        ),
+    ],
+)
+async def test_same_class_malformed_results_are_sanitized_without_warnings(
+    tool_name: str,
+    arguments: dict[str, object],
+    capfd: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    server, _, _ = _server(service=SameClassMalformedValidationService())
+    caplog.clear()
+    captured_error: MCPError | None = None
+    wire_output = ""
+
+    with warnings.catch_warnings(record=True) as captured_warnings:
+        warnings.simplefilter("always")
+        async with Client(server) as client:
+            try:
+                result = await client.call_tool(tool_name, arguments)
+            except MCPError as error:
+                captured_error = error
+            else:
+                wire_output = f"{result!s} {result!r} {result.model_dump_json()}"
+
+    stderr = capfd.readouterr().err
+    warning_output = " ".join(str(item.message) for item in captured_warnings)
+    graph = _exception_graph(captured_error) if captured_error is not None else []
+    observed = " ".join(
+        [
+            wire_output,
+            stderr,
+            warning_output,
+            caplog.text,
+            *(f"{linked!s} {linked!r}" for linked in graph),
+        ]
+    )
+    assert captured_warnings == []
+    assert stderr == ""
+    assert SAME_CLASS_OUTPUT_SECRET not in observed
+    assert "pydantic" not in observed.lower()
+    assert "error executing tool" not in observed.lower()
+    assert "serialization" not in observed.lower()
+    assert "input_value" not in observed.lower()
+    assert captured_error is not None
+    assert captured_error.code == INTERNAL_ERROR
+    assert captured_error.message == "Validation service failed."
+    assert captured_error.data == {"code": "validation_service_failed"}
+    assert graph == [captured_error]
 
 
 @pytest.mark.asyncio
