@@ -19,8 +19,9 @@ and writes a single JSON object to stdout::
 
 The registry database path is taken from ``payload.db_path`` if present,
 otherwise the ``ARTEMIS_REGISTRY_DB`` env var, otherwise the package default.
-Keeping this stdlib-only (no web framework) means it runs in CI and is unit
-testable directly via :func:`dispatch`.
+Keeping this free of a web framework makes it directly testable through
+:func:`dispatch`; the deployed Express image installs its small Python runtime
+dependency set from ``requirements-bridge.txt``.
 """
 
 from __future__ import annotations
@@ -48,7 +49,16 @@ from src.governance.trust import (TrustMetrics, compute_trust_score,
 from src.integration.agent_registry import AgentRegistry, AgentRegistryStore
 from src.integration.hebbian_router import HebbianRouter
 from src.integration.learning_governance import LearningGovernanceCoordinator
-from src.integration.memory_bus import MemoryBus
+from src.integration.memory_bus import LazyProjection, MemoryBus
+from src.integration.memory_store_factory import (
+    MemoryStoreConfigurationError,
+    create_sql_memory_store,
+)
+from src.integration.sql_memory_store import (
+    IdempotencyConflictError,
+    MemoryStoreError,
+    SqlMemoryStore,
+)
 from src.integration.sandbox import AgentSandbox
 from src.integration.trust_interface import (TRUST_THRESHOLDS, TrustInterface,
                                              TrustLevel)
@@ -203,9 +213,26 @@ def _memory_manager(payload: Dict[str, Any]) -> ObsidianManager:
     return ObsidianManager(vault_path=vault_path)
 
 
-def _memory_dependencies(payload: Dict[str, Any]) -> Tuple[ObsidianManager, MemoryBus]:
-    manager = _memory_manager(payload)
+def _configured_sql_memory_store() -> SqlMemoryStore | None:
+    """Resolve canonical storage before any local projection side effect."""
+    configuration_failed = False
+    try:
+        sql_store = create_sql_memory_store()
+    except MemoryStoreConfigurationError:
+        configuration_failed = True
+        sql_store = None
+    if configuration_failed:
+        raise BridgeError(
+            "memory database configuration is invalid",
+            code="MEMORY_DATABASE_CONFIGURATION_ERROR",
+        )
+    return sql_store
 
+
+def _memory_dependencies_for_store(
+    payload: Dict[str, Any], sql_store: SqlMemoryStore | None
+) -> Tuple[ObsidianManager, MemoryBus]:
+    """Construct local projections after canonical configuration is resolved."""
     vector_db_path = data_path(
         "vector_store.db",
         payload.get("vector_db_path"),
@@ -220,8 +247,44 @@ def _memory_dependencies(payload: Dict[str, Any]) -> Tuple[ObsidianManager, Memo
         raise BridgeError("search_dirs must be a list of strings", "INVALID_REQUEST")
     search_dirs = [_safe_note_path(item, allow_empty=True) for item in search_dirs]
 
-    vector_store = LocalVectorStore(db_path=str(vector_db_path))
-    return manager, MemoryBus(manager, vector_store, search_dirs=search_dirs)
+    if sql_store is None:
+        manager = _memory_manager(payload)
+        vector_store = LocalVectorStore(db_path=str(vector_db_path))
+    else:
+        manager = cast(
+            ObsidianManager,
+            LazyProjection(lambda: _memory_manager(payload)),
+        )
+        vector_store = cast(
+            LocalVectorStore,
+            LazyProjection(
+                lambda: LocalVectorStore(db_path=str(vector_db_path))
+            ),
+        )
+    return manager, MemoryBus(
+        manager,
+        vector_store,
+        search_dirs=search_dirs,
+        sql_store=sql_store,
+    )
+
+
+def _memory_dependencies(payload: Dict[str, Any]) -> Tuple[ObsidianManager, MemoryBus]:
+    """Build the canonical store before vault or local-vector dependencies."""
+    return _memory_dependencies_for_store(payload, _configured_sql_memory_store())
+
+
+def _storage_bridge_error(error: MemoryStoreError) -> BridgeError:
+    """Translate canonical storage failures without retaining driver details."""
+    if isinstance(error, IdempotencyConflictError):
+        return BridgeError(
+            "memory idempotency key conflicts with an existing write",
+            code="MEMORY_IDEMPOTENCY_CONFLICT",
+        )
+    return BridgeError(
+        "canonical memory storage is unavailable",
+        code="MEMORY_STORAGE_UNAVAILABLE",
+    )
 
 
 def _trust_interface(payload: Dict[str, Any]) -> TrustInterface:
@@ -1424,20 +1487,20 @@ def _atp_queue(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 def _memory_read(payload: Dict[str, Any]) -> Dict[str, Any]:
     path = _require_note_path(payload)
+    storage_error = None
     try:
-        manager = _memory_manager(payload)
-        content = manager.read_note(path)
+        _, bus = _memory_dependencies(payload)
+        result = bus.read_exact(path)
     except ValueError as exc:
         raise BridgeError(str(exc), code="INVALID_REQUEST") from exc
-    if content is None:
+    except MemoryStoreError as exc:
+        storage_error = exc
+        result = None
+    if storage_error is not None:
+        raise _storage_bridge_error(storage_error)
+    if result is None:
         raise BridgeError(f"note not found: {path}", code="NOT_FOUND")
-    return {
-        "status": "success",
-        "source": "exact",
-        "path": path,
-        "content": content,
-        "score": 1.0,
-    }
+    return {"status": "success", **result}
 
 
 def _memory_write(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -1449,7 +1512,35 @@ def _memory_write(payload: Dict[str, Any]) -> Dict[str, Any]:
     embed = payload.get("embed", True)
     if not isinstance(embed, bool):
         raise BridgeError("embed must be a boolean", code="INVALID_REQUEST")
+    idempotency_key = payload.get("idempotency_key")
+    if idempotency_key is not None and (
+        not isinstance(idempotency_key, str) or not idempotency_key.strip()
+    ):
+        raise BridgeError(
+            "idempotency_key must be a nonempty string",
+            code="INVALID_REQUEST",
+        )
+    provenance_id = payload.get("provenance_id")
+    if provenance_id is not None:
+        if not isinstance(provenance_id, str):
+            raise BridgeError(
+                "provenance_id must be a UUID string", code="INVALID_REQUEST"
+            )
+        try:
+            uuid.UUID(provenance_id)
+        except ValueError as exc:
+            raise BridgeError(
+                "provenance_id must be a valid UUID", code="INVALID_REQUEST"
+            ) from exc
+    source_agent = payload.get("source_agent")
+    if source_agent is not None and (
+        not isinstance(source_agent, str) or not source_agent.strip()
+    ):
+        raise BridgeError(
+            "source_agent must be a nonempty string", code="INVALID_REQUEST"
+        )
 
+    storage_error = None
     try:
         _, bus = _memory_dependencies(payload)
         return bus.write_note_with_embedding(
@@ -1457,9 +1548,19 @@ def _memory_write(payload: Dict[str, Any]) -> Dict[str, Any]:
             content,
             metadata=metadata,
             embed=embed,
+            idempotency_key=idempotency_key,
+            provenance_id=provenance_id,
+            source_agent=source_agent,
         )
     except ValueError as exc:
         raise BridgeError(str(exc), code="INVALID_REQUEST") from exc
+    except MemoryStoreError as exc:
+        storage_error = exc
+    if storage_error is not None:
+        raise _storage_bridge_error(storage_error)
+    raise BridgeError(
+        "canonical memory storage is unavailable", "MEMORY_STORAGE_UNAVAILABLE"
+    )
 
 
 def _memory_list(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -1468,17 +1569,41 @@ def _memory_list(payload: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(suffix, str):
         raise BridgeError("suffix must be a string", code="INVALID_REQUEST")
     try:
-        manager = _memory_manager(payload)
-        files = manager.list_notes_in_folder(path, suffix=suffix)
+        sql_store = _configured_sql_memory_store()
+        if sql_store is not None:
+            _, bus = _memory_dependencies_for_store(payload, sql_store)
+            records = bus.list_current(path)
+            prefix = f"{path.rstrip('/')}/" if path else ""
+            files = sorted(
+                relative
+                for record in records
+                if (relative := record["relative_path"][len(prefix) :]).endswith(
+                    suffix
+                )
+                and "/" not in relative
+            )
+            source = "sql"
+        else:
+            manager = _memory_manager(payload)
+            files = manager.list_notes_in_folder(path, suffix=suffix)
+            source = "obsidian"
     except ValueError as exc:
         raise BridgeError(str(exc), code="INVALID_REQUEST") from exc
-    return {"path": path, "files": files, "count": len(files)}
+    except MemoryStoreError as exc:
+        raise _storage_bridge_error(exc) from exc
+    return {"path": path, "files": files, "count": len(files), "source": source}
 
 
 def _memory_delete(payload: Dict[str, Any]) -> Dict[str, Any]:
     path = _require_note_path(payload)
+    sql_store = _configured_sql_memory_store()
+    if sql_store is not None:
+        raise BridgeError(
+            "canonical memory deletion requires tombstone support",
+            code="MEMORY_DELETE_UNSUPPORTED",
+        )
     try:
-        manager, bus = _memory_dependencies(payload)
+        manager, bus = _memory_dependencies_for_store(payload, sql_store)
         deleted = manager.delete_note(path)
         if deleted:
             bus.vector_store.delete(bus._normalize_doc_id(path))
@@ -1495,11 +1620,45 @@ def _memory_stats(payload: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(suffix, str):
         raise BridgeError("suffix must be a string", code="INVALID_REQUEST")
     try:
-        manager, bus = _memory_dependencies(payload)
-        root = manager._get_full_path(path)
+        sql_store = _configured_sql_memory_store()
+        manager, bus = _memory_dependencies_for_store(payload, sql_store)
     except ValueError as exc:
         raise BridgeError(str(exc), code="INVALID_REQUEST") from exc
+    except MemoryStoreError as exc:
+        raise _storage_bridge_error(exc) from exc
 
+    if sql_store is not None:
+        try:
+            exact = (
+                bus.read_exact(path)
+                if path and suffix and path.endswith(suffix)
+                else None
+            )
+            if exact is not None:
+                records = [exact] if path.endswith(suffix) else []
+            else:
+                records = [
+                    record
+                    for record in bus.list_current(path)
+                    if record["relative_path"].endswith(suffix)
+                ]
+        except ValueError as exc:
+            raise BridgeError(str(exc), code="INVALID_REQUEST") from exc
+        except MemoryStoreError as exc:
+            raise _storage_bridge_error(exc) from exc
+        return {
+            "status": "success",
+            "path": path,
+            "note_count": len(records),
+            "total_bytes": sum(
+                len(record["content"].encode("utf-8")) for record in records
+            ),
+            "vector_count": None,
+            "source": "sql",
+            "projection_stats": "not_checked",
+        }
+
+    root = manager._get_folder_path(path)
     files: list[Path] = []
     total_bytes = 0
     if root.exists():
@@ -1514,6 +1673,7 @@ def _memory_stats(payload: Dict[str, Any]) -> Dict[str, Any]:
         "note_count": len(files),
         "total_bytes": total_bytes,
         "vector_count": bus.vector_store.count(),
+        "source": "obsidian",
     }
 
 
@@ -1531,6 +1691,8 @@ def _memory_search(payload: Dict[str, Any]) -> Dict[str, Any]:
         results = bus.read(query, relative_path=path or None, max_results=limit)
     except ValueError as exc:
         raise BridgeError(str(exc), code="INVALID_REQUEST") from exc
+    except MemoryStoreError as exc:
+        raise _storage_bridge_error(exc) from exc
     if tags:
         normalized_tags = [tag if tag.startswith("#") else f"#{tag}" for tag in tags]
         results = [
@@ -1538,7 +1700,16 @@ def _memory_search(payload: Dict[str, Any]) -> Dict[str, Any]:
             for result in results
             if any(tag in result.get("content", "") for tag in normalized_tags)
         ]
-    return {"query": query, "results": results, "count": len(results)}
+    return {
+        "query": query,
+        "results": results,
+        "count": len(results),
+        "authority": (
+            "sql_exact_then_vector_projection"
+            if bus.sql_store is not None
+            else "legacy_vault_and_vector"
+        ),
+    }
 
 
 def _trust_get_score(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -1849,9 +2020,15 @@ def main(argv=None) -> int:
             )
         )
         return 1
-    except Exception as exc:  # pragma: no cover - defensive catch-all
+    except Exception:  # pragma: no cover - defensive catch-all
         sys.stdout.write(
-            json.dumps({"ok": False, "error": str(exc), "code": "INTERNAL_ERROR"})
+            json.dumps(
+                {
+                    "ok": False,
+                    "error": "bridge command failed",
+                    "code": "INTERNAL_ERROR",
+                }
+            )
         )
         return 1
 

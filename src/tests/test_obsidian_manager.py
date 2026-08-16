@@ -56,3 +56,26 @@ def test_rejects_resolved_sibling_paths(tmp_path):
 
     with pytest.raises(ValueError):
         manager.write_note("linked/escape.md", "blocked")
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["notes/./alias.md", "notes//alias.md", "notes/alias.md/", r"notes\alias.md"],
+)
+def test_rejects_noncanonical_path_aliases(manager, path):
+    """Derived files cannot collapse multiple SQL identities onto one target."""
+    with pytest.raises(ValueError, match="canonical"):
+        manager.write_note(path, "blocked")
+
+
+def test_rejects_symlink_alias_inside_vault(tmp_path):
+    """An in-vault symlink cannot bypass the canonical SQL path fence."""
+    vault = tmp_path / "vault"
+    notes = vault / "notes"
+    vault.mkdir()
+    notes.mkdir()
+    (vault / "alias").symlink_to(notes, target_is_directory=True)
+    manager = ObsidianManager(vault_path=str(vault))
+
+    with pytest.raises(ValueError, match="canonical"):
+        manager.write_note("alias/task.md", "blocked")

@@ -79,7 +79,10 @@ setup-hooks: ## Configure pre-commit hooks from the installed root environment
 # CODE QUALITY
 # ============================================
 
-lint: ## Reject undefined Python names using the promotion gate
+syntax-check: ## Parse tracked Python files to catch syntax regressions before Ruff
+	cd "$(ROOT_DIR)" && $(PYTHON) scripts/syntax_gate.py
+
+lint: syntax-check ## Reject undefined Python names using the promotion gate
 	cd "$(ROOT_DIR)" && $(PYTHON) -m ruff check src app/api/main.py \
 		--select F821 --exclude '**/.virtual_documents/**'
 

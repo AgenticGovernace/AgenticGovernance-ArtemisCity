@@ -34,6 +34,34 @@ function optionalString(payload: Record<string, unknown>, field: string, fallbac
   return value;
 }
 
+function optionalNonEmptyString(
+  payload: Record<string, unknown>,
+  field: string
+): string | undefined {
+  const value = payload[field];
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw Errors.BadRequest(`${field} must be a nonempty string`);
+  }
+  return value;
+}
+
+function optionalBoolean(
+  payload: Record<string, unknown>,
+  field: string
+): boolean | undefined {
+  const value = payload[field];
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== 'boolean') {
+    throw Errors.BadRequest(`${field} must be a boolean`);
+  }
+  return value;
+}
+
 function optionalLimit(payload: Record<string, unknown>, fallback = 10): number {
   const raw = payload.limit ?? fallback;
   const limit = Number(raw);
@@ -93,12 +121,24 @@ router.post(
     const data = await controller.writeFile(
       path,
       content,
-      metadata as Record<string, unknown> | undefined
+      {
+        metadata: metadata as Record<string, unknown> | undefined,
+        embed: optionalBoolean(payload, 'embed'),
+        idempotencyKey: optionalNonEmptyString(payload, 'idempotency_key'),
+        provenanceId: optionalNonEmptyString(payload, 'provenance_id'),
+        sourceAgent: optionalNonEmptyString(payload, 'source_agent'),
+      }
     );
-    res.json({
+    const syncPending =
+      typeof data === 'object' &&
+      data !== null &&
+      (data as Record<string, unknown>).sync_pending === true;
+    res.status(syncPending ? 202 : 200).json({
       success: true,
       data,
-      message: 'File written successfully',
+      message: syncPending
+        ? 'Memory write accepted; projection pending'
+        : 'Memory write synchronized',
     });
   })
 );

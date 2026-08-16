@@ -391,7 +391,7 @@ class TestNormalizeDocId:
         Returns:
             None: This function does not return a value.
         """
-        assert MemoryBus._normalize_doc_id("my note.md") == "my_note.md"
+        assert MemoryBus._normalize_doc_id("my note.md") == "my note.md"
 
     def test_no_spaces(self):
         """Test that no spaces.

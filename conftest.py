@@ -27,6 +27,14 @@ os.environ["ARTEMIS_LOG_DIR"] = str(_PYTEST_LOG_DIR)
 os.environ["OBSIDIAN_VAULT_PATH"] = str(_PYTEST_VAULT_DIR)
 os.environ["ARTEMIS_OBSIDIAN_VAULT_PATH"] = str(_PYTEST_VAULT_DIR)
 
+# Keep unit tests off an operator's canonical SQL ledger and Obsidian REST
+# credentials even when pytest inherits a live-service shell environment.
+os.environ["ARTEMIS_MEMORY_BACKEND"] = "legacy"
+os.environ.pop("ARTEMIS_MEMORY_DATABASE_URL", None)
+os.environ.pop("ARTEMIS_MEMORY_MIGRATION_DATABASE_URL", None)
+os.environ.pop("OBSIDIAN_API_KEY", None)
+os.environ.pop("OBSIDIAN_CA_CERT", None)
+
 # Supabase tests mock their connection explicitly. The default suite must never
 # reach a hosted database inherited from the operator's environment.
 os.environ["ARTEMIS_VECTOR_BACKEND"] = "sqlite"

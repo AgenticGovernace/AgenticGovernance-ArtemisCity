@@ -4,6 +4,7 @@ import time
 import uuid
 from copy import deepcopy
 from datetime import datetime
+from pathlib import PurePosixPath
 from typing import Any, Dict, List, Optional, Tuple
 
 from src.agents import SummarizerAgent
@@ -20,8 +21,9 @@ from ..integration.agent_registry import AgentRegistry
 from ..integration.governance import GovernanceMonitor
 from ..integration.hebbian_router import HebbianRouter
 from ..integration.learning_governance import LearningGovernanceCoordinator
-from ..integration.memory_bus import MemoryBus
+from ..integration.memory_bus import LazyProjection, MemoryBus
 from ..integration.memory_decay import MemoryDecayService
+from ..integration.memory_store_factory import create_sql_memory_store
 from ..integration.sandbox import AgentSandbox
 from ..mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
 from ..mcp.hebbian_weights import HebbianWeightManager
@@ -117,8 +119,22 @@ class Orchestrator:
             ObsidianConnectionError: If vault connection fails.
             ConfigurationError: If required config is missing.
         """
-        # Obsidian integration components
-        self.obs_manager = ObsidianManager(OBSIDIAN_VAULT_PATH)
+        # Resolve canonical storage before any derived projection is constructed.
+        sql_store = create_sql_memory_store()
+        if sql_store is None:
+            self.obs_manager = ObsidianManager(OBSIDIAN_VAULT_PATH)
+            self.vector_store = (
+                vector_store if vector_store is not None else create_vector_store()
+            )
+        else:
+            self.obs_manager = LazyProjection(
+                lambda: ObsidianManager(OBSIDIAN_VAULT_PATH)
+            )
+            self.vector_store = (
+                vector_store
+                if vector_store is not None
+                else LazyProjection(create_vector_store)
+            )
         self.obs_parser = ObsidianParser()
         self.obs_generator = ObsidianGenerator()
 
@@ -127,9 +143,6 @@ class Orchestrator:
 
         # Initialize hybrid memory layer (vector + explicit Obsidian);
         # backend selected by ARTEMIS_VECTOR_BACKEND (sqlite default, supabase opt-in)
-        self.vector_store = (
-            vector_store if vector_store is not None else create_vector_store()
-        )
         self.governance_monitor = GovernanceMonitor()
         memory_decay_enabled = os.getenv(
             "ARTEMIS_MEMORY_DECAY_ENABLED", "1"
@@ -143,6 +156,7 @@ class Orchestrator:
             search_dirs=[AGENT_INPUT_DIR, AGENT_OUTPUT_DIR],
             governance_monitor=self.governance_monitor,
             memory_decay_service=self.memory_decay_service,
+            sql_store=sql_store,
         )
         if self.memory_decay_service is not None:
             try:
@@ -230,7 +244,8 @@ class Orchestrator:
         if _get_run_logger() is None:
             logger.warning("Run provenance sink is unavailable at boot.")
 
-        self._ensure_obsidian_agent_dirs()
+        if not self._sql_memory_mode():
+            self._ensure_obsidian_agent_dirs()
         self._validate_kernel_state()
         logger.info("MCP Orchestrator initialized with Agent Registry.")
 
@@ -813,6 +828,55 @@ class Orchestrator:
         ).strip("._")
         return normalized or "unknown"
 
+    @staticmethod
+    def _memory_receipt_state(receipt: object) -> Dict[str, Any]:
+        """Normalize compatibility and SQL-mode memory write outcomes."""
+        if not isinstance(receipt, dict):
+            return {
+                "status": "success",
+                "sync_pending": False,
+                "obsidian_status": "delivered",
+                "vector_status": "delivered",
+                "idempotency_key": None,
+                "event_id": None,
+                "record_id": None,
+                "revision": None,
+            }
+        return {
+            "status": str(receipt.get("status", "success")),
+            "sync_pending": bool(receipt.get("sync_pending", False)),
+            "obsidian_status": receipt.get("obsidian_status", "delivered"),
+            "vector_status": receipt.get("vector_status", "delivered"),
+            "idempotency_key": receipt.get("idempotency_key"),
+            "event_id": receipt.get("event_id"),
+            "record_id": receipt.get("record_id"),
+            "revision": receipt.get("revision"),
+        }
+
+    def _remember_memory_projection_receipt(
+        self, relative_path: str, receipt_state: Dict[str, Any]
+    ) -> None:
+        """Retain the latest replay handle for one internally generated write."""
+        receipts = getattr(self, "_memory_projection_receipts", None)
+        if not isinstance(receipts, dict):
+            receipts = {}
+            self._memory_projection_receipts = receipts
+        receipts[relative_path] = dict(receipt_state)
+
+    def get_memory_projection_receipt(
+        self, relative_path: str
+    ) -> Dict[str, Any] | None:
+        """Return a copy of the latest write receipt retained for a memory path."""
+        receipts = getattr(self, "_memory_projection_receipts", None)
+        if not isinstance(receipts, dict):
+            return None
+        receipt = receipts.get(relative_path)
+        return dict(receipt) if isinstance(receipt, dict) else None
+
+    def _sql_memory_mode(self) -> bool:
+        """Return whether this orchestrator has canonical SQL storage enabled."""
+        return self.memory_bus.sql_store is not None
+
     def _persist_agent_report(
         self,
         agent_name: str,
@@ -835,7 +899,7 @@ class Orchestrator:
         )
         report_path = f"{AGENT_OUTPUT_DIR}/{report_filename}"
         try:
-            self.memory_bus.write_note_with_embedding(
+            receipt = self.memory_bus.write_note_with_embedding(
                 report_path,
                 report_md,
                 metadata={
@@ -849,19 +913,31 @@ class Orchestrator:
                     "model": results.get("model"),
                     "output_compression": compression,
                 },
+                provenance_id=task_context.get("provenance_id"),
+                source_agent=agent_name,
             )
+            receipt_state = self._memory_receipt_state(receipt)
             self._log_provenance_action(
                 task_context,
                 "memory_persisted",
                 "memory_bus",
-                {"task_id": task_id, "path": report_path},
+                {"task_id": task_id, "path": report_path, **receipt_state},
             )
+            if receipt_state["sync_pending"]:
+                logger.warning(
+                    "Report accepted for %s; projection pending.",
+                    _sanitize_for_log(task_id),
+                )
             return True
         except Exception:
             logger.error(
-                "Failed to persist report for %s.",
+                (
+                    "Canonical memory write failed for report %s."
+                    if self._sql_memory_mode()
+                    else "Failed to persist report for %s."
+                ),
                 _sanitize_for_log(agent_name),
-                exc_info=True,
+                exc_info=not self._sql_memory_mode(),
             )
             return False
 
@@ -899,8 +975,9 @@ class Orchestrator:
             f"Raw_{self._artifact_component(task_id)}.txt"
         )
         raw_persisted = False
+        raw_receipt_state = self._memory_receipt_state(None)
         try:
-            self.memory_bus.write_note_with_embedding(
+            receipt = self.memory_bus.write_note_with_embedding(
                 raw_path,
                 raw_output,
                 metadata={
@@ -913,7 +990,10 @@ class Orchestrator:
                     "content_sha256": raw_sha256,
                 },
                 embed=False,
+                provenance_id=task_context.get("provenance_id"),
+                source_agent=str(task_context.get("agent") or "Exo"),
             )
+            raw_receipt_state = self._memory_receipt_state(receipt)
             raw_persisted = True
             self._log_provenance_action(
                 task_context,
@@ -924,10 +1004,18 @@ class Orchestrator:
                     "path": raw_path,
                     "content_length": len(raw_output),
                     "content_sha256": raw_sha256,
+                    **raw_receipt_state,
                 },
             )
         except Exception:
-            logger.error("Failed to persist long Exo output.", exc_info=True)
+            logger.error(
+                (
+                    "Canonical memory write failed for long Exo output."
+                    if self._sql_memory_mode()
+                    else "Failed to persist long Exo output."
+                ),
+                exc_info=not self._sql_memory_mode(),
+            )
 
         child_task_id = f"{task_id}:context-compression"
         child_context: Dict[str, Any] = {
@@ -1003,6 +1091,18 @@ class Orchestrator:
             "raw_sha256": raw_sha256,
             "raw_artifact_path": raw_path if raw_persisted else None,
             "raw_artifact_persisted": raw_persisted,
+            "raw_artifact_status": (
+                raw_receipt_state["status"] if raw_persisted else "failed"
+            ),
+            "raw_artifact_sync_pending": (
+                raw_receipt_state["sync_pending"] if raw_persisted else False
+            ),
+            "raw_artifact_idempotency_key": (
+                raw_receipt_state["idempotency_key"] if raw_persisted else None
+            ),
+            "raw_artifact_event_id": (
+                raw_receipt_state["event_id"] if raw_persisted else None
+            ),
             "compressed_length": len(compressed_context),
             "summarizer_task_id": child_task_id,
             "summarizer_agent": summarizer_agent,
@@ -1498,15 +1598,32 @@ class Orchestrator:
             ...     print(f"Found task: {task_data['title']}")
         """
         logger.info(
-            "Checking for new tasks in Obsidian folder: %s",
+            "Checking canonical task folder: %s",
             _sanitize_for_log(AGENT_INPUT_DIR),
         )
-        input_notes = self.obs_manager.list_notes_in_folder(AGENT_INPUT_DIR)
+        if self._sql_memory_mode():
+            note_sources = [
+                (record["relative_path"], record["content"])
+                for record in self.memory_bus.list_current(AGENT_INPUT_DIR)
+                if PurePosixPath(record["relative_path"]).parent.as_posix()
+                == PurePosixPath(AGENT_INPUT_DIR).as_posix()
+            ]
+        else:
+            note_sources = [
+                (
+                    os.path.join(AGENT_INPUT_DIR, note_filename),
+                    self.obs_manager.read_note(
+                        os.path.join(AGENT_INPUT_DIR, note_filename)
+                    ),
+                )
+                for note_filename in self.obs_manager.list_notes_in_folder(
+                    AGENT_INPUT_DIR
+                )
+            ]
 
         new_tasks = []
-        for note_filename in input_notes:
-            relative_path = os.path.join(AGENT_INPUT_DIR, note_filename)
-            content = self.obs_manager.read_note(relative_path)
+        for relative_path, content in note_sources:
+            note_filename = os.path.basename(relative_path)
             if content:
                 task_data = self.obs_parser.parse_task_note(content)
                 if (
@@ -1514,8 +1631,12 @@ class Orchestrator:
                     and task_data.get("status", "pending").lower() == "pending"
                 ):
                     task_data["task_id"] = task_data.get(
-                        "task_id", f"task_{hash(note_filename) % 100000}"
-                    )  # Generate ID if missing
+                        "task_id",
+                        "task_"
+                        + hashlib.sha256(relative_path.encode("utf-8")).hexdigest()[
+                            :12
+                        ],
+                    )
                     resolved_capability = self._resolve_required_capability(task_data)
                     if resolved_capability:
                         task_data["required_capability"] = resolved_capability
@@ -1534,8 +1655,13 @@ class Orchestrator:
         return new_tasks
 
     def update_task_status_in_obsidian(
-        self, relative_note_path: str, new_status: str, task_id: Optional[str] = None
-    ):
+        self,
+        relative_note_path: str,
+        new_status: str,
+        task_id: Optional[str] = None,
+        *,
+        idempotency_key: str | None = None,
+    ) -> Dict[str, Any] | None:
         """Updates the status of a specific task note in Obsidian.
 
         Args:
@@ -1544,36 +1670,64 @@ class Orchestrator:
             task_id (str): Identifier of the task being processed.
 
         Returns:
-            None: This function does not return a value.
+            Dict[str, Any] | None: Canonical write receipt state, or ``None``
+                when no current note exists.
         """
         logger.info(
             "Updating status for task note '%s' to '%s'",
             _sanitize_for_log(relative_note_path),
             _sanitize_for_log(new_status),
         )
-        original_content = self.obs_manager.read_note(relative_note_path)
+        exact = self.memory_bus.read_exact(relative_note_path)
+        original_content = exact.get("content") if isinstance(exact, dict) else None
         if original_content:
             updated_content = self.obs_parser.update_status_in_note(
                 original_content, new_status, task_id
             )
             try:
-                self.memory_bus.write_note_with_embedding(
-                    relative_note_path,
-                    updated_content,
-                    metadata={"task_id": task_id, "status": new_status},
+                write_kwargs: Dict[str, Any] = {
+                    "metadata": {"task_id": task_id, "status": new_status},
+                    "provenance_id": exact.get("provenance_id"),
+                    "source_agent": "Artemis Orchestrator",
+                }
+                if idempotency_key is not None:
+                    write_kwargs["idempotency_key"] = idempotency_key
+                receipt = self.memory_bus.write_note_with_embedding(
+                    relative_note_path, updated_content, **write_kwargs
                 )
+                receipt_state = self._memory_receipt_state(receipt)
             except Exception:
                 logger.error(
-                    "Memory bus write failed for %s.",
+                    (
+                        "Canonical memory write failed for status update %s."
+                        if self._sql_memory_mode()
+                        else "Memory bus write failed for %s."
+                    ),
                     _sanitize_for_log(relative_note_path),
-                    exc_info=True,
+                    exc_info=not self._sql_memory_mode(),
                 )
+                if self._sql_memory_mode():
+                    raise
                 self.obs_manager.write_note(relative_note_path, updated_content)
-            logger.info(
-                "Status updated for '%s' to '%s'.",
-                _sanitize_for_log(relative_note_path),
-                _sanitize_for_log(new_status),
-            )
+                receipt_state = self._memory_receipt_state(None)
+            self._remember_memory_projection_receipt(relative_note_path, receipt_state)
+            if receipt_state["sync_pending"]:
+                logger.info(
+                    (
+                        "Status update accepted for '%s'; projection pending "
+                        "(idempotency_key=%s, event_id=%s)."
+                    ),
+                    _sanitize_for_log(relative_note_path),
+                    _sanitize_for_log(receipt_state.get("idempotency_key")),
+                    _sanitize_for_log(receipt_state.get("event_id")),
+                )
+            else:
+                logger.info(
+                    "Status updated for '%s' to '%s'.",
+                    _sanitize_for_log(relative_note_path),
+                    _sanitize_for_log(new_status),
+                )
+            return receipt_state
         else:
             logger.warning(
                 "Could not read original content for '%s' to update status.",
@@ -1581,7 +1735,11 @@ class Orchestrator:
             )
 
     def create_new_task_in_obsidian(
-        self, task_data: dict, filename: str | None = None
+        self,
+        task_data: dict,
+        filename: str | None = None,
+        *,
+        idempotency_key: str | None = None,
     ) -> str:
         """Create a new task note in the Obsidian input directory.
 
@@ -1610,25 +1768,52 @@ class Orchestrator:
         relative_path = os.path.join(AGENT_INPUT_DIR, filename)
         markdown_content = self.obs_generator.generate_task_note(task_data)
         try:
-            self.memory_bus.write_note_with_embedding(
-                relative_path,
-                markdown_content,
-                metadata={
+            write_kwargs: Dict[str, Any] = {
+                "metadata": {
                     "task_id": task_data.get("task_id"),
                     "created_by": "orchestrator",
                 },
+                "provenance_id": task_data.get("provenance_id"),
+                "source_agent": "Artemis Orchestrator",
+            }
+            if idempotency_key is not None:
+                write_kwargs["idempotency_key"] = idempotency_key
+            receipt = self.memory_bus.write_note_with_embedding(
+                relative_path,
+                markdown_content,
+                **write_kwargs,
             )
+            receipt_state = self._memory_receipt_state(receipt)
         except Exception:
             logger.error(
-                "Failed to persist new task to memory bus for %s.",
+                (
+                    "Canonical memory write failed for new task %s."
+                    if self._sql_memory_mode()
+                    else "Failed to persist new task to memory bus for %s."
+                ),
                 _sanitize_for_log(relative_path),
-                exc_info=True,
+                exc_info=not self._sql_memory_mode(),
             )
+            if self._sql_memory_mode():
+                raise
             self.obs_manager.write_note(relative_path, markdown_content)
-        logger.info(
-            "Created new task note in Obsidian: %s",
-            _sanitize_for_log(relative_path),
-        )
+            receipt_state = self._memory_receipt_state(None)
+        self._remember_memory_projection_receipt(relative_path, receipt_state)
+        if receipt_state["sync_pending"]:
+            logger.info(
+                (
+                    "Task note accepted for %s; projection pending "
+                    "(idempotency_key=%s, event_id=%s)."
+                ),
+                _sanitize_for_log(relative_path),
+                _sanitize_for_log(receipt_state.get("idempotency_key")),
+                _sanitize_for_log(receipt_state.get("event_id")),
+            )
+        else:
+            logger.info(
+                "Created new task note in Obsidian: %s",
+                _sanitize_for_log(relative_path),
+            )
         return relative_path
 
     def execute_all_pending_tasks(self) -> dict:

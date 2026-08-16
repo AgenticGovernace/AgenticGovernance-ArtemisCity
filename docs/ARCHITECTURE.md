@@ -36,7 +36,12 @@ WeightedScore = Score × HebianWeight(agent, task_type)
 
 ### 2. Memory Bus
 
-The Memory Bus provides unified access to both explicit (Obsidian) and semantic (vector store) memory with write-through synchronization.
+The Memory Bus coordinates canonical SQL memory, a human-readable Obsidian
+projection, and a derived semantic vector index. In the default `legacy` mode,
+the established vault-backed bus remains available for a reversible rollout.
+When an operator explicitly selects `postgres` or `neon`, PostgreSQL is the
+source of truth; invalid SQL configuration fails closed rather than silently
+using the legacy store.
 
 **Architecture:**
 
@@ -48,31 +53,46 @@ The Memory Bus provides unified access to both explicit (Obsidian) and semantic 
        ┌─────────▼─────────┐
        │   Memory Bus      │
        │  (Coordinator)    │
-       └────┬──────────┬───┘
-            │          │
-      ┌─────▼─┐   ┌───▼─────┐
-      │Obsidian│   │ Vector  │
-      │ Store  │   │  Store  │
-      └────────┘   └─────────┘
+       └───┬─────────┬────────┘
+           │         │
+     ┌─────▼───┐ ┌───▼──────┐
+     │PostgreSQL│ │ Vector   │
+     │ledger +  │ │ index    │
+     │outbox    │ └──────────┘
+     └─────┬───┘
+           │
+     ┌─────▼─────┐
+     │ Obsidian  │
+     │ projection│
+     └───────────┘
 ```
 
 **Read Hierarchy:**
 
-1. **Exact Match**: Direct Obsidian lookup (latency: <50ms)
-2. **Keyword Match**: Obsidian metadata search (latency: <150ms)
-3. **Semantic Match**: Vector similarity search (latency: <300ms)
-   **Write Protocol (Write-Through):**
+1. **Exact Match in SQL mode**: the committed current head is authoritative,
+   including while an Obsidian projection is pending. The bridge constructs
+   neither local projection to serve this exact read.
+2. **SQL-mode semantic search**: an optional exact SQL path is followed by
+   vector similarity from the derived index. SQL mode does not keyword-scan the
+   Obsidian projection, so vector-pending or `embed=False` records require an
+   exact path.
+3. **Legacy mode**: the established vault keyword and vector fallback remains
+   available only when the SQL ledger is not selected.
 
-- All writes route through Memory Bus coordinator
-- Synchronous write to Obsidian (primary store)
-- Asynchronous propagation to vector store (with 200ms p95 SLA)
-- Dual-confirmation before acknowledging write
-- Conflict resolution via timestamp + content hash
-  **Latency SLAs:**
-- Write latency p95: <200ms
-- Sync propagation lag p95: <300ms
-- Read exact match p99: <100ms
-- Read semantic p99: <500ms
+**Write protocol:** the bus validates the request, commits an immutable SQL
+revision/current head/Obsidian outbox event in one transaction, then holds the
+writer-compatible PostgreSQL advisory path fence while classifying and updating
+the vector and deterministic Obsidian projections. Projection adapters are
+lazy: writes reach the SQL commit before their first construction attempt. A
+post-commit vector failure
+returns `accepted` with `vector_status=pending` and does not attempt Obsidian.
+A failed or unacknowledged Obsidian projection likewise returns `accepted` with
+`sync_pending=true`; neither case deletes the committed revision or turns the
+result into an Obsidian-only success. This first slice has no background
+projector or automatic retry. Calls without a key receive a new UUID operation
+key, so repeated content creates a new revision; callers get retry semantics by
+explicitly reusing one key. Full outcome and replay details are in
+`docs/MEMORY_BUS.md`.
 
 ### 3. Hebbian Learning Layer
 
@@ -202,8 +222,8 @@ Multi-tier approval workflow for self-updates and policy changes.
          │
     ┌────▼──────────────────┐
     │  Memory Persistence   │
-    │  - Write-through      │
-    │  - Update Vector DB   │
+    │  - Commit SQL ledger  │
+    │  - Queue projections  │
     └────┬──────────────────┘
          │
     ┌────▼──────────────────┐
@@ -267,9 +287,10 @@ consumer report was durably written.
 
 **Obsidian Integration:**
 
-- YAML frontmatter stores Hebbian weights and metadata
-- Bidirectional sync via Memory Bus
-- Full-text search via Obsidian plugins
+- Renders deterministic full-file projections from committed SQL revisions
+- Receives idempotent delivery through the SQL outbox; it does not own memory
+  identity, revision ordering, or projection state
+- Remains a compatibility/readability surface during the `legacy` rollout
   **Vector Store Integration:**
 - Semantic embedding of tasks and completions
 - k-NN search for similar memories
@@ -282,10 +303,16 @@ consumer report was durably written.
 
 ## Consistency Guarantees
 
-- **Write-Through**: All data synchronized before acknowledgment
-- **Eventual Consistency**: Vector store index updates within 300ms (p95)
-- **Durability**: Obsidian + Vector Store provide redundant storage
-- **Atomicity**: Per-task execution is all-or-nothing via transactions
+- **Canonical atomicity**: a SQL revision, current head, and Obsidian outbox
+  event commit together or all roll back.
+- **Projection state**: Obsidian delivery is attempted immediately after the
+  SQL commit but is not part of that transaction. A failed projection remains
+  durable `accepted`, not success, and awaits caller-driven idempotent replay.
+- **Idempotency and ordering**: an explicit-key replay returns the original
+  revision; a stale replay terminates as `superseded` and cannot overwrite a
+  newer current head. Calls without a supplied key are distinct operations.
+- **Legacy compatibility**: `legacy` keeps the historical local bus until an
+  operator explicitly selects `postgres` or `neon`.
 
 ## Performance Targets
 
@@ -313,10 +340,12 @@ consumer report was durably written.
 
 - Classify as `agent_failure`
 - Apply the anti-Hebbian update and synchronize execution/trust projections
-  **Memory Bus Desynchronization:**
-- Detect via consistency checks
-- Trigger rebuild from Obsidian source-of-truth
-- Alert monitoring system
+**Memory Bus Projection Failure:**
+- Retain the committed SQL revision and pending outbox event
+- Restore projection connectivity, then manually replay the same explicitly
+  retained idempotency key to retry deterministic delivery; no worker retries
+  pending rows in this slice
+- Do not rebuild canonical memory from an Obsidian vault
   **Sandbox Violation:**
 - Log violation with context
 - Increment violation counter

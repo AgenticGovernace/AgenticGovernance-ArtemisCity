@@ -1,9 +1,10 @@
+import hashlib
 import json
 import logging
 import os
 import sqlite3
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Dict, List
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -62,6 +63,12 @@ except Exception as e:
     logger.warning(
         "Orchestrator dependencies unavailable. SQLite-only mode enabled: %s", e
     )
+
+# ``src.mcp.config`` loads the repository ``.env`` at import time. Derive this
+# gate only after that import attempt so a documented file-based SQL setting
+# cannot be mistaken for legacy mode if Orchestrator construction later fails.
+_memory_backend = os.environ.get("ARTEMIS_MEMORY_BACKEND", "legacy").strip().lower()
+_SQL_MEMORY_REQUIRED = _memory_backend not in {"", "legacy", "disabled"}
 
 
 # --- Pydantic Models ---
@@ -360,9 +367,91 @@ def _resolve_report_target(filename: str, vault_path: Path) -> tuple[Path, str]:
     return report_path, report_path.relative_to(vault_root).as_posix()
 
 
+def _resolve_sql_report_path(filename: str) -> str:
+    """Validate a report name without constructing the Obsidian projection."""
+    if not filename or "\\" in filename or filename.startswith("/"):
+        raise ValueError("invalid report filename")
+    segments = filename.split("/")
+    if any(not segment or segment in {".", ".."} for segment in segments):
+        raise ValueError("invalid report filename")
+    return f"{AGENT_OUTPUT_DIR.rstrip('/')}/{filename}"
+
+
+def _resolve_task_note_path(relative_path: str) -> str:
+    """Resolve a caller task path to one direct Markdown input-queue child."""
+    if not isinstance(relative_path, str) or not relative_path or "\\" in relative_path:
+        raise ValueError("invalid task note path")
+    candidate = PurePosixPath(relative_path)
+    if candidate.is_absolute() or candidate.as_posix() != relative_path:
+        raise ValueError("invalid task note path")
+    input_dir = PurePosixPath(AGENT_INPUT_DIR)
+    if candidate.parent == PurePosixPath("."):
+        candidate = input_dir / candidate
+    if candidate.parent != input_dir or candidate.suffix != ".md":
+        raise ValueError("invalid task note path")
+    return candidate.as_posix()
+
+
 def _parse_task_note(content: str) -> Dict[str, Any] | None:
     """Parse task Markdown through the canonical Obsidian parser."""
     return ObsidianParser().parse_task_note(content)
+
+
+def _stable_task_id(relative_path: str) -> str:
+    """Return a restart-stable fallback identity for a vault-relative task path."""
+    digest = hashlib.sha256(relative_path.encode("utf-8")).hexdigest()[:12]
+    return f"task_{digest}"
+
+
+def _sql_memory_bus():
+    """Return the canonical MemoryBus only when an SQL store is active."""
+    if not orchestrator:
+        return None
+    bus = getattr(orchestrator, "memory_bus", None)
+    return bus if getattr(bus, "sql_store", None) is not None else None
+
+
+def _list_sql_folder_notes(folder: str) -> list[tuple[str, str]] | None:
+    """List direct Markdown children from SQL, or signal legacy mode with ``None``."""
+    bus = _sql_memory_bus()
+    if bus is None:
+        return None
+    normalized_folder = Path(folder).as_posix().rstrip("/")
+    notes: list[tuple[str, str]] = []
+    for record in bus.list_current(normalized_folder):
+        relative_path = record.get("relative_path")
+        content = record.get("content")
+        if not isinstance(relative_path, str) or not isinstance(content, str):
+            continue
+        candidate = Path(relative_path)
+        if (
+            candidate.parent.as_posix() != normalized_folder
+            or candidate.suffix != ".md"
+        ):
+            continue
+        notes.append((relative_path, content))
+    return notes
+
+
+def _read_runtime_note(relative_path: str) -> str | None:
+    """Read canonical SQL bytes in SQL mode and projection bytes in legacy mode."""
+    bus = _sql_memory_bus()
+    if bus is not None:
+        record = bus.read_exact(relative_path)
+        if record is None:
+            return None
+        content = record.get("content")
+        return content if isinstance(content, str) else None
+    return orchestrator.obs_manager.read_note(relative_path)
+
+
+def _require_memory_runtime_or_legacy() -> None:
+    """Forbid stale projection fallback after an explicit SQL startup failure."""
+    if orchestrator is None and _SQL_MEMORY_REQUIRED:
+        raise HTTPException(
+            status_code=503,
+            detail="Canonical memory service unavailable.",
+        )
 
 
 def _list_all_task_records() -> list[dict[str, Any]]:
@@ -374,6 +463,7 @@ def _list_all_task_records() -> list[dict[str, Any]]:
     a task identifier; this helper enumerates configured task notes and never
     turns that identifier into a filesystem path.
     """
+    _require_memory_runtime_or_legacy()
     if not orchestrator:
         vault_path = _get_vault_path()
         input_dir = vault_path / AGENT_INPUT_DIR
@@ -385,22 +475,33 @@ def _list_all_task_records() -> list[dict[str, Any]]:
             if not data:
                 continue
             if "task_id" not in data:
-                data["task_id"] = f"task_{hash(relative_path) % 100000}"
+                data["task_id"] = _stable_task_id(relative_path)
             records.append({**data, "relative_path": relative_path})
         return records
 
     records = []
-    note_filenames = orchestrator.obs_manager.list_notes_in_folder(AGENT_INPUT_DIR)
-    for filename in note_filenames:
-        relative_path = os.path.join(AGENT_INPUT_DIR, filename)
-        content = orchestrator.obs_manager.read_note(relative_path)
+    sql_notes = _list_sql_folder_notes(AGENT_INPUT_DIR)
+    if sql_notes is None:
+        note_filenames = orchestrator.obs_manager.list_notes_in_folder(AGENT_INPUT_DIR)
+        notes = [
+            (
+                os.path.join(AGENT_INPUT_DIR, filename),
+                orchestrator.obs_manager.read_note(
+                    os.path.join(AGENT_INPUT_DIR, filename)
+                ),
+            )
+            for filename in note_filenames
+        ]
+    else:
+        notes = sql_notes
+    for relative_path, content in notes:
         if not content:
             continue
         data = orchestrator.obs_parser.parse_task_note(content)
         if not data:
             continue
         if "task_id" not in data:
-            data["task_id"] = f"task_{hash(relative_path) % 100000}"
+            data["task_id"] = _stable_task_id(relative_path)
         records.append({**data, "relative_path": relative_path})
     return records
 
@@ -558,6 +659,7 @@ async def get_tasks(_key: None = Depends(_require_api_key)):
     Returns:
         list[dict[str, Any]]: Serialized task records available for execution.
     """
+    _require_memory_runtime_or_legacy()
     if not orchestrator:
         vault_path = _get_vault_path()
         input_dir = vault_path / AGENT_INPUT_DIR
@@ -567,7 +669,7 @@ async def get_tasks(_key: None = Depends(_require_api_key)):
             content = (input_dir / filename).read_text(encoding="utf-8")
             data = _parse_task_note(content) or {}
             if "task_id" not in data:
-                data["task_id"] = f"task_{hash(relative_path) % 100000}"
+                data["task_id"] = _stable_task_id(relative_path)
             tasks.append({**data, "relative_path": relative_path})
         return tasks
     try:
@@ -575,7 +677,7 @@ async def get_tasks(_key: None = Depends(_require_api_key)):
         formatted_tasks = []
         for path, data in tasks_with_paths:
             if "task_id" not in data:
-                data["task_id"] = f"task_{hash(path) % 100000}"
+                data["task_id"] = _stable_task_id(path)
             formatted_tasks.append({**data, "relative_path": path})
         return formatted_tasks
     except Exception as e:
@@ -596,6 +698,8 @@ async def get_task(task_id: str, _key: None = Depends(_require_api_key)):
         for task in _list_all_task_records():
             if str(task.get("task_id")) == task_id:
                 return task
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(
             "Error fetching task %s: %s",
@@ -634,6 +738,8 @@ async def get_task_activity(
             ),
             None,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(
             "Error resolving task activity record %s: %s",
@@ -800,6 +906,7 @@ async def get_reports(_key: None = Depends(_require_api_key)):
     Returns:
         List[ReportSummary]: Report descriptors available in the output directory.
     """
+    _require_memory_runtime_or_legacy()
     if not orchestrator:
         vault_path = _get_vault_path()
         output_dir = vault_path / AGENT_OUTPUT_DIR
@@ -824,7 +931,12 @@ async def get_reports(_key: None = Depends(_require_api_key)):
             )
         return summaries
     try:
-        report_files = orchestrator.obs_manager.list_notes_in_folder(AGENT_OUTPUT_DIR)
+        sql_reports = _list_sql_folder_notes(AGENT_OUTPUT_DIR)
+        report_files = (
+            orchestrator.obs_manager.list_notes_in_folder(AGENT_OUTPUT_DIR)
+            if sql_reports is None
+            else [Path(relative_path).name for relative_path, _content in sql_reports]
+        )
         summaries = []
         for filename in report_files:
             parts = filename.replace(".md", "").split("_Report_")
@@ -861,26 +973,35 @@ async def get_report_content(filename: str, _key: None = Depends(_require_api_ke
     Returns:
         dict[str, str]: Report filename and rendered markdown content.
     """
-    manager_vault = getattr(
-        getattr(orchestrator, "obs_manager", None), "vault_path", None
-    )
-    vault_path = (
-        Path(manager_vault)
-        if isinstance(manager_vault, (str, os.PathLike))
-        else _get_vault_path()
-    )
-    try:
-        report_path, relative_path = _resolve_report_target(filename, vault_path)
-    except (ValueError, OSError):
-        raise HTTPException(status_code=400, detail="Invalid report filename.")
+    _require_memory_runtime_or_legacy()
+    if _sql_memory_bus() is not None:
+        report_path = None
+        try:
+            relative_path = _resolve_sql_report_path(filename)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid report filename.")
+    else:
+        manager_vault = getattr(
+            getattr(orchestrator, "obs_manager", None), "vault_path", None
+        )
+        vault_path = (
+            Path(manager_vault)
+            if isinstance(manager_vault, (str, os.PathLike))
+            else _get_vault_path()
+        )
+        try:
+            report_path, relative_path = _resolve_report_target(filename, vault_path)
+        except (ValueError, OSError):
+            raise HTTPException(status_code=400, detail="Invalid report filename.")
 
     if not orchestrator:
+        assert report_path is not None
         if not report_path.is_file():
             raise HTTPException(status_code=404, detail="Report not found.")
         content = report_path.read_text(encoding="utf-8")
         return {"filename": filename, "content": content}
     try:
-        content = orchestrator.obs_manager.read_note(relative_path)
+        content = _read_runtime_note(relative_path)
         if content is None:
             raise HTTPException(status_code=404, detail="Report not found.")
         return {"filename": filename, "content": content}
@@ -916,15 +1037,19 @@ async def execute_pending_task(
     if not orchestrator:
         raise HTTPException(status_code=500, detail="Orchestrator not initialized.")
 
-    relative_note_path = task_path.get("relative_path")
-    if not relative_note_path:
+    requested_note_path = task_path.get("relative_path")
+    if not requested_note_path:
         raise HTTPException(
             status_code=400, detail="Missing 'relative_path' in request body."
         )
+    try:
+        relative_note_path = _resolve_task_note_path(requested_note_path)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid task note path.")
 
     task_data: dict[str, Any] | None = None
     try:
-        content = orchestrator.obs_manager.read_note(relative_note_path)
+        content = _read_runtime_note(relative_note_path)
         if not content:
             raise HTTPException(status_code=404, detail="Task note not found.")
 

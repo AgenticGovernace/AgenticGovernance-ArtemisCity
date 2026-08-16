@@ -236,11 +236,11 @@ class InMemoryLedger:
 
     def projection_status(
         self, namespace: str, record_id: str
-    ) -> dict[str, ProjectionState]:
+    ) -> dict[str, ProjectionState] | None:
         self.status_calls.append((namespace, record_id))
         record = self._by_record_id.get(record_id)
         if record is None or record.namespace != namespace:
-            return {}
+            return None
         return {
             target: state
             for (event_record_id, target), state in self._events.items()
@@ -408,7 +408,7 @@ def test_memory_service_search_and_status_preserve_namespace_boundaries() -> Non
 
     assert service.search("tenant-a", "needle", 10) == [tenant_a.record]
     assert service.projection_status("tenant-a", tenant_a.record.record_id) == {}
-    assert service.projection_status("tenant-b", tenant_a.record.record_id) == {}
+    assert service.projection_status("tenant-b", tenant_a.record.record_id) is None
     assert ledger.search_calls[-1] == ("tenant-a", "needle", 10)
     assert ledger.status_calls[-2:] == [
         ("tenant-a", tenant_a.record.record_id),

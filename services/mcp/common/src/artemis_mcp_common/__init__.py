@@ -1,6 +1,6 @@
 """Shared strict contracts and governance boundaries for Artemis City MCP."""
 
-from .gate import GovernedGate, GovernanceDenied
+from .gate import GovernanceDenied, GovernedGate
 from .models import AtpEnvelope, GovernedContext, ServicePrincipal, StrictInput
 from .principals import (
     BearerPrincipalProvider,
@@ -11,9 +11,9 @@ from .principals import (
 __all__ = [
     "AtpEnvelope",
     "BearerPrincipalProvider",
+    "GovernanceDenied",
     "GovernedContext",
     "GovernedGate",
-    "GovernanceDenied",
     "LocalPrincipalProvider",
     "ServicePrincipal",
     "StaticBearerTokenVerifier",

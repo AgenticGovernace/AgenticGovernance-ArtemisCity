@@ -2,10 +2,16 @@ import argparse
 import os
 from datetime import datetime
 
-from mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
+from mcp.config import AGENT_INPUT_DIR, OBSIDIAN_VAULT_PATH
 from mcp.orchestrator import Orchestrator
 from utils.helpers import logger
 from utils.run_logger import init_run_logger
+
+
+def _sql_memory_selected() -> bool:
+    """Return whether runtime configuration requires canonical SQL storage."""
+    backend = os.getenv("ARTEMIS_MEMORY_BACKEND", "legacy").strip().lower()
+    return backend not in {"", "legacy", "disabled"}
 
 
 def parse_cli_args() -> argparse.Namespace:
@@ -54,11 +60,16 @@ def setup_example_task_note(obs_manager, memory_bus=None):
     """
     example_filename = "Example Research Task.md"
     relative_path = os.path.join(AGENT_INPUT_DIR, example_filename)
-    full_path = obs_manager._get_full_path(
-        relative_path
-    )  # Access internal for convenience
+    sql_mode = memory_bus is not None and getattr(memory_bus, "sql_store", None) is not None
+    if sql_mode:
+        note_exists = memory_bus.read_exact(relative_path) is not None
+    else:
+        full_path = obs_manager._get_full_path(
+            relative_path
+        )  # Access internal for legacy compatibility
+        note_exists = full_path.is_file()
 
-    if not full_path.is_file():
+    if not note_exists:
         logger.info(f"Creating example task note at {relative_path}")
         content = f"""---\ntask_id: {datetime.now().strftime('%Y%m%d%H%M%S')}\nrequired_capability: web_search\nstatus: pending\ntags: ["example", "research"]\n---\n\n# Research Task: Artificial Intelligence Ethics\n\n## Context\n\nProvide an overview of the current ethical considerations surrounding the development and deployment of Artificial Intelligence. Focus on privacy, bias, and accountability.\n\nKeywords: AI ethics, privacy, bias, accountability, machine learning\nTarget: [[AI Concepts]]\nSource: Internet\n\n## Subtasks\n\n- [ ]  Research current debates on AI ethics\n- [ ]  Find examples of AI bias in real-world applications\n- [ ]  Summarize key regulations or frameworks proposed for AI accountability\n"""
         if memory_bus:
@@ -68,6 +79,8 @@ def setup_example_task_note(obs_manager, memory_bus=None):
                 )
             except Exception as exc:
                 logger.error(f"Failed to write example note via memory bus: {exc}")
+                if sql_mode:
+                    raise
                 obs_manager.write_note(relative_path, content, overwrite=False)
         else:
             obs_manager.write_note(relative_path, content, overwrite=False)
@@ -179,7 +192,7 @@ def main():
         "mcp_init", "main", {"args": vars(args)}, "MCP initialization started"
     )
 
-    if not os.path.exists(OBSIDIAN_VAULT_PATH):
+    if not _sql_memory_selected() and not os.path.exists(OBSIDIAN_VAULT_PATH):
         logger.error(
             f"Error: Obsidian vault path '{OBSIDIAN_VAULT_PATH}' does not exist."
         )
@@ -236,7 +249,7 @@ def main():
 
         try:
             orchestrator.route_and_execute_task(direct_task_context)
-            logger.info(f"Direct summary task completed. Report written to Obsidian.")
+            logger.info("Direct summary task completed. Report written to Obsidian.")
         except ValueError as e:
             logger.error(f"Failed to assign direct task: {e}")
     else:

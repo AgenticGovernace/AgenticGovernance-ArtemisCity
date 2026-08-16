@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.agents.atp.atp_models import ATPActionType, ATPMessage, ATPMode
 from src.agents.atp.atp_validator import ATPValidator
@@ -38,7 +38,7 @@ class GovernedGate:
             principal=principal,
             atp=envelope,
             capability=required_capability,
-            accepted_at=datetime.now(timezone.utc),
+            accepted_at=datetime.now(UTC),
         )
 
     @staticmethod

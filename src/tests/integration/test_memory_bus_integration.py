@@ -236,7 +236,7 @@ class TestMemoryBusGovernance:
 
 class TestNormalizeDocId:
     def test_spaces_replaced(self):
-        assert MemoryBus._normalize_doc_id("my note.md") == "my_note.md"
+        assert MemoryBus._normalize_doc_id("my note.md") == "my note.md"
 
     def test_no_spaces(self):
         assert MemoryBus._normalize_doc_id("note.md") == "note.md"

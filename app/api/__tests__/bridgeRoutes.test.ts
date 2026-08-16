@@ -38,7 +38,7 @@ const routeSchemas = {
       .object({
         status: z.string(),
         note_count: z.number(),
-        vector_count: z.number(),
+        vector_count: z.number().nullable(),
       })
       .passthrough()
   ),
@@ -476,6 +476,37 @@ describe('bridge-backed Express routes', () => {
       message: '#Mode: Build\nBuild it.',
       required_capability: 'llm_chat',
       message_id: 'msg-1',
+    });
+  });
+
+  it('forwards the memory replay contract and reports pending projection as accepted', async () => {
+    mockedCallBridge.mockResolvedValueOnce({
+      status: 'accepted',
+      sql_status: 'committed',
+      sync_pending: true,
+      idempotency_key: 'write-42',
+    });
+
+    const response = await request(server).post('/api/v1/memory/write').send({
+      path: 'Notes/retry.md',
+      content: 'canonical',
+      metadata: { kind: 'note' },
+      embed: false,
+      idempotency_key: 'write-42',
+      provenance_id: '6d60a6ab-00aa-4a45-8b35-07723918bacc',
+      source_agent: 'Artemis Orchestrator',
+    });
+
+    expect(response.status).toBe(202);
+    expect(response.body.message).toBe('Memory write accepted; projection pending');
+    expect(mockedCallBridge).toHaveBeenCalledWith('memory.write', {
+      path: 'Notes/retry.md',
+      content: 'canonical',
+      metadata: { kind: 'note' },
+      embed: false,
+      idempotency_key: 'write-42',
+      provenance_id: '6d60a6ab-00aa-4a45-8b35-07723918bacc',
+      source_agent: 'Artemis Orchestrator',
     });
   });
 });

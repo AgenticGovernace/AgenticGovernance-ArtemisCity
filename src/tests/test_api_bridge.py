@@ -3,12 +3,21 @@
 import json
 import subprocess
 import sys
+from contextlib import contextmanager
+from types import SimpleNamespace
+from unittest.mock import Mock, call
 
 import pytest
 
+import src.api_bridge as api_bridge_module
 from src.agents.base_agent import BaseAgent
 from src.api_bridge import BridgeError, dispatch
 from src.integration.agent_registry import QUARANTINE_THRESHOLD, AgentRegistry
+from src.integration.memory_store_factory import MemoryStoreConfigurationError
+from src.integration.sql_memory_store import (
+    IdempotencyConflictError,
+    MemoryStoreError,
+)
 from src.mcp.hebbian_weights import HebbianWeightManager
 
 
@@ -321,7 +330,12 @@ class TestMemoryCommands:
             "memory.list",
             {"vault_path": str(vault), "path": "notes"},
         )
-        assert list_result == {"path": "notes", "files": ["mars.md"], "count": 1}
+        assert list_result == {
+            "path": "notes",
+            "files": ["mars.md"],
+            "count": 1,
+            "source": "obsidian",
+        }
 
         search_result = dispatch(
             "memory.search",
@@ -382,6 +396,548 @@ class TestMemoryCommands:
         assert not (vault / "notes" / "delete-me.md").exists()
 
 
+def test_memory_dependencies_injects_the_shared_sql_store(monkeypatch):
+    """Bridge requests use the same runtime SQL-store factory as the MCP path."""
+    sql_store = object()
+    factory = Mock(return_value=sql_store)
+    captured: dict[str, object] = {}
+
+    class FakeMemoryBus:
+        def __init__(self, manager, vector_store, **kwargs):
+            captured["manager"] = manager
+            captured["vector_store"] = vector_store
+            captured.update(kwargs)
+
+    manager_factory = Mock(return_value=object())
+    vector_factory = Mock(return_value=object())
+    monkeypatch.setattr(api_bridge_module, "create_sql_memory_store", factory)
+    monkeypatch.setattr(api_bridge_module, "_memory_manager", manager_factory)
+    monkeypatch.setattr(api_bridge_module, "LocalVectorStore", vector_factory)
+    monkeypatch.setattr(api_bridge_module, "MemoryBus", FakeMemoryBus)
+
+    returned_manager, bus = api_bridge_module._memory_dependencies({})
+
+    factory.assert_called_once_with()
+    assert captured["sql_store"] is sql_store
+    assert returned_manager is captured["manager"]
+    manager_factory.assert_not_called()
+    vector_factory.assert_not_called()
+    assert bus is not None
+
+
+def test_explicit_vector_database_path_stays_legacy_without_sql_store(monkeypatch):
+    """Test-only vector database selection cannot enable a live SQL store."""
+    factory = Mock(return_value=None)
+    captured: dict[str, object] = {}
+
+    class FakeMemoryBus:
+        def __init__(self, manager, vector_store, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setenv("ARTEMIS_MEMORY_BACKEND", "legacy")
+    monkeypatch.setattr(api_bridge_module, "create_sql_memory_store", factory)
+    monkeypatch.setattr(api_bridge_module, "_memory_manager", lambda _: object())
+    monkeypatch.setattr(api_bridge_module, "LocalVectorStore", lambda **_: object())
+    monkeypatch.setattr(api_bridge_module, "MemoryBus", FakeMemoryBus)
+
+    api_bridge_module._memory_dependencies({"vector_db_path": "/tmp/test-vector.db"})
+
+    factory.assert_called_once_with()
+    assert captured["sql_store"] is None
+
+
+def test_explicit_vector_database_path_does_not_bypass_sql_configuration(monkeypatch):
+    """An explicit SQL backend remains fail-closed with a vector-path override."""
+    monkeypatch.setenv("ARTEMIS_MEMORY_BACKEND", "postgres")
+    monkeypatch.delenv("ARTEMIS_MEMORY_DATABASE_URL", raising=False)
+    monkeypatch.setattr(api_bridge_module, "_memory_manager", lambda _: object())
+    monkeypatch.setattr(api_bridge_module, "LocalVectorStore", lambda **_: object())
+
+    with pytest.raises(BridgeError) as error:
+        api_bridge_module._memory_dependencies(
+            {"vector_db_path": "/tmp/test-vector.db"}
+        )
+
+    assert error.value.code == "MEMORY_DATABASE_CONFIGURATION_ERROR"
+
+
+def test_sql_configuration_fails_before_local_memory_dependencies(monkeypatch):
+    """Broken SQL configuration cannot construct a vault or local vector store."""
+    manager = Mock()
+    vector_store = Mock()
+    monkeypatch.setattr(
+        api_bridge_module,
+        "create_sql_memory_store",
+        Mock(side_effect=MemoryStoreConfigurationError("postgres://fake-dsn")),
+    )
+    monkeypatch.setattr(api_bridge_module, "_memory_manager", manager)
+    monkeypatch.setattr(api_bridge_module, "LocalVectorStore", vector_store)
+
+    with pytest.raises(BridgeError) as error:
+        api_bridge_module._memory_dependencies({"vector_db_path": "/tmp/vector.db"})
+
+    assert error.value.code == "MEMORY_DATABASE_CONFIGURATION_ERROR"
+    assert str(error.value) == "memory database configuration is invalid"
+    assert error.value.__cause__ is None
+    manager.assert_not_called()
+    vector_store.assert_not_called()
+
+
+def test_sql_exact_read_does_not_construct_unhealthy_projections(monkeypatch):
+    """Canonical reads reach SQL without constructing vector or vault adapters."""
+    calls: list[str] = []
+    revision = SimpleNamespace(
+        content="canonical SQL bytes",
+        metadata={"kind": "canonical"},
+        record_id="record-1",
+        revision=4,
+    )
+
+    class RecordingSqlStore:
+        def get_current(self, relative_path):
+            calls.append(f"sql.get_current:{relative_path}")
+            return revision
+
+    vector_constructor = Mock(side_effect=OSError("vector://secret-host"))
+    vault_constructor = Mock(side_effect=OSError("vault secret path"))
+    monkeypatch.setattr(
+        api_bridge_module,
+        "create_sql_memory_store",
+        Mock(return_value=RecordingSqlStore()),
+    )
+    monkeypatch.setattr(api_bridge_module, "LocalVectorStore", vector_constructor)
+    monkeypatch.setattr(api_bridge_module, "ObsidianManager", vault_constructor)
+
+    result = dispatch("memory.read", {"path": "Notes/canonical.md"})
+
+    assert result["content"] == "canonical SQL bytes"
+    assert result["revision"] == 4
+    assert calls == ["sql.get_current:Notes/canonical.md"]
+    vector_constructor.assert_not_called()
+    vault_constructor.assert_not_called()
+
+
+class _RecordingBridgeSqlStore:
+    """Minimal SQL seam that records canonical work before projections."""
+
+    def __init__(self, calls):
+        self.calls = calls
+        self.current = None
+        self.status = "pending"
+
+    def stage_write(self, **kwargs):
+        self.calls.append("sql.stage")
+        self.current = SimpleNamespace(
+            relative_path=kwargs["relative_path"],
+            content=kwargs["content"],
+            metadata=dict(kwargs["metadata"] or {}),
+            record_id="record-1",
+            memory_id="memory-1",
+            revision=1,
+            idempotency_key=kwargs["idempotency_key"],
+            content_sha256="canonical-hash",
+        )
+        return SimpleNamespace(
+            revision=self.current,
+            event_id="event-1",
+            projection_status=self.status,
+            duplicate=False,
+        )
+
+    @contextmanager
+    def projection_guard(self, _relative_path):
+        self.calls.append("sql.guard")
+        yield self.current
+
+    def mark_delivered(self, _event_id):
+        self.calls.append("sql.mark_delivered")
+        self.status = "delivered"
+
+    def mark_projection_failed(self, _event_id, error_code):
+        self.calls.append(f"sql.pending:{error_code}")
+        self.status = "pending"
+
+    def get_current(self, relative_path):
+        self.calls.append(f"sql.get_current:{relative_path}")
+        return self.current
+
+
+def test_sql_write_commits_before_failing_vector_construction(monkeypatch):
+    """An unhealthy vector adapter becomes pending only after canonical commit."""
+    calls: list[str] = []
+    sql_store = _RecordingBridgeSqlStore(calls)
+
+    def fail_vector(**_kwargs):
+        calls.append("vector.construct")
+        raise OSError("vector driver postgres://secret-host/db")
+
+    vault_constructor = Mock(side_effect=OSError("vault secret path"))
+    monkeypatch.setattr(
+        api_bridge_module,
+        "create_sql_memory_store",
+        Mock(return_value=sql_store),
+    )
+    monkeypatch.setattr(api_bridge_module, "LocalVectorStore", fail_vector)
+    monkeypatch.setattr(api_bridge_module, "ObsidianManager", vault_constructor)
+
+    result = dispatch(
+        "memory.write", {"path": "Notes/vector.md", "content": "canonical"}
+    )
+
+    assert calls[:3] == ["sql.stage", "sql.guard", "vector.construct"]
+    assert calls[-1] == "sql.pending:vector_projection_failed"
+    assert result["status"] == "accepted"
+    assert result["sql_status"] == "committed"
+    assert result["vector_status"] == "pending"
+    assert result["obsidian_status"] == "pending"
+    assert "postgres://" not in json.dumps(result)
+    vault_constructor.assert_not_called()
+
+
+def test_sql_write_commits_before_failing_vault_construction(monkeypatch):
+    """An unhealthy vault adapter leaves SQL readable and projection pending."""
+    calls: list[str] = []
+    sql_store = _RecordingBridgeSqlStore(calls)
+
+    class RecordingVector:
+        def __init__(self, **_kwargs):
+            calls.append("vector.construct")
+
+        def upsert(self, _doc_id, _content, _metadata):
+            calls.append("vector.upsert")
+
+    def fail_vault(**_kwargs):
+        calls.append("vault.construct")
+        raise OSError("vault at /secret/operator/path is unavailable")
+
+    monkeypatch.setattr(
+        api_bridge_module,
+        "create_sql_memory_store",
+        Mock(return_value=sql_store),
+    )
+    monkeypatch.setattr(api_bridge_module, "LocalVectorStore", RecordingVector)
+    monkeypatch.setattr(api_bridge_module, "ObsidianManager", fail_vault)
+
+    result = dispatch(
+        "memory.write", {"path": "Notes/vault.md", "content": "canonical"}
+    )
+    read_result = dispatch("memory.read", {"path": "Notes/vault.md"})
+
+    assert calls[:5] == [
+        "sql.stage",
+        "sql.guard",
+        "vector.construct",
+        "vector.upsert",
+        "vault.construct",
+    ]
+    assert result["status"] == "accepted"
+    assert result["vector_status"] == "delivered"
+    assert result["obsidian_status"] == "pending"
+    assert read_result["content"] == "canonical"
+    assert calls.count("vault.construct") == 1
+    assert "/secret/operator/path" not in json.dumps(result)
+
+
+def test_memory_write_forwards_explicit_idempotency_key(monkeypatch):
+    """The public bridge preserves the caller's opaque retry identity."""
+    bus = Mock()
+    bus.write_note_with_embedding.return_value = {"status": "success"}
+    monkeypatch.setattr(
+        api_bridge_module, "_memory_dependencies", lambda _payload: (Mock(), bus)
+    )
+
+    dispatch(
+        "memory.write",
+        {
+            "path": "Notes/retry.md",
+            "content": "canonical",
+            "idempotency_key": "caller-operation-42",
+        },
+    )
+
+    bus.write_note_with_embedding.assert_called_once_with(
+        "Notes/retry.md",
+        "canonical",
+        metadata=None,
+        embed=True,
+        idempotency_key="caller-operation-42",
+        provenance_id=None,
+        source_agent=None,
+    )
+
+
+def test_memory_write_forwards_validated_provenance_identity(monkeypatch):
+    """Origin identity reaches the SQL record fields rather than metadata alone."""
+    bus = Mock()
+    bus.write_note_with_embedding.return_value = {"status": "success"}
+    monkeypatch.setattr(
+        api_bridge_module, "_memory_dependencies", lambda _payload: (Mock(), bus)
+    )
+    provenance_id = "6d60a6ab-00aa-4a45-8b35-07723918bacc"
+
+    dispatch(
+        "memory.write",
+        {
+            "path": "Notes/provenance.md",
+            "content": "canonical",
+            "provenance_id": provenance_id,
+            "source_agent": "Artemis Orchestrator",
+        },
+    )
+
+    assert (
+        bus.write_note_with_embedding.call_args.kwargs["provenance_id"]
+        == provenance_id
+    )
+    assert (
+        bus.write_note_with_embedding.call_args.kwargs["source_agent"]
+        == "Artemis Orchestrator"
+    )
+
+
+@pytest.mark.parametrize("invalid_provenance", ["", "not-a-uuid", 42])
+def test_memory_write_rejects_invalid_provenance_before_dependencies(
+    monkeypatch, invalid_provenance
+):
+    dependencies = Mock()
+    monkeypatch.setattr(api_bridge_module, "_memory_dependencies", dependencies)
+
+    with pytest.raises(BridgeError) as error:
+        dispatch(
+            "memory.write",
+            {
+                "path": "Notes/provenance.md",
+                "content": "canonical",
+                "provenance_id": invalid_provenance,
+            },
+        )
+
+    assert error.value.code == "INVALID_REQUEST"
+    dependencies.assert_not_called()
+
+
+@pytest.mark.parametrize("invalid_key", ["", "   ", 42, [], {}])
+def test_memory_write_rejects_invalid_idempotency_key(monkeypatch, invalid_key):
+    """Blank and non-string retry identities fail before dependency creation."""
+    dependencies = Mock()
+    monkeypatch.setattr(api_bridge_module, "_memory_dependencies", dependencies)
+
+    with pytest.raises(BridgeError) as error:
+        dispatch(
+            "memory.write",
+            {
+                "path": "Notes/retry.md",
+                "content": "canonical",
+                "idempotency_key": invalid_key,
+            },
+        )
+
+    assert error.value.code == "INVALID_REQUEST"
+    dependencies.assert_not_called()
+
+
+def test_memory_read_returns_canonical_sql_bytes_not_stale_vault(monkeypatch):
+    """The public exact read cannot bypass the bus's SQL authority."""
+    manager = Mock()
+    manager.read_note.return_value = "stale vault bytes"
+    bus = Mock()
+    bus.read_exact.return_value = {
+        "source": "exact",
+        "path": "Notes/pending.md",
+        "content": "canonical pending bytes",
+        "score": 1.0,
+        "record_id": "record-1",
+        "revision": 2,
+    }
+    monkeypatch.setattr(
+        api_bridge_module, "_memory_dependencies", lambda _payload: (manager, bus)
+    )
+    monkeypatch.setattr(api_bridge_module, "_memory_manager", lambda _payload: manager)
+
+    result = dispatch("memory.read", {"path": "Notes/pending.md"})
+
+    assert result["content"] == "canonical pending bytes"
+    assert result["record_id"] == "record-1"
+    manager.read_note.assert_not_called()
+
+
+def test_memory_read_missing_sql_revision_does_not_return_stale_vault(monkeypatch):
+    """A missing SQL head stays missing even when old projection bytes exist."""
+    manager = Mock()
+    manager.read_note.return_value = "orphaned vault bytes"
+    bus = Mock()
+    bus.read_exact.return_value = None
+    monkeypatch.setattr(
+        api_bridge_module, "_memory_dependencies", lambda _payload: (manager, bus)
+    )
+    monkeypatch.setattr(api_bridge_module, "_memory_manager", lambda _payload: manager)
+
+    with pytest.raises(BridgeError) as error:
+        dispatch("memory.read", {"path": "Notes/missing.md"})
+
+    assert error.value.code == "NOT_FOUND"
+    manager.read_note.assert_not_called()
+
+
+def test_sql_memory_list_uses_canonical_root_and_direct_folder_heads(monkeypatch):
+    """Public listing includes SQL-only records without enumerating Obsidian."""
+    sql_store = object()
+    bus = Mock(sql_store=sql_store)
+    bus.list_current.side_effect = [
+        [
+            {"relative_path": "root.md", "content": "root"},
+            {"relative_path": "notes/a.md", "content": "a"},
+        ],
+        [
+            {"relative_path": "notes/a.md", "content": "a"},
+            {"relative_path": "notes/nested/b.md", "content": "b"},
+        ],
+    ]
+    manager = Mock()
+    monkeypatch.setattr(
+        api_bridge_module, "create_sql_memory_store", Mock(return_value=sql_store)
+    )
+    monkeypatch.setattr(
+        api_bridge_module,
+        "_memory_dependencies_for_store",
+        lambda _payload, _store: (manager, bus),
+    )
+
+    root = dispatch("memory.list", {})
+    nested = dispatch("memory.list", {"path": "notes"})
+
+    assert root == {
+        "path": "",
+        "files": ["root.md"],
+        "count": 1,
+        "source": "sql",
+    }
+    assert nested == {
+        "path": "notes",
+        "files": ["a.md"],
+        "count": 1,
+        "source": "sql",
+    }
+    assert bus.list_current.call_args_list == [call(""), call("notes")]
+    manager.list_notes_in_folder.assert_not_called()
+
+
+def test_sql_memory_stats_supports_exact_file_and_suffix(monkeypatch):
+    """SQL stats preserve exact-file behavior and report projection count unknown."""
+    sql_store = object()
+    bus = Mock(sql_store=sql_store)
+    bus.read_exact.return_value = {
+        "path": "notes/a.md",
+        "content": "canonical bytes",
+    }
+    manager = Mock()
+    monkeypatch.setattr(
+        api_bridge_module, "create_sql_memory_store", Mock(return_value=sql_store)
+    )
+    monkeypatch.setattr(
+        api_bridge_module,
+        "_memory_dependencies_for_store",
+        lambda _payload, _store: (manager, bus),
+    )
+
+    result = dispatch("memory.stats", {"path": "notes/a.md", "suffix": ".md"})
+
+    assert result == {
+        "status": "success",
+        "path": "notes/a.md",
+        "note_count": 1,
+        "total_bytes": len("canonical bytes".encode("utf-8")),
+        "vector_count": None,
+        "source": "sql",
+        "projection_stats": "not_checked",
+    }
+    bus.list_current.assert_not_called()
+    manager._get_folder_path.assert_not_called()
+
+
+def test_sql_memory_stats_treats_unsuffixed_path_as_folder(monkeypatch):
+    """SQL folder stats list canonical heads instead of exact-reading a folder."""
+    sql_store = object()
+    bus = Mock(sql_store=sql_store)
+    bus.read_exact.side_effect = ValueError("memory path must name a file")
+    bus.list_current.return_value = [
+        {"relative_path": "notes/a.md", "content": "alpha"},
+        {"relative_path": "notes/b.txt", "content": "beta"},
+    ]
+    manager = Mock()
+    monkeypatch.setattr(
+        api_bridge_module, "create_sql_memory_store", Mock(return_value=sql_store)
+    )
+    monkeypatch.setattr(
+        api_bridge_module,
+        "_memory_dependencies_for_store",
+        lambda _payload, _store: (manager, bus),
+    )
+
+    result = dispatch("memory.stats", {"path": "notes", "suffix": ".md"})
+
+    assert result["note_count"] == 1
+    assert result["total_bytes"] == len("alpha".encode("utf-8"))
+    assert result["source"] == "sql"
+    bus.read_exact.assert_not_called()
+    bus.list_current.assert_called_once_with("notes")
+
+
+def test_sql_memory_delete_is_rejected_before_projection_side_effects(monkeypatch):
+    """SQL mode rejects deletes until canonical tombstones exist."""
+    sql_store = object()
+    manager = Mock()
+    vector_store = Mock()
+    monkeypatch.setattr(
+        api_bridge_module, "create_sql_memory_store", Mock(return_value=sql_store)
+    )
+    monkeypatch.setattr(api_bridge_module, "_memory_manager", manager)
+    monkeypatch.setattr(api_bridge_module, "LocalVectorStore", vector_store)
+
+    with pytest.raises(BridgeError) as error:
+        dispatch("memory.delete", {"path": "Notes/canonical.md"})
+
+    assert error.value.code == "MEMORY_DELETE_UNSUPPORTED"
+    manager.assert_not_called()
+    vector_store.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("storage_error", "expected_code"),
+    [
+        (
+            MemoryStoreError("driver failed for postgres://fake-secret-host/db"),
+            "MEMORY_STORAGE_UNAVAILABLE",
+        ),
+        (
+            IdempotencyConflictError("conflict at postgres://fake-secret-host/db"),
+            "MEMORY_IDEMPOTENCY_CONFLICT",
+        ),
+    ],
+)
+def test_memory_write_sanitizes_storage_failures(
+    monkeypatch, caplog, storage_error, expected_code
+):
+    """Bridge responses and logs expose only stable storage failure reasons."""
+    bus = Mock()
+    bus.write_note_with_embedding.side_effect = storage_error
+    monkeypatch.setattr(
+        api_bridge_module, "_memory_dependencies", lambda _payload: (Mock(), bus)
+    )
+
+    with caplog.at_level("ERROR"), pytest.raises(BridgeError) as error:
+        dispatch("memory.write", {"path": "Notes/write.md", "content": "body"})
+
+    assert error.value.code == expected_code
+    assert str(error.value) in {
+        "canonical memory storage is unavailable",
+        "memory idempotency key conflicts with an existing write",
+    }
+    assert error.value.__cause__ is None
+    assert "postgres://" not in str(error.value)
+    assert "postgres://" not in caplog.text
+
+
 class TestAgentMutationCommands:
     def test_register_update_suspend_activate_and_delete_agent(self, tmp_path):
         db_path = str(tmp_path / "registry.db")
@@ -430,6 +986,8 @@ class TestAgentMutationCommands:
 class TestATPBackedCommands:
     def test_atp_queue_history_route_and_metadata(self, tmp_path, db):
         atp_db = str(tmp_path / "atp.db")
+        registry = AgentRegistry(db_path=db)
+        registry.register_agent(_StubAgent("Builder", capabilities=["llm_chat"]))
         message = (
             "#Mode: Build\n#Context: Create route\n#Priority: Normal\n"
             "#Action: Execute\nBuild the bridge."
@@ -450,18 +1008,18 @@ class TestATPBackedCommands:
                 "atp_db_path": atp_db,
                 "db_path": db,
                 "message_id": message_id,
-                "required_capability": "research",
+                "required_capability": "llm_chat",
             },
         )
-        assert route["route"]["agent_name"] == "Alpha"
-        assert route["route"]["routing_scope"] == "atp:execute:research"
+        assert route["route"]["agent_name"] == "Builder"
+        assert route["route"]["routing_scope"] == "atp:execute:llm_chat"
         assert route["provenance_id"] == sent["provenance_id"]
 
         stored = dispatch(
             "atp.get_message", {"atp_db_path": atp_db, "message_id": message_id}
         )
         assert stored["status"] == "routed"
-        assert stored["route"]["agent_name"] == "Alpha"
+        assert stored["route"]["agent_name"] == "Builder"
         assert stored["provenance_id"] == sent["provenance_id"]
 
         assert "Build" in dispatch("atp.modes", {})["modes"]
