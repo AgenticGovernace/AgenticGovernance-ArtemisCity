@@ -108,7 +108,7 @@ check: lint ## Run formatting, import-order, and type checks
 security: security-static security-deps security-node ## Run all source and dependency security gates
 
 security-static: ## Static security analysis of the runtime surface (fails on any finding)
-	cd "$(ROOT_DIR)" && $(PYTHON) -m bandit -r src app -c pyproject.toml -q
+	cd "$(ROOT_DIR)" && $(PYTHON) -m bandit -r src app services -c pyproject.toml -q
 
 security-deps: ## Audit locked Python dependencies against known-vulnerability databases
 	cd "$(ROOT_DIR)" && UV_PYTHON="$(PYTHON)" $(UV) export --locked --no-emit-project \
