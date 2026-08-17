@@ -584,7 +584,7 @@ class HebbianRouter:
             state = self.registry.get_governance_state(name)
             if state and state.get("status") in _BLOCKED_STATUSES:
                 return True
-        except Exception:  # pragma: no cover - defensive
+        except Exception:  # pragma: no cover - defensive  # best-effort governance read; falls through to quarantine check  # nosec B110
             pass
         try:
             return bool(self.registry.is_quarantined(name))
@@ -636,7 +636,7 @@ class HebbianRouter:
             registry_score = state.get("trust_score") if state else None
             if registry_score is not None:
                 return max(0.0, min(1.0, float(registry_score)))
-        except Exception:  # pragma: no cover - defensive
+        except Exception:  # pragma: no cover - defensive  # best-effort registry read; falls back to trust interface  # nosec B110
             pass
         if self.trust_interface is None:
             return NEUTRAL_TRUST

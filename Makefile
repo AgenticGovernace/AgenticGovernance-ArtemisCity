@@ -101,9 +101,34 @@ check: lint ## Run formatting, import-order, and type checks
 	cd "$(ROOT_DIR)" && $(PYTHON) -m isort --check-only src app
 	cd "$(ROOT_DIR)" && $(PYTHON) -m mypy src app
 
-security: ## Run dependency and source security checks
-	cd "$(ROOT_DIR)" && $(PYTHON) -m bandit -r src app -c pyproject.toml
-	cd "$(ROOT_DIR)" && $(PYTHON) -m safety check
+security: security-static security-deps security-node ## Run all source and dependency security gates
+
+security-static: ## Static security analysis of the runtime surface (fails on any finding)
+	cd "$(ROOT_DIR)" && $(PYTHON) -m bandit -r src app -c pyproject.toml -q
+
+security-deps: ## Audit locked Python dependencies against known-vulnerability databases
+	cd "$(ROOT_DIR)" && UV_PYTHON="$(PYTHON)" $(UV) export --locked --no-emit-project \
+		--format requirements-txt -o "$(ROOT_DIR)/.uv-audit-requirements.txt" >/dev/null
+	cd "$(ROOT_DIR)" && UV_PYTHON="$(PYTHON)" $(UV) tool run pip-audit \
+		-r .uv-audit-requirements.txt --disable-pip \
+		&& rm -f "$(ROOT_DIR)/.uv-audit-requirements.txt" \
+		|| { rm -f "$(ROOT_DIR)/.uv-audit-requirements.txt"; exit 1; }
+
+# npm walks up to the workspace root from app/api and app/web/frontend, and the
+# root carries no lockfile, so workspace members are audited from a temp copy of
+# their own manifest + lockfile pair. --audit-level=low fails on ANY advisory.
+security-node: ## Audit every npm lockfile in the repository (fails on any advisory)
+	@set -e; for d in src src/launch src/memory/mcp-server; do \
+		echo "npm audit: $$d"; \
+		(cd "$(ROOT_DIR)/$$d" && npm audit --audit-level=low --no-fund); \
+	done
+	@set -e; for d in app/api app/web/frontend; do \
+		echo "npm audit: $$d"; \
+		tmp=$$(mktemp -d); \
+		cp "$(ROOT_DIR)/$$d/package.json" "$(ROOT_DIR)/$$d/package-lock.json" "$$tmp/"; \
+		(cd "$$tmp" && npm audit --audit-level=low --no-fund); \
+		rm -rf "$$tmp"; \
+	done
 
 secrets: ## Check staged changes for common secret names
 	@git diff --cached --name-only | xargs grep -l "API_KEY\|SECRET\|PASSWORD" 2>/dev/null \

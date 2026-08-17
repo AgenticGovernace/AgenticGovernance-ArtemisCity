@@ -469,7 +469,7 @@ class PostgresMemoryStore:
             with self._transaction_connection() as connection:  # noqa: SIM117
                 with connection.cursor() as cursor:
                     cursor.execute(
-                        f"/* memory:record-by-id */ SELECT {self._CANONICAL_RECORD_COLUMNS} "
+                        f"/* memory:record-by-id */ SELECT {self._CANONICAL_RECORD_COLUMNS} "  # interpolates class-constant column list; values parameterized  # nosec B608
                         "FROM artemis.memory_records WHERE record_id = %s::uuid",
                         (record_id,),
                     )
@@ -479,7 +479,7 @@ class PostgresMemoryStore:
                     revision = self._canonical_revision_from_row(record_row)
                     self._lock(cursor, f"logical:{revision.namespace}:{revision.key}")
                     cursor.execute(
-                        f"/* memory:claim-state */ SELECT r."
+                        f"/* memory:claim-state */ SELECT r."  # interpolates class-constant column list; values parameterized  # nosec B608
                         f"{self._CANONICAL_RECORD_COLUMNS.replace(', ', ', r.')}, "
                         "o.target, o.status, "
                         "h.current_record_id FROM artemis.memory_records AS r "
@@ -518,7 +518,7 @@ class PostgresMemoryStore:
             with self._transaction_connection() as connection:  # noqa: SIM117
                 with connection.cursor() as cursor:
                     cursor.execute(
-                        f"/* memory:read */ SELECT r."
+                        f"/* memory:read */ SELECT r."  # interpolates class-constant column list; values parameterized  # nosec B608
                         f"{self._CANONICAL_RECORD_COLUMNS.replace(', ', ', r.')} "
                         "FROM artemis.memory_heads AS h "
                         "JOIN artemis.memory_records AS r "
@@ -539,7 +539,7 @@ class PostgresMemoryStore:
             with self._transaction_connection() as connection:  # noqa: SIM117
                 with connection.cursor() as cursor:
                     cursor.execute(
-                        f"/* memory:search */ SELECT r."
+                        f"/* memory:search */ SELECT r."  # interpolates class-constant column list; values parameterized  # nosec B608
                         f"{self._CANONICAL_RECORD_COLUMNS.replace(', ', ', r.')} "
                         "FROM artemis.memory_heads AS h "
                         "JOIN artemis.memory_records AS r "
@@ -681,7 +681,7 @@ class PostgresMemoryStore:
         self, cursor: CursorLike, namespace: str, idempotency_key: str
     ) -> CanonicalMemoryRevision | None:
         cursor.execute(
-            f"/* memory:idempotency */ SELECT {self._CANONICAL_RECORD_COLUMNS} "
+            f"/* memory:idempotency */ SELECT {self._CANONICAL_RECORD_COLUMNS} "  # interpolates class-constant column list; values parameterized  # nosec B608
             "FROM artemis.memory_records "
             "WHERE namespace = %s AND idempotency_key = %s",
             (namespace, idempotency_key),
@@ -934,7 +934,7 @@ class PostgresMemoryStore:
             with self._transaction_connection() as connection:  # noqa: SIM117
                 with connection.cursor() as cursor:
                     cursor.execute(
-                        f"SELECT {self._RECORD_COLUMNS} "
+                        f"SELECT {self._RECORD_COLUMNS} "  # interpolates class-constant column list; values parameterized  # nosec B608
                         "FROM artemis.memory_records "
                         "WHERE idempotency_key = %s",
                         (idempotency_key,),
@@ -1112,7 +1112,7 @@ class PostgresMemoryStore:
             with self._transaction_connection() as connection:  # noqa: SIM117
                 with connection.cursor() as cursor:
                     query = (
-                        f"SELECT r.{self._RECORD_COLUMNS.replace(', ', ', r.')} "
+                        f"SELECT r.{self._RECORD_COLUMNS.replace(', ', ', r.')} "  # interpolates class-constant column list; values parameterized  # nosec B608
                         "FROM artemis.memory_heads AS h "
                         "JOIN artemis.memory_records AS r "
                         "ON r.record_id = h.current_record_id "
@@ -1160,7 +1160,7 @@ class PostgresMemoryStore:
     ) -> MemoryRevision | None:
         """Read the current head using an existing transaction cursor."""
         cursor.execute(
-            f"SELECT r.{self._RECORD_COLUMNS.replace(', ', ', r.')} "
+            f"SELECT r.{self._RECORD_COLUMNS.replace(', ', ', r.')} "  # interpolates class-constant column list; values parameterized  # nosec B608
             "FROM artemis.memory_heads AS h "
             "JOIN artemis.memory_records AS r "
             "ON r.record_id = h.current_record_id "
@@ -1243,7 +1243,7 @@ class PostgresMemoryStore:
             with self._transaction_connection() as connection:  # noqa: SIM117
                 with connection.cursor() as cursor:
                     cursor.execute(
-                        f"SELECT r.{self._RECORD_COLUMNS.replace(', ', ', r.')}, "
+                        f"SELECT r.{self._RECORD_COLUMNS.replace(', ', ', r.')}, "  # interpolates class-constant column list; values parameterized  # nosec B608
                         "o.event_id, o.status "
                         "FROM artemis.memory_outbox AS o "
                         "JOIN artemis.memory_records AS r ON r.record_id = o.record_id "
@@ -1290,7 +1290,7 @@ class PostgresMemoryStore:
             with self._transaction_connection() as connection:  # noqa: SIM117
                 with connection.cursor() as cursor:
                     cursor.execute(
-                        f"SELECT {self._RECORD_COLUMNS} "
+                        f"SELECT {self._RECORD_COLUMNS} "  # interpolates class-constant column list; values parameterized  # nosec B608
                         "FROM artemis.memory_records "
                         "WHERE idempotency_key = %s",
                         (idempotency_key,),

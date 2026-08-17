@@ -698,7 +698,7 @@ def get_run_events(
             if event_dict["metadata"]:
                 try:
                     event_dict["metadata"] = json.loads(event_dict["metadata"])
-                except:
+                except (ValueError, TypeError):  # malformed metadata stays raw  # nosec B110
                     pass
             events.append(event_dict)
         return events

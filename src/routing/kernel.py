@@ -100,7 +100,7 @@ def system_authority(
         capability=PrincipalCapabilityV1(
             token_issuer=SYSTEM_ISSUER,
             audience=SYSTEM_AUDIENCE,
-            token_key_id="system-local",
+            token_key_id="system-local",  # key identifier label, not a credential  # nosec B106
             token_jti_ref=f"system-local:{verified_at.isoformat()}",
             granted_scopes=granted_scopes,
         ),

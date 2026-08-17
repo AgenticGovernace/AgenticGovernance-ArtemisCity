@@ -31,13 +31,12 @@ classifiers = [
 
 dependencies = [
     "aiohappyeyeballs==2.7.1",
-    "aiohttp==3.14.1",
+    "aiohttp==3.14.3",
     "alembic>=1.7.0",
     "anthropic>=0.1.0",
     "click>=8.1.0",
     "coverage==7.15.4",
     "datasets>=5.0.1",
-    "diskcache==5.6.3",
     "docker>=7.2.0",
     "email-validator==2.3.0",
     "fastapi>=0.109.1",
@@ -133,6 +132,30 @@ exclude = ["/app/api/**", "/app/scripts/**", "/app/web/**"]
 testpaths = ["src/tests"]
 python_files = ["test_*.py"]
 addopts = '-ra --ignore="src/tests/integration/test_artemis_persona 2.py"'
+
+[tool.bandit]
+# Scope: the runtime attack surface. Every excluded path has a reason:
+#  - src/tests: pytest assert idiom and fixtures, not runtime code.
+#  - src/Kernel: quarantined legacy mirror, frozen by the reverse-sync
+#    removal hold (docs/audits/2026-08-16-reverse-sync-72cf776-removal-hold.yaml);
+#    byte-locked to app/kernel by test_repository_boundaries.
+#  - src/Experiments: archived experiment material and captured eval run
+#    outputs, not shipped runtime behavior.
+#  - The two " 2.py" files are held evidence paths (classification
+#    REMOVE_REVERSE_SYNC); the hold forbids content rewrite, so they cannot
+#    carry inline annotations.
+exclude_dirs = [
+    "src/tests",
+    "src/Kernel",
+    "src/Experiments",
+    "src/agents/artemis/persona 2.py",
+    "src/agents/research_agent 2.py",
+]
+# B112 (try/except/continue): the only remaining site is
+# app/kernel/memory_bus.py:149, which is byte-locked to the audit-held
+# src/Kernel mirror and cannot take an inline annotation without breaking
+# the quarantine byte-identity contract. Re-enable once the hold is released.
+skips = ["B112"]
 
 [dependency-groups]
 test = [
