@@ -85,6 +85,11 @@ const DatabaseIcon = () => (
     <path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6" />
   </IconWrap>
 );
+const MonitoringIcon = () => (
+  <IconWrap>
+    <polyline points="2 12 6 12 9 5 13 19 16 12 22 12" />
+  </IconWrap>
+);
 const ExecutorIcon = () => (
   <IconWrap>
     <polyline points="4 17 10 11 4 5" />
@@ -283,6 +288,7 @@ const SidebarContent = ({ onClickItem }: { onClickItem?: () => void }) => (
         { to: routePaths.agents, label: 'Agents', icon: <AgentsIcon /> },
         { to: routePaths.governance, label: 'Governance', icon: <GovernanceIcon /> },
         { to: routePaths.database, label: 'Database Viewer', icon: <DatabaseIcon /> },
+        { to: routePaths.monitoring, label: 'Monitoring', icon: <MonitoringIcon /> },
       ]}
     />
 

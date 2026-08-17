@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
+import httpx
 from starlette.concurrency import run_in_threadpool
 
 # Add the project root to the Python path
@@ -799,6 +800,83 @@ app.router.add_event_handler("startup", startup_event)
 
 
 # --- API Endpoints ---
+
+
+# Prometheus HTTP API base for the monitoring page's history/alert data.
+# Compose wires this to the prometheus service; local dev can export
+# ARTEMIS_PROMETHEUS_URL=http://localhost:9090. The governance snapshot
+# endpoint below never depends on Prometheus being up.
+_PROMETHEUS_URL = os.getenv("ARTEMIS_PROMETHEUS_URL", "http://prometheus:9090")
+_PROMETHEUS_TIMEOUT_SECONDS = float(os.getenv("ARTEMIS_PROMETHEUS_TIMEOUT", "3"))
+
+
+@app.get("/api/monitoring/governance")
+async def monitoring_governance(_key: None = Depends(_require_api_key)):
+    """Durable governance snapshot straight from the SQLite stores.
+
+    Works in every mode — including SQLite-only fallback with the
+    monitoring stack down — because it reads the same stores the
+    /metrics collector scrapes, with the same read-only access.
+    """
+    from src.monitoring import governance_snapshot
+
+    return await run_in_threadpool(governance_snapshot)
+
+
+@app.get("/api/monitoring/prometheus")
+async def monitoring_prometheus(_key: None = Depends(_require_api_key)):
+    """Slimmed Prometheus targets + alert-rule states for the dashboard.
+
+    Proxied server-side so the browser never needs to reach :9090 and the
+    frontend keeps a single API origin. Degrades to ``available: false``
+    when the monitoring stack is not running.
+    """
+    base = _PROMETHEUS_URL.rstrip("/")
+    try:
+        async with httpx.AsyncClient(
+            timeout=_PROMETHEUS_TIMEOUT_SECONDS
+        ) as client:
+            rules_response = await client.get(f"{base}/api/v1/rules")
+            targets_response = await client.get(f"{base}/api/v1/targets")
+            rules_response.raise_for_status()
+            targets_response.raise_for_status()
+            rules_payload = rules_response.json()
+            targets_payload = targets_response.json()
+    except (httpx.HTTPError, ValueError):
+        return {"available": False, "url": base, "targets": [], "alerts": []}
+
+    alerts = []
+    for group in rules_payload.get("data", {}).get("groups", []):
+        for rule in group.get("rules", []):
+            if rule.get("type") != "alerting":
+                continue
+            alerts.append(
+                {
+                    "name": rule.get("name"),
+                    "state": rule.get("state"),
+                    "severity": rule.get("labels", {}).get("severity"),
+                    "active": [
+                        {
+                            "labels": active.get("labels", {}),
+                            "state": active.get("state"),
+                            "active_at": active.get("activeAt"),
+                        }
+                        for active in rule.get("alerts", [])
+                    ],
+                }
+            )
+
+    targets = [
+        {
+            "job": target.get("labels", {}).get("job"),
+            "health": target.get("health"),
+            "scrape_url": target.get("scrapeUrl"),
+            "last_error": target.get("lastError") or None,
+        }
+        for target in targets_payload.get("data", {}).get("activeTargets", [])
+    ]
+
+    return {"available": True, "url": base, "targets": targets, "alerts": alerts}
 
 
 @app.get("/metrics")
