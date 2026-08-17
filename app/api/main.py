@@ -16,7 +16,7 @@ from typing import Any, Callable, Dict, List
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
@@ -620,6 +620,28 @@ app.router.add_event_handler("startup", startup_event)
 
 
 # --- API Endpoints ---
+
+
+@app.get("/metrics")
+async def metrics() -> Response:
+    """Prometheus exposition of governance, ATP, and memory-bus metrics.
+
+    Unauthenticated by design, like /health, so the Prometheus scraper in
+    docker-compose needs no API key. The payload carries aggregate
+    governance state (trust scores, statuses, Sentinel alerts) and
+    process metrics only — never secrets or request content.
+    """
+    from src.monitoring import (
+        metrics_content_type,
+        register_governance_collector,
+        render_metrics,
+    )
+
+    register_governance_collector()
+    payload = render_metrics()
+    if not payload:
+        raise HTTPException(status_code=503, detail="Metrics are unavailable.")
+    return Response(content=payload, media_type=metrics_content_type())
 
 
 @app.get("/health")

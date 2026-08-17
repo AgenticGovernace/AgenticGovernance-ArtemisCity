@@ -103,12 +103,28 @@ services:
       - QDRANT_API_KEY=${QDRANT_API_KEY:?QDRANT_API_KEY must be set}
 
   # Monitoring Stack
+  #
+  # redis-exporter translates Redis INFO into Prometheus metrics so the
+  # artemis-availability alert group can page on RedisDown. It reuses the
+  # same REDIS_PASSWORD the redis service requires.
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.66.0-alpine
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+    depends_on:
+      - redis
+    networks:
+      - artemis
+    restart: unless-stopped
+
   prometheus:
     image: prom/prometheus:latest
     ports:
       - "9090:9090"
     volumes:
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./config/alerts.yml:/etc/prometheus/alerts.yml
       - prometheus-data:/prometheus
     networks:
       - artemis
