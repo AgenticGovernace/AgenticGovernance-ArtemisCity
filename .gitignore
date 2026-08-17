@@ -690,3 +690,15 @@ Artemis_City.code-workspace
 .agents/skills/bigquery-ai-ml/references/vector_search.md
 docs/Archived/CLAUDE.md
 docs/Archived/Coverage report.html
+/src/utils/monitoring/data
+
+# --- Prometheus / monitoring runtime (never commit) -------------------------
+# Downloaded release binaries exceed GitHub's 100MB per-file limit and are
+# reproducible from the upstream tarball, so only the config is tracked.
+/src/utils/prometheus
+/src/utils/monitoring/prometheus
+/src/utils/promtool
+/src/utils/prometheus-*/
+prometheus-*.tar.gz
+# Prometheus TSDB state is regenerated on every run.
+/src/utils/monitoring/data/
