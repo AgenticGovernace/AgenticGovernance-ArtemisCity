@@ -592,3 +592,6 @@ prometheus-*.tar.gz
 # Prometheus TSDB state is regenerated on every run.
 /src/utils/monitoring/data/
 /services/cluster-starter/
+/services/Colab Notebooks
+/services/prove
+/app/obsidian_vault
