@@ -13,15 +13,9 @@ from src.agents.atp.atp_models import ATPMessage
 from src.agents.atp.atp_parser import ATPParser
 from src.agents.atp.atp_validator import ATPValidator, ValidationResult
 
-from .models import (
-    ATPHeaderInput,
-    ATPValidationReport,
-    DetectedATPFormat,
-    IssueSeverity,
-    ParsedATP,
-    ValidationIssue,
-    ValidationIssueCode,
-)
+from .models import (ATPHeaderInput, ATPValidationReport, DetectedATPFormat,
+                     IssueSeverity, ParsedATP, ValidationIssue,
+                     ValidationIssueCode)
 
 _EXACT_CODES: dict[str, ValidationIssueCode] = {
     "No ATP headers found in message": "no_atp_headers",

@@ -50,9 +50,7 @@ def _copy_provisioner_fixture(tmp_path: Path) -> Path:
                 "ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE=artemis-signer"
             )
         elif line.startswith("ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID="):
-            updated_lines.append(
-                "ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID=artemis-key-1"
-            )
+            updated_lines.append("ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID=artemis-key-1")
         else:
             updated_lines.append(line)
     root_example.write_text("\n".join(updated_lines) + "\n")
@@ -89,8 +87,7 @@ def test_sync_backfills_every_runtime_template_and_check_detects_drift(
 ) -> None:
     fixture = _copy_provisioner_fixture(tmp_path)
     (fixture / ".env").write_text(
-        AUTHSTRUCTURE_CONFIG
-        + "MCP_API_KEY=keep-mcp\n"
+        AUTHSTRUCTURE_CONFIG + "MCP_API_KEY=keep-mcp\n"
         "ARTEMIS_API_KEY_DEFAULT=keep-ts:admin:read,write\n"
         "\n"
     )
@@ -134,11 +131,7 @@ def test_regenerate_rotates_owned_secrets_and_propagates_them(tmp_path: Path) ->
     for relative in (".env", "app/api/.env", "src/.env", f"{MEMORY_LAYER}/.env"):
         target = fixture / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        content = (
-            AUTHSTRUCTURE_CONFIG
-            if relative == ".env"
-            else ""
-        ) + (
+        content = (AUTHSTRUCTURE_CONFIG if relative == ".env" else "") + (
             "MCP_API_KEY=old-mcp\n"
             "FASTAPI_API_KEY=old-fastapi\n"
             "ARTEMIS_API_KEY_DEFAULT=old-ts:admin:read,write,delete,admin\n"
@@ -225,11 +218,7 @@ def test_regenerate_preserves_operator_memory_database_urls(tmp_path: Path) -> N
     for relative in (".env", "src/.env"):
         env_file = fixture / relative
         env_file.parent.mkdir(parents=True, exist_ok=True)
-        content = (
-            AUTHSTRUCTURE_CONFIG
-            if relative == ".env"
-            else ""
-        ) + (
+        content = (AUTHSTRUCTURE_CONFIG if relative == ".env" else "") + (
             "ARTEMIS_MEMORY_DATABASE_URL=postgresql://runtime-operator/db\n"
             "ARTEMIS_MEMORY_MIGRATION_DATABASE_URL=postgresql://migration-operator/db\n"
         )
@@ -246,7 +235,6 @@ def test_regenerate_preserves_operator_memory_database_urls(tmp_path: Path) -> N
         assert _env_value(env_file, "ARTEMIS_MEMORY_MIGRATION_DATABASE_URL") == (
             "postgresql://migration-operator/db"
         )
-
 
 
 def test_pytest_startup_clears_live_memory_database_urls_before_import() -> None:

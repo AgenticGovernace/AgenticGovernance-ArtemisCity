@@ -14,12 +14,12 @@ import sys
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Dict, List
 
+import httpx
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
-import httpx
 from starlette.concurrency import run_in_threadpool
 
 # Add the project root to the Python path
@@ -1101,9 +1101,7 @@ async def monitoring_prometheus(_key: None = Depends(_require_api_key)):
     """
     base = _PROMETHEUS_URL.rstrip("/")
     try:
-        async with httpx.AsyncClient(
-            timeout=_PROMETHEUS_TIMEOUT_SECONDS
-        ) as client:
+        async with httpx.AsyncClient(timeout=_PROMETHEUS_TIMEOUT_SECONDS) as client:
             rules_response = await client.get(f"{base}/api/v1/rules")
             targets_response = await client.get(f"{base}/api/v1/targets")
             rules_response.raise_for_status()
@@ -1156,11 +1154,8 @@ async def metrics() -> Response:
     governance state (trust scores, statuses, Sentinel alerts) and
     process metrics only — never secrets or request content.
     """
-    from src.monitoring import (
-        metrics_content_type,
-        register_governance_collector,
-        render_metrics,
-    )
+    from src.monitoring import (metrics_content_type,
+                                register_governance_collector, render_metrics)
 
     register_governance_collector()
     payload = render_metrics()

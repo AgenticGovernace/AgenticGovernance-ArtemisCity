@@ -476,9 +476,10 @@ def test_every_hebbian_variant_beats_knn_on_accuracy(runs):
     """
     mae = {key: float(np.sum(runs[key]["errors"])) for key in runs}
 
-    assert mae["knn"] > mae["cold"] > mae["scoped"] > mae["atp"], (
-        "expected knn > cold > scoped > atp cumulative error, got "
-        + ", ".join(f"{k}={v:.1f}" for k, v in mae.items())
+    assert (
+        mae["knn"] > mae["cold"] > mae["scoped"] > mae["atp"]
+    ), "expected knn > cold > scoped > atp cumulative error, got " + ", ".join(
+        f"{k}={v:.1f}" for k, v in mae.items()
     )
 
 

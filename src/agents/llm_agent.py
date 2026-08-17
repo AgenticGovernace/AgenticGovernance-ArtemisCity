@@ -110,8 +110,8 @@ class LLMAgent(base_agent.BaseAgent):
         )
         configured_url = (
             model_url
-            or os.getenv("EXO_MODEL_URL")
             or base_url
+            or os.getenv("EXO_MODEL_URL")
             or os.getenv("EXO_BASE_URL", DEFAULT_EXO_BASE_URL)
         )
         self.model_url = self._with_v1_path(configured_url)
@@ -472,7 +472,9 @@ class LLMAgent(base_agent.BaseAgent):
                     if response is not None:
                         response.close()
 
-            assert endpoint_error is not None  # loop invariant: every failure path records endpoint_error  # nosec B101
+            assert (
+                endpoint_error is not None
+            )  # loop invariant: every failure path records endpoint_error  # nosec B101
             errors.append(f"{endpoint}: {endpoint_error}")
             if not self._should_try_next_endpoint(endpoint_error):
                 break
@@ -1099,7 +1101,9 @@ class LLMAgent(base_agent.BaseAgent):
                     if response is not None:
                         response.close()
 
-            assert endpoint_error is not None  # loop invariant: every failure path records endpoint_error  # nosec B101
+            assert (
+                endpoint_error is not None
+            )  # loop invariant: every failure path records endpoint_error  # nosec B101
             errors.append(f"{endpoint}: {endpoint_error}")
             if emitted_content or not self._should_try_next_endpoint(endpoint_error):
                 break

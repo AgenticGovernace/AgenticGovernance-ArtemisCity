@@ -1732,7 +1732,9 @@ def _trust_record_success(payload: Dict[str, Any]) -> Dict[str, Any]:
     entity_id = _require_str(payload, "entity_id")
     entity_type = payload.get("entity_type", "agent")
     amount = _optional_float(payload, "amount", 0.02, 0.0, 1.0)
-    assert amount is not None  # _optional_float with a default never returns None  # nosec B101
+    assert (
+        amount is not None
+    )  # _optional_float with a default never returns None  # nosec B101
     updated = _learning_governance(payload).record_trust_adjustment(
         entity_id,
         success=True,
@@ -1749,7 +1751,9 @@ def _trust_record_failure(payload: Dict[str, Any]) -> Dict[str, Any]:
     entity_id = _require_str(payload, "entity_id")
     entity_type = payload.get("entity_type", "agent")
     amount = _optional_float(payload, "amount", 0.05, 0.0, 1.0)
-    assert amount is not None  # _optional_float with a default never returns None  # nosec B101
+    assert (
+        amount is not None
+    )  # _optional_float with a default never returns None  # nosec B101
     updated = _learning_governance(payload).record_trust_adjustment(
         entity_id,
         success=False,
@@ -1865,7 +1869,9 @@ def _hebbian_update(payload: Dict[str, Any]) -> Dict[str, Any]:
     )
     coordinator.create_checkpoint(f"before_hebbian_update:{origin}:{target}")
     manager = coordinator.hebbian_manager
-    assert manager is not None  # coordinator always constructs hebbian_manager  # nosec B101
+    assert (
+        manager is not None
+    )  # coordinator always constructs hebbian_manager  # nosec B101
     current = manager.get_weight(origin, target)
     new_weight = max(0.0, current + delta)
     now = datetime.now().isoformat()

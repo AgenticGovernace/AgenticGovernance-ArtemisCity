@@ -207,7 +207,9 @@ class SupabaseVectorStore:
     def delete(self, doc_id: str):
         """Delete a document by id."""
         start_time = time.perf_counter()
-        self._execute(f"DELETE FROM {self.table} WHERE doc_id = %s", (doc_id,))  # table validated against [a-z0-9_] in __init__; values parameterized  # nosec B608
+        self._execute(
+            f"DELETE FROM {self.table} WHERE doc_id = %s", (doc_id,)
+        )  # table validated against [a-z0-9_] in __init__; values parameterized  # nosec B608
         latency_ms = (time.perf_counter() - start_time) * 1000
         logger.debug(
             "Deleted doc_id=%s from Supabase vector store (%.2fms)",
@@ -347,6 +349,8 @@ class SupabaseVectorStore:
 
     def count(self) -> int:
         """Return the number of stored records."""
-        cursor = self._execute(f"SELECT COUNT(*) FROM {self.table}")  # table validated against [a-z0-9_] in __init__; values parameterized  # nosec B608
+        cursor = self._execute(
+            f"SELECT COUNT(*) FROM {self.table}"
+        )  # table validated against [a-z0-9_] in __init__; values parameterized  # nosec B608
         (count,) = cursor.fetchone()
         return int(count)

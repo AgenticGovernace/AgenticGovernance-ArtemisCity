@@ -38,7 +38,10 @@ def _provider_failure() -> dict:
         (ArtemisAgent(), {"title": "coordinate", "content": "context"}),
     ],
 )
-def test_provider_failure_is_never_converted_to_success(agent, task) -> None:
+def test_provider_failure_is_never_converted_to_success(
+    agent, task, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("ARTEMIS_SYNTHETIC_AGENT_FALLBACK", raising=False)
     agent.llm_agent.perform_task = Mock(return_value=_provider_failure())
 
     result = agent.perform_task(task)

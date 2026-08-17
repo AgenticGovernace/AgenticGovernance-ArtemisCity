@@ -60,9 +60,7 @@ def _rows(db_file: str, query: str) -> list[tuple]:
     governance storage. ``mode=ro`` makes a missing store raise instead,
     which the collector reports via ``artemis_governance_scrape_ok``.
     """
-    connection = sqlite3.connect(
-        f"file:{quote(db_file)}?mode=ro", uri=True
-    )
+    connection = sqlite3.connect(f"file:{quote(db_file)}?mode=ro", uri=True)
     try:
         return connection.execute(query).fetchall()
     finally:
@@ -231,7 +229,14 @@ def governance_snapshot(
         pass
     else:
         stores["hebbian_weights"] = True
-        for agent_name, task_type, alert_active, oscillation_rate, samples, threshold in rows:
+        for (
+            agent_name,
+            task_type,
+            alert_active,
+            oscillation_rate,
+            samples,
+            threshold,
+        ) in rows:
             sentinel.append(
                 {
                     "agent": str(agent_name),
