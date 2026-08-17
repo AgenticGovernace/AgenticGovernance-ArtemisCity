@@ -3,26 +3,38 @@ name: Promote
 on:
   push:
     branches: [dev]
+  # Run the same gates against a pull request's merge commit, so a change is
+  # judged BEFORE it reaches dev. Previously the gates only ran on the
+  # post-merge push, which meant a red commit landed on dev first and then
+  # held the entire cascade back until someone repaired it in place.
+  pull_request:
+    branches: [dev]
   # Manual re-run of the cascade from the Actions tab. Regardless of which ref
   # the UI selects, the cascade always promotes the current `dev` tip (resolved
   # in the `resolve` job below) — never the default branch or an arbitrary ref.
   workflow_dispatch: {}
 
-# contents: write is required to advance the staging/prod branch pointers.
+# Least privilege by default: only the two promote jobs move branch pointers,
+# so only they request contents: write. Gate and pull-request runs never do.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: promote-${{ github.ref }}
   # Never cancel a promotion mid-flight: a cancelled run could leave staging
   # fast-forwarded but prod not, splitting the environments. Let an in-progress
-  # cascade finish; a newer dev commit promotes on the next run.
-  cancel-in-progress: false
+  # cascade finish; a newer dev commit promotes on the next run. Pull-request
+  # runs move no pointers, so superseded PR runs are safe to cancel.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Resolve the exact commit to promote ONCE, so the gate tests and the branch
+  # Resolve the exact commit to gate ONCE, so the gate jobs and the branch
   # pushes all refer to the same SHA.
   #  - push:             the commit that was pushed to dev (== github.sha).
+  #  - pull_request:     the ephemeral merge commit (== github.sha), i.e. the
+  #                      tree that WOULD land on dev. Gating the PR head
+  #                      instead would miss defects that only appear once the
+  #                      base is merged in.
   #  - workflow_dispatch: the current tip of origin/dev (github.sha would be the
   #                       tip of whatever ref the UI selected, which defaults to
   #                       the default branch — promoting that would be wrong).
@@ -37,20 +49,24 @@ jobs:
           fetch-depth: 0
       - id: pick
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
-            sha="${{ github.sha }}"
-          else
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             git fetch origin dev
             sha="$(git rev-parse FETCH_HEAD)"
+          else
+            # push and pull_request both carry the right commit in github.sha:
+            # the dev tip, and the ephemeral merge commit, respectively.
+            sha="${{ github.sha }}"
           fi
-          echo "Promoting dev commit: $sha"
+          echo "Gating commit: $sha"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
-  # --- CI gate: mirrors the CircleCI required checks (docs-mirror + tests) so a
-  # docs-mirror or test failure cannot slip a commit through to staging/prod.
-  # This is defense-in-depth on the GitHub side; CircleCI runs the fuller check
-  # set (lint, typescript-api, secrets-check) on the dev branch before promotion
-  # is triggered. ---
+  # --- CI gate: docs-mirror, tests, and security must all pass before a commit
+  # reaches staging/prod. These jobs run on pull requests as well as on the
+  # post-merge push, so they are the only gate standing between a change and
+  # dev — there is no separate CI provider behind them. (An earlier version of
+  # this comment claimed CircleCI ran a fuller set on dev; no .circleci config
+  # exists, so treat these jobs as the whole safety net and extend them here
+  # rather than assuming coverage elsewhere.) ---
 
   docs-mirror:
     name: Docs mirror gate
@@ -148,6 +164,10 @@ jobs:
   branch-lineage:
     name: Branch lineage gate
     needs: resolve
+    # Lineage only constrains an actual cascade. On a pull request the merge
+    # commit is not yet on dev, so staging/prod cannot be its ancestors and the
+    # check would fail for a reason the PR author cannot act on.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -187,6 +207,11 @@ jobs:
   promote-staging:
     name: Promote dev -> staging
     needs: [resolve, docs-mirror, test, security, branch-lineage]
+    # Pull-request runs stop at the gates; nothing is promoted until the change
+    # is actually on dev.
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: write
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -203,6 +228,9 @@ jobs:
   promote-prod:
     name: Promote staging -> prod
     needs: [resolve, promote-staging]
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: write
     runs-on: ubuntu-22.04
 
     steps:

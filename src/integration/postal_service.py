@@ -117,18 +117,15 @@ class PostOffice:
 
         # Simulate Pack Rat handling
         print("\n    Pack Rat is securing the mail...")
-        time.sleep(
-            random.uniform(0.3, 0.8)
-        )  # simulated delay jitter, not security-sensitive  # nosec B311
+        # simulated delay jitter, not security-sensitive
+        time.sleep(random.uniform(0.3, 0.8))  # nosec B311
 
         # Simulate potential delivery issues
-        if (
-            random.random() < 0.05
-        ):  # 5% chance of delay  # simulated delay jitter, not security-sensitive  # nosec B311
+        # 5% chance of delay; simulated jitter, not security-sensitive
+        if random.random() < 0.05:  # nosec B311
             print("     Temporary postal delay detected...")
-            time.sleep(
-                random.uniform(0.5, 1.0)
-            )  # simulated delay jitter, not security-sensitive  # nosec B311
+            # simulated delay jitter, not security-sensitive
+            time.sleep(random.uniform(0.5, 1.0))  # nosec B311
 
         # Deliver to City Archives
         vault_path: str = f"Postal/Agents/{recipient}/{packet.tracking_id}.md"
@@ -217,9 +214,8 @@ class PostOffice:
             )
 
         print("\n    Pack Rat is processing archival request...")
-        time.sleep(
-            random.uniform(0.4, 0.9)
-        )  # simulated delay jitter, not security-sensitive  # nosec B311
+        # simulated delay jitter, not security-sensitive
+        time.sleep(random.uniform(0.4, 0.9))  # nosec B311
 
         # Store in archives
         path: str = f"Archives/{archive_section}/{sender}_{title}.md"
@@ -264,9 +260,8 @@ class PostOffice:
             return []
 
         print("\n    City Librarian is searching...")
-        time.sleep(
-            random.uniform(0.5, 1.0)
-        )  # simulated delay jitter, not security-sensitive  # nosec B311
+        # simulated delay jitter, not security-sensitive
+        time.sleep(random.uniform(0.5, 1.0))  # nosec B311
 
         # Search archives
         search_query: str = query

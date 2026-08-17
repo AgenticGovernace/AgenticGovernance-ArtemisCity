@@ -136,6 +136,10 @@ addopts = '-ra --ignore="src/tests/integration/test_artemis_persona 2.py"'
 [tool.bandit]
 # Scope: the runtime attack surface. Every excluded path has a reason:
 #  - src/tests: pytest assert idiom and fixtures, not runtime code.
+#  - services/mcp/*/tests: same pytest assert idiom, for the MCP server
+#    packages. The glob needs the trailing "/*" — bandit fnmatches file
+#    paths, so a mid-path wildcard without it matches nothing and silently
+#    scans the tests anyway.
 #  - src/Kernel: quarantined legacy mirror, frozen by the reverse-sync
 #    removal hold (docs/audits/2026-08-16-reverse-sync-72cf776-removal-hold.yaml);
 #    byte-locked to app/kernel by test_repository_boundaries.
@@ -146,6 +150,7 @@ addopts = '-ra --ignore="src/tests/integration/test_artemis_persona 2.py"'
 #    carry inline annotations.
 exclude_dirs = [
     "src/tests",
+    "services/mcp/*/tests/*",
     "src/Kernel",
     "src/Experiments",
     "src/agents/artemis/persona 2.py",
