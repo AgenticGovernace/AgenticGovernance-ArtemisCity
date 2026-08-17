@@ -46,7 +46,7 @@ def _open_unique_temp_file(parent_fd: int) -> tuple[int, str]:
     for _ in range(_TEMP_FILE_ATTEMPTS):
         candidate = f".{secrets.token_hex(16)[:token_characters]}"
         try:
-            file_descriptor = os.open(candidate, flags, 0o666, dir_fd=parent_fd)
+            file_descriptor = os.open(candidate, flags, 0o644, dir_fd=parent_fd)
         except FileExistsError:
             continue
         return file_descriptor, candidate
@@ -134,7 +134,7 @@ class ObsidianManager:
                     )
                 except FileNotFoundError:
                     try:
-                        os.mkdir(component, 0o777, dir_fd=current_fd)
+                        os.mkdir(component, 0o755, dir_fd=current_fd)
                     except FileExistsError:
                         pass
                     os.fsync(current_fd)

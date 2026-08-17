@@ -278,7 +278,7 @@ class TestAnacondaAgentProxy:
             out = p.perform_task({"prompt": "ping"})
         assert out["content"] == ""
         assert "unreachable" in out["summary"].lower()
-        assert "refused" in out["error"]
+        assert "unreachable" in out["error"]
         assert out["agent"] == "artemis-oracle"
 
     def test_default_api_key_is_permissive(self, monkeypatch):
