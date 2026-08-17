@@ -1496,3 +1496,28 @@ def test_metrics_endpoint_serves_prometheus_exposition_without_auth(
     assert response.headers["content-type"].startswith("text/plain")
     assert "artemis_governance_scrape_ok" in response.text
     assert "artemis_agents" in response.text
+
+
+def test_monitoring_governance_returns_durable_snapshot_shape(
+    dashboard, client: TestClient
+):
+    """The snapshot endpoint serves even with no stores materialized yet."""
+    response = client.get("/api/monitoring/governance")
+    assert response.status_code == 200
+    payload = response.json()
+    assert set(payload) == {"agents", "status_counts", "sentinel", "stores"}
+    assert set(payload["status_counts"]) == {"active", "suspended", "quarantined"}
+    assert set(payload["stores"]) == {"agent_registry", "hebbian_weights"}
+
+
+def test_monitoring_prometheus_degrades_when_stack_is_down(
+    dashboard, client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    """An unreachable Prometheus yields available=false, never a 5xx."""
+    monkeypatch.setattr(dashboard, "_PROMETHEUS_URL", "http://127.0.0.1:1")
+    response = client.get("/api/monitoring/prometheus")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["available"] is False
+    assert payload["targets"] == []
+    assert payload["alerts"] == []

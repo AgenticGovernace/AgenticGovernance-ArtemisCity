@@ -19,6 +19,7 @@ const Reports = lazy(() => import('./pages/Reports.tsx'));
 const Agents = lazy(() => import('./pages/Agents.tsx'));
 const Database = lazy(() => import('./pages/Database.tsx'));
 const Executor = lazy(() => import('./pages/Executor.tsx'));
+const Monitoring = lazy(() => import('./pages/Monitoring.tsx'));
 const TaskDetails = lazy(() => import('./pages/TaskDetails.tsx'));
 const TaskActivity = lazy(() => import('./pages/TaskActivity.tsx'));
 const ReportDetails = lazy(() => import('./pages/ReportDetails.tsx'));
@@ -61,6 +62,7 @@ function App() {
             <Route path={routeSegments.agents} element={<Agents />} />
             <Route path={routeSegments.database} element={<Database />} />
             <Route path={routeSegments.executor} element={<Executor />} />
+            <Route path={routeSegments.monitoring} element={<Monitoring />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

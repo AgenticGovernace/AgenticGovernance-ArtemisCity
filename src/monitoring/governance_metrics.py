@@ -177,6 +177,80 @@ class GovernanceCollector:
         yield scrape_ok
 
 
+def governance_snapshot(
+    registry_db: Optional[str] = None,
+    hebbian_db: Optional[str] = None,
+) -> dict:
+    """JSON-ready governance state for the dashboard monitoring page.
+
+    Reads the same stores as :class:`GovernanceCollector`, with the same
+    strictly read-only access, but keeps per-agent status alongside trust
+    and violations so the frontend can render one table without joining
+    metric families. ``stores`` mirrors ``artemis_governance_scrape_ok``.
+    """
+    collector = GovernanceCollector(registry_db=registry_db, hebbian_db=hebbian_db)
+    agents: list[dict] = []
+    status_counts = {status: 0 for status in _AGENT_STATUSES}
+    stores = {"agent_registry": False, "hebbian_weights": False}
+    try:
+        rows = _rows(
+            collector._registry_db(),
+            "SELECT name, COALESCE(trust_tier, ''), COALESCE(status, 'active'),"
+            " COALESCE(violation_count, 0), trust_score"
+            " FROM agents ORDER BY name",
+        )
+    except sqlite3.Error:
+        pass
+    else:
+        stores["agent_registry"] = True
+        for name, tier, status, violation_count, trust_score in rows:
+            normalized = str(status).lower()
+            if normalized in status_counts:
+                status_counts[normalized] += 1
+            agents.append(
+                {
+                    "name": str(name),
+                    "tier": str(tier),
+                    "status": normalized,
+                    "violations": int(violation_count),
+                    "trust_score": (
+                        float(trust_score) if trust_score is not None else None
+                    ),
+                }
+            )
+
+    sentinel: list[dict] = []
+    try:
+        rows = _rows(
+            collector._hebbian_db(),
+            "SELECT agent_name, task_type, alert_active, oscillation_rate,"
+            " sample_count, threshold"
+            " FROM hebbian_sentinel_state ORDER BY agent_name, task_type",
+        )
+    except sqlite3.Error:
+        pass
+    else:
+        stores["hebbian_weights"] = True
+        for agent_name, task_type, alert_active, oscillation_rate, samples, threshold in rows:
+            sentinel.append(
+                {
+                    "agent": str(agent_name),
+                    "task_type": str(task_type),
+                    "alert_active": bool(alert_active),
+                    "oscillation_rate": float(oscillation_rate),
+                    "sample_count": int(samples),
+                    "threshold": float(threshold),
+                }
+            )
+
+    return {
+        "agents": agents,
+        "status_counts": status_counts,
+        "sentinel": sentinel,
+        "stores": stores,
+    }
+
+
 _registered: Optional[GovernanceCollector] = None
 
 

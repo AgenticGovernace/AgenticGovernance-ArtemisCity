@@ -574,3 +574,64 @@ export const executeInstructionStream = (
 
   return controller;
 };
+
+export interface GovernanceAgentRow {
+  name: string;
+  tier: string;
+  status: string;
+  violations: number;
+  trust_score: number | null;
+}
+
+export interface SentinelScope {
+  agent: string;
+  task_type: string;
+  alert_active: boolean;
+  oscillation_rate: number;
+  sample_count: number;
+  threshold: number;
+}
+
+export interface GovernanceSnapshot {
+  agents: GovernanceAgentRow[];
+  status_counts: Record<string, number>;
+  sentinel: SentinelScope[];
+  stores: Record<string, boolean>;
+}
+
+export interface PrometheusAlert {
+  name: string;
+  state: string;
+  severity: string | null;
+  active: Array<{
+    labels: Record<string, string>;
+    state: string;
+    active_at: string | null;
+  }>;
+}
+
+export interface PrometheusTarget {
+  job: string | null;
+  health: string;
+  scrape_url: string;
+  last_error: string | null;
+}
+
+export interface PrometheusStatus {
+  available: boolean;
+  url: string;
+  targets: PrometheusTarget[];
+  alerts: PrometheusAlert[];
+}
+
+/** Durable governance snapshot read straight from the SQLite stores. */
+export const fetchGovernanceSnapshot = (
+  options: ApiRequestOptions = {}
+): Promise<GovernanceSnapshot> =>
+  apiFetch<GovernanceSnapshot>('/monitoring/governance', options);
+
+/** Prometheus targets and alert-rule states, proxied by the kernel. */
+export const fetchPrometheusStatus = (
+  options: ApiRequestOptions = {}
+): Promise<PrometheusStatus> =>
+  apiFetch<PrometheusStatus>('/monitoring/prometheus', options);

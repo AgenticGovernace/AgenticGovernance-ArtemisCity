@@ -16,6 +16,7 @@ export const routeSegments = {
   agents: 'agents',
   database: 'database',
   executor: 'executor',
+  monitoring: 'monitoring',
 } as const;
 
 export const routePaths = {
@@ -25,6 +26,7 @@ export const routePaths = {
   agents: `/${routeSegments.agents}`,
   database: `/${routeSegments.database}`,
   executor: `/${routeSegments.executor}`,
+  monitoring: `/${routeSegments.monitoring}`,
   task: (taskId: string) => `/${routeSegments.tasks}/${encodeURIComponent(taskId)}`,
   taskActivity: (taskId: string) =>
     `/${routeSegments.tasks}/${encodeURIComponent(taskId)}/${routeSegments.taskActivity}`,

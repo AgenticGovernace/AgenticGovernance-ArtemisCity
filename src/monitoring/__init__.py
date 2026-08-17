@@ -2,6 +2,7 @@
 
 from src.monitoring.governance_metrics import (
     GovernanceCollector,
+    governance_snapshot,
     metrics_content_type,
     register_governance_collector,
     render_metrics,
@@ -9,6 +10,7 @@ from src.monitoring.governance_metrics import (
 
 __all__ = [
     "GovernanceCollector",
+    "governance_snapshot",
     "metrics_content_type",
     "register_governance_collector",
     "render_metrics",
