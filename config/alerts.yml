@@ -1,0 +1,98 @@
+# Governance alerting rules for Artemis City.
+# Loaded by config/prometheus.yml (mounted at /etc/prometheus/alerts.yml).
+#
+# The governance invariants these encode:
+#   - no agent should sit in quarantine unnoticed,
+#   - trust collapses and violation spikes are operator events,
+#   - a firing Hebbian Sentinel means routing weights are oscillating,
+#   - the governance stores themselves must stay readable,
+#   - Redis and the kernel exporter must stay up.
+
+groups:
+  - name: artemis-governance
+    rules:
+      - alert: AgentQuarantined
+        expr: artemis_agents{status="quarantined"} > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "One or more agents are quarantined"
+          description: >-
+            {{ $value }} agent(s) are in governance quarantine. Inspect the
+            registry violations table and the sandbox log before clearing.
+
+      - alert: AgentSuspended
+        expr: artemis_agents{status="suspended"} > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "One or more agents are suspended"
+          description: "{{ $value }} agent(s) have been suspended for over 5 minutes."
+
+      - alert: AgentTrustCollapse
+        expr: artemis_agent_trust_score < 0.3
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Agent trust score below 0.3"
+          description: >-
+            Trust for agent {{ $labels.agent }} has stayed below 0.3 for 10
+            minutes. Routing eligibility may already exclude it.
+
+      - alert: GovernanceViolationSpike
+        expr: increase(artemis_agent_violations[15m]) > 3
+        labels:
+          severity: warning
+        annotations:
+          summary: "Violation spike for {{ $labels.agent }}"
+          description: >-
+            More than 3 new governance violations recorded for
+            {{ $labels.agent }} within 15 minutes (3 strikes quarantine an
+            agent, so this scope is already past the sandbox threshold).
+
+      - alert: HebbianSentinelAlert
+        expr: artemis_hebbian_sentinel_alert > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Hebbian Sentinel alert for {{ $labels.agent }}/{{ $labels.task_type }}"
+          description: >-
+            The Sentinel's rolling sign-change rate crossed its threshold —
+            learned routing weights for this scope are oscillating instead of
+            converging.
+
+      - alert: GovernanceStoreUnreadable
+        expr: artemis_governance_scrape_ok == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Governance store {{ $labels.store }} unreadable"
+          description: >-
+            The kernel could not read {{ $labels.store }} during metric
+            scrapes for 2 minutes. Governance decisions may be running
+            blind; check disk state and SQLite locks.
+
+  - name: artemis-availability
+    rules:
+      - alert: KernelMetricsDown
+        expr: up{job="artemis-kernel"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Kernel /metrics endpoint is down"
+          description: "Prometheus has failed to scrape the kernel for 2 minutes."
+
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "The redis-exporter reports the Redis instance as unreachable."
