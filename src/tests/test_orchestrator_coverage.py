@@ -452,7 +452,7 @@ def test_assign_execution_error_and_persistence_fallbacks(orchestrator):
         "Agent Inputs/crashed-direct.md",
     )
     assert crashed["status"] == "failed"
-    assert crashed["summary"] == "Task failed: agent crashed"
+    assert crashed["summary"] == "Task failed; see server logs for details."
     orchestrator.update_task_status_in_obsidian.assert_called_with(
         "Agent Inputs/crashed-direct.md", "failed", "crashed-direct"
     )
@@ -1272,7 +1272,11 @@ def test_execute_all_pending_tasks_tracks_complete_skip_and_exception(orchestrat
                 "status": "failed",
                 "error": "model unavailable",
             },
-            {"task_id": "fail", "status": "failed", "error": "agent crashed"},
+            {
+                "task_id": "fail",
+                "status": "failed",
+                "error": "Task execution failed; see server logs for details.",
+            },
         ],
     }
     assert orchestrator.update_task_status_in_obsidian.call_args_list == [

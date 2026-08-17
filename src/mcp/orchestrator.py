@@ -620,7 +620,22 @@ class Orchestrator:
                 self.update_task_status_in_obsidian(
                     original_task_note_path, "routing_failed", task_id
                 )
-            return {"status": "failed", "error": str(e)}
+            # Routing raises operator-crafted messages. Relay a matching
+            # CONSTANT so exception internals never reach callers
+            # (CodeQL py/stack-trace-exposure); full detail is in the log above.
+            detail = str(e)
+            public_error = "Task routing failed; see server logs for details."
+            for marker in (
+                "No agent found with the required capability",
+                "missing route",
+                "required_capability",
+            ):
+                if marker in detail:
+                    public_error = (
+                        f"Task routing failed: {marker}; see server logs for details."
+                    )
+                    break
+            return {"status": "failed", "error": public_error}
 
     def assign_and_execute_task(
         self,
@@ -754,10 +769,12 @@ class Orchestrator:
                 exc_info=True,
             )
             task_success = False
+            # Generic client-facing text; the exception detail is already in
+            # the server log above (CodeQL py/stack-trace-exposure).
             results = {
                 "status": "failed",
-                "error": str(e),
-                "summary": f"Task failed: {e}",
+                "error": "Task execution failed; see server logs for details.",
+                "summary": "Task failed; see server logs for details.",
             }
 
         task_duration_ms = (time.perf_counter() - task_start_time) * 1000
@@ -1847,7 +1864,11 @@ class Orchestrator:
             )
 
         if not filename:
-            title_slug = task_title.lower().replace(" ", "_")
+            # Titles arrive from HTTP payloads; keep only filesystem-safe
+            # characters before joining (CodeQL py/path-injection).
+            title_slug = self._artifact_component(
+                task_title.lower().replace(" ", "_")
+            )
             filename = f"{title_slug}_{datetime.now().strftime('%Y%m%d%H%M%S')}.md"
 
         relative_path = os.path.join(AGENT_INPUT_DIR, filename)
@@ -1975,7 +1996,13 @@ class Orchestrator:
                 )
                 summary["failed"] += 1
                 summary["details"].append(
-                    {"task_id": task_id, "status": "failed", "error": str(exc)}
+                    {
+                        "task_id": task_id,
+                        "status": "failed",
+                        # Detail is in the server log above (CodeQL
+                        # py/stack-trace-exposure).
+                        "error": "Task execution failed; see server logs for details.",
+                    }
                 )
 
         return summary

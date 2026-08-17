@@ -23,11 +23,29 @@ const currentLogLevel: LogLevel =
  * @param message The primary log message.
  * @param args Additional arguments to pass to the console method (e.g., objects, stack traces).
  */
+/**
+ * Strip CR/LF and other control characters so request-derived values cannot
+ * forge additional log lines (CodeQL js/log-injection).
+ */
+export const sanitizeForLog = (value: string): string =>
+  value.replace(/[\r\n]+/g, ' ').replace(/[\x00-\x1F\x7F]/g, '');
+
+const serializeForLog = (value: unknown): string => {
+  if (typeof value === 'string') return value;
+  if (value instanceof Error) return `${value.name}: ${value.message}`;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+};
+
 const log = (level: LogLevel, message: string, ...args: any[]) => {
   if (level >= currentLogLevel) {
     const timestamp = new Date().toISOString();
     const levelName = LogLevel[level]; // Converts enum value (number) back to string name
-    const formattedMessage = `[${timestamp}] [${levelName}] ${message}`;
+    const formattedMessage = `[${timestamp}] [${levelName}] ${sanitizeForLog(message)}`;
+    args = args.map((arg) => sanitizeForLog(serializeForLog(arg)));
 
     // Use appropriate console method based on log level
     switch (level) {
@@ -70,6 +88,8 @@ export const logger = {
  * @param next The next middleware function.
  */
 export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
-  logger.info(`${req.method} ${req.originalUrl} from ${req.ip}`);
+  logger.info(
+    `${sanitizeForLog(req.method)} ${sanitizeForLog(req.originalUrl)} from ${sanitizeForLog(String(req.ip))}`,
+  );
   next();
 };

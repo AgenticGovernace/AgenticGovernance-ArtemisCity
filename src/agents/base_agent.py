@@ -36,7 +36,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, List, Optional
 
-from ..utils.helpers import logger
+from ..utils.helpers import logger, sanitize_for_log
 
 if TYPE_CHECKING:
     from logging import Logger
@@ -187,7 +187,9 @@ class BaseAgent(ABC):
         Returns:
             None: This function does not return a value.
         """
-        self._logger.info(message)
+        # Status messages interpolate task/provider-derived text; strip
+        # newlines so they cannot forge log records (CodeQL py/log-injection).
+        self._logger.info(sanitize_for_log(message, max_length=500))
 
     def validate_task_context(self, task_context: dict[str, Any]) -> bool:
         """
