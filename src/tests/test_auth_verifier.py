@@ -2030,7 +2030,7 @@ def test_setup_mutating_modes_preflight_duplicate_authstructure_declarations(
     fake_openssl.write_text(
         '#!/usr/bin/env bash\nprintf called > "$ARTEMIS_TEST_OPENSSL_MARKER"\n'
     )
-    fake_openssl.chmod(0o755)
+    fake_openssl.chmod(0o700)
     environment = dict(os.environ)
     environment["PATH"] = f"{binary_dir}:{environment['PATH']}"
     environment["ARTEMIS_TEST_OPENSSL_MARKER"] = str(openssl_marker)

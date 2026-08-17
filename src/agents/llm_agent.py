@@ -452,7 +452,9 @@ class LLMAgent(base_agent.BaseAgent):
                         attempt_started,
                         status,
                         outcome="failed",
-                        error=str(exc),
+                        # Class name only: attempt records ship to clients in
+                        # exo_request (CodeQL py/stack-trace-exposure).
+                        error=type(exc).__name__,
                         failure_kind=failure_kind,
                     )
                     retry_after = self._retry_after_seconds(retry_response)
@@ -1073,7 +1075,9 @@ class LLMAgent(base_agent.BaseAgent):
                         attempt_started,
                         status,
                         outcome="failed",
-                        error=str(exc),
+                        # Class name only: attempt records ship to clients in
+                        # exo_request (CodeQL py/stack-trace-exposure).
+                        error=type(exc).__name__,
                         failure_kind=failure_kind,
                     )
                     retry_after = self._retry_after_seconds(retry_response)

@@ -351,6 +351,28 @@ def _list_markdown_files(folder: Path) -> List[str]:
     )
 
 
+def _public_task_results(results: Any) -> Any:
+    """Deep-copy a task result with provider exception text redacted.
+
+    ``llm_error`` carries raw provider/agent exception detail for the
+    Obsidian audit trail; it must not ship to HTTP clients
+    (CodeQL py/stack-trace-exposure). The full detail stays in server-side
+    logs and persisted reports.
+    """
+    if isinstance(results, dict):
+        return {
+            key: (
+                "LLM provider error; see server logs for details."
+                if key == "llm_error" and value
+                else _public_task_results(value)
+            )
+            for key, value in results.items()
+        }
+    if isinstance(results, list):
+        return [_public_task_results(item) for item in results]
+    return results
+
+
 def _resolve_report_target(filename: str, vault_path: Path) -> tuple[Path, str]:
     """Resolve a report filename strictly inside the configured output folder."""
     requested = Path(filename)
@@ -360,6 +382,12 @@ def _resolve_report_target(filename: str, vault_path: Path) -> tuple[Path, str]:
     vault_root = vault_path.resolve()
     output_dir = (vault_root / AGENT_OUTPUT_DIR).resolve()
     report_path = (output_dir / requested).resolve()
+    # normpath + prefix check is the containment idiom CodeQL's
+    # py/path-injection query models as a sanitizer; relative_to() below
+    # remains the behavioral guard.
+    normalized = os.path.normpath(str(report_path))
+    if not normalized.startswith(str(output_dir) + os.sep):
+        raise ValueError("report path escapes output directory")
     try:
         report_path.relative_to(output_dir)
     except ValueError as exc:
@@ -374,7 +402,12 @@ def _resolve_sql_report_path(filename: str) -> str:
     segments = filename.split("/")
     if any(not segment or segment in {".", ".."} for segment in segments):
         raise ValueError("invalid report filename")
-    return f"{AGENT_OUTPUT_DIR.rstrip('/')}/{filename}"
+    prefix = AGENT_OUTPUT_DIR.rstrip("/")
+    joined = os.path.normpath(f"{prefix}/{filename}")
+    # normpath + prefix check (CodeQL py/path-injection sanitizer idiom).
+    if not joined.startswith(prefix + "/"):
+        raise ValueError("invalid report filename")
+    return joined
 
 
 def _resolve_task_note_path(relative_path: str) -> str:
@@ -389,7 +422,11 @@ def _resolve_task_note_path(relative_path: str) -> str:
         candidate = input_dir / candidate
     if candidate.parent != input_dir or candidate.suffix != ".md":
         raise ValueError("invalid task note path")
-    return candidate.as_posix()
+    resolved = os.path.normpath(candidate.as_posix())
+    # normpath + prefix check (CodeQL py/path-injection sanitizer idiom).
+    if not resolved.startswith(str(input_dir) + "/"):
+        raise ValueError("invalid task note path")
+    return resolved
 
 
 def _parse_task_note(content: str) -> Dict[str, Any] | None:
@@ -1092,7 +1129,10 @@ async def execute_pending_task(
             )
             results = orchestrator.route_and_execute_task(task_data, relative_note_path)
 
-        return {"message": "Task executed successfully", "results": results}
+        return {
+            "message": "Task executed successfully",
+            "results": _public_task_results(results),
+        }
     except ValueError as ve:
         logger.error("Validation error executing task: %s", _sanitize_for_log(ve))
         orchestrator.update_task_status_in_obsidian(

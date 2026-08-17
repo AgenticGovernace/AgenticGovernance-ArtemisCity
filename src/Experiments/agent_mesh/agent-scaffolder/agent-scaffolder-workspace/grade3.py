@@ -248,7 +248,7 @@ def grade(eid, p, t):
             E(
                 "Routes through the ramble server (tier-1 MCP)",
                 ("3748" in t)
-                or ("ramble.kb" in t)
+                or bool(re.search(r"ramble\.kb", t))
                 or ("kb_write" in t)
                 or ("ramble server" in t),
                 "text",

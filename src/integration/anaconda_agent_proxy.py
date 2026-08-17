@@ -45,6 +45,7 @@ from typing import Any, Dict, Iterable, List, Optional
 import requests
 
 from src.agents.base_agent import BaseAgent
+from src.utils.helpers import sanitize_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +170,10 @@ def parse_sse_chat_completion(stream: Iterable[Any]) -> Dict[str, Any]:
         try:
             chunk = json.loads(payload)
         except json.JSONDecodeError:
-            logger.debug("Skipping non-JSON SSE payload: %r", payload[:120])
+            logger.debug(
+                "Skipping non-JSON SSE payload: %s",
+                sanitize_for_log(payload[:120]),
+            )
             continue
         if not completion_id and chunk.get("id"):
             completion_id = chunk["id"]
@@ -334,7 +338,9 @@ class AnacondaAgentProxy(BaseAgent):
                 "content": "",
                 "agent": self.name,
                 "port": self.port,
-                "error": str(exc),
+                # Detail is in the warning log above (CodeQL
+                # py/stack-trace-exposure).
+                "error": "Anaconda agent unreachable; see server logs for details.",
             }
 
         content = result["content"]
