@@ -24,9 +24,7 @@ For the responsibility, data, and test boundaries *inside* these projects, use
 
 | Surface | Current path | Evidence | Recommended action |
 |---|---|---|---|
-| Obsidian MCP server shell | `src/Artemis Agentic Memory Layer/` | README and Makefile describe a standalone TS service, but the tree currently contains only `src/utils/logger.ts` and no `package.json`, Dockerfile, or README | Recreate the missing service files or mark the directory archived before treating it as runnable |
-| Imported Obsidian REST shell | `src/mcp-server/` | Has a local manifest and HTTP routes, but is not registered in the root npm workspace; the reviewed MCP design explicitly does not extend this REST shell as Model Context Protocol | Classify or archive it before exposing it as an active service |
-| Duplicate imported REST shell | `src/memory/mcp-server/` | Mirrors `src/mcp-server/` under the memory package and is likewise absent from the root workspace | Select one canonical owner before any maintenance or launch integration |
+| Obsidian REST shell | `src/Artemis Agentic Memory Layer/` | Working `package.json`, `Dockerfile`, and `middleware/auth.ts` are present; `make server` runs it. Not registered in the root npm workspace. Branding-only — plain REST, no `@modelcontextprotocol/sdk` dependency; the reviewed MCP design does not treat it as Model Context Protocol | Register it in the root npm workspace before treating it as a production dependency |
 | Legacy web API copy | `archive/legacy-web-api/` | Old `app/web/api/` FastAPI copies; active dashboard API is `app/api/main.py` | Archived for reference |
 | Duplicate memory integration package | `memory/` | Mirrors `src/memory/` names outside the package root | Verify imports, then remove or convert to compatibility shims |
 | Duplicate root tests | `tests/` | Substantially overlaps `src/tests/`, but is not byte-identical | Keep `src/tests/` canonical; root `tests/` is migration-only and documented by `tests/README.md` |
@@ -56,11 +54,11 @@ These must be resolved before broad file moves or package extraction:
    stale scripts and docs.
 3. Package-lock files parse as JSON. The Express API now has a local manifest,
    local TypeScript config, and regenerated local lockfile.
-4. `src/Artemis Agentic Memory Layer/` is documented as standalone, but its
-   runnable project files are absent.
-5. `src/mcp-server/` and `src/memory/mcp-server/` are imported REST shells, not
-   registered workspace services or authoritative memory implementations.
-6. `AGENTS.md` and `CLAUDE.md` are currently byte-for-byte mirrors and must
+4. `src/Artemis Agentic Memory Layer/` is a runnable standalone Obsidian REST
+   shell, but is not a registered workspace service, and is not a Model
+   Context Protocol implementation despite its name — the real MCP SDK is
+   used under `services/mcp/`.
+5. `AGENTS.md` and `CLAUDE.md` are currently byte-for-byte mirrors and must
    remain mirrored whenever
    either is edited.
 

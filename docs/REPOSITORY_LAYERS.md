@@ -81,8 +81,9 @@ Sources: `src/validation/`, `src/agents/atp/`, and `src/routing/intent.py`.
 
 `ATPValidationService` is the transport-neutral parse, validate, and format
 boundary. It wraps the canonical ATP parser and validator and returns frozen,
-typed reports with stable issue codes. The library is implemented and tested;
-no active HTTP or MCP transport is registered for it yet.
+typed reports with stable issue codes. `services/mcp/artemis-validation/`
+registers it as a read-only, authenticated, stdio-only MCP transport over the
+official SDK.
 
 Routing intent resolution accepts exactly one of two sources:
 
@@ -209,9 +210,8 @@ Operational commands and environment ownership are documented in
 |---|---|
 | `app/kernel/` | Packaged in-process kernel layer that is growing toward orchestrator parity; it does not replace the shared Routing Kernel contract. |
 | `Concept_Demos/` | Supported prototypes, not production sources of truth. |
-| `src/Artemis Agentic Memory Layer/` | Historical standalone service shell; no package manifest or Docker assets are available. |
-| `src/mcp-server/` | Imported Obsidian REST shell. It is not registered in the root workspace and is not the Model Context Protocol implementation. |
-| `src/memory/mcp-server/` | Duplicate imported REST shell under the memory tree; migration-only until one canonical owner is selected. |
+| `src/Artemis Agentic Memory Layer/` | Standalone Obsidian REST shell (`make server`). Not registered in the root workspace, and not a Model Context Protocol implementation despite its name. |
+| `services/mcp/` | Real Model Context Protocol servers on the official `mcp[cli]` SDK, adapting `src/` domain services. `artemis-validation` and `artemis-memory` are implemented; `common` is quarantined pending review. |
 | `src/Kernel/`, root `memory/`, and root `tests/` | Compatibility or migration copies; follow `PROJECT_BOUNDARIES.md` before editing. |
 
 ## Documentation and docstrings

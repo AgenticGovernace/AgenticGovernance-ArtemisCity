@@ -15,9 +15,10 @@ Two current Python libraries sit below the transports:
 
 - `src.validation.ATPValidationService` exposes typed `parse`, `validate`, and
   `format` operations over the canonical ATP parser/validator. It returns
-  immutable Pydantic contracts and stable issue codes. No additional HTTP or
-  MCP transport is registered specifically for this service yet; current
-  Express ATP routes continue through their listed bridge commands.
+  immutable Pydantic contracts and stable issue codes. `services/mcp/artemis-validation/`
+  registers it as a read-only, authenticated, stdio-only MCP transport over the
+  official SDK; current Express ATP routes continue through their listed
+  bridge commands unchanged.
 - `src.auth` defines credential-free authentication receipts, authority
   contexts, delegation references, and the Authstructure verifier port. The
   production configuration loader intentionally fails closed until the external
