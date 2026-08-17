@@ -114,20 +114,33 @@ security-deps: ## Audit locked Python dependencies against known-vulnerability d
 		&& rm -f "$(ROOT_DIR)/.uv-audit-requirements.txt" \
 		|| { rm -f "$(ROOT_DIR)/.uv-audit-requirements.txt"; exit 1; }
 
-# npm walks up to the workspace root from app/api and app/web/frontend, and the
-# root carries no lockfile, so workspace members are audited from a temp copy of
-# their own manifest + lockfile pair. --audit-level=low fails on ANY advisory.
-security-node: ## Audit every npm lockfile in the repository (fails on any advisory)
-	@set -e; for d in src src/launch src/memory/mcp-server; do \
-		echo "npm audit: $$d"; \
-		(cd "$(ROOT_DIR)/$$d" && npm audit --audit-level=low --no-fund); \
-	done
-	@set -e; for d in app/api app/web/frontend; do \
-		echo "npm audit: $$d"; \
-		tmp=$$(mktemp -d); \
-		cp "$(ROOT_DIR)/$$d/package.json" "$(ROOT_DIR)/$$d/package-lock.json" "$$tmp/"; \
-		(cd "$$tmp" && npm audit --audit-level=low --no-fund); \
-		rm -rf "$$tmp"; \
+# Lockfiles are DISCOVERED from git so a newly added manifest is gated
+# automatically instead of silently skipped. Workspace members (any dir the
+# root package.json lists under "workspaces") are audited from a temp copy of
+# their manifest + lockfile pair, because npm walks up to the workspace root
+# from inside them. --audit-level=low fails on ANY advisory; yarn 1 audit
+# exits non-zero on any advisory by design.
+security-node: ## Audit every npm and yarn lockfile tracked in the repository (fails on any advisory)
+	@set -e; cd "$(ROOT_DIR)"; \
+	members=$$($(PYTHON) -c 'import json;print(" ".join(json.load(open("package.json")).get("workspaces",[])))'); \
+	for lock in $$(git ls-files '*package-lock.json'); do \
+		d=$$(dirname "$$lock"); \
+		is_member=0; for m in $$members; do [ "$$d" = "$$m" ] && is_member=1; done; \
+		if [ "$$is_member" = "1" ]; then \
+			echo "npm audit: $$d (workspace member)"; \
+			tmp=$$(mktemp -d); \
+			cp "$$d/package.json" "$$lock" "$$tmp/"; \
+			(cd "$$tmp" && npm audit --audit-level=low --no-fund); \
+			rm -rf "$$tmp"; \
+		else \
+			echo "npm audit: $$d"; \
+			(cd "$$d" && npm audit --audit-level=low --no-fund); \
+		fi; \
+	done; \
+	for ylock in $$(git ls-files '*yarn.lock'); do \
+		yd=$$(dirname "$$ylock"); \
+		echo "yarn audit: $$yd"; \
+		(cd "$$yd" && yarn audit --non-interactive); \
 	done
 
 secrets: ## Check staged changes for common secret names
