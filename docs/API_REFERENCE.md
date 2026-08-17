@@ -9,6 +9,23 @@ Artemis City currently exposes two HTTP surfaces:
 
 This phase keeps the active `src/` plus `app/api` bridge architecture. It does not introduce `ts_service` or `python_service` directories. Any endpoint shape below that is not listed in the bridge-backed table is planned, not current production behavior.
 
+### Transport-neutral Python contracts
+
+Two current Python libraries sit below the transports:
+
+- `src.validation.ATPValidationService` exposes typed `parse`, `validate`, and
+  `format` operations over the canonical ATP parser/validator. It returns
+  immutable Pydantic contracts and stable issue codes. No additional HTTP or
+  MCP transport is registered specifically for this service yet; current
+  Express ATP routes continue through their listed bridge commands.
+- `src.auth` defines credential-free authentication receipts, authority
+  contexts, delegation references, and the Authstructure verifier port. The
+  production configuration loader intentionally fails closed until the external
+  Authstructure verifier contract is enabled and conformant.
+
+Rendered signatures and docstrings are in
+[`PYTHON_API.md`](PYTHON_API.md).
+
 ## Current Express `/api/v1` Surface
 
 All routes below require the Express API authentication middleware except health endpoints.
@@ -127,13 +144,18 @@ ATP is the structured message format for agent-to-agent communication and kernel
 | `#TargetZone:` | Path or project area | Optional | `#TargetZone: src/api_bridge.py` | Affected area |
 | `#SpecialNotes:` | Free-form text | Optional | `#SpecialNotes: Keep API stable` | Warnings or context |
 
-Canonical parse and validation are implemented in `src/agents/atp/atp_models.py`, `src/agents/atp/atp_parser.py`, and `src/agents/atp/atp_validator.py`, exposed through `atp.parse` and `atp.validate`.
+Canonical parsing and validation are implemented in
+`src/agents/atp/atp_models.py`, `src/agents/atp/atp_parser.py`, and
+`src/agents/atp/atp_validator.py`. `src.validation.ATPValidationService` is the
+typed transport-neutral facade over those implementations. Existing Express
+routes expose the bridge commands `atp.parse` and `atp.validate`.
 
 ATP is also a live routing domain. When an execution request contains ATP
 headers and does not explicitly pin `required_capability`, Artemis maps the
 action and target zone to a capability, strips the headers before dispatch,
 and learns against a scope of
-`atp:<lowercase-action-type>:<capability>`. An explicit capability always wins.
+`atp:<lowercase-action-type>:<capability>`. An explicit capability may narrow
+the ATP-authorized domain but cannot widen it.
 `atp.route` uses the same registry, trust floor, fallback, and Hebbian blend as
 the orchestrator; it no longer performs a metadata-only route.
 

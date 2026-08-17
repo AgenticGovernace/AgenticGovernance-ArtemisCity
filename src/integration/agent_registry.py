@@ -1,4 +1,9 @@
-# src/integration/agent_registry.py
+"""Persist agent capabilities, scores, trust projections, and admission state.
+
+The registry owns agent inventory and composite scoring. It does not authorize
+capabilities: routing policy and governance narrow the candidate set before
+learned ranking is allowed to choose among eligible agents.
+"""
 
 import json
 import os

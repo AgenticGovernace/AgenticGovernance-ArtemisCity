@@ -1,3 +1,5 @@
+"""Shared logging configuration and log-safe text normalization helpers."""
+
 import logging
 import os
 from logging import Logger

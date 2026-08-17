@@ -669,6 +669,7 @@ authoritative, what is in transition, and what is deliberately frozen.
 | TS Express API | `app/api/index.ts`, `app/api/v1/*.ts`, `app/api/controllers/*.ts` | `/api/v1/*` public HTTP boundary | Boundary for new registry / governance / ATP endpoints. Spawns the bridge — do **not** reimplement Python logic in TS. |
 | Kernel layer | `app/kernel/` | In-process router with concrete `DaemonAgent`, `PlannerAgent` | Newer layer; growing toward orchestrator parity. Used by `app/kernel/cli.py` for local probing. |
 | Obsidian MCP server shell | `src/Artemis Agentic Memory Layer/` | Historical placeholder for a standalone vault service | **Unavailable in this checkout**: no package manifest or Docker files are present. Restore the service and register it in the root workspace before treating it as runnable. |
+| Imported Obsidian REST shells | `src/mcp-server/`, `src/memory/mcp-server/` | Imported HTTP adapters for Obsidian Local REST API | **Transitional and non-authoritative**. Neither package is registered in the root workspace or implements the reviewed Model Context Protocol boundary. Select one owner before extending either copy. |
 | Frontend (mixed) | `app/web/frontend/` | React/Vite client; also carries leftover TS controllers/middleware | **In transition**. Treat as a mixed client/server workspace per README §"Dashboard and web-facing code". |
 | Concept demos | `Concept_Demos/` | Prototype ground for agents and flows | Older but supported. Per the Agent Implementation Guide, work prototyped here graduates to `src/`. |
 
@@ -1131,6 +1132,9 @@ uvicorn by hand, keep `--port 8000`.
 | Concern | File |
 |---|---|
 | Orchestrator entry | `src/mcp/orchestrator.py` |
+| Credential-free authority contracts | `src/auth/` |
+| Canonical ATP validation facade | `src/validation/` |
+| Shared Routing Kernel | `src/routing/kernel.py` |
 | Agent base class | `src/agents/base_agent.py` |
 | Agent registry + scoring + governance | `src/integration/agent_registry.py` |
 | Memory bus (write-through, read hierarchy) | `src/integration/memory_bus.py` |

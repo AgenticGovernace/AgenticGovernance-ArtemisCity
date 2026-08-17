@@ -46,6 +46,7 @@ nav:
   - Getting Started:
       - Installation: INSTALL.md
       - Project Boundaries: PROJECT_BOUNDARIES.md
+      - Repository Layers: REPOSITORY_LAYERS.md
   - Architecture:
       - Kernel: kernel.md
       - Memory Bus: MEMORY_BUS.md
@@ -54,6 +55,7 @@ nav:
   - Agents and APIs:
       - Agent Implementation Guide: Agent Implementation Guide.md
       - API Reference: API_REFERENCE.md
+      - Python Contract Reference: PYTHON_API.md
       - Artemis Features: ARTEMIS_FEATURES.md
       - Translator Protocol: translator_protocol.md
       - Memory Lawyer: memory_lawyer.md

@@ -2,7 +2,38 @@
 
 ## Overview
 
-Artemis City is a multi-agent operating system designed for autonomous task orchestration with adaptive learning and governance. The system combines distributed task routing, semantic memory persistence, Hebbian learning, and sandbox-based security into a cohesive framework.
+Artemis City is a multi-agent operating system designed for autonomous task
+orchestration with adaptive learning and governance. The system combines
+credential-free authority evidence, strict ATP intent resolution, distributed
+task routing, semantic memory persistence, Hebbian learning, and sandbox-based
+security into a cohesive framework. See
+[`REPOSITORY_LAYERS.md`](REPOSITORY_LAYERS.md) for the source, state, tests, and
+ownership boundary of every maintained runtime layer.
+
+## Request-layer invariants
+
+Every governed execution follows the same conceptual order:
+
+```text
+Ingress -> Authentication -> ATP/typed intent -> Authorization
+        -> Eligibility -> Learned ranking -> Execution
+        -> Persistence/learning/provenance -> Response
+```
+
+- Authentication produces credential-free evidence; Artemis alone authorizes
+  capabilities and operations.
+- Strict ATP or a trusted typed adapter establishes the routing domain before a
+  learned score is consulted.
+- Authorization and eligibility can only narrow candidates. Quarantine, trust,
+  and sandbox decisions occur before learned ranking.
+- Provider availability and agent quality are classified separately so an
+  infrastructure failure cannot train agent trust or Hebbian weights.
+- Canonical state commits before derived projections are reported as complete.
+
+The public Authstructure integration remains deliberately fail-closed until a
+conforming external verifier contract is enabled. Trusted local callers present
+an explicit, auditable system authority rather than bypassing the Routing
+Kernel.
 
 ## Core Components
 
@@ -20,8 +51,10 @@ The Kernel is the central task dispatcher and orchestrator.
   **Scoring Algorithm:**
 
 ```
-Score = (Alignment × 0.4) + (Accuracy × 0.35) + (Efficiency × 0.25)
-WeightedScore = Score × HebianWeight(agent, task_type)
+Composite = (Alignment × 0.4) + (Accuracy × 0.4) + (Efficiency × 0.2)
+Rank = ((1 - alpha - beta) × Composite)
+     + (alpha × NormalizedHebbianWeight)
+     + (beta × Trust)
 ```
 
 **Key Behaviors:**

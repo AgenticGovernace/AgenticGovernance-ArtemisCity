@@ -1,3 +1,10 @@
+"""FastAPI dashboard boundary over Artemis orchestration and local read models.
+
+The dashboard uses the Python core when it can be initialized and exposes an
+explicit read-only SQLite fallback for operator visibility when orchestration
+dependencies are unavailable.
+"""
+
 import hashlib
 import json
 import logging

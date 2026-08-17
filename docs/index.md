@@ -10,8 +10,12 @@ Python and web-facing runtime layers.
   dependency sets.
 - Read the [architecture](ARCHITECTURE.md) for the runtime design and system
   boundaries.
+- Use the [repository layer map](REPOSITORY_LAYERS.md) to find each maintained
+  source of truth, entry point, state store, and test surface.
 - Use the [API reference](API_REFERENCE.md) for ATP messages and HTTP
   endpoints.
+- Browse the [Python contract reference](PYTHON_API.md) for rendered authority
+  and ATP validation docstrings.
 - Follow the [test plan](TEST_PLAN.md) before promoting a change.
 - Review the [environment flow](ENVIRONMENTS.md) for the
   `dev` to `staging` to `prod` promotion model.

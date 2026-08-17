@@ -1,3 +1,5 @@
+"""Render deterministic Markdown task notes and agent execution reports."""
+
 from datetime import datetime
 
 from ..utils.helpers import logger, sanitize_for_log

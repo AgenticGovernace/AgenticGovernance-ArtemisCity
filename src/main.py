@@ -1,3 +1,9 @@
+"""Legacy-compatible Python CLI for orchestrator tasks and demonstrations.
+
+The root ``make run`` command uses :mod:`src.launch.main`; this module remains
+available for callers that historically imported or executed ``src.main``.
+"""
+
 import argparse
 import os
 from datetime import datetime
@@ -15,6 +21,8 @@ def _sql_memory_selected() -> bool:
 
 
 def parse_cli_args() -> argparse.Namespace:
+    """Parse command-line options for task dispatch and Hebbian inspection."""
+
     parser = argparse.ArgumentParser(
         description="Run MCP and optionally send a one-off instruction to an agent.",
         allow_abbrev=False,
@@ -54,9 +62,10 @@ def parse_cli_args() -> argparse.Namespace:
 
 
 def setup_example_task_note(obs_manager, memory_bus=None):
-    """
-    Creates an example task note in the Obsidian Agent Inputs folder
-    if one doesn't already exist, for demonstration purposes.
+    """Create the example task note when it does not already exist.
+
+    SQL-backed memory remains authoritative when enabled; legacy mode checks
+    the vault directly and preserves the historical compatibility behavior.
     """
     example_filename = "Example Research Task.md"
     relative_path = os.path.join(AGENT_INPUT_DIR, example_filename)

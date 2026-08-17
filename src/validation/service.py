@@ -1,3 +1,9 @@
+"""Canonical parse, validate, and format service for ATP messages.
+
+Transport adapters should depend on :class:`ATPValidationService` instead of
+reimplementing ATP parsing or translating validator strings independently.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -7,9 +13,15 @@ from src.agents.atp.atp_models import ATPMessage
 from src.agents.atp.atp_parser import ATPParser
 from src.agents.atp.atp_validator import ATPValidator, ValidationResult
 
-from .models import (ATPHeaderInput, ATPValidationReport, DetectedATPFormat,
-                     IssueSeverity, ParsedATP, ValidationIssue,
-                     ValidationIssueCode)
+from .models import (
+    ATPHeaderInput,
+    ATPValidationReport,
+    DetectedATPFormat,
+    IssueSeverity,
+    ParsedATP,
+    ValidationIssue,
+    ValidationIssueCode,
+)
 
 _EXACT_CODES: dict[str, ValidationIssueCode] = {
     "No ATP headers found in message": "no_atp_headers",
@@ -114,6 +126,8 @@ def _new_validator(strict: bool) -> ATPValidator:
 
 
 class ATPValidationService:
+    """Expose the single transport-neutral ATP validation boundary."""
+
     def __init__(
         self,
         parser: ATPParser | None = None,
@@ -125,6 +139,19 @@ class ATPValidationService:
         )
 
     def parse(self, raw_input: str) -> ParsedATP:
+        """Parse text into the stable normalized ATP projection.
+
+        Args:
+            raw_input: ATP-formatted or plain text to parse.
+
+        Returns:
+            The canonical parsed representation, including detected syntax.
+
+        Raises:
+            TypeError: If ``raw_input`` is not text.
+            ValueError: If the underlying parser reports an unknown syntax.
+        """
+
         if not isinstance(raw_input, str):
             raise TypeError("raw_input must be text")
         message = self._parser.parse(raw_input)
@@ -132,6 +159,19 @@ class ATPValidationService:
         return _project_message(message, detected)
 
     def validate(self, raw_input: str, strict: bool = True) -> ATPValidationReport:
+        """Validate text and return stable issue codes with parsed content.
+
+        Args:
+            raw_input: ATP-formatted or plain text to validate.
+            strict: Whether missing or incomplete ATP headers are errors.
+
+        Returns:
+            An immutable validation report suitable for transport adapters.
+
+        Raises:
+            TypeError: If the input types do not match the public contract.
+        """
+
         if not isinstance(raw_input, str):
             raise TypeError("raw_input must be text")
         if not isinstance(strict, bool):
@@ -152,6 +192,22 @@ class ATPValidationService:
         header: ATPHeaderInput,
         syntax: Literal["hash", "bracket"] = "bracket",
     ) -> str:
+        """Render a validated ATP header block in hash or bracket syntax.
+
+        Args:
+            header: Canonical header values. Embedded line breaks and header
+                markers are rejected by the model before formatting.
+            syntax: ``"hash"`` for ``#Mode:`` tags or ``"bracket"`` for
+                ``[[Mode]]:`` tags.
+
+        Returns:
+            The header block followed by the ATP body separator.
+
+        Raises:
+            TypeError: If ``header`` is not an :class:`ATPHeaderInput`.
+            ValueError: If ``syntax`` is unsupported.
+        """
+
         if not isinstance(header, ATPHeaderInput):
             raise TypeError("header must be ATPHeaderInput")
         if syntax not in {"hash", "bracket"}:

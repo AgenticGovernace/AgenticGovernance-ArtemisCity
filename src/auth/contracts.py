@@ -8,8 +8,14 @@ from math import isfinite
 from types import MappingProxyType
 from typing import Any, Literal, NoReturn
 
-from pydantic import (BaseModel, ConfigDict, Field, field_serializer,
-                      field_validator, model_validator)
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 from pydantic_core import PydanticCustomError
 
 _FORBIDDEN_CREDENTIAL_FIELDS = frozenset(
@@ -158,6 +164,8 @@ class AuthorityModel(BaseModel):
 
 
 class PrincipalIdentityV1(AuthorityModel):
+    """Verified non-secret identity references for one Artemis principal."""
+
     actor_issuer: str = Field(min_length=1)
     actor_subject_ref: str = Field(min_length=1)
     agent_id: str = Field(min_length=1)
@@ -170,6 +178,8 @@ class PrincipalIdentityV1(AuthorityModel):
 
 
 class PrincipalCapabilityV1(AuthorityModel):
+    """Verified issuer evidence and the scopes granted to a principal."""
+
     token_issuer: str = Field(min_length=1)
     audience: str = Field(min_length=1)
     token_key_id: str = Field(min_length=1)
@@ -186,6 +196,8 @@ class PrincipalCapabilityV1(AuthorityModel):
 
 
 class PrincipalV1(AuthorityModel):
+    """Versioned identity and capability evidence with a bounded lifetime."""
+
     version: Literal["artemis.principal/1"] = "artemis.principal/1"
     identity: PrincipalIdentityV1
     capability: PrincipalCapabilityV1
@@ -203,6 +215,8 @@ class PrincipalV1(AuthorityModel):
 
 
 class AuthReceiptSourceV1(AuthorityModel):
+    """Immutable provenance metadata for a signed authentication receipt."""
+
     format: str = Field(min_length=1)
     receipt_id: str = Field(min_length=1)
     record_hash: str = Field(min_length=1)
@@ -218,11 +232,15 @@ class AuthReceiptSourceV1(AuthorityModel):
     @field_serializer("canonical_receipt")
     def serialize_canonical_receipt(self, value: FrozenJsonDict) -> dict[str, object]:
         serialized = _thaw_json_value(value)
-        assert isinstance(serialized, dict)  # thawing a FrozenJsonDict always yields a dict  # nosec B101
+        assert isinstance(
+            serialized, dict
+        )  # thawing a FrozenJsonDict always yields a dict  # nosec B101
         return serialized
 
 
 class AuthReceiptV1(AuthorityModel):
+    """Credential-free authentication outcome consumed by Artemis."""
+
     version: Literal["artemis.auth-receipt/1"] = "artemis.auth-receipt/1"
     request_id: str = Field(min_length=1)
     authentication: Literal["authenticated", "rejected"]
@@ -251,6 +269,8 @@ class AuthReceiptV1(AuthorityModel):
 
 
 class VerifiedPartyV1(AuthorityModel):
+    """A principal paired with the authenticated receipt that proves it."""
+
     principal: PrincipalV1
     auth_receipt: AuthReceiptV1
 
@@ -264,6 +284,8 @@ class VerifiedPartyV1(AuthorityModel):
 
 
 class DelegationReferenceV1(AuthorityModel):
+    """Optional identifier and digest for one persisted delegation grant."""
+
     grant_id: str | None
     grant_hash: str | None
 
@@ -275,6 +297,8 @@ class DelegationReferenceV1(AuthorityModel):
 
 
 class AuthorityContextV1(AuthorityModel):
+    """Requester, acting party, and optional bounded delegation evidence."""
+
     requester: VerifiedPartyV1
     actor: VerifiedPartyV1
     delegation: DelegationReferenceV1 | None

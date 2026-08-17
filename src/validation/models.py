@@ -1,3 +1,5 @@
+"""Typed, transport-neutral contracts for canonical ATP validation."""
+
 from __future__ import annotations
 
 import re
@@ -58,12 +60,20 @@ CanonicalATPActionType = Annotated[
 
 
 class ValidationModel(BaseModel):
+    """Strict immutable base model for validation boundary objects."""
+
     model_config = ConfigDict(
         extra="forbid", frozen=True, strict=True, str_strip_whitespace=True
     )
 
 
 class ATPHeaderInput(ValidationModel):
+    """Canonical ATP header values accepted by the formatter.
+
+    Content is intentionally excluded: the formatter emits only a validated
+    header block so callers can attach the body through their own transport.
+    """
+
     mode: CanonicalATPMode
     context: str = Field(min_length=1)
     action_type: CanonicalATPActionType
@@ -103,6 +113,8 @@ class ATPHeaderInput(ValidationModel):
 
 
 class ParsedATP(ValidationModel):
+    """Normalized projection returned by the canonical ATP parser."""
+
     mode: ATPMode = Field(strict=False)
     context: str | None = Field(default=None, min_length=1)
     priority: ATPPriority = Field(strict=False)
@@ -116,12 +128,16 @@ class ParsedATP(ValidationModel):
 
 
 class ValidationIssue(ValidationModel):
+    """One stable, client-visible ATP validation finding."""
+
     code: ValidationIssueCode
     severity: IssueSeverity
     message: str = Field(min_length=1)
 
 
 class ATPValidationReport(ValidationModel):
+    """Complete ATP validation outcome and normalized parsed message."""
+
     parsed: ParsedATP
     valid: bool
     strict: bool

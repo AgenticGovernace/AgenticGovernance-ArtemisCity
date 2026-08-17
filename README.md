@@ -1,179 +1,186 @@
 # Artemis City
 
-Artemis City is an agent-governance and memory-orchestration project built around three core ideas:
+Artemis City is a governed multi-agent orchestration platform. It combines
+credential-free authority evidence, strict Artemis Transmission Protocol (ATP)
+intent, policy- and trust-aware routing, durable memory, adaptive learning, and
+auditable execution across Python, HTTP, CLI, and browser surfaces.
 
-- structured agent communication through the Artemis Transmission Protocol (ATP)
-- trust- and governance-aware task routing
-- an Obsidian-backed memory layer with semantic recall
-  The repository is intentionally broader than a single service. It contains the authoritative Python orchestration core, API and dashboard surfaces, a historical shell for a currently unavailable Obsidian MCP server, and static concept demos used to explore the platform’s behavior.
+The platform is built around three promises:
 
-## Repository reality
+- a request cannot gain capabilities from learned scores or transport metadata;
+- canonical results and decisions remain attributable and recoverable; and
+- every public surface adapts the same Python-owned domain rules instead of
+  reimplementing them.
 
-New contributors should start with this mental model:
+## What is current
 
-`src/`  is the authoritative Python core.
+The maintained execution path is:
 
-`app/`  contains HTTP and UI surfaces that sit on top of the Python core.
+```text
+CLI / FastAPI / Express / trusted in-process ingress
+                        |
+                        v
+          Authentication and authority evidence
+                        |
+                        v
+               ATP or trusted typed intent
+                        |
+                        v
+ IntentResolver -> ArtemisAuthorizer -> EligibilityFilter -> HebbianRanker
+                        |
+                        v
+           Orchestrator -> sandbox -> selected agent
+                        |
+                        v
+       provenance -> memory -> eligible learning -> response
+```
 
-`Concept_Demos/`  contains static browser prototypes and compatibility shims; maintained Python walkthroughs live in `src/launch/`.
+Authentication and authorization are separate. Authstructure-compatible
+receipts prove credential-free identity and scope evidence; Artemis intersects
+that evidence with intent, delegation, target-zone policy, and current
+capability policy. Trust, quarantine, sandbox admission, and learned history can
+only narrow or rank the authorized candidate set.
 
-`src/Artemis Agentic Memory Layer/` is a historical service shell; its package and Docker files are not present in this checkout.
-Some scripts and historical files still reflect earlier layouts. Prefer the paths documented below over older references in legacy notes.
+The complete ownership map is in
+[`docs/REPOSITORY_LAYERS.md`](docs/REPOSITORY_LAYERS.md).
 
-This restructure phase follows the active `src/` plus `app/api` bridge architecture. It intentionally does not create `ts_service` or `python_service` directories; older alignment notes that proposed those layouts are historical context only.
+## Current features
 
-## Core components
+### One governed Routing Kernel
 
-### Python orchestration core (`src/`)
+`src/routing/kernel.py` is the single in-process routing entry point. It runs
+intent resolution, authorization, eligibility, and learned ranking in a
+load-bearing order. Trusted local callers use an explicit system authority so
+their routes remain distinguishable in audit; they do not bypass the kernel.
 
-This is the main implementation surface for orchestration, governance, memory, and tests.
+The currently reviewed ATP execution domain covers `llm_chat`, `reasoning`,
+`text_generation`, and `text_summarization`. Tasks outside that code-pinned
+domain use the documented legacy compatibility path with a warning instead of
+being silently assigned to a general chat agent.
 
-Key modules:
+### Typed ATP validation
 
-- `src/mcp/orchestrator.py`
+`src/validation/` exposes `ATPValidationService`, a transport-neutral facade over
+the canonical ATP parser and validator. It provides immutable parse and
+validation reports, stable issue codes, strict input models, and safe hash or
+bracket header formatting.
 
-  - central coordinator for task execution
-  - initializes the Obsidian manager, parser/generator utilities, Hebbian weights, governance monitor, vector store, memory bus, and agent registry
-  - registers built-in agents and routes work to the best match
-- `src/integration/agent_registry.py`
+The library is implemented and tested. It does not yet have a dedicated public
+HTTP or MCP transport; existing Express ATP routes continue to use the Python
+bridge commands listed in [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md).
 
-  - stores agent metadata and scores
-  - ranks agents using a weighted composite score: alignment `0.4`  + accuracy `0.4`  + efficiency `0.2`
-  - tracks trust tiers, violation counts, and quarantine state
-- `src/integration/memory_bus.py`
+### Credential-free authority contracts
 
-  - write-through memory layer shared by the orchestrator
-  - in explicit PostgreSQL/Neon mode, commits immutable SQL state before lazy
-    vector and Obsidian projections
-  - preserves accepted SQL writes when a projection is unavailable and returns
-    `sync_pending=true`
-  - serves exact/list/stat authority from SQL; query search then uses the
-    derived vector index, while vault keyword scan is legacy-only
-- `src/integration/trust_interface.py`
+`src/auth/` defines strict immutable contracts for principals, verified scopes,
+authentication receipts, acting/requesting parties, and bounded delegation.
+Credential-bearing field names and proof echoes are rejected recursively.
 
-  - models trust levels and reinforcement/decay
-  - gates operations based on trust level
-- `src/api_bridge.py`
+The Authstructure adapter validates versioned canonical receipt artifacts and
+returns only stable, credential-free denial codes. Production configuration
+intentionally fails closed until the external Authstructure verifier contract is
+enabled and conformant.
 
-  - JSON stdin/stdout bridge used by the TypeScript API layer to invoke Python operations without embedding a Python web framework inside the core
-- `src/tests/`
+### Canonical memory with derived projections
 
-  - primary Python test suite
-  - `src/tests/conftest.py` adds the repo root to `sys.path` so `src.*` imports resolve consistently
+`src/integration/memory_bus.py` supports a reversible legacy mode and explicit
+PostgreSQL/Neon modes. In SQL mode, an immutable revision, current head, and
+Obsidian projection outbox event commit atomically. Vector and Obsidian
+projections are derived: projection failure leaves the canonical write accepted
+and pending instead of erasing or misreporting it.
 
-### FastAPI dashboard backend (`app/api/main.py`)
+Exact reads, list operations, and statistics come from SQL in SQL mode. Semantic
+search uses the derived vector index; vault keyword scanning remains a
+legacy-mode behavior. Full guarantees are in
+[`docs/MEMORY_BUS.md`](docs/MEMORY_BUS.md).
 
-This service exposes a dashboard-oriented API backed by the Python core and local SQLite databases.
+### Verified model execution and governed compression
 
-Responsibilities:
+`LLMAgent` records redacted Exo wire evidence: concrete endpoint, status,
+request/response identifiers, observed model, latency, attempts, output length,
+and SHA-256. Provider availability failures and cancellations are not treated as
+agent-quality failures and cannot train trust or Hebbian weights.
 
-- serves `/api/*`  endpoints for agents, tasks, reports, database views, and execution
-- initializes the orchestrator when dependencies are available
-- falls back to a SQLite-only mode when orchestration imports fail
-- uses `X-API-Key`  authentication when configured
-- reads environment from `app/api/.env`
+Long successful output is preserved as an exact non-embedded artifact before a
+governed `text_summarization` child is routed. The final result links the raw
+artifact and exposes compressed follow-on context without pretending locally
+generated fallback text came from Exo.
 
-### TypeScript Express API (`app/api/index.ts`)
+### Security-hardened boundaries
 
-This is a separate TypeScript HTTP boundary.
+Maintained boundaries use path containment checks, safe temporary replacement,
+stable error codes, request-log normalization, credential redaction, explicit
+provider failure classification, and fail-closed configuration. Security and
+dependency gates run through `make security` and the CI promotion workflow.
 
-Responsibilities:
+## Runtime surfaces
 
-- exposes `/api/v1/*`  endpoints for agents, registry, governance, memory, ATP, trust, and LLM features
-- authenticates requests through Express middleware
-- forwards Python-backed operations through `app/api/lib/pythonBridge.ts`
-- runs the bridge by spawning `python -m src.api_bridge`
-  Supported external behavior is backed by bridge commands in `src/api_bridge.py`; routes exposed under `/api/v1` should update Python-owned state or read Python-owned stores.
+| Surface | Path | Role | Run command |
+|---|---|---|---|
+| Python orchestration core | `src/` | Agents, routing, auth, ATP validation, governance, memory, tests | `make run` |
+| In-process kernel | `app/kernel/` | Packaged local router and concrete kernel agents | `make kernel` |
+| FastAPI dashboard | `app/api/main.py` | Dashboard-oriented `/api/*` backend | `make api` |
+| TypeScript Express API | `app/api/**/*.ts` | External `/api/v1/*` boundary | `make express-api` |
+| JSON bridge | `src/api_bridge.py` | Express-to-Python stdin/stdout protocol | Spawned by Express |
+| React dashboard | `app/web/frontend/` | Operator UI; Vite proxies `/api/*` to FastAPI | `make frontend` |
+| Launch demos | `src/launch/` | Maintained CLI demonstrations | `make demo` |
+| Concept demos | `Concept_Demos/` | Static prototypes and compatibility examples | `python3 -m http.server` |
 
-### Dashboard and web-facing code (`app/web/frontend/`)
+The historical `src/Artemis Agentic Memory Layer/` service is not runnable in
+this checkout because it has no package manifest or Docker assets.
+`src/mcp-server/` and `src/memory/mcp-server/` are imported Obsidian REST shells,
+not registered root workspaces or authoritative Model Context Protocol
+implementations. See [`docs/PROJECT_BOUNDARIES.md`](docs/PROJECT_BOUNDARIES.md)
+before editing transitional copies.
 
-This directory currently contains mixed frontend and server-side TypeScript surfaces:
+## Repository map
 
-- `app/web/frontend/src/`
+```text
+.
+├── app/
+│   ├── api/                    # FastAPI dashboard + TS Express boundary
+│   ├── kernel/                 # Packaged in-process kernel
+│   ├── scripts/                # Operational utilities
+│   └── web/frontend/           # React/Vite operator dashboard
+├── Concept_Demos/              # Static prototypes
+├── config/
+│   ├── environments/           # dev, staging, and prod profiles
+│   └── routing/                # Reviewed intent and authorization policy
+├── docs/                       # Authoritative architecture and operations docs
+├── monitoring/                 # Prometheus and alert configuration
+├── src/
+│   ├── agents/                 # Capability-specific agents and ATP primitives
+│   ├── auth/                   # Credential-free authority contracts/verifier
+│   ├── governance/             # Trust, approval, checkpoint, rollback rules
+│   ├── integration/            # Registry, memory, sandbox, learning adapters
+│   ├── launch/                 # Canonical CLI and maintained demonstrations
+│   ├── mcp/                    # Orchestrator, Hebbian storage, vector store
+│   ├── memory/                 # Memory backends and compatibility integration
+│   ├── obsidian_integration/   # Validated vault paths and Markdown adapters
+│   ├── routing/                # Shared Routing Kernel and policy stages
+│   ├── tests/                  # Canonical Python test suite
+│   ├── validation/             # Typed ATP parse/validate/format facade
+│   └── api_bridge.py           # TypeScript-to-Python JSON bridge
+├── Makefile                    # Root development and service contract
+├── pyproject.toml              # Canonical Python package manifest
+├── package.json                # Root Node workspace coordinator
+└── setup_secrets.sh            # Environment provisioning and drift checks
+```
 
-  - React application source for dashboard pages such as Dashboard, Tasks, Reports, Agents, Database, and Executor
-  - `vite.config.ts`  proxies `/api`  requests to `http://localhost:8000` , which matches the FastAPI dashboard backend
-- `app/web/frontend/controllers/` , `middleware/` , and `v1/`
-
-  - additional TypeScript controllers and demo API routes used for agent, memory, ATP, trust, and LLM workflows
-
-Important note: this tree is still in transition. The checked-in package scripts are not a perfect reflection of the React/Vite client structure, so treat it as a mixed client/server workspace rather than a fully isolated frontend package.
-
-### Obsidian MCP server shell (`src/Artemis Agentic Memory Layer/`)
-
-This path is retained as a historical boundary, but the standalone service is
-not runnable in this checkout because its `package.json`, source tree, and
-Docker files are absent. The active Python memory integrations remain under
-`src/integration/` and `src/memory/`. If the standalone service is restored,
-register it in the root npm workspace and expose its lifecycle through the
-root Makefile before documenting it as available.
-
-### Concept demos (`Concept_Demos/`)
-
-These are static prototype assets used to demonstrate ATP, memory, routing, and Hebbian behavior.
-
-Highlights:
-
-- browser demos served as static HTML
-- compatibility shims for old CLI demo commands
-- maintained CLI walkthroughs live under `src/launch/`
-
-## How the pieces interact
-
-At a high level, the system works like this:
-
-1. A user, API client, or demo submits a task or request.
-2. The request reaches either the FastAPI service, the TypeScript API, or a demo script.
-3. Python-backed execution routes into the orchestration core in `src/` .
-4. The orchestrator asks the agent registry to choose the best agent for the requested capability.
-5. The selected agent reads or writes context through the memory bus.
-6. The memory bus keeps explicit Obsidian notes and semantic vector memory in sync.
-7. Governance and trust layers observe execution quality, allowed operations, and failure streaks.
-8. Results flow back through the same API or CLI surface that initiated the work.
-
-## Deployment and runtime model
-
-### Environment selection
-
-Environment profiles live in `config/environments/`:
-
-- `dev.yaml`
-- `staging.yaml`
-- `prod.yaml`
-  `ARTEMIS_ENV` selects which profile is active. CI validates all three environment files.
-
-### External dependencies
-
-Depending on which surface you run, the repository may depend on:
-
-- Python 3.12
-- Node.js 20+ for the TypeScript API and React frontend
-- Obsidian with the Local REST API plugin
-- SQLite databases and persistent runtime state under repo-root `data/`
-- human-readable process and per-run output under repo-root `logs/`
-- optional local inference services such as Exo
-
-All Python, bridge, dashboard, kernel, and example-process defaults resolve
-through `src/runtime_paths.py`, so launching from a nested working directory
-does not create a second data source. `ARTEMIS_DATA_DIR` and `ARTEMIS_LOG_DIR`
-can relocate the two roots for containers; per-store absolute overrides remain
-available for tests and specialized deployments. Governance events are
-structured runtime data at `data/governance_events.jsonl`; trust, violations,
-checkpoints, and learning metrics also remain under `data/` rather than
-splitting authority with `logs/` or temporary vault paths.
-
-### Containerization
-
-The root `docker-compose.yaml` coordinates the active Python dashboard and
-TypeScript Express services. Their build definitions are `src/Dockerfile-python`
-and `src/Dockerfile`. The historical Obsidian MCP shell has no Docker assets in
-this checkout.
+The Python wheel includes `src/` and `app/kernel/`. It excludes dashboard,
+frontend, and operational application directories so those application modules
+are not bundled into core consumers.
 
 ## Quick start
 
-### 1. Set up the Python environment
+### Prerequisites
 
-From the repository root:
+- Python 3.12
+- Node.js 24 or newer for the checked-in root workspace
+- `uv`, `make`, and npm
+- optional Obsidian Local REST API, Exo, PostgreSQL/Neon, Qdrant, or hosted
+  embedding services for the features you enable
+
+### Install
 
 ```bash
 make venv
@@ -182,1091 +189,118 @@ make install-dev
 make install-web
 ```
 
-The root Makefile is the canonical dependency owner. To use an existing Python
-3.12 environment, override `VENV` and `PYTHON` when invoking `make install-dev`.
+The root Makefile owns dependency installation. Do not create a second package
+installation inside `app/api` or `app/web/frontend`.
 
-### 2. Configure environment files
-
-The canonical provisioner is `./setup_secrets.sh`. It populates four
-`.env` files with **one shared `MCP_API_KEY` across all of them**, plus
-`FASTAPI_API_KEY` (root only, for the dashboard) and
-`ARTEMIS_API_KEY_DEFAULT` (root + `app/api/.env`, for the TS Express
-admin role):
+### Configure
 
 ```bash
-./setup_secrets.sh              # sync: heal drift, generate what's missing
-./setup_secrets.sh --check      # read-only; exits 1 if any consumer is out of sync
-./setup_secrets.sh --regenerate # rotate ALL canonical keys (use after a leak)
+./setup_secrets.sh              # preserve values and backfill missing settings
+./setup_secrets.sh --check      # read-only drift detection
+./setup_secrets.sh --regenerate # rotate Artemis-owned generated secrets
 ```
 
-Re-running is idempotent — existing values are preserved and propagated
-to every file that declares them, so you can run `--check` from CI to
-catch drift. Files written: `.env`, `app/api/.env`, `src/.env`, and
-`src/Artemis Agentic Memory Layer/.env` (the last one is skipped if its
-directory doesn't exist).
+The provisioner coordinates `.env`, `app/api/.env`, `src/.env`, and the optional
+historical memory-service environment. It generates or rotates only
+Artemis-owned secrets. Provider credentials such as `OPENAI_API_KEY`,
+`EXO_API_KEY`, `HF_TOKEN`, `OBSIDIAN_API_KEY`, `ANTHROPIC_API_KEY`, and
+`GITHUB_TOKEN` remain operator supplied and must never be fabricated or
+committed.
 
-Other variables you'll want to set in `.env` after running the script:
+Use `ARTEMIS_ENV=dev|staging|prod` to select the environment profile. Use
+`ARTEMIS_MEMORY_BACKEND=postgres` or `neon` only with valid SQL configuration;
+explicit SQL mode fails closed instead of silently falling back to legacy
+memory.
 
-- `OBSIDIAN_API_KEY` — from Obsidian → Settings → Local REST API
-- `OBSIDIAN_VAULT_PATH` — only if your vault isn't at `<repo>/obsidian_vault`
-- `OPENAI_API_KEY` / `ARTEMIS_EMBEDDING_API_KEY` — only if you use hosted embeddings
-- `ARTEMIS_ENV` — `dev`/`staging`/`prod` selector
-
-Never commit populated `.env` files (the root `.gitignore` already covers them).
-
-### 3. Run the Python test suite
+### Validate
 
 ```bash
-make test
+make check       # Black, Ruff, isort, and MyPy gates
+make test        # canonical Python suite
+make security    # static, dependency, and secret checks
+make docs        # strict MkDocs build, including rendered docstrings
 ```
 
-### 4. Start the FastAPI dashboard backend
+Run the full operator gate with:
 
 ```bash
-make api
+make all
 ```
 
-This matches the proxy target configured in `app/web/frontend/vite.config.ts`.
+### Start services
 
-### 5. Start the dashboard frontend
+In separate terminals:
 
 ```bash
-make frontend
+make api          # FastAPI dashboard on :8000
+make frontend     # Vite dashboard on :5173, proxying /api to :8000
+make express-api  # external TypeScript API on :4000
 ```
 
-The frontend is installed from the root workspace lock by `make install-web`
-or `make install-all`; do not run a second package install inside its directory.
+The frontend talks to FastAPI. External versioned clients use Express. Express
+invokes Python-owned behavior only through `app/api/lib/pythonBridge.ts` and
+`src/api_bridge.py`.
 
-## Common developer workflows
-
-### Run core quality checks
+### Run the CLI and demos
 
 ```bash
-make check
+make run
+make demo
+make hebbian
+make agent-stats AGENT="Research Agent"
 ```
 
-This runs the promotion Ruff gate, Black formatting checks, isort import checks,
-and MyPy.
+`make help` lists every supported root command.
 
-### Run security checks
+## Development rules
 
-```bash
-make security
-```
+- Start with [`AGENTS.md`](AGENTS.md) and
+  [`.github/instructions/instructions.md`](.github/instructions/instructions.md).
+- Keep `AGENTS.md` and `CLAUDE.md` byte-for-byte identical.
+- Add bridge commands in Python first, then expose them through a thin Express
+  controller and route.
+- Keep the Routing Kernel as the single in-process routing entry point.
+- Do not let trust, Hebbian history, or requested metadata invent a capability.
+- Preserve full provider output before governed compression.
+- Keep diagnostics off MCP stdio stdout.
+- Document public contracts and non-obvious behavior with Google-style Python
+  docstrings; avoid comments that merely repeat annotations.
+- Treat generated, vendored, archived, test-only, and reverse-sync-held files as
+  outside broad documentation cleanups.
 
-### Run demos
-
-```bash
-python src/launch/demo_artemis.py
-python src/launch/demo_city_postal.py
-python src/launch/demo_memory_integration.py
-```
-
-### Serve browser demos
-
-```bash
-cd Concept_Demos
-python3 -m http.server 8080
-```
-
-Then open `http://localhost:8080`.
-
-## Repository map
-
-```text
-.
-├── app/
-│   ├── api/                         # FastAPI dashboard API + TS Express boundary
-│   ├── kernel/                      # In-process router
-│   ├── scripts/                     # Utility scripts
-│   └── web/frontend/               # React dashboard source + additional TS routes/controllers
-├── benchmarks/                     # Performance benchmarks
-├── Concept_Demos/                  # Static browser demos and CLI compatibility shims
-├── config/environments/            # dev / staging / prod environment profiles
-├── memory/                         # Memory integration and store logic
-├── memory_store/                   # Local storage for memory objects
-├── monitoring/                     # Prometheus and alerting configurations
-├── sandbox_city/                   # Sandbox environments and documentation
-├── src/
-│   ├── agents/                     # Python agent implementations
-│   ├── integration/                # Registry, memory bus, governance, trust interfaces
-│   ├── mcp/                        # Orchestrator, config, vector store, Hebbian logic
-│   ├── obsidian_integration/       # Obsidian manager/parser/generator helpers
-│   ├── tests/                      # Primary Python tests
-│   ├── api_bridge.py               # JSON bridge for TS-to-Python calls
-│   └── Artemis Agentic Memory Layer/  # Historical, currently unavailable service shell
-├── .env.example
-├── pyproject.toml
-├── requirements.txt
-└── requirements-dev.txt
-```
-
-## Runtime behavior details
-
-### Orchestrator initialization
-
-When the Python core starts, the orchestrator:
-
-- creates the Obsidian manager, parser, and generator
-- initializes Hebbian weights and the local vector store
-- creates the governance monitor and memory bus
-- registers built-in agents in the agent registry
-- ensures agent input/output folders exist in the vault
-
-### Request handling
-
-- FastAPI serves dashboard-oriented endpoints and can operate in a fallback mode when the full orchestrator cannot be imported.
-- The TypeScript API exposes versioned `/api/v1/*`  routes and shells out to the Python bridge for Python-backed operations.
-- Express does not reimplement registry, memory, ATP, or trust logic in TypeScript. Exposed routes call `src/api_bridge.py` so state stays in Python-owned stores.
-- The React client consumes `/api`  endpoints and is configured to proxy those requests to the FastAPI backend during development.
-- The historical Obsidian MCP server contract describes bearer-authenticated
-  vault operations, but that standalone service is unavailable in this checkout.
-
-### Package boundary
-
-The root `pyproject.toml` is the canonical Python package manifest. The wheel is scoped to the Python core packages (`src/`) and the kernel package (`app/kernel/`). Dashboard/API directories such as `app/api`, `app/web`, and `app/scripts` stay outside the wheel, and dashboard/data/development dependencies live in optional extras instead of the base runtime dependency list. `src/pyproject.toml` is pointer-only for compatibility with stale references.
-
-### Error handling and governance
-
-- trust and governance metadata are stored alongside agent registry data
-- repeated violations can quarantine an agent
-- memory writes are designed to avoid divergence between semantic and explicit storage
-- fallback behavior exists in the FastAPI layer when orchestration dependencies are unavailable
+The active coding and test requirements are in
+[`docs/CODING_STANDARDS.md`](docs/CODING_STANDARDS.md) and
+[`docs/TEST_PLAN.md`](docs/TEST_PLAN.md).
 
 ## CI and branch model
 
-CircleCI (`.circleci/config.yml`) is the primary CI/CD system. On every branch it
-runs four checks in parallel:
+CircleCI runs the documentation mirror, Python 3.12, TypeScript API, security,
+and deployment gates. GitHub Actions retains the promotion cascade:
 
-- `docs-mirror` — `CLAUDE.md` and `AGENTS.md` must stay byte-for-byte identical
-- `python-3.12` — environment-config validation, dependency install, and the
-  `src/tests` suite with production coverage across `src/`, `app/kernel/`, and
-  the Python modules in `app/api/` (single Python 3.12)
-- `typescript-api` — `tsc --noEmit` type-check and the Jest suite for the Express API
-- `secrets-check` — `detect-secrets` diff against `.secrets.baseline`
+```text
+feature/* --PR--> dev --validated promotion--> staging --> prod
+```
 
-Branch-gated deploy stages follow: `dev` auto-deploys on green, while `staging` and
-`prod` sit behind manual approval holds. GitHub Actions retains only the promotion
-cascade (`.github/workflows/promote.yml`), which fast-forwards
-`dev → staging → prod`. See `docs/CICD.md` and `docs/ENVIRONMENTS.md` for the full
-model.
+`dev` deploys automatically after its required checks. `staging` and `prod`
+remain approval-gated. See [`docs/CICD.md`](docs/CICD.md) and
+[`docs/ENVIRONMENTS.md`](docs/ENVIRONMENTS.md).
 
-## Suggested entry points for new contributors
+## Documentation
 
-If you are new to the repo, start in this order:
-
-1. `src/mcp/orchestrator.py`
-2. `src/integration/agent_registry.py`
-3. `src/integration/memory_bus.py`
-4. `src/integration/trust_interface.py`
-5. `app/api/main.py`
-6. `app/api/index.ts`
-7. `Concept_Demos/README.md`
-8. `docs/PROJECT_BOUNDARIES.md`
-   That path gives you the orchestration core first, then the public API surfaces,
-   then the demo and current project-boundary status.
-
-## Additional documentation
-
-- `Concept_Demos/README.md`  — demo-specific usage
-- `docs/PROJECT_BOUNDARIES.md` — active, transitional, and unavailable project surfaces
-- `AGENTS.md`  — project-specific contributor guidance
-- `CLAUDE.md`  — implementation notes about the active code surfaces and bridge behavior
+- [`docs/index.md`](docs/index.md) — documentation home
+- [`docs/REPOSITORY_LAYERS.md`](docs/REPOSITORY_LAYERS.md) — ownership and data
+  flow for every maintained layer
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system design and invariants
+- [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) — current HTTP/bridge and ATP
+  contracts
+- [`docs/PYTHON_API.md`](docs/PYTHON_API.md) — rendered auth and ATP validation
+  docstrings
+- [`docs/MEMORY_BUS.md`](docs/MEMORY_BUS.md) — canonical memory protocol
+- [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md) — trust, approval, and rollback
+- [`docs/PROJECT_BOUNDARIES.md`](docs/PROJECT_BOUNDARIES.md) — active,
+  transitional, and unavailable project surfaces
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — environment and secret ownership
 
 ## License
 
-This repository is licensed under the Apache License 2.0. See `LICENSE` for details.
-
----
-
-# Technical Design Document: Artemis City
-
-## Document Information
-
-| Field                  | Value                                          |
-| ---------------------- | ---------------------------------------------- |
-| **Project**      | Artemis City                                   |
-| **Repository**   | AgenticGovernace/AgenticGovernance-ArtemisCity |
-| **Version**      | 0.1.0                                          |
-| **Status**       | Alpha                                          |
-| **Last Updated** | 2025                                           |
-
----
-
-## 1. Overview
-
-### 1.1 Executive Summary
-
-Artemis City is a multi-agent operating system designed for autonomous task orchestration with adaptive learning and governance. The system provides a comprehensive framework for coordinating AI agents through structured communication protocols, trust-aware task routing, and persistent memory management backed by an Obsidian vault.
-
-### 1.2 Core Pillars
-
-The platform is built around three foundational concepts:
-
-1. **Artemis Transmission Protocol (ATP)** - Structured agent communication with standardized message formats
-2. **Trust and Governance-Aware Task Routing** - Intelligent task assignment based on agent capabilities, trust scores, and Hebbian learning weights
-3. **Obsidian-Backed Memory Layer** - Dual-store architecture combining explicit (Obsidian vault) and semantic (vector store) memory with write-through synchronization
-
-### 1.3 System Identity
-
-The project employs a "Living City" metaphor where:
-
-- **Agents** are citizens with roles and clearances
-- **Memory operations** are mail delivery handled by the postal service
-- **The Obsidian vault** serves as city archives
-- **Trust scores** function as citizen clearances
-- **The kernel** acts as city hall coordinating all operations
-
----
-
-## 2. Goals and Non-Goals
-
-### 2.1 Goals
-
-- **G1**: Provide a robust framework for multi-agent coordination with transparent governance
-- **G2**: Implement adaptive learning through Hebbian weight management for agent-task associations
-- **G3**: Maintain synchronized, auditable memory across explicit (Obsidian) and semantic (vector) stores
-- **G4**: Enable trust-based access control with automatic violation tracking and quarantine
-- **G5**: Support self-update governance with tiered approval workflows (auto/monitored/human)
-- **G6**: Expose both Python and TypeScript API surfaces for flexible integration
-- **G7**: Provide a standalone MCP server for Obsidian vault operations
-
-### 2.2 Non-Goals
-
-- **NG1**: Real-time streaming or WebSocket-based agent communication (current implementation uses synchronous polling)
-- **NG2**: Distributed deployment across multiple nodes (single-instance architecture)
-- **NG3**: Production-grade embedding models (uses deterministic hash-based stub embeddings)
-- **NG4**: Full Obsidian plugin integration (relies on Local REST API plugin)
-- **NG5**: Distributed multi-node orchestration; the root Compose file is for local single-host services
-
----
-
-## 3. Architecture
-
-### 3.1 High-Level Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        External Interfaces                          │
-├─────────────────┬─────────────────┬─────────────────────────────────┤
-│  FastAPI        │  TypeScript     │  CLI Entry Points               │
-│  Dashboard API  │  Express API    │  (main.py, demos)               │
-│  (port 8000)    │  (port 4000)    │                                 │
-└────────┬────────┴────────┬────────┴─────────────────────────────────┘
-         │                 │
-         │    ┌────────────┴────────────┐
-         │    │   Python Bridge         │
-         │    │   (stdin/stdout JSON)   │
-         │    └────────────┬────────────┘
-         │                 │
-┌────────┴─────────────────┴──────────────────────────────────────────┐
-│                      Python Core (src/)                              │
-├─────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                  │
-│  │ Orchestrator│  │   Agent     │  │  Governance │                  │
-│  │  (Kernel)   │◄─┤  Registry   │◄─┤   Layer     │                  │
-│  └──────┬──────┘  └─────────────┘  └─────────────┘                  │
-│         │                                                            │
-│  ┌──────┴──────┐  ┌─────────────┐  ┌─────────────┐                  │
-│  │  Memory Bus │◄─┤   Hebbian   │  │   Sandbox   │                  │
-│  │             │  │   Weights   │  │ Enforcement │                  │
-│  └──────┬──────┘  └─────────────┘  └─────────────┘                  │
-│         │                                                            │
-│  ┌──────┴──────────────────┬────────────────────┐                   │
-│  │                         │                    │                   │
-│  ▼                         ▼                    ▼                   │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                  │
-│  │  Obsidian   │  │   Vector    │  │   SQLite    │                  │
-│  │   Manager   │  │   Store     │  │  Databases  │                  │
-│  └─────────────┘  └─────────────┘  └─────────────┘                  │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### 3.2 Component Breakdown
-
-#### 3.2.1 Orchestrator (Kernel)
-
-**Location**: `src/mcp/orchestrator.py`
-
-The central coordinator managing agent task execution lifecycle:
-
-```python
-class Orchestrator:
-def __init__(self):
-    self.obs_manager = ObsidianManager(OBSIDIAN_VAULT_PATH)
-    self.obs_parser = ObsidianParser()
-    self.obs_generator = ObsidianGenerator()
-    self.hebbian = HebbianWeightManager()
-    self.vector_store = LocalVectorStore()
-    self.governance_monitor = GovernanceMonitor()
-    self.memory_bus = MemoryBus(...)
-    self.agent_registry = AgentRegistry()
-```
-
-**Responsibilities**:
-
-- Agent registration and lifecycle management
-- Task routing based on required capabilities
-- Task execution with memory enrichment
-- Hebbian learning updates based on task outcomes
-- Obsidian vault integration for task persistence
-  **Scoring Algorithm**:
-
-```
-Score = (Alignment × 0.4) + (Accuracy × 0.4) + (Efficiency × 0.2)
-BlendedScore = (1 - alpha - beta) × Score
-             + alpha × HebbianEffectiveNorm
-             + beta × TrustScore
-
-HebbianEffective = scoped_weight + timing_score + pair_bonus
-```
-
-#### 3.2.2 Agent Registry
-
-**Location**: `src/integration/agent_registry.py`
-
-SQLite-backed registry managing agent metadata, scores, and governance state:
-
-```python
-@dataclass
-class AgentScore:
-    alignment: float   # 0.0-1.0 policy adherence
-    accuracy: float    # 0.0-1.0 output quality
-    efficiency: float  # 0.0-1.0 speed/cost metric
-
-    @property
-    def composite_score(self) -> float:
-        return self.alignment * 0.4 + self.accuracy * 0.4 + self.efficiency * 0.2
-```
-
-**Agent Registration Record**:
-
-```json
-{
-  "agent_id": "uuid",
-  "name": "string",
-  "capabilities": ["string"],
-  "alignment_score": 0.85,
-  "accuracy_score": 0.92,
-  "efficiency_score": 0.88,
-  "status": "active|suspended|quarantined",
-  "trust_tier": "auto|monitored|human",
-  "violation_count": 0,
-  "trust_score": 0.89
-}
-```
-
-#### 3.2.3 Memory Bus
-
-**Location**: `src/integration/memory_bus.py`
-
-Unified memory access layer implementing write-through synchronization:
-
-```
-┌─────────────────────────────────────────┐
-│          Kernel / Agents                │
-└────────────────┬────────────────────────┘
-                 │ Read/Write
-       ┌─────────▼─────────┐
-       │   Memory Bus      │
-       │  (Coordinator)    │
-       └────┬──────────┬───┘
-            │          │
-      ┌─────▼─┐   ┌───▼─────┐
-      │Obsidian│   │ Vector  │
-      │ Store  │   │  Store  │
-      └────────┘   └─────────┘
-```
-
-**Write Protocol**:
-
-1. Write to vector store first (semantic indexing)
-2. Write to Obsidian (primary/explicit storage)
-3. Rollback vector write if Obsidian write fails
-4. Record governance events on failure
-   **Read Hierarchy**:
-5. **Exact Match**: Direct Obsidian lookup (<50ms p95)
-6. **Keyword Match**: Obsidian metadata search (<150ms p95)
-7. **Semantic Match**: Vector similarity search (<300ms p95)
-
-#### 3.2.4 Hebbian Learning Layer
-
-**Location**: `src/mcp/hebbian_weights.py`
-
-Adaptive connection weights between agents and task types:
-
-```python
-class HebbianWeightManager:
-def record_outcome(...):
-    """Success: tanh(rate × performance); failure: anti-Hebbian -rate."""
-```
-
-**Storage**: SQLite with atomic transactions
-**Decay**: 1% after every runtime outcome
-**Floor**: 0.01
-**Additional signals**: sequential pair synergy, rolling timing/performance,
-and persisted compounding routing intelligence
-
-#### 3.2.5 Governance Framework
-
-**Locations**:
-
-- `src/governance/trust.py`  - Trust score computation
-- `src/governance/approvals.py`  - Self-update approval tiers
-- `src/governance/checkpoints.py`  - Checkpoint storage and rollback
-- `src/integration/sandbox.py`  - Per-agent sandbox enforcement
-  **Trust Score Formula**:
-
-```
-TrustScore = SuccessRate × 0.35 
-+ SecurityScore × 0.25 
-+ CodeQuality × 0.20 
-+ AuditApprovals × 0.15 
-+ Uptime × 0.05
-```
-
-**Approval Tiers**:
-
-| Tier                           | Trust Score | Conditions                                     | Approval       |
-| ------------------------------ | ----------- | ---------------------------------------------- | -------------- |
-| Auto                           | ≥ 0.9      | < 1% code change, backwards-compatible         | Automatic      |
-| Monitored                      | 0.7 - 0.9   | 1-10% change, new deps require review          | Human approval |
-| Human                          | < 0.7       | > 10% change, breaking changes, policy changes | Senior review  |
-| **Sandbox Enforcement**: |             |                                                |                |
-
-- Tool whitelist per agent
-- Path-based ACL with glob patterns
-- 3-strike quarantine rule for violations
-
-### 3.3 API Surfaces
-
-#### 3.3.1 FastAPI Dashboard Backend
-
-**Location**: `app/api/main.py`
-**Port**: 8000
-
-Serves dashboard-oriented endpoints with SQLite fallback mode:
-
-| Endpoint                                       | Method   | Description                     |
-| ---------------------------------------------- | -------- | ------------------------------- |
-| `/api/agents`                                | GET      | List registered agents          |
-| `/api/tasks`                                 | GET/POST | Task management                 |
-| `/api/reports`                               | GET      | Agent report summaries          |
-| `/api/execute-task`                          | POST     | Execute specific task           |
-| `/api/db/hebbian/stats`                      | GET      | Hebbian network statistics      |
-| `/api/db/vectors/stats`                      | GET      | Vector store statistics         |
-| `/api/cli/execute`                           | POST     | CLI-style instruction execution |
-| **Authentication**: `X-API-Key` header |          |                                 |
-
-#### 3.3.2 TypeScript Express API
-
-**Location**: `app/api/index.ts`
-**Port**: 4000
-
-Public HTTP boundary with Python bridge integration:
-
-| Route                  | Description                                                                      |
-| ---------------------- | -------------------------------------------------------------------------------- |
-| `/api/v1/agents`     | Bridge-backed registry facade and agent status/mutation operations               |
-| `/api/v1/registry`   | Bridge-backed registry operations                                                |
-| `/api/v1/governance` | Bridge-backed trust computation and update evaluation                            |
-| `/api/v1/memory`     | Bridge-backed exact read, write, list, search, stats, and delete                 |
-| `/api/v1/atp`        | Bridge-backed ATP parse, validate, queue, history, routing, format, and metadata |
-| `/api/v1/trust`      | Bridge-backed trust score, permission, report, and Hebbian weight operations     |
-| `/api/v1/llm`        | LLM features                                                                     |
-
-#### 3.3.3 Python Bridge Protocol
-
-**Location**: `src/api_bridge.py` (Python), `app/api/lib/pythonBridge.ts` (TypeScript)
-
-JSON stdin/stdout transport between Express and Python core:
-
-**Request Format**:
-
-```json
-{
-  "command": "<namespace>.<action>",
-  "payload": { ... }
-}
-```
-
-**Response Format**:
-
-```json
-{ "ok": true, "data": { ... } }
-{ "ok": false, "error": "...", "code": "..." }
-```
-
-**Available Commands**:
-
-- `registry.list_agents`
-- `registry.get_agent`
-- `registry.get_violations`
-- `registry.clear_violations`
-- `registry.set_trust_tier`
-- `registry.record_violation`
-- `governance.compute_trust`
-- `governance.evaluate_update`
-
----
-
-## 4. Data Model
-
-### 4.1 Database Schema
-
-#### 4.1.1 Agent Registry (`data/agent_registry.db`)
-
-```sql
-CREATE TABLE agents (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL,
-    capabilities TEXT NOT NULL,  -- JSON array
-    description TEXT,
-    alignment REAL,
-    accuracy REAL,
-    efficiency REAL,
-    trust_tier TEXT NOT NULL DEFAULT 'monitored',
-    status TEXT NOT NULL DEFAULT 'active',
-    violation_count INTEGER NOT NULL DEFAULT 0,
-    quarantined_at TEXT,
-    trust_score REAL,
-    created_at TEXT,
-    updated_at TEXT
-);
-
-CREATE TABLE violations (
-    violation_id TEXT PRIMARY KEY,
-    agent_name TEXT NOT NULL,
-    timestamp TEXT NOT NULL,
-    violation_type TEXT NOT NULL,
-    details TEXT NOT NULL,  -- JSON
-    action_taken TEXT NOT NULL,
-    cleared INTEGER NOT NULL DEFAULT 0,
-    FOREIGN KEY (agent_name) REFERENCES agents(name)
-);
-```
-
-#### 4.1.2 Hebbian Weights (`data/hebbian_weights.db`)
-
-```sql
-CREATE TABLE node_connections (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    origin_node TEXT NOT NULL,
-    target_node TEXT NOT NULL,
-    weight REAL DEFAULT 0,
-    activation_count INTEGER DEFAULT 0,
-    success_count INTEGER DEFAULT 0,
-    failure_count INTEGER DEFAULT 0,
-    last_updated TEXT,
-    created_at TEXT,
-    UNIQUE(origin_node, target_node)
-);
-```
-
-#### 4.1.3 Vector Store (`data/vector_store.db`)
-
-```sql
-CREATE TABLE vectors (
-    doc_id TEXT PRIMARY KEY,
-    embedding TEXT NOT NULL,  -- JSON array of floats
-    metadata TEXT,            -- JSON object
-    content TEXT
-);
-```
-
-### 4.2 Obsidian Vault Structure
-
-```
-<vault_root>/
-├── Agent Inputs/           # Pending task notes
-│   └── *.md               # YAML frontmatter + markdown
-├── Agent Outputs/          # Completed reports
-│   └── *_Report_*.md      # Generated by agents
-├── Postal/                 # Inter-agent mail
-│   └── Agents/
-│       └── <agent_name>/
-├── Archives/               # Persistent storage
-│   ├── Reflections/
-│   ├── Reports/
-│   ├── Policies/
-│   └── Projects/
-└── History/
-    └── Delivery_Logs/
-```
-
-### 4.3 Task Note Format
-
-```yaml
----
-task_id: T123
-agent: research_agent
-required_capability: web_search
-status: pending
-tags: ["example", "research"]
----
-
-# Task Title
-
-Context: Description here
-Keywords: keyword1, keyword2
-Target: [[Some Other Note]]
-
-## Subtasks
-- [ ] Subtask 1
-- [ ] Subtask 2
-```
-
-### 4.4 ATP Message Format
-
-```
-#Mode <direct|batch|stream|async>
-#Context <context_id>
-#Priority <critical|high|normal|low>
-#ActionType <query|create|execute|...>
-#TargetZone <kernel|registry|memory|sandbox|governance>
-#SpecialNotes <notes>
-
-<message_body>
-```
-
----
-
-## 5. API Design
-
-### 5.1 Artemis Transmission Protocol (ATP)
-
-#### 5.1.1 ATP Tags Specification
-
-| Tag               | Values                                                            | Required | Purpose              |
-| ----------------- | ----------------------------------------------------------------- | -------- | -------------------- |
-| `#Mode`         | `direct`, `batch`, `stream`, `async`                      | Yes      | Communication mode   |
-| `#Context`      | UUID or string (max 64 chars)                                     | Yes      | Trace/correlation ID |
-| `#Priority`     | `critical`, `high`, `normal`, `low`                       | Yes      | Queue priority       |
-| `#ActionType`   | See below                                                         | Yes      | Operation type       |
-| `#TargetZone`   | `kernel`, `registry`, `memory`, `sandbox`, `governance` | Yes      | Target component     |
-| `#SpecialNotes` | String (max 256 chars)                                            | No       | Metadata/hints       |
-
-#### 5.1.2 ActionType Values
-
-**Query Operations**: `query`, `search`, `list`, `get_status`
-**Modification Operations**: `create`, `update`, `delete`, `upsert`
-**Execution Operations**: `execute`, `schedule`, `cancel`, `retry`
-**Management Operations**: `register`, `revoke`, `approve`, `reject`
-**Governance Operations**: `propose_update`, `rollback`, `override`
-
-### 5.2 REST API Endpoints
-
-#### 5.2.1 Task Submission
-
-```http
-POST /api/v1/tasks
-Content-Type: application/json
-
-{
-  "type": "text-analysis",
-  "input": "Analyze the following document...",
-  "required_capabilities": ["nlp", "sentiment-analysis"],
-  "timeout_seconds": 300
-}
-```
-
-**Response** (202 Accepted):
-
-```json
-{
-  "task_id": "uuid",
-  "status": "queued",
-  "estimated_start": "2025-02-21T10:30:00Z"
-}
-```
-
-#### 5.2.2 Memory Operations
-
-**Write**:
-
-```http
-POST /api/v1/memory/write
-Content-Type: application/json
-
-{
-  "path": "path/to/document.md",
-  "content": "# Heading\n\nContent...",
-  "metadata": { "tags": ["tag1", "tag2"] },
-  "embed": true,
-  "idempotency_key": "optional-operation-key",
-  "provenance_id": "optional-uuid",
-  "source_agent": "optional-agent-name"
-}
-```
-
-The endpoint returns 200 after synchronized projection or 202 with
-`sync_pending=true` after a durable SQL commit whose projection is pending.
-Retain the receipt's idempotency key for deterministic replay.
-
-**Search**:
-
-```http
-POST /api/v1/memory/search
-Content-Type: application/json
-
-{
-  "query": "Find information about data processing",
-  "path": "",
-  "tags": ["optional"],
-  "limit": 10
-}
-```
-
-SQL mode searches an optional exact path and then the derived vector index;
-Obsidian keyword scan is legacy-only.
-
-#### 5.2.3 Governance Operations
-
-**Propose Update**:
-
-```http
-POST /api/v1/governance/updates
-Content-Type: application/json
-
-{
-  "agent_id": "uuid",
-  "update_type": "patch",
-  "description": "Fix memory leak",
-  "changes": {
-    "files_modified": ["src/kernel.py"],
-    "lines_added": 15,
-    "lines_deleted": 8
-  }
-}
-```
-
-**Initiate Rollback**:
-
-```http
-POST /api/v1/governance/rollbacks
-Content-Type: application/json
-
-{
-  "checkpoint_id": "uuid",
-  "initiated_by": "admin_uuid",
-  "reason": "error_detected"
-}
-```
-
-### 5.3 Error Response Format
-
-```json
-{
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Human-readable error message",
-    "details": { "field": "specific errors" },
-    "request_id": "uuid"
-  }
-}
-```
-
-**Common Error Codes**:
-
-| Code                | HTTP | Meaning             |
-| ------------------- | ---- | ------------------- |
-| `INVALID_REQUEST` | 400  | Malformed request   |
-| `NOT_FOUND`       | 404  | Resource not found  |
-| `CONFLICT`        | 409  | Write conflict      |
-| `RATE_LIMITED`    | 429  | Rate limit exceeded |
-
----
-
-## 6. Security Considerations
-
-### 6.1 Authentication
-
-- **FastAPI Dashboard**: `X-API-Key`  header authentication
-- **TypeScript Express API**: Bearer token in Authorization header
-- **Python Bridge**: Process-level isolation (stdin/stdout)
-
-### 6.2 Secret Management
-
-Secrets are provisioned via `./setup_secrets.sh`:
-
-| File                                      | Consumer                                                                                    |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `.env`                                  | Python core, FastAPI dashboard                                                              |
-| `app/api/.env`                          | TypeScript Express API                                                                      |
-| `src/.env`                              | Memory-layer Python                                                                         |
-| `src/Artemis Agentic Memory Layer/.env` | Reserved for the unavailable standalone server; setup skips it when the directory is absent |
-| **Generated Keys**:                 |                                                                                             |
-
-- `MCP_API_KEY`  - Shared across all components
-- `FASTAPI_API_KEY`  - Dashboard only
-- `ARTEMIS_API_KEY_DEFAULT`  - TS Express auth (key:role:perms tuple)
-
-### 6.3 Sandbox Enforcement
-
-```python
-@dataclass
-class ToolPolicy:
-    name: str
-    paths: List[str] = field(default_factory=list)  # glob patterns
-    operations: List[str] = field(default_factory=list)
-
-class AgentSandbox:
-    def check_action(self, tool_name: str, path: str = None, 
-                     operation: str = None) -> CheckResult:
-        # Quarantined agents denied everything
-        # Tool must be in whitelist
-        # Path must match allowed patterns
-        # Operation must be permitted
-```
-
-**Violation Types**:
-
-- `unauthorized_tool`
-- `unauthorized_path`
-- `rate_limit`
-- `missing_capability`
-- `unsafe_network`
-  **Quarantine Rule**: Auto-quarantine after 3 violations
-
-### 6.4 Access Control
-
-- Trust-based operation permissions (FULL/HIGH/MEDIUM/LOW/UNTRUSTED)
-- Path-based ACLs for Obsidian vault operations
-- Capability tags required for task routing
-
-### 6.5 Audit Trail
-
-All operations logged with:
-
-- Timestamp
-- Operation type
-- Agent ID
-- Content ID
-- Status
-- Latency
-
----
-
-## 7. Testing Strategy
-
-### 7.1 Test Pyramid
-
-```
-╱╲
-        ╱  ╲        E2E Tests (10%)
-       ╱────╲       - Full workflow validation
-      ╱      ╲      - CLI interaction tests
-     ╱────────╲
-    ╱          ╲    Integration Tests (30%)
-   ╱────────────╲   - Module interaction
-  ╱              ╲  - ATP pipeline, Memory system
- ╱────────────────╲
-╱                  ╲ Unit Tests (60%)
-╲──────────────────╱ - Individual functions/classes
-```
-
-### 7.2 Coverage Requirements
-
-The canonical `src/tests/` suite measures the production Python surfaces in
-`src/`, `app/kernel/`, and `app/api/`. Aggregate coverage must remain at or
-above **90%**. Test modules are excluded from the denominator, and
-`*/demo_*.py` entry points are exercised as smoke workflows rather than counted
-as production-library coverage.
-
-### 7.3 Test Naming Convention
-
-```
-test_<module>_<function>_<scenario>
-```
-
-Examples:
-
-- `test_atp_parser_parse_hash_format`
-- `test_trust_score_apply_decay_after_one_day`
-- `test_memory_client_get_context_server_unreachable`
-
-### 7.4 Running Tests
-
-```bash
-# Run all tests
-make test
-
-# Run with coverage
-make test-cov
-
-# Run specific markers
-pytest -m unit
-pytest -m integration
-pytest -m e2e
-```
-
-### 7.5 CI Pipeline
-
-CircleCI (`.circleci/config.yml`) runs on every branch:
-
-- Environment configuration validation
-- Python dependency installation
-- `src/tests` execution with the canonical production coverage scope (single
-  Python 3.12)
-- TypeScript type-check and Jest tests for the Express API
-- Advisory lint (black, isort, flake8) and security (bandit) checks
-- `detect-secrets` gate against `.secrets.baseline`
-
-GitHub Actions retains only the promotion cascade (`promote.yml`)
-----------------------------------------------------
-
-## 8. Rollout Plan
-
-### 8.1 Environment Branching
-
-| Branch                    | Environment | Purpose                     | Approvals |
-| ------------------------- | ----------- | --------------------------- | --------- |
-| `dev`                   | dev         | Integration of feature work | 0         |
-| `staging`               | staging     | Pre-production rehearsal    | 1         |
-| `prod`                  | prod        | Production (default branch) | 2         |
-| **Promotion Flow**: |             |                             |           |
-
-```
-feature/* --PR--> dev --push--> [Promote cascade] --ff--> staging --ff--> prod
-```
-
-Feature branches target `dev` via PR. A push to `dev` triggers the promotion cascade
-(`promote.yml`), which runs the gate then fast-forwards `staging` and `prod` to the
-tested commit — no promotion PR. Approval gates live on the CircleCI deploy stages, not
-on branch PRs. See `docs/ENVIRONMENTS.md`.
-
-### 8.2 Configuration Management
-
-Environment profiles in `config/environments/`:
-
-- `dev.yaml`
-- `staging.yaml`
-- `prod.yaml`
-  Selection via `ARTEMIS_ENV` environment variable.
-
-### 8.3 Deployment Checklist
-
-1. **Pre-deployment**:
-
-   - [ ] All tests passing in CI
-   - [ ] Security scans clean
-   - [ ] Environment config validated
-   - [ ] Checkpoint created
-2. **Deployment**:
-
-   - [ ] Promotion PR approved
-   - [ ] Database migrations applied
-   - [ ] Environment variables configured
-   - [ ] Health checks passing
-3. **Post-deployment**:
-
-   - [ ] Smoke tests executed
-   - [ ] Metrics baseline established
-   - [ ] Rollback plan verified
-
-### 8.4 Rollback Procedure
-
-1. Identify checkpoint to restore
-2. Verify checkpoint integrity (SHA-256 hash)
-3. Initiate rollback via governance API
-4. Restore registry state from checkpoint
-5. Verify system health
-6. Document incident
-
-### 8.5 Monitoring
-
-**Prometheus Metrics**:
-
-```
-artemis_memory_write_latency_ms
-artemis_memory_read_latency_ms
-artemis_memory_sync_lag_ms
-artemis_memory_conflicts_detected
-artemis_agent_execution_count
-artemis_agent_success_rate
-```
-
-**Latency SLAs**:
-
-| Operation            | p50   | p95   | p99   |
-| -------------------- | ----- | ----- | ----- |
-| Task routing         | 5ms   | 15ms  | 30ms  |
-| Memory write         | 50ms  | 200ms | 400ms |
-| Memory read (exact)  | 10ms  | 50ms  | 100ms |
-| Memory read (vector) | 100ms | 300ms | 500ms |
-
----
-
-## 9. Appendices
-
-### 9.1 Repository Structure
-
-```
-.
-├── app/
-│   ├── api/                    # FastAPI + TypeScript API
-│   ├── kernel/                 # In-process router
-│   ├── scripts/                # Utility scripts
-│   └── web/frontend/           # React dashboard
-├── benchmarks/                 # Performance benchmarks
-├── Concept_Demos/              # Static browser demos and CLI shims
-├── config/environments/        # Environment configs
-├── memory/                     # Memory integration and store logic
-├── memory_store/               # Local storage for memory objects
-├── monitoring/                 # Prometheus and alerting configurations
-├── sandbox_city/               # Sandbox environments and documentation
-├── src/
-│   ├── agents/                 # Agent implementations
-│   ├── governance/             # Trust, approvals, checkpoints
-│   ├── integration/            # Registry, memory bus, sandbox
-│   ├── mcp/                    # Orchestrator, config, vector store
-│   ├── obsidian_integration/   # Vault I/O
-│   ├── tests/                  # Test suite
-│   └── api_bridge.py           # TS-Python bridge
-├── pyproject.toml
-└── requirements.txt
-```
-
-### 9.2 Key Dependencies
-
-| Package           | Purpose             |
-| ----------------- | ------------------- |
-| fastapi           | Dashboard API       |
-| pydantic          | Data validation     |
-| sqlite3           | Persistent storage  |
-| prometheus-client | Metrics             |
-| pyyaml            | Configuration       |
-| python-dotenv     | Environment loading |
-
-### 9.3 Quick Start Commands
-
-```bash
-# Environment setup
-./setup_secrets.sh
-make install-dev
-make install-web
-
-# Development
-make test
-make lint
-make check
-
-# Running services
-make orchestrator     # Python orchestration pipeline
-make cli ARGS='--help' # Artemis City CLI
-make frontend         # React dashboard
-make api              # FastAPI
-make express-api      # TypeScript Express API
-```
-
-### 9.4 Related Documentation
-
-| Document             | Location                  |
-| -------------------- | ------------------------- |
-| Architecture         | `docs/ARCHITECTURE.md`  |
-| Memory Bus           | `docs/MEMORY_BUS.md`    |
-| API Reference        | `docs/API_REFERENCE.md` |
-| Test Plan            | `docs/TEST_PLAN.md`     |
-| Living City Metaphor | `docs/LIVING_CITY.md`   |
-| Environments         | `docs/ENVIRONMENTS.md`  |
-| Security             |                           |
+Artemis City is licensed under the Apache License 2.0. See [`LICENSE`](LICENSE).

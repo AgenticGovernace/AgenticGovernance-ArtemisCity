@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Canonical CLI entry point for orchestrator tasks and demonstrations."""
+
 import argparse
 import os
 import sys

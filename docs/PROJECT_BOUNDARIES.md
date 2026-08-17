@@ -5,6 +5,9 @@ This document is the working separation map: it identifies each project,
 records how it is run, and names the next safe step for splitting it without
 breaking the Artemis City core.
 
+For the responsibility, data, and test boundaries *inside* these projects, use
+[`REPOSITORY_LAYERS.md`](REPOSITORY_LAYERS.md).
+
 ## Active Projects
 
 | Project | Current path | Runtime | Manifest or entry point | Status | Separation target |
@@ -22,6 +25,8 @@ breaking the Artemis City core.
 | Surface | Current path | Evidence | Recommended action |
 |---|---|---|---|
 | Obsidian MCP server shell | `src/Artemis Agentic Memory Layer/` | README and Makefile describe a standalone TS service, but the tree currently contains only `src/utils/logger.ts` and no `package.json`, Dockerfile, or README | Recreate the missing service files or mark the directory archived before treating it as runnable |
+| Imported Obsidian REST shell | `src/mcp-server/` | Has a local manifest and HTTP routes, but is not registered in the root npm workspace; the reviewed MCP design explicitly does not extend this REST shell as Model Context Protocol | Classify or archive it before exposing it as an active service |
+| Duplicate imported REST shell | `src/memory/mcp-server/` | Mirrors `src/mcp-server/` under the memory package and is likewise absent from the root workspace | Select one canonical owner before any maintenance or launch integration |
 | Legacy web API copy | `archive/legacy-web-api/` | Old `app/web/api/` FastAPI copies; active dashboard API is `app/api/main.py` | Archived for reference |
 | Duplicate memory integration package | `memory/` | Mirrors `src/memory/` names outside the package root | Verify imports, then remove or convert to compatibility shims |
 | Duplicate root tests | `tests/` | Substantially overlaps `src/tests/`, but is not byte-identical | Keep `src/tests/` canonical; root `tests/` is migration-only and documented by `tests/README.md` |
@@ -53,7 +58,9 @@ These must be resolved before broad file moves or package extraction:
    local TypeScript config, and regenerated local lockfile.
 4. `src/Artemis Agentic Memory Layer/` is documented as standalone, but its
    runnable project files are absent.
-5. `AGENTS.md` and `CLAUDE.md` are currently byte-for-byte mirrors and must
+5. `src/mcp-server/` and `src/memory/mcp-server/` are imported REST shells, not
+   registered workspace services or authoritative memory implementations.
+6. `AGENTS.md` and `CLAUDE.md` are currently byte-for-byte mirrors and must
    remain mirrored whenever
    either is edited.
 
@@ -63,7 +70,8 @@ These must be resolved before broad file moves or package extraction:
    leftovers from that tree once confirmed unused.
 2. Compare duplicate tests and memory packages; move canonical tests under
    `src/tests/` and archive or delete duplicates.
-3. Rebuild or archive the Obsidian MCP server directory.
+3. Rebuild or archive the historical Obsidian MCP server directory and classify
+   the two imported REST-shell copies before registering any server package.
 4. Move legacy demos and sandboxes under `examples/` after active runtimes pass
    tests.
 

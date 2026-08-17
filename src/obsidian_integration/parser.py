@@ -1,3 +1,5 @@
+"""Parse task notes and update their YAML-front-matter status safely."""
+
 import re
 from typing import Optional
 

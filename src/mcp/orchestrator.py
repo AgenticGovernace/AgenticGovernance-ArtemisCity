@@ -1,3 +1,10 @@
+"""Coordinate governed routing, agent execution, learning, and persistence.
+
+The orchestrator is the Python execution source of truth. In-process ingress,
+context-compression children, and dashboard execution all enter routing through
+``route_task`` before dispatching to an agent.
+"""
+
 import hashlib
 import os
 import time

@@ -1,3 +1,5 @@
+"""Contain vault file operations behind validated Obsidian-relative paths."""
+
 import errno
 import ntpath
 import os
