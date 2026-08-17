@@ -17,7 +17,7 @@ concurrency:
   # Never cancel a promotion mid-flight: a cancelled run could leave staging
   # fast-forwarded but prod not, splitting the environments. Let an in-progress
   # cascade finish; a newer dev commit promotes on the next run.
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   # Resolve the exact commit to promote ONCE, so the gate tests and the branch
@@ -107,9 +107,56 @@ jobs:
       - name: Build documentation
         run: make docs
 
+  # The cascade deliberately never uses --force, so it can only advance a
+  # branch that is still an ancestor of the promoted commit. If someone merges
+  # a PR straight into staging or prod, that branch diverges and every later
+  # run dies at a `git push` with a bare "non-fast-forward" rejection.
+  #
+  # Checking lineage up front turns that into an actionable error AND keeps the
+  # environments together: without this gate, staging fast-forwards and prod
+  # then rejects, leaving the two environments split on different commits.
+  branch-lineage:
+    name: Branch lineage gate
+    needs: resolve
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      - name: staging and prod must be ancestors of the promoted commit
+        env:
+          # Passed through env rather than interpolated into the script body.
+          PROMOTED_SHA: ${{ needs.resolve.outputs.sha }}
+        run: |
+          set -u
+          diverged=0
+          for branch in staging prod; do
+            # Resolve the tip with ls-remote rather than a remote-tracking ref.
+            # actions/checkout narrows remote.origin.fetch to the checked-out
+            # ref, so refs/remotes/origin/<branch> may be absent or stale here;
+            # reading a stale ref would make this gate silently pass.
+            tip="$(git ls-remote origin "refs/heads/${branch}" | cut -f1)"
+            if [ -z "$tip" ]; then
+              echo "origin/${branch} does not exist yet; nothing to promote over."
+              continue
+            fi
+            # Make sure the objects behind that tip are present locally so
+            # merge-base can reason about them.
+            git fetch --quiet origin "refs/heads/${branch}" || true
+            if git merge-base --is-ancestor "$tip" "$PROMOTED_SHA"; then
+              echo "origin/${branch} at ${tip} is an ancestor of ${PROMOTED_SHA} - fast-forward is possible."
+            else
+              behind="$(git rev-list --count "${PROMOTED_SHA}..${tip}")"
+              echo "::error::origin/${branch} has diverged from the cascade: it holds ${behind} commit(s) that are not in the promoted commit ${PROMOTED_SHA}, so a fast-forward push is impossible. This usually means a pull request was merged directly into ${branch} instead of into dev. Reconcile ${branch} with dev (merge it back, or realign the branch onto the tested commit) before promoting again."
+              git log --oneline "${PROMOTED_SHA}..${tip}" | head -20
+              diverged=1
+            fi
+          done
+          exit "$diverged"
+
   promote-staging:
     name: Promote dev -> staging
-    needs: [resolve, docs-mirror, test]
+    needs: [resolve, docs-mirror, test, branch-lineage]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
