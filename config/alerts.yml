@@ -89,7 +89,9 @@ groups:
           description: "Prometheus has failed to scrape the kernel for 2 minutes."
 
       - alert: RedisDown
-        expr: redis_up == 0
+        # An unreachable exporter makes redis_up absent (not 0); the up{}
+        # series for the scrape job covers that gap.
+        expr: redis_up == 0 or up{job="redis"} == 0
         for: 2m
         labels:
           severity: critical

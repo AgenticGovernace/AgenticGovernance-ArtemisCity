@@ -43,6 +43,11 @@ def governance_dbs(tmp_path):
             " violation_count, trust_score) VALUES (?, ?, ?, ?, ?, ?)",
             ("Rogue Agent", "[]", "quarantined", "untrusted", 3, 0.12),
         )
+        conn.execute(
+            "INSERT INTO agents (name, capabilities, status, trust_tier,"
+            " violation_count, trust_score) VALUES (?, ?, ?, ?, ?, ?)",
+            ("Fresh Agent", "[]", "active", "", 0, None),
+        )
         conn.commit()
 
     with sqlite3.connect(hebbian_db) as conn:
@@ -69,12 +74,15 @@ def test_governance_metrics_collector_reports_registry_and_sentinel_state(
     trust = _samples(families["artemis_agent_trust_score"])
     assert trust[("Chat Agent", "trusted")] == pytest.approx(0.91)
     assert trust[("Rogue Agent", "untrusted")] == pytest.approx(0.12)
+    # Unscored (NULL) agents are omitted instead of coerced to 0.0, so
+    # AgentTrustCollapse cannot false-fire on fresh registrations.
+    assert not any(labels[0] == "Fresh Agent" for labels in trust)
 
     violations = _samples(families["artemis_agent_violations"])
     assert violations[("Rogue Agent",)] == 3.0
 
     statuses = _samples(families["artemis_agents"])
-    assert statuses[("active",)] == 1.0
+    assert statuses[("active",)] == 2.0
     assert statuses[("quarantined",)] == 1.0
     assert statuses[("suspended",)] == 0.0
 
@@ -101,6 +109,10 @@ def test_governance_metrics_collector_flags_unreadable_stores(tmp_path):
     assert scrape_ok[("agent_registry",)] == 0.0
     assert scrape_ok[("hebbian_weights",)] == 0.0
     assert _samples(families["artemis_agent_trust_score"]) == {}
+    # A scrape must never create governance stores: the read-only URI
+    # fails on missing files instead of materializing empty databases.
+    assert not (tmp_path / "missing" / "agent_registry.db").exists()
+    assert not (tmp_path / "missing" / "hebbian_weights.db").exists()
 
 
 def test_governance_metrics_reimport_does_not_crash_on_duplicate_registration():

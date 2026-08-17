@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import sqlite3
 from typing import Iterable, Optional
+from urllib.parse import quote
 
 from src.runtime_paths import data_path
 
@@ -51,8 +52,17 @@ _AGENT_STATUSES = ("active", "suspended", "quarantined")
 
 
 def _rows(db_file: str, query: str) -> list[tuple]:
-    """Run one read-only query against a SQLite file."""
-    connection = sqlite3.connect(db_file)
+    """Run one query against a SQLite file, strictly read-only.
+
+    A plain ``sqlite3.connect(path)`` would CREATE an empty database when
+    the store does not exist yet (e.g. the SQLite-only fallback before
+    first orchestrator boot) — a Prometheus scrape must never mutate
+    governance storage. ``mode=ro`` makes a missing store raise instead,
+    which the collector reports via ``artemis_governance_scrape_ok``.
+    """
+    connection = sqlite3.connect(
+        f"file:{quote(db_file)}?mode=ro", uri=True
+    )
     try:
         return connection.execute(query).fetchall()
     finally:
@@ -114,7 +124,7 @@ class GovernanceCollector:
             rows = _rows(
                 self._registry_db(),
                 "SELECT name, COALESCE(trust_tier, ''), COALESCE(status, 'active'),"
-                " COALESCE(violation_count, 0), COALESCE(trust_score, 0.0)"
+                " COALESCE(violation_count, 0), trust_score"
                 " FROM agents",
             )
         except sqlite3.Error:
@@ -123,7 +133,11 @@ class GovernanceCollector:
             scrape_ok.add_metric(["agent_registry"], 1.0)
             status_counts = {status: 0 for status in _AGENT_STATUSES}
             for name, tier, status, violation_count, trust_score in rows:
-                trust.add_metric([str(name), str(tier)], float(trust_score))
+                # Newly registered agents carry trust_score = NULL until a
+                # trust calculation persists; omit them rather than coercing
+                # to 0.0, which would false-fire AgentTrustCollapse.
+                if trust_score is not None:
+                    trust.add_metric([str(name), str(tier)], float(trust_score))
                 violations.add_metric([str(name)], float(violation_count))
                 normalized = str(status).lower()
                 if normalized in status_counts:
