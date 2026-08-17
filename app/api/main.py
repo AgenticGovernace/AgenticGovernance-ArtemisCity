@@ -501,6 +501,268 @@ def _connect_db(db_path: Path) -> sqlite3.Connection:
     return conn
 
 
+def _ensure_parent_dir(db_path: Path) -> None:
+    """Create a database parent directory when the path is filesystem-backed."""
+    if str(db_path) == ":memory:":
+        return
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+
+def _add_missing_columns(
+    conn: sqlite3.Connection, table_name: str, columns: tuple[tuple[str, str], ...]
+) -> None:
+    existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table_name})")}
+    for column_name, column_spec in columns:
+        if column_name not in existing:
+            conn.execute(
+                f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_spec}"
+            )
+
+
+def _bootstrap_agent_registry_db(db_path: Path) -> None:
+    _ensure_parent_dir(db_path)
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS agents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                capabilities TEXT NOT NULL,
+                description TEXT,
+                alignment REAL,
+                accuracy REAL,
+                efficiency REAL,
+                created_at TEXT,
+                updated_at TEXT,
+                trust_tier TEXT NOT NULL DEFAULT 'monitored',
+                status TEXT NOT NULL DEFAULT 'active',
+                violation_count INTEGER NOT NULL DEFAULT 0,
+                quarantined_at TEXT,
+                trust_score REAL,
+                execution_count INTEGER NOT NULL DEFAULT 0,
+                successful_executions INTEGER NOT NULL DEFAULT 0,
+                failed_executions INTEGER NOT NULL DEFAULT 0,
+                hebbian_weight REAL,
+                hebbian_delta REAL NOT NULL DEFAULT 0.0,
+                hebbian_activations INTEGER NOT NULL DEFAULT 0,
+                hebbian_success_rate REAL NOT NULL DEFAULT 0.0,
+                hebbian_task_type TEXT,
+                hebbian_pair_bonus REAL NOT NULL DEFAULT 0.0,
+                hebbian_timing_score REAL,
+                routing_intelligence REAL NOT NULL DEFAULT 0.0,
+                hebbian_oscillation_rate REAL NOT NULL DEFAULT 0.0,
+                hebbian_sentinel_alert INTEGER NOT NULL DEFAULT 0,
+                hebbian_sentinel_samples INTEGER NOT NULL DEFAULT 0,
+                learning_updated_at TEXT,
+                agent_uid TEXT,
+                tenant_ids TEXT,
+                scopes TEXT
+            );
+            CREATE TABLE IF NOT EXISTS violations (
+                violation_id TEXT PRIMARY KEY,
+                agent_name TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                violation_type TEXT NOT NULL,
+                details TEXT NOT NULL,
+                action_taken TEXT NOT NULL,
+                cleared INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (agent_name) REFERENCES agents(name)
+            );
+            CREATE INDEX IF NOT EXISTS idx_violations_agent
+            ON violations(agent_name, cleared);
+        """)
+        _add_missing_columns(
+            conn,
+            "agents",
+            (
+                ("trust_tier", "TEXT NOT NULL DEFAULT 'monitored'"),
+                ("status", "TEXT NOT NULL DEFAULT 'active'"),
+                ("violation_count", "INTEGER NOT NULL DEFAULT 0"),
+                ("quarantined_at", "TEXT"),
+                ("trust_score", "REAL"),
+                ("execution_count", "INTEGER NOT NULL DEFAULT 0"),
+                ("successful_executions", "INTEGER NOT NULL DEFAULT 0"),
+                ("failed_executions", "INTEGER NOT NULL DEFAULT 0"),
+                ("hebbian_weight", "REAL"),
+                ("hebbian_delta", "REAL NOT NULL DEFAULT 0.0"),
+                ("hebbian_activations", "INTEGER NOT NULL DEFAULT 0"),
+                ("hebbian_success_rate", "REAL NOT NULL DEFAULT 0.0"),
+                ("hebbian_task_type", "TEXT"),
+                ("hebbian_pair_bonus", "REAL NOT NULL DEFAULT 0.0"),
+                ("hebbian_timing_score", "REAL"),
+                ("routing_intelligence", "REAL NOT NULL DEFAULT 0.0"),
+                ("hebbian_oscillation_rate", "REAL NOT NULL DEFAULT 0.0"),
+                ("hebbian_sentinel_alert", "INTEGER NOT NULL DEFAULT 0"),
+                ("hebbian_sentinel_samples", "INTEGER NOT NULL DEFAULT 0"),
+                ("learning_updated_at", "TEXT"),
+                ("agent_uid", "TEXT"),
+                ("tenant_ids", "TEXT"),
+                ("scopes", "TEXT"),
+            ),
+        )
+
+
+def _bootstrap_hebbian_db(db_path: Path) -> None:
+    _ensure_parent_dir(db_path)
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS node_connections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                origin_node TEXT NOT NULL,
+                target_node TEXT NOT NULL,
+                weight REAL DEFAULT 0,
+                activation_count INTEGER DEFAULT 0,
+                success_count INTEGER DEFAULT 0,
+                failure_count INTEGER DEFAULT 0,
+                last_updated TEXT,
+                created_at TEXT,
+                last_delta REAL NOT NULL DEFAULT 0.0,
+                last_performance REAL NOT NULL DEFAULT 0.0,
+                UNIQUE(origin_node, target_node)
+            );
+            CREATE INDEX IF NOT EXISTS idx_origin ON node_connections(origin_node);
+            CREATE INDEX IF NOT EXISTS idx_weight ON node_connections(weight DESC);
+            CREATE TABLE IF NOT EXISTS hebbian_sentinel_state (
+                agent_name TEXT NOT NULL,
+                task_type TEXT NOT NULL,
+                sample_count INTEGER NOT NULL DEFAULT 0,
+                sign_changes INTEGER NOT NULL DEFAULT 0,
+                oscillation_rate REAL NOT NULL DEFAULT 0.0,
+                alert_active INTEGER NOT NULL DEFAULT 0,
+                threshold REAL NOT NULL,
+                window_size INTEGER NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (agent_name, task_type)
+            );
+            CREATE TABLE IF NOT EXISTS hebbian_sentinel_alerts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                agent_name TEXT NOT NULL,
+                task_type TEXT NOT NULL,
+                oscillation_rate REAL NOT NULL,
+                sample_count INTEGER NOT NULL,
+                threshold REAL NOT NULL,
+                status TEXT NOT NULL DEFAULT 'open',
+                created_at TEXT NOT NULL,
+                resolved_at TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_sentinel_alert_status
+            ON hebbian_sentinel_alerts(status, created_at DESC);
+        """)
+
+
+def _bootstrap_vector_db(db_path: Path) -> None:
+    _ensure_parent_dir(db_path)
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS vectors (
+                doc_id TEXT PRIMARY KEY,
+                embedding TEXT,
+                metadata TEXT,
+                content TEXT
+            )
+        """)
+
+
+def _bootstrap_run_log_db(db_path: Path) -> None:
+    _ensure_parent_dir(db_path)
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS event_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                component TEXT NOT NULL,
+                message TEXT,
+                metadata TEXT,
+                duration_ms REAL,
+                prov_id TEXT,
+                parent_prov_id TEXT,
+                created_at REAL NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_event_run ON event_log(run_id);
+            CREATE INDEX IF NOT EXISTS idx_event_type ON event_log(event_type);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_event_prov
+            ON event_log(prov_id) WHERE prov_id IS NOT NULL;
+            CREATE INDEX IF NOT EXISTS idx_event_parent_prov
+            ON event_log(parent_prov_id);
+        """)
+        _add_missing_columns(
+            conn,
+            "event_log",
+            (
+                ("prov_id", "TEXT"),
+                ("parent_prov_id", "TEXT"),
+            ),
+        )
+
+
+def _bootstrap_trust_db(db_path: Path) -> None:
+    _ensure_parent_dir(db_path)
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS trust_scores (
+                entity_type TEXT NOT NULL,
+                entity_id TEXT NOT NULL,
+                score REAL NOT NULL,
+                level TEXT NOT NULL,
+                last_updated TEXT NOT NULL,
+                decay_rate REAL NOT NULL DEFAULT 0.01,
+                reinforcement_events INTEGER NOT NULL DEFAULT 0,
+                penalty_events INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (entity_type, entity_id)
+            )
+        """)
+
+
+def _bootstrap_delegation_db(db_path: Path) -> None:
+    _ensure_parent_dir(db_path)
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS delegation_grants (
+                grant_id TEXT PRIMARY KEY,
+                grant_hash TEXT NOT NULL,
+                root_task_id TEXT NOT NULL,
+                parent_task_id TEXT NOT NULL,
+                budget_reservation_id TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS budget_reservations (
+                reservation_id TEXT PRIMARY KEY,
+                state TEXT NOT NULL,
+                remaining_units INTEGER,
+                expires_at TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_grants_parent
+            ON delegation_grants(parent_task_id);
+        """)
+
+
+def _bootstrap_dashboard_databases() -> None:
+    """Ensure dashboard read-model databases exist with their baseline schemas."""
+    bootstraps = (
+        (AGENT_REGISTRY_DB, _bootstrap_agent_registry_db),
+        (HEBBIAN_DB, _bootstrap_hebbian_db),
+        (VECTOR_DB, _bootstrap_vector_db),
+        (RUN_LOG_DB, _bootstrap_run_log_db),
+        (TRUST_DB, _bootstrap_trust_db),
+        (DELEGATION_DB, _bootstrap_delegation_db),
+    )
+    for db_path, bootstrap in bootstraps:
+        try:
+            bootstrap(db_path)
+        except sqlite3.Error as exc:
+            logger.error(
+                "Failed to bootstrap dashboard database %s: %s",
+                db_path,
+                _sanitize_for_log(exc),
+            )
+            raise
+
+
 def _parse_json(text: Any, fallback: Any):
     if text is None:
         return fallback
@@ -784,6 +1046,12 @@ async def startup_event():
     Returns:
         None: This coroutine reports startup status through the configured logger.
     """
+    try:
+        _bootstrap_dashboard_databases()
+        logger.info("Dashboard SQLite read-model databases are ready.")
+    except sqlite3.Error:
+        logger.exception("Dashboard SQLite read-model bootstrap failed.")
+        raise
     if import_error:
         logger.warning(
             "Startup in SQLite-only mode due to import error: %s", import_error

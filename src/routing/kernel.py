@@ -22,26 +22,41 @@ tell a system-originated route from an authenticated one.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
-from src.auth.contracts import (AuthorityContextV1, AuthReceiptSourceV1,
-                                AuthReceiptV1, PrincipalCapabilityV1,
-                                PrincipalIdentityV1, PrincipalV1,
-                                VerifiedPartyV1)
-from src.integration.hebbian_router import (DEFAULT_ALPHA, DEFAULT_BETA,
-                                            DEFAULT_TRUST_FLOOR, NEUTRAL_PRIOR,
-                                            HebbianRanker, RoutingDecision)
-from src.routing.adapters import (DEFAULT_TENANT_ID, RegistryAdmissionLookup,
-                                  SandboxAdmissionPreflight,
-                                  TrustAdmissionLookup)
-from src.routing.authorization import (ArtemisAuthorizer,
-                                       AuthorizationDecision,
-                                       AuthorizationDenied)
+from src.auth.contracts import (
+    AuthorityContextV1,
+    AuthReceiptSourceV1,
+    AuthReceiptV1,
+    PrincipalCapabilityV1,
+    PrincipalIdentityV1,
+    PrincipalV1,
+    VerifiedPartyV1,
+)
+from src.integration.hebbian_router import (
+    DEFAULT_ALPHA,
+    DEFAULT_BETA,
+    DEFAULT_TRUST_FLOOR,
+    NEUTRAL_PRIOR,
+    HebbianRanker,
+    RoutingDecision,
+)
+from src.routing.adapters import (
+    DEFAULT_TENANT_ID,
+    RegistryAdmissionLookup,
+    SandboxAdmissionPreflight,
+    TrustAdmissionLookup,
+)
+from src.routing.authorization import (
+    ArtemisAuthorizer,
+    AuthorizationDecision,
+    AuthorizationDenied,
+)
 from src.routing.authorization_policy import CapabilityPolicyAdapter
-from src.routing.contracts import (RequestedConstraintsV1, ResolvedIntentV1,
-                                   TaskIntentV1)
+from src.routing.contracts import RequestedConstraintsV1, ResolvedIntentV1, TaskIntentV1
 from src.routing.delegation_store import SqliteDelegationStore
 from src.routing.eligibility import EligibilityDenied, EligibilityFilter
 from src.routing.intent import IntentDenied, IntentResolver

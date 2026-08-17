@@ -8,6 +8,7 @@ or network service is used.
 
 from __future__ import annotations
 
+import asyncio
 import builtins
 import importlib
 import importlib.util
@@ -1307,6 +1308,47 @@ def test_database_inspection_success_contracts(dashboard_db: Path, client: TestC
     assert events[0]["metadata"] == {"score": 0.9}
     all_events = client.get("/api/db/runs/run-1/events").json()
     assert all_events[1]["metadata"] == {}
+
+
+def test_startup_bootstraps_empty_dashboard_databases(
+    tmp_path: Path, dashboard, monkeypatch: pytest.MonkeyPatch
+):
+    """Startup should create the read-model schemas the dashboard endpoints need."""
+    paths = {
+        "AGENT_REGISTRY_DB": tmp_path / "agent_registry.db",
+        "HEBBIAN_DB": tmp_path / "hebbian_weights.db",
+        "VECTOR_DB": tmp_path / "vector_store.db",
+        "RUN_LOG_DB": tmp_path / "run_logs.db",
+        "TRUST_DB": tmp_path / "trust_scores.db",
+        "DELEGATION_DB": tmp_path / "delegation_grants.db",
+    }
+    for name, path in paths.items():
+        monkeypatch.setattr(dashboard, name, path)
+
+    asyncio.run(dashboard.startup_event())
+
+    for path in paths.values():
+        assert path.exists()
+
+    with TestClient(dashboard.app) as test_client:
+        assert test_client.get("/api/db/agents").json() == []
+        assert test_client.get("/api/db/hebbian/stats").json() == {
+            "total_connections": 0,
+            "avg_weight": 0.0,
+            "max_weight": 0.0,
+            "total_activations": 0,
+            "total_successes": 0,
+            "success_rate": 0.0,
+        }
+        assert test_client.get("/api/db/vectors/stats").json() == {
+            "total_docs": 0,
+            "avg_content_length": 0.0,
+        }
+        assert test_client.get("/api/db/runs").json() == []
+        assert test_client.get("/api/db/trust").json() == []
+        assert test_client.get("/api/db/violations").json() == []
+        assert test_client.get("/api/db/delegation/grants").json() == []
+        assert test_client.get("/api/db/delegation/reservations").json() == []
 
 
 @pytest.mark.parametrize(
