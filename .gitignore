@@ -406,6 +406,7 @@ supabase/.env
 /.run/
 /CLAUDE.html
 /state_kernel.json
+/.uv-audit-requirements.txt
 /.harper-dictionary.txt
 /Files.xcworkspace/
 

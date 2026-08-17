@@ -218,7 +218,7 @@ class AuthReceiptSourceV1(AuthorityModel):
     @field_serializer("canonical_receipt")
     def serialize_canonical_receipt(self, value: FrozenJsonDict) -> dict[str, object]:
         serialized = _thaw_json_value(value)
-        assert isinstance(serialized, dict)
+        assert isinstance(serialized, dict)  # thawing a FrozenJsonDict always yields a dict  # nosec B101
         return serialized
 
 

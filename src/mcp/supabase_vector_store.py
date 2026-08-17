@@ -161,7 +161,7 @@ class SupabaseVectorStore:
                 weight = EXCLUDED.weight,
                 last_access = EXCLUDED.last_access,
                 archived = FALSE
-            """,
+            """,  # table validated against [a-z0-9_] in __init__; values parameterized  # nosec B608
             (
                 doc_id,
                 _vector_literal(embedding),
@@ -207,7 +207,7 @@ class SupabaseVectorStore:
     def delete(self, doc_id: str):
         """Delete a document by id."""
         start_time = time.perf_counter()
-        self._execute(f"DELETE FROM {self.table} WHERE doc_id = %s", (doc_id,))
+        self._execute(f"DELETE FROM {self.table} WHERE doc_id = %s", (doc_id,))  # table validated against [a-z0-9_] in __init__; values parameterized  # nosec B608
         latency_ms = (time.perf_counter() - start_time) * 1000
         logger.debug(
             "Deleted doc_id=%s from Supabase vector store (%.2fms)",
@@ -228,7 +228,7 @@ class SupabaseVectorStore:
     def fetch_all(self) -> Iterable[VectorRecord]:
         """Yield every stored record, mirroring LocalVectorStore.fetch_all."""
         cursor = self._execute(
-            f"SELECT doc_id, embedding::text, metadata, content, weight, "
+            f"SELECT doc_id, embedding::text, metadata, content, weight, "  # table validated against [a-z0-9_] in __init__; values parameterized  # nosec B608
             f"last_access, archived, created_at FROM {self.table}"
         )
         for (
@@ -273,7 +273,7 @@ class SupabaseVectorStore:
     ) -> bool:
         """Persist saliency, access time, and archival state for one record."""
         cursor = self._execute(
-            f"UPDATE {self.table} SET weight = %s, last_access = %s, archived = %s "
+            f"UPDATE {self.table} SET weight = %s, last_access = %s, archived = %s "  # table validated against [a-z0-9_] in __init__; values parameterized  # nosec B608
             f"WHERE doc_id = %s",
             (max(0.0, float(weight)), last_access, bool(archived), doc_id),
         )
@@ -312,7 +312,7 @@ class SupabaseVectorStore:
             FROM {self.table}
             ORDER BY embedding <=> %s::vector
             LIMIT %s
-            """,
+            """,  # table validated against [a-z0-9_] in __init__; values parameterized  # nosec B608
             (literal, literal, int(top_k)),
         )
         results: List[Tuple] = []
@@ -347,6 +347,6 @@ class SupabaseVectorStore:
 
     def count(self) -> int:
         """Return the number of stored records."""
-        cursor = self._execute(f"SELECT COUNT(*) FROM {self.table}")
+        cursor = self._execute(f"SELECT COUNT(*) FROM {self.table}")  # table validated against [a-z0-9_] in __init__; values parameterized  # nosec B608
         (count,) = cursor.fetchone()
         return int(count)

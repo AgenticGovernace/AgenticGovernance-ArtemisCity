@@ -284,7 +284,7 @@ class AgentRegistryStore:
         values.append(agent_name)
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
-                f"UPDATE agents SET {', '.join(assignments)} WHERE name = ?",
+                f"UPDATE agents SET {', '.join(assignments)} WHERE name = ?",  # assignments are hardcoded fragments; values parameterized  # nosec B608
                 values,
             )
             conn.commit()

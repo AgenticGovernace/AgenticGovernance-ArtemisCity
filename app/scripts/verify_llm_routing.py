@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-import subprocess
+import subprocess  # fixed-argv dev test runner  # nosec B404
 import sys
 from pathlib import Path
 
@@ -12,7 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 if __name__ == "__main__":
     raise SystemExit(
-        subprocess.call(
+        subprocess.call(  # fixed argv via sys.executable, no untrusted input  # nosec B603
             [
                 sys.executable,
                 "-m",

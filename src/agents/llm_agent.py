@@ -470,7 +470,7 @@ class LLMAgent(base_agent.BaseAgent):
                     if response is not None:
                         response.close()
 
-            assert endpoint_error is not None
+            assert endpoint_error is not None  # loop invariant: every failure path records endpoint_error  # nosec B101
             errors.append(f"{endpoint}: {endpoint_error}")
             if not self._should_try_next_endpoint(endpoint_error):
                 break
@@ -1095,7 +1095,7 @@ class LLMAgent(base_agent.BaseAgent):
                     if response is not None:
                         response.close()
 
-            assert endpoint_error is not None
+            assert endpoint_error is not None  # loop invariant: every failure path records endpoint_error  # nosec B101
             errors.append(f"{endpoint}: {endpoint_error}")
             if emitted_content or not self._should_try_next_endpoint(endpoint_error):
                 break

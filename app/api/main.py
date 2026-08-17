@@ -995,7 +995,7 @@ async def get_report_content(filename: str, _key: None = Depends(_require_api_ke
             raise HTTPException(status_code=400, detail="Invalid report filename.")
 
     if not orchestrator:
-        assert report_path is not None
+        assert report_path is not None  # narrowing: both branches above assign report_path  # nosec B101
         if not report_path.is_file():
             raise HTTPException(status_code=404, detail="Report not found.")
         content = report_path.read_text(encoding="utf-8")
