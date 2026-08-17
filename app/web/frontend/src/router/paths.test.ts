@@ -13,6 +13,8 @@ assertEqual(
   '/reports/Alpha_Report_T1_2.md'
 );
 
+assertEqual(routePaths.governance, '/governance');
+
 assertEqual(isSafeReportFilename('Alpha_Report_T1_2.md'), true);
 assertEqual(isSafeReportFilename('../secret.md'), false);
 assertEqual(isSafeReportFilename('linked/secret.md'), false);

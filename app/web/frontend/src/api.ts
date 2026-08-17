@@ -82,6 +82,14 @@ export interface RunEvent {
   parent_prov_id: string | null;
 }
 
+/**
+ * A persisted registry row from `/api/db/agents`.
+ *
+ * Carries the governance and learning columns the registry migration added
+ * (trust tier, quarantine status, violation count, Hebbian/Sentinel state) in
+ * addition to the original scoring fields. The index signature is retained so
+ * a column added server-side does not break the client before it is typed.
+ */
 export interface AgentScore {
   name: string;
   capabilities: string[];
@@ -89,6 +97,25 @@ export interface AgentScore {
   accuracy: number;
   efficiency: number;
   composite_score: number;
+  trust_tier: string;
+  status: string;
+  violation_count: number;
+  trust_score: number | null;
+  execution_count: number;
+  successful_executions: number;
+  failed_executions: number;
+  hebbian_weight: number | null;
+  hebbian_delta: number;
+  hebbian_activations: number;
+  hebbian_success_rate: number;
+  hebbian_task_type: string | null;
+  hebbian_pair_bonus: number;
+  hebbian_timing_score: number | null;
+  routing_intelligence: number;
+  hebbian_oscillation_rate: number;
+  hebbian_sentinel_alert: boolean;
+  hebbian_sentinel_samples: number;
+  learning_updated_at: string | null;
   [key: string]: unknown;
 }
 
@@ -121,6 +148,127 @@ export interface VectorRecord {
   metadata?: unknown;
   content?: string | null;
   [key: string]: unknown;
+}
+
+/**
+ * One persisted trust score from the governance trust store
+ * (`data/trust_scores.db`). Written for every completed outcome even when
+ * `beta == 0` and trust is not part of the routing blend.
+ */
+export interface TrustScoreRecord {
+  entity_type: string;
+  entity_id: string;
+  score: number;
+  level: string;
+  decay_rate: number;
+  reinforcement_events: number;
+  penalty_events: number;
+  last_updated: string;
+}
+
+/** One sandbox / governance violation recorded against an agent. */
+export interface ViolationRecord {
+  violation_id: string;
+  agent_name: string;
+  timestamp: string;
+  violation_type: string;
+  details: string;
+  action_taken: string;
+  cleared: boolean;
+}
+
+/**
+ * Rolling Hebbian stability state for one (agent, task type) pair. These
+ * signals are observational: they never change routing rank, weights, trust,
+ * or quarantine state on their own.
+ */
+export interface SentinelSignal {
+  agent_name: string;
+  task_type: string;
+  sample_count: number;
+  sign_changes: number;
+  oscillation_rate: number;
+  alert_active: boolean;
+  threshold: number;
+  window_size: number;
+  updated_at: string;
+}
+
+/** A persisted Sentinel alert transition, for operator review. */
+export interface SentinelAlert {
+  id: number;
+  agent_name: string;
+  task_type: string;
+  oscillation_rate: number;
+  sample_count: number;
+  threshold: number;
+  status: string;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+/** Delegation-grant ledger metadata. Signed payloads are never exposed here. */
+export interface DelegationGrant {
+  grant_id: string;
+  root_task_id: string;
+  parent_task_id: string;
+  budget_reservation_id: string;
+  expires_at: string;
+  created_at: string;
+}
+
+/** A budget reservation backing delegated routing. */
+export interface BudgetReservation {
+  reservation_id: string;
+  state: string;
+  remaining_units: number | null;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * A capability the deployment can route, labelled by whether the Routing
+ * Kernel's reviewed ATP execution domain authorizes it. `kernel_reviewed:
+ * false` means tasks using it are served by the legacy compatibility path
+ * without kernel authorization.
+ */
+export interface RoutingCapabilityInfo {
+  name: string;
+  kernel_reviewed: boolean;
+  agents: string[];
+}
+
+/** Hebbian Sentinel observation settings reported by the backend. */
+export interface RoutingSentinelConfig {
+  window: number;
+  threshold: number;
+  warmup: number;
+}
+
+/**
+ * Live routing configuration. The UI reads this to name the routing path an
+ * execution took and to offer only capabilities that can actually be routed.
+ *
+ * `source` is `'orchestrator'` when the values came from the live
+ * orchestrator, `'environment'` when the orchestrator was unavailable and
+ * only configuration could be reported.
+ */
+export interface RoutingConfig {
+  source: 'orchestrator' | 'environment' | string;
+  kernel_enabled: boolean;
+  kernel_active: boolean;
+  hebbian_enabled: boolean;
+  trust_signal_active: boolean;
+  alpha: number;
+  beta: number;
+  trust_floor: number;
+  fallback_capability: string | null;
+  atp_strict: boolean;
+  reviewed_capabilities: string[];
+  capabilities: RoutingCapabilityInfo[];
+  sentinel: RoutingSentinelConfig;
+  routing_paths: string[];
 }
 
 export interface TaskActivity {
@@ -391,6 +539,104 @@ export const fetchRunEvents = (
   return apiFetch<RunEvent[]>(`/db/runs/${encodeURIComponent(runId)}/events${qs}`, options);
 };
 
+/* -------------------------------------------------------------------------- */
+/* Governance read models                                                     */
+/*                                                                            */
+/* All read-only. The dashboard never mutates trust, violations, quarantine,  */
+/* or delegation state — those stay owned by the Python core and the          */
+/* authenticated Express boundary.                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Fetch persisted trust scores.
+ *
+ * @param entityType - Optional entity-family filter (e.g. `agent`)
+ * @param limit - Maximum records to return (1-500, default 200)
+ */
+export const fetchTrustScores = (
+  entityType?: string,
+  limit: number = 200,
+  options?: ApiRequestOptions
+) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (entityType) params.set('entity_type', entityType);
+  return apiFetch<TrustScoreRecord[]>(`/db/trust?${params.toString()}`, options);
+};
+
+/**
+ * Fetch recorded sandbox and governance violations.
+ *
+ * @param openOnly - Exclude violations an operator has cleared
+ * @param limit - Maximum records to return (1-500, default 200)
+ */
+export const fetchViolations = (
+  openOnly: boolean = false,
+  limit: number = 200,
+  options?: ApiRequestOptions
+) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (openOnly) params.set('open_only', 'true');
+  return apiFetch<ViolationRecord[]>(`/db/violations?${params.toString()}`, options);
+};
+
+/**
+ * Fetch current Hebbian Sentinel stability signals.
+ *
+ * @param limit - Maximum records to return (1-500, default 100)
+ */
+export const fetchSentinelSignals = (
+  limit: number = 100,
+  options?: ApiRequestOptions
+) =>
+  apiFetch<{ signals: SentinelSignal[]; total: number }>(
+    `/db/hebbian/sentinel?limit=${limit}`,
+    options
+  );
+
+/**
+ * Fetch persisted Sentinel alert transitions.
+ *
+ * @param openOnly - Return only alerts still in the `open` state
+ * @param limit - Maximum records to return (1-500, default 100)
+ */
+export const fetchSentinelAlerts = (
+  openOnly: boolean = false,
+  limit: number = 100,
+  options?: ApiRequestOptions
+) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (openOnly) params.set('open_only', 'true');
+  return apiFetch<{ alerts: SentinelAlert[]; total: number }>(
+    `/db/hebbian/sentinel/alerts?${params.toString()}`,
+    options
+  );
+};
+
+/** Fetch delegation-grant ledger metadata (signed payloads are not exposed). */
+export const fetchDelegationGrants = (
+  limit: number = 100,
+  options?: ApiRequestOptions
+) => apiFetch<DelegationGrant[]>(`/db/delegation/grants?limit=${limit}`, options);
+
+/** Fetch budget reservations backing delegated routing. */
+export const fetchBudgetReservations = (
+  limit: number = 100,
+  options?: ApiRequestOptions
+) =>
+  apiFetch<BudgetReservation[]>(
+    `/db/delegation/reservations?limit=${limit}`,
+    options
+  );
+
+/**
+ * Fetch the live routing configuration used to label decisions in the UI.
+ *
+ * Callers should treat a failure here as non-fatal: pages fall back to their
+ * static defaults rather than blocking on the label.
+ */
+export const fetchRoutingConfig = (options?: ApiRequestOptions) =>
+  apiFetch<RoutingConfig>('/routing/config', options);
+
 /** Fetch the governed, read-only activity trail for one server-issued task ID. */
 export const fetchTaskActivity = (
   taskId: string,
@@ -426,6 +672,12 @@ export interface ExecuteInstructionResult {
   error: string | null;
   agent_name: string | null;
   routing: Record<string, any> | null;
+  /**
+   * Which routing implementation served the task: `kernel` for an authorized
+   * Routing Kernel route, `pinned` when the caller named the agent, or a
+   * `legacy_*` value when the kernel could not serve it.
+   */
+  routing_path: string | null;
   atp: Record<string, unknown> | null;
   provenance_id: string | null;
   provider: string | null;
@@ -450,6 +702,7 @@ export interface ExecuteStreamHandlers {
     task_id: string;
     atp: Record<string, unknown> | null;
     provenance_id: string | null;
+    routing_path: string | null;
   }) => void;
   onToken?: (text: string) => void;
   onComplete?: (data: {
@@ -459,6 +712,7 @@ export interface ExecuteStreamHandlers {
     summary: string;
     note_path: string | null;
     error: string | null;
+    routing_path: string | null;
     atp: Record<string, unknown> | null;
     provenance_id: string | null;
     provider: string | null;

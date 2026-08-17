@@ -116,6 +116,43 @@ def dashboard_db(tmp_path: Path, dashboard, monkeypatch: pytest.MonkeyPatch) -> 
             status TEXT,
             created_at TEXT
         );
+        CREATE TABLE violations (
+            violation_id TEXT,
+            agent_name TEXT,
+            timestamp TEXT,
+            violation_type TEXT,
+            details TEXT,
+            action_taken TEXT,
+            cleared INTEGER
+        );
+        CREATE TABLE trust_scores (
+            entity_type TEXT,
+            entity_id TEXT,
+            score REAL,
+            level TEXT,
+            last_updated TEXT,
+            decay_rate REAL,
+            reinforcement_events INTEGER,
+            penalty_events INTEGER
+        );
+        CREATE TABLE delegation_grants (
+            grant_id TEXT,
+            grant_hash TEXT,
+            root_task_id TEXT,
+            parent_task_id TEXT,
+            budget_reservation_id TEXT,
+            expires_at TEXT,
+            payload TEXT,
+            created_at TEXT
+        );
+        CREATE TABLE budget_reservations (
+            reservation_id TEXT,
+            state TEXT,
+            remaining_units INTEGER,
+            expires_at TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        );
         CREATE TABLE vectors (
             doc_id TEXT,
             metadata TEXT,
@@ -216,6 +253,73 @@ def dashboard_db(tmp_path: Path, dashboard, monkeypatch: pytest.MonkeyPatch) -> 
         ],
     )
     conn.executemany(
+        "INSERT INTO violations VALUES (?,?,?,?,?,?,?)",
+        [
+            (
+                "v-1",
+                "Alpha",
+                "2026-07-14T12:00:00",
+                "capability_miss",
+                "requested an undeclared tool",
+                "warned",
+                0,
+            ),
+            (
+                "v-2",
+                "Beta",
+                "2026-07-14T09:00:00",
+                "network_denied",
+                "called an unlisted endpoint",
+                "quarantined",
+                1,
+            ),
+        ],
+    )
+    conn.executemany(
+        "INSERT INTO trust_scores VALUES (?,?,?,?,?,?,?,?)",
+        [
+            ("agent", "Alpha", 0.91, "full", "2026-07-14T12:00:00", 0.01, 5, 0),
+            ("agent", "Beta", 0.42, "low", "2026-07-14T11:00:00", 0.01, 0, 3),
+            ("tenant", "default", 0.8, "high", "2026-07-14T10:00:00", 0.01, 1, 0),
+        ],
+    )
+    conn.executemany(
+        "INSERT INTO delegation_grants VALUES (?,?,?,?,?,?,?,?)",
+        [
+            (
+                "grant-1",
+                "sha256:should-never-be-served",
+                "root-1",
+                "parent-1",
+                "res-1",
+                "2026-07-14T13:00:00",
+                '{"secret": "should-never-be-served"}',
+                "2026-07-14T12:00:00",
+            ),
+        ],
+    )
+    conn.executemany(
+        "INSERT INTO budget_reservations VALUES (?,?,?,?,?,?)",
+        [
+            (
+                "res-1",
+                "active",
+                42,
+                "2026-07-14T13:00:00",
+                "2026-07-14T12:00:00",
+                "2026-07-14T12:30:00",
+            ),
+            (
+                "res-2",
+                "released",
+                None,
+                None,
+                "2026-07-14T11:00:00",
+                "2026-07-14T11:30:00",
+            ),
+        ],
+    )
+    conn.executemany(
         "INSERT INTO vectors VALUES (?,?,?)",
         [
             ("doc-1", '{"source": "vault"}', "hello"),
@@ -269,16 +373,28 @@ def dashboard_db(tmp_path: Path, dashboard, monkeypatch: pytest.MonkeyPatch) -> 
     conn.commit()
     conn.close()
 
-    for name in ("AGENT_REGISTRY_DB", "HEBBIAN_DB", "VECTOR_DB", "RUN_LOG_DB"):
+    for name in (
+        "AGENT_REGISTRY_DB",
+        "HEBBIAN_DB",
+        "VECTOR_DB",
+        "RUN_LOG_DB",
+        "TRUST_DB",
+        "DELEGATION_DB",
+    ):
         monkeypatch.setattr(dashboard, name, db_path)
     return db_path
 
 
 class _Decision:
     agent_name = "Routed Agent"
+    routing_path = "kernel"
 
     def to_dict(self):
-        return {"agent_name": self.agent_name, "candidates": []}
+        return {
+            "agent_name": self.agent_name,
+            "routing_path": self.routing_path,
+            "candidates": [],
+        }
 
 
 class _Registry:
@@ -1204,11 +1320,138 @@ def test_database_inspection_success_contracts(dashboard_db: Path, client: TestC
         "/api/db/vectors/list?limit=0",
         "/api/db/vectors/list?offset=-1",
         "/api/db/runs?limit=0",
+        "/api/db/trust?limit=0",
+        "/api/db/trust?limit=501",
+        "/api/db/violations?limit=0",
+        "/api/db/violations?limit=501",
+        "/api/db/delegation/grants?limit=0",
+        "/api/db/delegation/grants?limit=501",
+        "/api/db/delegation/reservations?limit=0",
+        "/api/db/delegation/reservations?limit=501",
     ],
 )
 def test_database_query_validation(path: str, dashboard_db: Path, client: TestClient):
     response = client.get(path)
     assert response.status_code == 400
+
+
+def test_governance_read_models_project_filtered_records(
+    dashboard_db: Path, client: TestClient
+):
+    """Trust, violations, and delegation project the governance stores."""
+    trust = client.get("/api/db/trust").json()
+    # Ordered by descending score: Alpha 0.91, default 0.80, Beta 0.42.
+    assert [row["entity_id"] for row in trust] == ["Alpha", "default", "Beta"]
+    assert trust[0]["level"] == "full"
+    assert trust[0]["reinforcement_events"] == 5
+
+    agents_only = client.get("/api/db/trust?entity_type=agent").json()
+    assert {row["entity_id"] for row in agents_only} == {"Alpha", "Beta"}
+
+    all_violations = client.get("/api/db/violations").json()
+    assert {row["violation_id"] for row in all_violations} == {"v-1", "v-2"}
+    assert all_violations[0]["cleared"] is False
+
+    open_violations = client.get("/api/db/violations?open_only=true").json()
+    assert [row["violation_id"] for row in open_violations] == ["v-1"]
+
+    by_agent = client.get("/api/db/violations?agent_name=Beta").json()
+    assert [row["violation_id"] for row in by_agent] == ["v-2"]
+
+
+def test_delegation_projection_never_serves_the_signed_grant(
+    dashboard_db: Path, client: TestClient
+):
+    """The grant payload and its integrity hash stay server-side."""
+    response = client.get("/api/db/delegation/grants")
+    assert response.status_code == 200
+    grants = response.json()
+    assert [row["grant_id"] for row in grants] == ["grant-1"]
+    assert grants[0]["budget_reservation_id"] == "res-1"
+    assert "payload" not in grants[0]
+    assert "grant_hash" not in grants[0]
+    assert "should-never-be-served" not in response.text
+
+    reservations = client.get("/api/db/delegation/reservations").json()
+    assert [row["reservation_id"] for row in reservations] == ["res-1", "res-2"]
+    assert reservations[0]["remaining_units"] == 42
+    assert reservations[1]["remaining_units"] is None
+
+
+def test_routing_config_reports_environment_values_without_an_orchestrator(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    """SQLite-only mode labels itself rather than implying live routing state."""
+    monkeypatch.setenv("ARTEMIS_ROUTING_KERNEL", "0")
+    monkeypatch.setenv("ARTEMIS_HEBBIAN_ROUTING_ALPHA", "0.45")
+    monkeypatch.setenv("ARTEMIS_HEBBIAN_SENTINEL_THRESHOLD", "0.25")
+
+    payload = client.get("/api/routing/config").json()
+
+    assert payload["source"] == "environment"
+    assert payload["kernel_enabled"] is False
+    assert payload["kernel_active"] is False
+    assert payload["alpha"] == 0.45
+    assert payload["sentinel"]["threshold"] == 0.25
+    assert payload["capabilities"] == []
+    assert "kernel" in payload["routing_paths"]
+
+
+def test_routing_config_labels_capabilities_by_reviewed_domain(
+    dashboard, client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    """Only the reviewed ATP domain is reported as kernel-routable."""
+
+    class _Kernel:
+        routable_capabilities = frozenset({"llm_chat", "reasoning"})
+
+    class _Router:
+        alpha = 0.3
+        beta = 0.1
+        trust_floor = 0.2
+        fallback_capability = "llm_chat"
+
+    orchestrator = SimpleNamespace(
+        hebbian_router=_Router(),
+        routing_kernel=_Kernel(),
+        hebbian_routing_enabled=True,
+        trust_interface=object(),
+        agent_registry=SimpleNamespace(
+            get_all_agents=lambda: [
+                SimpleNamespace(name="Chat", capabilities=["llm_chat"]),
+                SimpleNamespace(name="Scout", capabilities=["web_search"]),
+            ]
+        ),
+    )
+    monkeypatch.setattr(dashboard, "orchestrator", orchestrator)
+
+    payload = client.get("/api/routing/config").json()
+
+    assert payload["source"] == "orchestrator"
+    assert payload["kernel_active"] is True
+    assert payload["trust_signal_active"] is True
+    assert payload["reviewed_capabilities"] == ["llm_chat", "reasoning"]
+    labels = {row["name"]: row["kernel_reviewed"] for row in payload["capabilities"]}
+    # ``reasoning`` is reviewed but unadvertised, so it must not be offered;
+    # ``web_search`` is advertised but unreviewed, so it must be flagged legacy.
+    assert labels == {"llm_chat": True, "web_search": False}
+    assert payload["capabilities"][0]["agents"] == ["Chat"]
+
+
+def test_routing_config_failure_is_sanitized(
+    dashboard, client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    """A broken orchestrator never leaks its diagnostic through the label API."""
+
+    class _Exploding:
+        @property
+        def hebbian_router(self):
+            raise RuntimeError("internal routing diagnostic")
+
+    monkeypatch.setattr(dashboard, "orchestrator", _Exploding())
+    response = client.get("/api/routing/config")
+    assert response.status_code == 500
+    assert response.json() == {"detail": "Failed to read routing configuration."}
 
 
 def test_database_missing_and_schema_error_paths(
@@ -1255,6 +1498,18 @@ def test_database_missing_and_schema_error_paths(
             "HEBBIAN_DB",
             "/api/db/hebbian/sentinel/alerts",
             "Failed to fetch sentinel alerts.",
+        ),
+        ("TRUST_DB", "/api/db/trust", "Failed to fetch trust scores."),
+        ("AGENT_REGISTRY_DB", "/api/db/violations", "Failed to fetch violations."),
+        (
+            "DELEGATION_DB",
+            "/api/db/delegation/grants",
+            "Failed to fetch delegation grants.",
+        ),
+        (
+            "DELEGATION_DB",
+            "/api/db/delegation/reservations",
+            "Failed to fetch budget reservations.",
         ),
         ("VECTOR_DB", "/api/db/vectors/stats", "Failed to fetch vector stats."),
         ("VECTOR_DB", "/api/db/vectors/list", "Failed to list vectors."),
@@ -1307,6 +1562,9 @@ def test_cli_execute_pinned_hebbian_and_legacy_routing(
     assert pinned.status_code == 200
     assert pinned.json()["agent_name"] == "Pinned Agent"
     assert pinned.json()["routing"] is None
+    # A pinned call runs no routing at all, and must say so rather than
+    # implying the kernel authorized the selection.
+    assert pinned.json()["routing_path"] == "pinned"
     assert pinned.json()["provenance_id"] == "prov:fastapi.execute"
     assert pinned.json()["provider"] == "exo"
     assert pinned.json()["fallback_used"] is False
@@ -1334,11 +1592,14 @@ def test_cli_execute_pinned_hebbian_and_legacy_routing(
     assert routed.status_code == 200
     assert routed.json()["agent_name"] == "Routed Agent"
     assert routed.json()["routing"]["agent_name"] == "Routed Agent"
+    # The decision is authoritative about which router served the task.
+    assert routed.json()["routing_path"] == "kernel"
 
     orch.hebbian_routing_enabled = False
     legacy = client.post("/api/cli/execute", json={"instruction": "legacy"})
     assert legacy.status_code == 200
     assert legacy.json()["agent_name"] == "Legacy Agent"
+    assert legacy.json()["routing_path"] == "registry_composite"
 
     def add_atp(task):
         return {**task, "atp": {"context": "ATP-derived title"}}
@@ -1421,6 +1682,8 @@ def test_cli_stream_emits_every_event_and_sanitizes_crashes(
     assert '"fallback_used": false' in body
     assert '"learning_eligible": true' in body
     assert '"output_compression": {"status": "completed"' in body
+    # A pinned stream ran no routing; both terminal frames must say so.
+    assert body.count('"routing_path": "pinned"') == 2
 
     explicit_capability = client.post(
         "/api/cli/execute/stream",
@@ -1434,6 +1697,30 @@ def test_cli_stream_emits_every_event_and_sanitizes_crashes(
     assert explicit_capability.status_code == 200
     assert orch.created[-1]["required_capability"] == "custom"
     assert orch.created[-1]["title"] == "Stream title"
+
+    def kernel_stream(task, note_path):
+        yield {
+            "type": "routing",
+            "decision": {"agent_name": "Alpha", "routing_path": "kernel"},
+            "agent_name": "Alpha",
+        }
+        yield {
+            "type": "complete",
+            "task_id": task["task_id"],
+            "agent_name": "Alpha",
+            "status": "success",
+            "summary": "done",
+            "note_path": note_path,
+            "error": None,
+        }
+
+    routed_stream = orch.stream_route_and_execute
+    orch.stream_route_and_execute = kernel_stream
+    routed = client.post("/api/cli/execute/stream", json={"instruction": "stream"})
+    # The decision's own label wins over the ingress default, and it reaches
+    # the terminal frame so a client that missed the routing frame still sees it.
+    assert routed.text.count('"routing_path": "kernel"') == 3
+    orch.stream_route_and_execute = routed_stream
 
     def error_stream(_task, _note_path):
         yield {"type": "error", "error": "model stopped"}

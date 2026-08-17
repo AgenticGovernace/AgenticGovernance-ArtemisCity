@@ -244,10 +244,9 @@ class Orchestrator:
         # fallback, because a damaged optional policy document or delegation
         # ledger must not make the orchestrator unbootable.
         self.routing_kernel = None
-        self.routing_kernel_enabled = (
-            os.getenv("ARTEMIS_ROUTING_KERNEL", "1").strip().lower()
-            not in ("0", "false", "no")
-        )
+        self.routing_kernel_enabled = os.getenv(
+            "ARTEMIS_ROUTING_KERNEL", "1"
+        ).strip().lower() not in ("0", "false", "no")
         if self.routing_kernel_enabled:
             try:
                 from ..routing.kernel import RoutingKernel
@@ -435,7 +434,7 @@ class Orchestrator:
             ValueError: When no agent may serve the task.
         """
         if self.routing_kernel is None:
-            return self.hebbian_router.route(task_context)
+            return self._legacy_route(task_context, "legacy_kernel_unavailable")
 
         from ..routing.kernel import (CAPABILITY_OUTSIDE_REVIEWED_DOMAIN,
                                       RoutingKernelDenied)
@@ -460,7 +459,7 @@ class Orchestrator:
                     "legacy compatibility path without kernel authorization.",
                     _sanitize_for_log(task_context.get("required_capability")),
                 )
-                return self.hebbian_router.route(task_context)
+                return self._legacy_route(task_context, "legacy_unreviewed_capability")
             # Callers already handle ValueError as an unroutable task; keep the
             # stable denial code in the message so audit logs stay actionable.
             raise ValueError(
@@ -468,6 +467,25 @@ class Orchestrator:
                 f"({denied.code}): {denied.message}"
             ) from denied
         return route.decision
+
+    def _legacy_route(self, task_context: Dict[str, Any], reason: str):
+        """Route through the legacy router, labelled with why the kernel did not.
+
+        The kernel is the authoritative path, so every legacy route is a
+        measurable gap rather than a normal outcome. Stamping the reason onto
+        the decision carries it all the way to the dashboard, where an operator
+        can see that a given task skipped kernel authorization and why.
+
+        Args:
+            task_context: The prepared task context.
+            reason: A ``ROUTING_PATHS`` member naming the fallback cause.
+
+        Returns:
+            RoutingDecision: The legacy decision, labelled with ``reason``.
+        """
+        decision = self.hebbian_router.route(task_context)
+        decision.routing_path = reason
+        return decision
 
     def prepare_task_context(self, task_context: Dict[str, Any]) -> Dict[str, Any]:
         """Attach canonical ATP routing context when headers are present."""
@@ -1873,9 +1891,7 @@ class Orchestrator:
         if not filename:
             # Titles arrive from HTTP payloads; keep only filesystem-safe
             # characters before joining (CodeQL py/path-injection).
-            title_slug = self._artifact_component(
-                task_title.lower().replace(" ", "_")
-            )
+            title_slug = self._artifact_component(task_title.lower().replace(" ", "_"))
             filename = f"{title_slug}_{datetime.now().strftime('%Y%m%d%H%M%S')}.md"
 
         relative_path = os.path.join(AGENT_INPUT_DIR, filename)

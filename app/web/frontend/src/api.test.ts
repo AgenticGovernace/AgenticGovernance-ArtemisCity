@@ -1,7 +1,14 @@
 import {
   ApiError,
   apiErrorMessageForStatus,
+  fetchBudgetReservations,
+  fetchDelegationGrants,
+  fetchRoutingConfig,
+  fetchSentinelAlerts,
+  fetchSentinelSignals,
   fetchTasks,
+  fetchTrustScores,
+  fetchViolations,
   getUserFacingErrorMessage,
   isAbortError,
 } from './api.ts';
@@ -70,6 +77,59 @@ try {
   } catch (error: unknown) {
     assert(isAbortError(error), 'aborted request should remain distinguishable');
   }
+
+  // Governance read clients must target the documented dashboard paths and
+  // encode their filters as query parameters. A drifting path here is silent
+  // in the UI (the page just renders empty), so pin it in a test.
+  const requestedPaths: string[] = [];
+  globalThis.fetch = async (input) => {
+    requestedPaths.push(String(input));
+    return new Response('[]', {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  };
+
+  await fetchTrustScores('agent', 25);
+  await fetchViolations(true, 10);
+  await fetchDelegationGrants(5);
+  await fetchBudgetReservations(5);
+  await fetchRoutingConfig();
+
+  const expectedPaths = [
+    '/api/db/trust?limit=25&entity_type=agent',
+    '/api/db/violations?limit=10&open_only=true',
+    '/api/db/delegation/grants?limit=5',
+    '/api/db/delegation/reservations?limit=5',
+    '/api/routing/config',
+  ];
+  for (const [index, expected] of expectedPaths.entries()) {
+    assert(
+      requestedPaths[index] === expected,
+      `governance client ${index} should request ${expected}, got ${requestedPaths[index]}`
+    );
+  }
+
+  // The sentinel endpoints return envelopes, not bare arrays.
+  globalThis.fetch = async (input) => {
+    requestedPaths.push(String(input));
+    return new Response(JSON.stringify({ signals: [], alerts: [], total: 0 }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  };
+  const signals = await fetchSentinelSignals(7);
+  const alerts = await fetchSentinelAlerts(true, 7);
+  assert(Array.isArray(signals.signals), 'sentinel signals should unwrap an envelope');
+  assert(Array.isArray(alerts.alerts), 'sentinel alerts should unwrap an envelope');
+  assert(
+    requestedPaths.at(-2) === '/api/db/hebbian/sentinel?limit=7',
+    'sentinel signal path should carry the limit'
+  );
+  assert(
+    requestedPaths.at(-1) === '/api/db/hebbian/sentinel/alerts?limit=7&open_only=true',
+    'sentinel alert path should carry the open-only filter'
+  );
 
   console.log('API contract checks passed');
 } finally {

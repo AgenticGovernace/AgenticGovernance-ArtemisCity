@@ -91,6 +91,12 @@ const ExecutorIcon = () => (
     <line x1="12" y1="19" x2="20" y2="19" />
   </IconWrap>
 );
+const GovernanceIcon = () => (
+  <IconWrap>
+    <path d="M12 3l8 3v5c0 4.5-3.2 7.9-8 10-4.8-2.1-8-5.5-8-10V6z" />
+    <polyline points="9 12 11 14 15 10" />
+  </IconWrap>
+);
 
 /* -------------------------------------------------------------------------- */
 /* NavItem + NavGroup                                                         */
@@ -275,6 +281,7 @@ const SidebarContent = ({ onClickItem }: { onClickItem?: () => void }) => (
       onClickItem={onClickItem}
       items={[
         { to: routePaths.agents, label: 'Agents', icon: <AgentsIcon /> },
+        { to: routePaths.governance, label: 'Governance', icon: <GovernanceIcon /> },
         { to: routePaths.database, label: 'Database Viewer', icon: <DatabaseIcon /> },
       ]}
     />

@@ -170,10 +170,35 @@ while preserving compatibility.
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /api/cli/execute` | Executes plain or ATP instructions and returns routing/provenance plus verified `provider`, `fallback_used`, `model`, `outcome_class`, `learning_eligible`, `exo_request`, and optional `output_compression` evidence. |
-| `POST /api/cli/execute/stream` | SSE equivalent; emits heartbeats during long inference and returns the same provider/compression evidence in `complete`. |
+| `POST /api/cli/execute` | Executes plain or ATP instructions and returns routing/provenance plus verified `provider`, `fallback_used`, `model`, `outcome_class`, `learning_eligible`, `exo_request`, and optional `output_compression` evidence. Also returns `routing_path`. |
+| `POST /api/cli/execute/stream` | SSE equivalent; emits heartbeats during long inference and returns the same provider/compression evidence in `complete`. The `routing` and `complete` frames both carry `routing_path`. |
 | `GET /api/db/hebbian/sentinel` | Current stability state, filterable by `agent_name` and `task_type`. |
 | `GET /api/db/hebbian/sentinel/alerts` | Persisted open/resolved alert transitions; `open_only=true` filters active alerts. |
+| `GET /api/routing/config` | Live routing configuration used to label decisions in the UI: kernel/Hebbian toggles, blend weights, trust floor, fallback capability, Sentinel settings, the reviewed-domain capability list, and the advertised capabilities labelled by `kernel_reviewed`. |
+| `GET /api/db/trust` | Persisted trust scores from `data/trust_scores.db`; `entity_type` filters the entity family. Read-only. |
+| `GET /api/db/violations` | Sandbox and governance violations; `agent_name` and `open_only` filter. Read-only — clearing a violation stays a governance action. |
+| `GET /api/db/delegation/grants` | Delegation-grant ledger metadata. The signed `payload` and its `grant_hash` are deliberately never served. |
+| `GET /api/db/delegation/reservations` | Budget reservations backing delegated routing. |
+
+### Routing path labelling
+
+Every routed execution reports which routing implementation served it, so an
+authorized kernel route stays distinguishable from a compatibility route
+without reading server logs. The vocabulary is `ROUTING_PATHS` in
+`src/integration/hebbian_router.py`:
+
+| `routing_path` | Meaning |
+|---|---|
+| `kernel` | Served by the shared Routing Kernel: intent → authorization → eligibility → Hebbian ranking. Stamped by the kernel itself, so it holds for every ingress. |
+| `hebbian_router` | Produced by the legacy router with no kernel involved. |
+| `legacy_unreviewed_capability` | The capability has no reviewed ATP execution domain, so the kernel declined and the legacy path served the task without kernel authorization. |
+| `legacy_kernel_unavailable` | The kernel was disabled or failed to build at boot. |
+| `pinned` | No routing ran: the caller named the agent. Ingress-level label; the response carries no decision object. |
+| `registry_composite` | Hebbian routing is disabled; the registry ranked on composite score alone. Ingress-level label. |
+
+`RoutingDecision.to_dict()` carries the field for routed calls, and
+`ExecuteInstructionResponse.routing_path` mirrors it so pinned and
+composite-only calls are labelled too.
 
 ### Exo execution evidence and long output
 

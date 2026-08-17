@@ -36,10 +36,15 @@ import {
   executeInstruction,
   executeInstructionStream,
   fetchAgents,
+  fetchRoutingConfig,
   getUserFacingErrorMessage,
   isAbortError,
   type AgentSummary,
+  type RoutingConfig,
 } from '../api.ts';
+import RoutingPathBadge, {
+  isLegacyRoutingPath,
+} from '../components/RoutingPathBadge';
 import { useRequestController } from '../hooks/useRequestController';
 import { routePaths } from '../router/paths';
 import { Link as RouterLink } from 'react-router-dom';
@@ -74,6 +79,8 @@ interface RoutingDecision {
   capability: string | null;
   routing_scope: string | null;
   atp_action_type: string | null;
+  /** Which routing implementation produced this decision. */
+  routing_path?: string | null;
   candidates: RoutingCandidate[];
 }
 
@@ -88,6 +95,7 @@ interface ExecutionResult {
   error?: string | null;
   agent_name?: string | null;
   routing?: RoutingDecision | null;
+  routing_path?: string | null;
   atp?: Record<string, unknown> | null;
   provenance_id?: string | null;
   provider?: string | null;
@@ -117,6 +125,8 @@ const Executor = () => {
   const [loadingAgents, setLoadingAgents] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [streamingMode, setStreamingMode] = useState(false);
+  const [atpStrict, setAtpStrict] = useState(false);
+  const [routingConfig, setRoutingConfig] = useState<RoutingConfig | null>(null);
   // Live token buffer for the streaming path. Kept separate from `result`
   // so the user sees text accumulate as Exo emits chunks; on the
   // ``complete`` SSE event we fold the final text into `result.summary`.
@@ -125,8 +135,12 @@ const Executor = () => {
   const createAgentController = useRequestController();
   const createExecutionController = useRequestController();
 
-  // Predefined capabilities
-  const capabilities = [
+  // Capabilities the deployment can actually route. The backend reports the
+  // set advertised by loaded agents, each labelled by whether the Routing
+  // Kernel's reviewed ATP domain authorizes it. This static list is only the
+  // fallback for when /api/routing/config is unavailable — offering a
+  // capability no agent advertises would produce an unroutable task.
+  const FALLBACK_CAPABILITIES = [
     'llm_chat',
     'text_generation',
     'reasoning',
@@ -136,6 +150,14 @@ const Executor = () => {
     'agent_coordination',
     'document_analysis',
   ];
+
+  const reviewedCapabilities =
+    routingConfig?.capabilities.filter((c) => c.kernel_reviewed) ?? [];
+  const legacyCapabilities =
+    routingConfig?.capabilities.filter((c) => !c.kernel_reviewed) ?? [];
+  const selectedCapabilityInfo = routingConfig?.capabilities.find(
+    (c) => c.name === capability
+  );
 
   // Load agents on mount
   const loadAgents = useCallback(async () => {
@@ -156,6 +178,20 @@ const Executor = () => {
     void loadAgents();
   }, [loadAgents]);
 
+  // Routing config is a label, not a dependency: a failure here degrades the
+  // capability picker to its static list rather than blocking execution.
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchRoutingConfig({ signal: controller.signal })
+      .then((config) => {
+        if (!controller.signal.aborted) setRoutingConfig(config);
+      })
+      .catch(() => {
+        /* keep the static capability list */
+      });
+    return () => controller.abort();
+  }, []);
+
   useEffect(
     () => () => {
       streamAbortRef.current?.abort();
@@ -174,6 +210,7 @@ const Executor = () => {
       agent: selectedAgent || undefined,
       capability: capability || undefined,
       title: title || undefined,
+      atp_strict: atpStrict || undefined,
     };
 
     setExecuting(true);
@@ -209,13 +246,21 @@ const Executor = () => {
     // finalises `result.summary`.
     let accumulated = '';
     streamAbortRef.current = executeInstructionStream(payload, {
-      onRouting: ({ decision, agent_name, task_id, atp, provenance_id }) => {
+      onRouting: ({
+        decision,
+        agent_name,
+        task_id,
+        atp,
+        provenance_id,
+        routing_path,
+      }) => {
         setResult({
           task_id,
           status: 'in_progress',
           summary: '',
           agent_name,
           routing: (decision as RoutingDecision) || null,
+          routing_path,
           atp,
           provenance_id,
         });
@@ -233,6 +278,7 @@ const Executor = () => {
           note_path: data.note_path || undefined,
           error: data.error || undefined,
           agent_name: data.agent_name,
+          routing_path: data.routing_path ?? prev?.routing_path ?? null,
           atp: data.atp,
           provenance_id: data.provenance_id,
           provider: data.provider,
@@ -331,15 +377,55 @@ Or: Summarize the key findings from the reports folder"
                 borderColor="blue.200"
               >
                 <option value="">Default (auto-detect)</option>
-                {capabilities.map((cap) => (
-                  <option key={cap} value={cap}>
-                    {cap}
-                  </option>
-                ))}
+                {routingConfig ? (
+                  <>
+                    {reviewedCapabilities.length > 0 && (
+                      <optgroup label="Kernel-reviewed">
+                        {reviewedCapabilities.map((cap) => (
+                          <option key={cap.name} value={cap.name}>
+                            {cap.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {legacyCapabilities.length > 0 && (
+                      <optgroup label="Legacy compatibility path">
+                        {legacyCapabilities.map((cap) => (
+                          <option key={cap.name} value={cap.name}>
+                            {cap.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </>
+                ) : (
+                  FALLBACK_CAPABILITIES.map((cap) => (
+                    <option key={cap} value={cap}>
+                      {cap}
+                    </option>
+                  ))
+                )}
               </Select>
               <Text fontSize="xs" color="gray.500" mt={1}>
-                Capability determines which agent capabilities are used.
+                {routingConfig
+                  ? 'Only capabilities a loaded agent advertises are listed. Kernel-reviewed capabilities route through full authorization.'
+                  : 'Capability determines which agent capabilities are used.'}
               </Text>
+              {selectedCapabilityInfo && !selectedCapabilityInfo.kernel_reviewed && (
+                <Alert status="warning" borderRadius="md" mt={2} fontSize="xs">
+                  <AlertIcon />
+                  <Box>
+                    <AlertTitle fontSize="xs">
+                      Outside the reviewed ATP domain
+                    </AlertTitle>
+                    <AlertDescription fontSize="xs">
+                      {selectedCapabilityInfo.name} is served by the legacy
+                      compatibility path, which skips Routing Kernel
+                      authorization.
+                    </AlertDescription>
+                  </Box>
+                </Alert>
+              )}
             </FormControl>
 
             {/* Title Input */}
@@ -370,6 +456,28 @@ Or: Summarize the key findings from the reports folder"
                   (renders tokens as they arrive from the LLM agent)
                 </Text>
               </Checkbox>
+            </FormControl>
+
+            {/* ATP strict toggle — per-request override of ARTEMIS_ATP_STRICT */}
+            <FormControl>
+              <Checkbox
+                isChecked={atpStrict}
+                onChange={(e) => setAtpStrict(e.target.checked)}
+                isDisabled={executing}
+                colorScheme="orange"
+              >
+                <Text as="span" fontWeight="bold">
+                  Strict ATP validation
+                </Text>
+                <Text as="span" fontSize="xs" color="gray.500" ml={2}>
+                  (reject header validation errors instead of attaching them)
+                </Text>
+              </Checkbox>
+              {routingConfig?.atp_strict && !atpStrict && (
+                <Text fontSize="xs" color="orange.300" mt={1}>
+                  This deployment already runs strict (ARTEMIS_ATP_STRICT=1).
+                </Text>
+              )}
             </FormControl>
 
             {/* Error Alert */}
@@ -505,6 +613,14 @@ Or: Summarize the key findings from the reports folder"
                       </StatNumber>
                     </Stat>
                   )}
+                  {result.routing_path && (
+                    <Stat>
+                      <StatLabel fontSize="xs">Routing Path</StatLabel>
+                      <StatNumber fontSize="sm">
+                        <RoutingPathBadge path={result.routing_path} />
+                      </StatNumber>
+                    </Stat>
+                  )}
                   {result.note_path && (
                     <Stat>
                       <StatLabel fontSize="xs">Note Path</StatLabel>
@@ -599,11 +715,17 @@ Or: Summarize the key findings from the reports folder"
                   </Box>
                 )}
 
-                {/* Hebbian routing decision */}
+                {/* Routing decision. The kernel runs intent → authorization →
+                    eligibility before this ranking, so a strong Hebbian weight
+                    cannot rescue a quarantined or below-floor agent. */}
                 {result.routing && (
                   <Box mb={4}>
                     <Text fontWeight="bold" fontSize="sm" mb={2}>
-                      Hebbian Routing Decision
+                      Routing Decision
+                      <RoutingPathBadge
+                        path={result.routing.routing_path ?? result.routing_path}
+                        ml={2}
+                      />
                       <Badge ml={2} colorScheme="purple">
                         α = {result.routing.alpha.toFixed(2)}
                       </Badge>
@@ -625,6 +747,13 @@ Or: Summarize the key findings from the reports folder"
                           {result.routing.routing_scope}
                         </Badge>
                       )}
+                    </Text>
+                    <Text fontSize="xs" color="gray.500" mb={2}>
+                      {isLegacyRoutingPath(
+                        result.routing.routing_path ?? result.routing_path
+                      )
+                        ? 'Served without Routing Kernel authorization — governance and trust eligibility did not gate this ranking.'
+                        : 'Ranked after intent resolution, authorization, and governance/trust eligibility.'}
                     </Text>
                     <Box
                       p={3}

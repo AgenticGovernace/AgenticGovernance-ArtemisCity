@@ -18,6 +18,7 @@ const Tasks = lazy(() => import('./pages/Tasks.tsx'));
 const Reports = lazy(() => import('./pages/Reports.tsx'));
 const Agents = lazy(() => import('./pages/Agents.tsx'));
 const Database = lazy(() => import('./pages/Database.tsx'));
+const Governance = lazy(() => import('./pages/Governance.tsx'));
 const Executor = lazy(() => import('./pages/Executor.tsx'));
 const TaskDetails = lazy(() => import('./pages/TaskDetails.tsx'));
 const TaskActivity = lazy(() => import('./pages/TaskActivity.tsx'));
@@ -31,8 +32,9 @@ const NotFound = lazy(() => import('./pages/NotFound.tsx'));
  * - `/` - Dashboard home page
  * - `/tasks` - Task management view
  * - `/reports` - Reports viewer
- * - `/agents` - Agent listing
+ * - `/agents` - Agent listing with governance state
  * - `/database` - Database viewer with tabbed interface
+ * - `/governance` - Trust, violations, stability, delegation, routing config
  * - `/executor` - CLI executor with form-based interface
  *
  * @returns The rendered application with routing
@@ -60,6 +62,7 @@ function App() {
             />
             <Route path={routeSegments.agents} element={<Agents />} />
             <Route path={routeSegments.database} element={<Database />} />
+            <Route path={routeSegments.governance} element={<Governance />} />
             <Route path={routeSegments.executor} element={<Executor />} />
             <Route path="*" element={<NotFound />} />
           </Route>

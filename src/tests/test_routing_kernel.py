@@ -19,18 +19,24 @@ from src.agents.base_agent import BaseAgent
 from src.auth.delegation import DelegationGrantV1
 from src.integration.agent_registry import AgentRegistry
 from src.mcp.hebbian_weights import HebbianWeightManager
-from src.routing.adapters import (RegistryAdmissionLookup,
-                                  SandboxAdmissionPreflight,
-                                  TrustAdmissionLookup)
-from src.routing.authorization_policy import (AuthorizationPolicyError,
-                                              CapabilityPolicyAdapter,
-                                              ReviewedCapabilityPolicy)
+from src.routing.adapters import (
+    RegistryAdmissionLookup,
+    SandboxAdmissionPreflight,
+    TrustAdmissionLookup,
+)
+from src.routing.authorization_policy import (
+    AuthorizationPolicyError,
+    CapabilityPolicyAdapter,
+    ReviewedCapabilityPolicy,
+)
 from src.routing.contracts import RequestedConstraintsV1
-from src.routing.delegation_store import (DelegationStoreError,
-                                          SqliteDelegationStore)
-from src.routing.kernel import (CAPABILITY_OUTSIDE_REVIEWED_DOMAIN,
-                                RoutingKernel, RoutingKernelDenied,
-                                system_authority)
+from src.routing.delegation_store import DelegationStoreError, SqliteDelegationStore
+from src.routing.kernel import (
+    CAPABILITY_OUTSIDE_REVIEWED_DOMAIN,
+    RoutingKernel,
+    RoutingKernelDenied,
+    system_authority,
+)
 
 ATP_REVIEW_SUMMARIZE = """#Mode: Review
 #Context: Summarize the reviewed notes
@@ -82,9 +88,7 @@ def kernel(registry, tmp_path) -> RoutingKernel:
         registry,
         HebbianWeightManager(db_path=str(tmp_path / "hebbian.db")),
         trust_interface=_StubTrust({"Summary Agent": 1.0, "Chat Agent": 1.0}),
-        delegation_store=SqliteDelegationStore(
-            db_path=str(tmp_path / "delegation.db")
-        ),
+        delegation_store=SqliteDelegationStore(db_path=str(tmp_path / "delegation.db")),
     )
 
 
@@ -491,9 +495,7 @@ def test_kernel_denies_when_every_candidate_is_quarantined(kernel, registry):
             registry.record_violation(name, "unauthorized_tool", {"t": "x"})
 
     with pytest.raises(RoutingKernelDenied) as denied:
-        kernel.route(
-            content=ATP_REVIEW_SUMMARIZE, authority=kernel.system_authority()
-        )
+        kernel.route(content=ATP_REVIEW_SUMMARIZE, authority=kernel.system_authority())
 
     assert denied.value.stage == "eligibility"
     assert denied.value.code == "no_eligible_agent"
@@ -646,9 +648,7 @@ def test_kernel_reports_authorization_stage_denials(kernel, monkeypatch):
     monkeypatch.setattr(kernel.authorizer, "authorize", deny)
 
     with pytest.raises(RoutingKernelDenied) as denied:
-        kernel.route(
-            content=ATP_REVIEW_SUMMARIZE, authority=kernel.system_authority()
-        )
+        kernel.route(content=ATP_REVIEW_SUMMARIZE, authority=kernel.system_authority())
 
     assert denied.value.stage == "authorization"
     assert denied.value.code == "unauthorized_capability"
@@ -660,10 +660,14 @@ def test_kernel_routes_an_authorized_route_request(kernel):
     This is the shape a delegated child task arrives in: authority, envelope,
     and resolved intent already bound together and verified upstream.
     """
-    from src.routing.contracts import (AuthorizedRouteRequestV1,
-                                       ContinuationV1, DelegationContextV1,
-                                       ResolvedIntentV1, TaskEnvelopeV1,
-                                       TaskIntentV1)
+    from src.routing.contracts import (
+        AuthorizedRouteRequestV1,
+        ContinuationV1,
+        DelegationContextV1,
+        ResolvedIntentV1,
+        TaskEnvelopeV1,
+        TaskIntentV1,
+    )
 
     authority = kernel.system_authority()
     intent = TaskIntentV1(
@@ -714,9 +718,7 @@ def test_kernel_reports_ranking_stage_failures(kernel, monkeypatch):
     monkeypatch.setattr(kernel.ranker, "rank", explode)
 
     with pytest.raises(RoutingKernelDenied) as denied:
-        kernel.route(
-            content=ATP_REVIEW_SUMMARIZE, authority=kernel.system_authority()
-        )
+        kernel.route(content=ATP_REVIEW_SUMMARIZE, authority=kernel.system_authority())
 
     assert denied.value.stage == "ranking"
     assert denied.value.code == "ranking_failed"
@@ -974,10 +976,16 @@ def test_decode_json_list_tolerates_legacy_and_corrupt_rows(raw, expected):
 
 
 def _orchestrator_shell(kernel_obj, fallback="llm_chat"):
-    """Build a minimal orchestrator exposing only the routing collaborators."""
+    """Build a minimal orchestrator exposing only the routing collaborators.
+
+    The legacy router double returns a real ``RoutingDecision`` because the
+    orchestrator labels the decision it gets back; a stand-in that cannot
+    carry ``routing_path`` would hide that the label was ever applied.
+    """
     from types import SimpleNamespace
     from unittest.mock import Mock
 
+    from src.integration.hebbian_router import RoutingDecision
     from src.mcp.orchestrator import Orchestrator
 
     shell = Orchestrator.__new__(Orchestrator)
@@ -985,7 +993,11 @@ def _orchestrator_shell(kernel_obj, fallback="llm_chat"):
     shell.routing_kernel_enabled = kernel_obj is not None
     shell.hebbian_router = SimpleNamespace(
         fallback_capability=fallback,
-        route=Mock(return_value="legacy-decision"),
+        route=Mock(
+            side_effect=lambda _task: RoutingDecision(
+                agent_name="legacy-decision", alpha=0.3
+            )
+        ),
     )
     return shell
 
@@ -993,7 +1005,10 @@ def _orchestrator_shell(kernel_obj, fallback="llm_chat"):
 def test_orchestrator_uses_the_legacy_router_when_no_kernel_is_built():
     """A boot-time kernel failure must not make the orchestrator unroutable."""
     shell = _orchestrator_shell(None)
-    assert shell.route_task({"required_capability": "llm_chat"}) == "legacy-decision"
+    decision = shell.route_task({"required_capability": "llm_chat"})
+    assert decision.agent_name == "legacy-decision"
+    # The fallback reason must be visible to callers, not just to the log.
+    assert decision.routing_path == "legacy_kernel_unavailable"
     shell.hebbian_router.route.assert_called_once()
 
 
@@ -1004,6 +1019,9 @@ def test_orchestrator_returns_the_kernel_decision(kernel):
         {"required_capability": "text_summarization", "content": "summarize"}
     )
     assert decision.agent_name in {"Summary Agent", "Chat Agent"}
+    # The kernel stamps its own decisions, so an authorized route is
+    # identifiable regardless of which ingress asked for it.
+    assert decision.routing_path == "kernel"
     shell.hebbian_router.route.assert_not_called()
 
 
@@ -1028,10 +1046,13 @@ def test_orchestrator_falls_back_for_capabilities_outside_the_reviewed_domain(ke
     loss, so the orchestrator routes it legacily and logs the gap.
     """
     shell = _orchestrator_shell(kernel)
-    assert (
-        shell.route_task({"required_capability": "web_search", "content": "find"})
-        == "legacy-decision"
+    decision = shell.route_task(
+        {"required_capability": "web_search", "content": "find"}
     )
+    assert decision.agent_name == "legacy-decision"
+    # The gap is named specifically, so it stays distinguishable from a kernel
+    # that simply failed to build.
+    assert decision.routing_path == "legacy_unreviewed_capability"
     shell.hebbian_router.route.assert_called_once()
 
 

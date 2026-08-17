@@ -75,6 +75,29 @@ DEFAULT_TRUST_FLOOR = 0.0
 NEUTRAL_PRIOR = 0.5
 NEUTRAL_TRUST = 0.5
 
+#: Stable vocabulary for :attr:`RoutingDecision.routing_path`. The value names
+#: which routing implementation actually produced a decision, so an operator
+#: reading the dashboard can tell an authorized kernel route from a legacy
+#: compatibility route without inspecting server logs.
+ROUTING_PATHS = (
+    # Served by src.routing.kernel: intent -> authorization -> eligibility -> rank.
+    "kernel",
+    # Served by this module directly, with no kernel involved.
+    "hebbian_router",
+    # Kernel declined because the capability has no reviewed ATP domain
+    # (see _REVIEWED_PAIRS in src/routing/policy.py); legacy path served it.
+    "legacy_unreviewed_capability",
+    # Kernel could not be constructed at boot, or was disabled by
+    # ARTEMIS_ROUTING_KERNEL=0; legacy path served it.
+    "legacy_kernel_unavailable",
+    # No routing happened: the caller named the agent. Ingress-level label,
+    # carried on the response rather than on a decision object.
+    "pinned",
+    # Hebbian routing disabled entirely; the registry's composite-only
+    # ranking selected the agent. Ingress-level label.
+    "registry_composite",
+)
+
 
 @dataclass
 class CandidateScore:
@@ -109,6 +132,12 @@ class RoutingDecision:
     capability: Optional[str] = None
     routing_scope: Optional[str] = None
     atp_action_type: Optional[str] = None
+    # Which routing path produced this decision. Defaults to the legacy
+    # router because that is the only producer that never relabels itself;
+    # the Routing Kernel stamps ``kernel`` on its own decisions and the
+    # orchestrator stamps the specific legacy reason when it has to fall
+    # back. See ROUTING_PATHS for the stable vocabulary.
+    routing_path: str = "hebbian_router"
 
     def to_dict(self) -> dict:
         """Serialize the decision (e.g. for the run logger / API).
@@ -125,6 +154,7 @@ class RoutingDecision:
             "capability": self.capability,
             "routing_scope": self.routing_scope,
             "atp_action_type": self.atp_action_type,
+            "routing_path": self.routing_path,
             "candidates": [c.__dict__ for c in self.candidates],
         }
 
@@ -584,7 +614,9 @@ class HebbianRouter:
             state = self.registry.get_governance_state(name)
             if state and state.get("status") in _BLOCKED_STATUSES:
                 return True
-        except Exception:  # pragma: no cover - defensive  # best-effort governance read; falls through to quarantine check  # nosec B110
+        except (
+            Exception
+        ):  # pragma: no cover - defensive  # best-effort governance read; falls through to quarantine check  # nosec B110
             pass
         try:
             return bool(self.registry.is_quarantined(name))
@@ -636,7 +668,9 @@ class HebbianRouter:
             registry_score = state.get("trust_score") if state else None
             if registry_score is not None:
                 return max(0.0, min(1.0, float(registry_score)))
-        except Exception:  # pragma: no cover - defensive  # best-effort registry read; falls back to trust interface  # nosec B110
+        except (
+            Exception
+        ):  # pragma: no cover - defensive  # best-effort registry read; falls back to trust interface  # nosec B110
             pass
         if self.trust_interface is None:
             return NEUTRAL_TRUST

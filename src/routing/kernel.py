@@ -271,6 +271,11 @@ class RoutingKernel:
                 "ranking_failed", str(error), stage="ranking"
             ) from error
 
+        # Label the decision at the point of production. Stamping it here
+        # rather than in the caller means every kernel route is identifiable
+        # as authorized, no matter which ingress asked for it.
+        decision.routing_path = "kernel"
+
         return KernelRoute(
             decision=decision,
             authorization=authorized,

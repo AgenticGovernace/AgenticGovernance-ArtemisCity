@@ -242,6 +242,171 @@ class RunSummary(BaseModel):
     total_events: int
 
 
+class TrustScoreRecord(BaseModel):
+    """Represent one persisted trust score from the governance trust store.
+
+    Attributes:
+        entity_type (str): Entity family the score belongs to (e.g. ``agent``).
+        entity_id (str): Identifier of the scored entity.
+        score (float): Current decay-adjusted trust in ``[0, 1]``.
+        level (str): Bucketed trust level (``full``/``high``/``low``/...).
+        decay_rate (float): Per-period decay applied to the score.
+        reinforcement_events (int): Count of positive outcomes recorded.
+        penalty_events (int): Count of negative outcomes recorded.
+        last_updated (str): ISO timestamp of the last mutation.
+    """
+
+    entity_type: str
+    entity_id: str
+    score: float
+    level: str
+    decay_rate: float
+    reinforcement_events: int
+    penalty_events: int
+    last_updated: str
+
+
+class ViolationRecord(BaseModel):
+    """Represent one sandbox or governance violation recorded for an agent.
+
+    Attributes:
+        violation_id (str): Stable identifier of the violation.
+        agent_name (str): Agent the violation was recorded against.
+        timestamp (str): ISO timestamp the violation was recorded.
+        violation_type (str): Category of the violation.
+        details (str): Human-readable detail captured at record time.
+        action_taken (str): Enforcement action applied (e.g. quarantine).
+        cleared (bool): Whether an operator has cleared the violation.
+    """
+
+    violation_id: str
+    agent_name: str
+    timestamp: str
+    violation_type: str
+    details: str
+    action_taken: str
+    cleared: bool
+
+
+class DelegationGrantSummary(BaseModel):
+    """Represent one delegation grant without exposing its signed payload.
+
+    The canonical grant payload can carry scopes and budget internals, so the
+    dashboard deliberately projects only ledger metadata. Grant inspection
+    stays with the Python core and the authenticated Express boundary.
+
+    Attributes:
+        grant_id (str): Identifier of the delegation grant.
+        root_task_id (str): Root task the delegation chain descends from.
+        parent_task_id (str): Immediate parent task of the delegated route.
+        budget_reservation_id (str): Reservation backing the delegated work.
+        expires_at (str): ISO expiry timestamp of the grant.
+        created_at (str): ISO creation timestamp of the grant.
+    """
+
+    grant_id: str
+    root_task_id: str
+    parent_task_id: str
+    budget_reservation_id: str
+    expires_at: str
+    created_at: str
+
+
+class BudgetReservationSummary(BaseModel):
+    """Represent one budget reservation held against delegated routing.
+
+    Attributes:
+        reservation_id (str): Identifier of the reservation.
+        state (str): Lifecycle state of the reservation.
+        remaining_units (int | None): Units still available, when metered.
+        expires_at (str | None): ISO expiry timestamp, when bounded.
+        created_at (str): ISO creation timestamp.
+        updated_at (str): ISO timestamp of the last state change.
+    """
+
+    reservation_id: str
+    state: str
+    remaining_units: int | None = None
+    expires_at: str | None = None
+    created_at: str
+    updated_at: str
+
+
+class RoutingCapabilityInfo(BaseModel):
+    """Describe one capability the dashboard may offer as a routing target.
+
+    Attributes:
+        name (str): Capability identifier as agents advertise it.
+        kernel_reviewed (bool): Whether the Routing Kernel's reviewed ATP
+            execution domain authorizes this capability. ``False`` means a
+            task using it is served by the legacy compatibility path.
+        agents (List[str]): Loaded agents advertising the capability.
+    """
+
+    name: str
+    kernel_reviewed: bool
+    agents: List[str] = Field(default_factory=list)
+
+
+class RoutingSentinelConfig(BaseModel):
+    """Describe the Hebbian Sentinel's observational configuration.
+
+    Attributes:
+        window (int): Recent outcomes used for sign-change analysis.
+        threshold (float): Sign-change rate that raises an alert.
+        warmup (int): Minimum samples required before alerting.
+    """
+
+    window: int
+    threshold: float
+    warmup: int
+
+
+class RoutingConfigResponse(BaseModel):
+    """Describe the live routing configuration backing this dashboard.
+
+    This is the labelling contract the frontend reads so it can name the
+    routing path an execution took, and so it never offers a capability the
+    deployment cannot actually route.
+
+    Attributes:
+        source (str): ``orchestrator`` when read from the live orchestrator,
+            ``environment`` when the orchestrator is unavailable and values
+            were derived from configuration only.
+        kernel_enabled (bool): Whether ``ARTEMIS_ROUTING_KERNEL`` is on.
+        kernel_active (bool): Whether the kernel actually built at boot.
+        hebbian_enabled (bool): Whether Hebbian-weighted routing is on.
+        trust_signal_active (bool): Whether trust persistence was constructed.
+        alpha (float): Weight on Hebbian history in the routing blend.
+        beta (float): Weight on trust score in the routing blend.
+        trust_floor (float): Hard trust cutoff applied before scoring.
+        fallback_capability (str | None): Capability retried when none match.
+        atp_strict (bool): Whether ATP validation errors are rejected.
+        reviewed_capabilities (List[str]): Capabilities inside the kernel's
+            reviewed ATP execution domain.
+        capabilities (List[RoutingCapabilityInfo]): Capabilities the dashboard
+            may offer, each labelled by reviewed status.
+        sentinel (RoutingSentinelConfig): Sentinel observation settings.
+        routing_paths (List[str]): Stable vocabulary a decision's
+            ``routing_path`` field can take.
+    """
+
+    source: str
+    kernel_enabled: bool
+    kernel_active: bool
+    hebbian_enabled: bool
+    trust_signal_active: bool
+    alpha: float
+    beta: float
+    trust_floor: float
+    fallback_capability: str | None = None
+    atp_strict: bool = False
+    reviewed_capabilities: List[str] = Field(default_factory=list)
+    capabilities: List[RoutingCapabilityInfo] = Field(default_factory=list)
+    sentinel: RoutingSentinelConfig
+    routing_paths: List[str] = Field(default_factory=list)
+
+
 class ExecuteInstructionRequest(BaseModel):
     """Represent the request body used to execute a CLI-style instruction.
 
@@ -280,11 +445,18 @@ class ExecuteInstructionResponse(BaseModel):
     # Hebbian router picked. Lets the frontend show "routed to: X" without
     # a second round-trip.
     agent_name: str | None = None
-    # Per-candidate routing breakdown when the Hebbian router was used.
-    # Shape matches HebbianRouter.RoutingDecision.to_dict():
-    # {agent_name, alpha, fallback_from, candidates: [{name, composite,
-    # hebbian_weight, hebbian_norm, blended}, ...]}.
+    # Per-candidate routing breakdown when the task was routed rather than
+    # pinned. Shape matches RoutingDecision.to_dict():
+    # {agent_name, alpha, beta, trust_floor, fallback_from, capability,
+    #  routing_scope, atp_action_type, routing_path,
+    #  candidates: [{name, composite, hebbian_weight, hebbian_norm, ...}]}.
     routing: Dict[str, Any] | None = None
+    # Which routing implementation served this task: "kernel" for an
+    # authorized Routing Kernel route, "pinned" when the caller named the
+    # agent, or one of the legacy_* values when the kernel could not serve it.
+    # Mirrors RoutingDecision.routing_path so the UI can label the path even
+    # for pinned calls, which carry no decision object.
+    routing_path: str | None = None
     atp: Dict[str, Any] | None = None
     provenance_id: str | None = None
     provider: str | None = None
@@ -310,6 +482,13 @@ AGENT_REGISTRY_DB = Path(data_path("agent_registry.db", env_var="ARTEMIS_REGISTR
 HEBBIAN_DB = Path(data_path("hebbian_weights.db", env_var="ARTEMIS_HEBBIAN_DB"))
 VECTOR_DB = Path(data_path("vector_store.db", env_var="ARTEMIS_VECTOR_DB"))
 RUN_LOG_DB = Path(data_path("run_logs.db", env_var="ARTEMIS_RUN_LOG_DB"))
+# Governance read models. ``trust_scores.db`` is written by TrustInterface for
+# every completed outcome (even when beta == 0 and trust is not a routing
+# signal); ``delegation_grants.db`` is the Routing Kernel's grant and budget
+# ledger. Both are read-only here -- the dashboard never mutates governance
+# state, which stays owned by the Python core and the Express boundary.
+TRUST_DB = Path(data_path("trust_scores.db", env_var="ARTEMIS_TRUST_DB"))
+DELEGATION_DB = Path(data_path("delegation_grants.db", env_var="ARTEMIS_DELEGATION_DB"))
 
 
 def _connect_db(db_path: Path) -> sqlite3.Connection:
@@ -1039,7 +1218,9 @@ async def get_report_content(filename: str, _key: None = Depends(_require_api_ke
             raise HTTPException(status_code=400, detail="Invalid report filename.")
 
     if not orchestrator:
-        assert report_path is not None  # narrowing: both branches above assign report_path  # nosec B101
+        assert (
+            report_path is not None
+        )  # narrowing: both branches above assign report_path  # nosec B101
         if not report_path.is_file():
             raise HTTPException(status_code=404, detail="Report not found.")
         content = report_path.read_text(encoding="utf-8")
@@ -1692,6 +1873,320 @@ async def get_run_events_endpoint(
         conn.close()
 
 
+# --- Governance Read Models ---
+#
+# Read-only projections over the governance stores. The dashboard never
+# mutates trust, violations, quarantine, or delegation state: those remain
+# owned by the Python core and the authenticated Express boundary, so a
+# read-only viewer cannot become a second write path.
+
+
+@app.get("/api/db/trust", response_model=List[TrustScoreRecord])
+async def get_trust_scores(
+    entity_type: str | None = None,
+    limit: int = 200,
+    _key: None = Depends(_require_api_key),
+):
+    """Return persisted trust scores from the governance trust store.
+
+    Args:
+        entity_type (str | None): Optional entity-family filter (e.g. ``agent``).
+        limit (int): Maximum records to return, 1-500.
+        _key (None): Auth dependency result injected by FastAPI.
+
+    Returns:
+        List[TrustScoreRecord]: Trust records ordered by descending score.
+    """
+    if limit < 1 or limit > 500:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
+    conn = _connect_db(TRUST_DB)
+    try:
+        params: List[Any] = []
+        query = (
+            "SELECT entity_type, entity_id, score, level, decay_rate, "
+            "reinforcement_events, penalty_events, last_updated FROM trust_scores"
+        )
+        if entity_type:
+            query += " WHERE entity_type = ?"
+            params.append(entity_type)
+        query += " ORDER BY score DESC, entity_id ASC LIMIT ?"
+        params.append(limit)
+        rows = conn.execute(query, tuple(params)).fetchall()
+        return [
+            TrustScoreRecord(
+                entity_type=row["entity_type"],
+                entity_id=row["entity_id"],
+                score=float(row["score"]),
+                level=row["level"],
+                decay_rate=float(row["decay_rate"]),
+                reinforcement_events=int(row["reinforcement_events"]),
+                penalty_events=int(row["penalty_events"]),
+                last_updated=row["last_updated"],
+            )
+            for row in rows
+        ]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error fetching trust scores: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch trust scores.")
+    finally:
+        conn.close()
+
+
+@app.get("/api/db/violations", response_model=List[ViolationRecord])
+async def get_violations(
+    agent_name: str | None = None,
+    open_only: bool = False,
+    limit: int = 200,
+    _key: None = Depends(_require_api_key),
+):
+    """Return recorded sandbox and governance violations.
+
+    Args:
+        agent_name (str | None): Optional agent filter.
+        open_only (bool): When true, exclude violations an operator cleared.
+        limit (int): Maximum records to return, 1-500.
+        _key (None): Auth dependency result injected by FastAPI.
+
+    Returns:
+        List[ViolationRecord]: Violations ordered newest first.
+    """
+    if limit < 1 or limit > 500:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
+    conn = _connect_db(AGENT_REGISTRY_DB)
+    try:
+        clauses: List[str] = []
+        params: List[Any] = []
+        if agent_name:
+            clauses.append("agent_name = ?")
+            params.append(agent_name)
+        if open_only:
+            clauses.append("cleared = 0")
+        query = (
+            "SELECT violation_id, agent_name, timestamp, violation_type, "
+            "details, action_taken, cleared FROM violations"
+        )
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        query += " ORDER BY timestamp DESC LIMIT ?"
+        params.append(limit)
+        rows = conn.execute(query, tuple(params)).fetchall()
+        return [
+            ViolationRecord(
+                violation_id=row["violation_id"],
+                agent_name=row["agent_name"],
+                timestamp=row["timestamp"],
+                violation_type=row["violation_type"],
+                details=row["details"],
+                action_taken=row["action_taken"],
+                cleared=bool(row["cleared"]),
+            )
+            for row in rows
+        ]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error fetching violations: %s", _sanitize_for_log(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch violations.")
+    finally:
+        conn.close()
+
+
+@app.get("/api/db/delegation/grants", response_model=List[DelegationGrantSummary])
+async def get_delegation_grants(
+    limit: int = 100,
+    _key: None = Depends(_require_api_key),
+):
+    """Return delegation-grant ledger metadata, excluding signed payloads.
+
+    Args:
+        limit (int): Maximum records to return, 1-500.
+        _key (None): Auth dependency result injected by FastAPI.
+
+    Returns:
+        List[DelegationGrantSummary]: Grants ordered newest first.
+    """
+    if limit < 1 or limit > 500:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
+    conn = _connect_db(DELEGATION_DB)
+    try:
+        # ``payload`` and ``grant_hash`` are intentionally not selected: the
+        # payload is the canonical grant and the hash is its integrity anchor,
+        # neither of which a read-only viewer needs.
+        rows = conn.execute(
+            "SELECT grant_id, root_task_id, parent_task_id, "
+            "budget_reservation_id, expires_at, created_at "
+            "FROM delegation_grants ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [DelegationGrantSummary(**dict(row)) for row in rows]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error fetching delegation grants: %s", _sanitize_for_log(e))
+        raise HTTPException(
+            status_code=500, detail="Failed to fetch delegation grants."
+        )
+    finally:
+        conn.close()
+
+
+@app.get(
+    "/api/db/delegation/reservations",
+    response_model=List[BudgetReservationSummary],
+)
+async def get_budget_reservations(
+    limit: int = 100,
+    _key: None = Depends(_require_api_key),
+):
+    """Return budget reservations backing delegated routing.
+
+    Args:
+        limit (int): Maximum records to return, 1-500.
+        _key (None): Auth dependency result injected by FastAPI.
+
+    Returns:
+        List[BudgetReservationSummary]: Reservations ordered newest first.
+    """
+    if limit < 1 or limit > 500:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
+    conn = _connect_db(DELEGATION_DB)
+    try:
+        rows = conn.execute(
+            "SELECT reservation_id, state, remaining_units, expires_at, "
+            "created_at, updated_at FROM budget_reservations "
+            "ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [BudgetReservationSummary(**dict(row)) for row in rows]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error fetching budget reservations: %s", _sanitize_for_log(e))
+        raise HTTPException(
+            status_code=500, detail="Failed to fetch budget reservations."
+        )
+    finally:
+        conn.close()
+
+
+def _env_flag(name: str, default: str) -> bool:
+    """Read a boolean environment toggle using the project's off-vocabulary."""
+    return os.getenv(name, default).strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+
+
+def _env_number(name: str, default: float) -> float:
+    """Read a numeric environment setting, falling back on malformed values."""
+    try:
+        return float(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+
+
+@app.get("/api/routing/config", response_model=RoutingConfigResponse)
+async def get_routing_config(_key: None = Depends(_require_api_key)):
+    """Describe the live routing configuration so the UI can label decisions.
+
+    The frontend uses this to (a) name the routing path an execution took and
+    (b) offer only capabilities the deployment can actually route, flagging
+    which ones fall outside the kernel's reviewed ATP execution domain.
+
+    Args:
+        _key (None): Auth dependency result injected by FastAPI.
+
+    Returns:
+        RoutingConfigResponse: Routing toggles, blend weights, capability
+        labels, and Sentinel observation settings.
+    """
+    sentinel = RoutingSentinelConfig(
+        window=int(_env_number("ARTEMIS_HEBBIAN_SENTINEL_WINDOW", 50)),
+        threshold=_env_number("ARTEMIS_HEBBIAN_SENTINEL_THRESHOLD", 0.4),
+        warmup=int(_env_number("ARTEMIS_HEBBIAN_SENTINEL_WARMUP", 10)),
+    )
+    kernel_enabled = _env_flag("ARTEMIS_ROUTING_KERNEL", "1")
+    atp_strict = _env_flag("ARTEMIS_ATP_STRICT", "0")
+
+    try:
+        from src.integration.hebbian_router import ROUTING_PATHS
+    except Exception:  # pragma: no cover - SQLite-only fallback mode
+        routing_paths: List[str] = []
+    else:
+        routing_paths = list(ROUTING_PATHS)
+
+    if orchestrator is None:
+        # SQLite-only mode: report configuration, not live state, and say so.
+        return RoutingConfigResponse(
+            source="environment",
+            kernel_enabled=kernel_enabled,
+            kernel_active=False,
+            hebbian_enabled=_env_flag("ARTEMIS_HEBBIAN_ROUTING", "1"),
+            trust_signal_active=False,
+            alpha=_env_number("ARTEMIS_HEBBIAN_ROUTING_ALPHA", 0.3),
+            beta=_env_number("ARTEMIS_HEBBIAN_ROUTING_BETA", 0.0),
+            trust_floor=_env_number("ARTEMIS_ROUTING_TRUST_FLOOR", 0.0),
+            fallback_capability=(
+                os.getenv("ARTEMIS_ROUTING_FALLBACK_CAPABILITY", "llm_chat").strip()
+                or None
+            ),
+            atp_strict=atp_strict,
+            sentinel=sentinel,
+            routing_paths=routing_paths,
+        )
+
+    try:
+        router = orchestrator.hebbian_router
+        kernel = getattr(orchestrator, "routing_kernel", None)
+        reviewed: List[str] = []
+        if kernel is not None:
+            reviewed = sorted(kernel.routable_capabilities)
+
+        # Advertise only capabilities a loaded agent actually declares, so the
+        # executor's dropdown cannot offer a target with no possible candidate.
+        by_capability: Dict[str, List[str]] = {}
+        for agent in orchestrator.agent_registry.get_all_agents():
+            for capability in getattr(agent, "capabilities", []) or []:
+                by_capability.setdefault(str(capability), []).append(agent.name)
+
+        reviewed_set = set(reviewed)
+        capabilities = [
+            RoutingCapabilityInfo(
+                name=name,
+                kernel_reviewed=name in reviewed_set,
+                agents=sorted(agents),
+            )
+            for name, agents in sorted(by_capability.items())
+        ]
+
+        return RoutingConfigResponse(
+            source="orchestrator",
+            kernel_enabled=kernel_enabled,
+            kernel_active=kernel is not None,
+            hebbian_enabled=bool(orchestrator.hebbian_routing_enabled),
+            trust_signal_active=getattr(orchestrator, "trust_interface", None)
+            is not None,
+            alpha=float(router.alpha),
+            beta=float(router.beta),
+            trust_floor=float(router.trust_floor),
+            fallback_capability=router.fallback_capability,
+            atp_strict=atp_strict,
+            reviewed_capabilities=reviewed,
+            capabilities=capabilities,
+            sentinel=sentinel,
+            routing_paths=routing_paths,
+        )
+    except Exception as e:
+        logger.error("Error building routing config: %s", _sanitize_for_log(e))
+        raise HTTPException(
+            status_code=500, detail="Failed to read routing configuration."
+        )
+
+
 # --- CLI Executor Endpoint ---
 
 
@@ -1783,6 +2278,10 @@ async def execute_instruction(
         # Routing is pure (no side effects) so calling it before
         # assign_and_execute_task does not double-execute the task.
         routing_decision = None
+        # Ingress-level label for paths that produce no decision object. The
+        # routed branches overwrite this from the decision itself, which is
+        # authoritative about whether the kernel or a legacy path served.
+        routing_path = "pinned"
         try:
             if agent_for_dispatch:
                 # User picked an agent explicitly; no Hebbian routing.
@@ -1805,6 +2304,9 @@ async def execute_instruction(
                 # and eligibility gates as every other entry point.
                 routing_decision = orchestrator.route_task(task_data)
                 chosen_agent_name = routing_decision.agent_name
+                routing_path = getattr(
+                    routing_decision, "routing_path", "hebbian_router"
+                )
                 orchestrator.log_routing_decision(
                     task_data,
                     chosen_agent_name,
@@ -1819,6 +2321,7 @@ async def execute_instruction(
                 )
             else:
                 chosen_agent_name = orchestrator.agent_registry.route_task(task_data)
+                routing_path = "registry_composite"
                 orchestrator.log_routing_decision(
                     task_data,
                     chosen_agent_name,
@@ -1840,6 +2343,7 @@ async def execute_instruction(
                 error=result.get("error") if execution_failed else None,
                 agent_name=chosen_agent_name,
                 routing=routing_decision.to_dict() if routing_decision else None,
+                routing_path=routing_path,
                 atp=task_data.get("atp"),
                 provenance_id=task_data.get("provenance_id"),
                 provider=result.get("provider"),
@@ -1867,6 +2371,7 @@ async def execute_instruction(
                 error="Task execution failed; see server logs",
                 agent_name=None,
                 routing=routing_decision.to_dict() if routing_decision else None,
+                routing_path=routing_path,
                 atp=task_data.get("atp"),
                 provenance_id=task_data.get("provenance_id"),
             )
@@ -2005,6 +2510,9 @@ async def execute_instruction_stream(
             heartbeat_seconds = 15.0
 
         terminal_sent = False
+        # Pinned calls produce no decision object, so start from the ingress
+        # label and let the routing frame's decision correct it when routed.
+        routing_path = "pinned" if request.agent else None
         try:
             while True:
                 try:
@@ -2028,14 +2536,22 @@ async def execute_instruction_stream(
                     continue
                 etype = ev.get("type")
                 if etype == "routing":
+                    decision = ev.get("decision")
+                    if isinstance(decision, dict):
+                        routing_path = decision.get("routing_path") or routing_path
+                    elif routing_path is None:
+                        # No decision and no pinned agent: Hebbian routing is
+                        # off, so the registry's composite ranking chose.
+                        routing_path = "registry_composite"
                     yield _sse_pack(
                         "routing",
                         {
-                            "decision": ev.get("decision"),
+                            "decision": decision,
                             "agent_name": ev.get("agent_name"),
                             "task_id": task_id,
                             "atp": task_data.get("atp"),
                             "provenance_id": task_data.get("provenance_id"),
+                            "routing_path": routing_path,
                         },
                     )
                 elif etype == "token":
@@ -2051,6 +2567,7 @@ async def execute_instruction_stream(
                             "summary": ev.get("summary"),
                             "note_path": ev.get("note_path"),
                             "error": ev.get("error"),
+                            "routing_path": routing_path,
                             "atp": ev.get("atp"),
                             "provenance_id": ev.get("provenance_id"),
                             "provider": ev.get("provider"),

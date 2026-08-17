@@ -17,14 +17,19 @@ import {
   Text,
 } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   fetchAgentScores,
   fetchHebbianStats,
   fetchReports,
+  fetchRoutingConfig,
+  fetchSentinelAlerts,
   fetchVectorStats,
   getUserFacingErrorMessage,
+  type RoutingConfig,
 } from '../api';
 import { useRequestController } from '../hooks/useRequestController';
+import { routePaths } from '../router/paths';
 import { themeTokens } from '../theme';
 
 const { accents, fg, bg } = themeTokens;
@@ -122,6 +127,8 @@ type AgentRow = {
   name: string;
   capabilities: string[];
   composite_score?: number;
+  status?: string;
+  violation_count?: number;
 };
 
 const AgentTopology = ({ agents }: { agents: AgentRow[] | null }) => {
@@ -193,6 +200,8 @@ const Dashboard = () => {
   const [hebbian, setHebbian] = useState<{ total_connections: number; total_activations: number; avg_weight: number } | null>(null);
   const [vectors, setVectors] = useState<{ total_docs: number } | null>(null);
   const [reportsCount, setReportsCount] = useState<number | null>(null);
+  const [openAlerts, setOpenAlerts] = useState<number | null>(null);
+  const [routing, setRouting] = useState<RoutingConfig | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const createController = useRequestController();
 
@@ -203,13 +212,17 @@ const Dashboard = () => {
       fetchHebbianStats({ signal: controller.signal }),
       fetchVectorStats({ signal: controller.signal }),
       fetchReports({ signal: controller.signal }),
+      fetchSentinelAlerts(true, 500, { signal: controller.signal }),
+      fetchRoutingConfig({ signal: controller.signal }),
     ]).then((results) => {
       if (controller.signal.aborted) return;
-      const [a, h, v, r] = results;
+      const [a, h, v, r, s, rc] = results;
       if (a.status === 'fulfilled') setAgents(a.value as AgentRow[]);
       if (h.status === 'fulfilled') setHebbian(h.value);
       if (v.status === 'fulfilled') setVectors(v.value);
       if (r.status === 'fulfilled' && Array.isArray(r.value)) setReportsCount(r.value.length);
+      if (s.status === 'fulfilled') setOpenAlerts(s.value.total);
+      if (rc.status === 'fulfilled') setRouting(rc.value);
 
       const fails = results.filter((x) => x.status === 'rejected');
       if (fails.length === results.length) {
@@ -309,10 +322,65 @@ const Dashboard = () => {
         />
       </Grid>
 
+      {/* governance health — the subsystems that gate whether a task may run
+          at all, surfaced next to the throughput counters above */}
+      <Grid templateColumns={{ base: '1fr 1fr', lg: 'repeat(3, 1fr)' }} gap="14px" mb="22px">
+        <Tile
+          label="Routing path"
+          value={
+            routing
+              ? routing.kernel_active
+                ? 'kernel'
+                : 'legacy'
+              : null
+          }
+          sub={
+            routing
+              ? `α ${routing.alpha.toFixed(2)} · β ${routing.beta.toFixed(2)} · floor ${routing.trust_floor.toFixed(2)}`
+              : undefined
+          }
+          accent={routing && !routing.kernel_active ? 'attention' : 'kernel'}
+          loading={loading}
+        />
+        <Tile
+          label="Quarantined agents"
+          value={
+            agents
+              ? agents.filter(
+                  (a) => a.status === 'quarantined' || a.status === 'suspended'
+                ).length
+              : null
+          }
+          sub={agents ? 'excluded from routing' : undefined}
+          accent="attention"
+          loading={loading}
+        />
+        <Tile
+          label="Open stability alerts"
+          value={openAlerts}
+          sub={openAlerts !== null ? 'observational · no enforcement' : undefined}
+          accent="memory"
+          loading={loading}
+        />
+      </Grid>
+
       {/* topology */}
       <Panel title="Agent Topology" tag="orchestrator">
         <AgentTopology agents={agents} />
       </Panel>
+
+      <Flex mt="18px" justify="flex-end">
+        <Box
+          as={RouterLink}
+          to={routePaths.governance}
+          fontFamily="mono"
+          fontSize="12px"
+          color={accents.kernelSoft}
+          sx={{ '&:hover': { textDecoration: 'underline' } }}
+        >
+          inspect governance →
+        </Box>
+      </Flex>
     </Box>
   );
 };
