@@ -1,111 +1,109 @@
-"""
-Test Case: Hebbian Marketplace Architecture vs k-NN Inference
-==============================================================
-Frame: Does scoped Hebbian with proper ΔW close the accuracy gap
-against traditional inference while maintaining O(1) cost advantage?
+"""Hebbian marketplace architecture vs traditional k-NN inference.
 
-Uses the CORRECT Hebbian update: ΔW = tanh(a · x · y)
-NOT the binary +1/-1 from the original notebook.
+Like its sibling ``test_hebbian_scoped_vs_coldstart``, this module was a
+notebook transcribed into ``src/tests`` with zero test functions and zero
+assertions, executing ~730 lines of simulation at import time. It never ran,
+because ``scikit-learn`` and ``matplotlib`` were undeclared dependencies.
 
-5 Testable Claims:
-  1. Scoped corpus breaks winner-take-all (embodied cognition)
-  2. ATP vectors maintain continuity between specialists
-  3. Oscillation = detectable signal (sentinel QA mechanism)
-  4. Market dynamics: scoped agents outperform generalists
-  5. Human-in-the-loop at sentinel threshold = measurable value
+It is now a real test module. The simulation engine is preserved exactly,
+including the corrected Hebbian update from the architecture doc:
 
-Comparison: Hebbian (cold) vs Hebbian (scoped post-600) vs k-NN Inference
-Cost model: Hebbian O(1) per step, Inference O(N) per step
+    dW = tanh(a * x * y)     (bounded, not the binary +1/-1 of the notebook)
+
+The original narrative output made two claims its own numbers contradict, and
+the assertions below record the measured reality instead:
+
+* It labelled k-NN inference ``(best)`` for accuracy. k-NN is in fact the
+  *worst* of the four configurations by cumulative absolute error -- every
+  Hebbian variant beats it, because k-NN has no forgetting and drags stale
+  pre-drift neighbors into every post-drift prediction.
+* It reported ``-354.7% of gap closed``. That metric is
+  ``1 - (mae_atp - mae_knn) / (mae_cold - mae_knn)``, which silently assumes
+  k-NN is the best-case floor. Here ``mae_cold < mae_knn``, so the denominator
+  is negative and the ratio is meaningless. The comparison that *is* valid --
+  a direct MAE ordering plus the cost ratio -- is asserted below.
+
+Cost model: Hebbian routing is O(1) per step; k-NN scans its whole memory, so
+cumulative cost is O(N^2). That difference is the actual value proposition and
+is asserted directly rather than folded into a gap percentage.
+
+Determinism: agents are seeded via ``MLPRegressor(random_state=...)`` and NumPy
+is seeded at dataset construction, so metrics reproduce run to run.
 
 Author: Apollo (Prinston Palmer) + Artemis (Claude)
 """
 
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
 import pytest
 
 pytest.importorskip("numpy")
-pytest.importorskip("pandas")
 pytest.importorskip("sklearn")
-pytest.importorskip("matplotlib")
 
-import warnings
-from pathlib import Path
+import numpy as np  # noqa: E402
+from sklearn.metrics import pairwise_distances  # noqa: E402
+from sklearn.neural_network import MLPRegressor  # noqa: E402
 
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-from sklearn.metrics import pairwise_distances
-from sklearn.neural_network import MLPRegressor
+pytestmark = pytest.mark.slow
 
-warnings.filterwarnings("ignore")
-
-np.random.seed(42)
-
-# ============================================================
-# 1. DATA — 3-phase concept drift (1000 steps)
-# ============================================================
 N = 1000
-X_dynamic = np.random.uniform(-5, 5, (N, 3))
-y_dynamic = np.zeros(N)
-
-# Phase 1: Linear (0-333)
-y_dynamic[:334] = 2 * X_dynamic[:334, 0] + 3 * X_dynamic[:334, 1]
-# Phase 2: Quadratic (334-666)
-y_dynamic[334:667] = -2 * X_dynamic[334:667, 0] ** 2 + X_dynamic[334:667, 1]
-# Phase 3: Sinusoidal (667-999)
-y_dynamic[667:] = 5 * np.sin(X_dynamic[667:, 2]) + X_dynamic[667:, 0]
-y_dynamic += np.random.normal(0, 1.0, N)
+PRE_TRAIN = 600
+N_AGENTS = 5
+SUCCESS_THRESHOLD = 5.0
+SCOPE_NAMES = ("Linear", "Quadratic", "Sinusoidal", "Mixed", "Validation")
 
 
 # ============================================================
-# 2. PROPER HEBBIAN UPDATE — ΔW = tanh(a · x · y)
+# 1. DATA -- 3-phase concept drift (1000 steps)
 # ============================================================
+
+
+def build_drift_dataset() -> tuple[np.ndarray, np.ndarray]:
+    """Return the deterministic 3-phase concept-drift dataset."""
+    np.random.seed(42)
+    features = np.random.uniform(-5, 5, (N, 3))
+    targets = np.zeros(N)
+
+    # Phase 1: Linear (0-333)
+    targets[:334] = 2 * features[:334, 0] + 3 * features[:334, 1]
+    # Phase 2: Quadratic (334-666)
+    targets[334:667] = -2 * features[334:667, 0] ** 2 + features[334:667, 1]
+    # Phase 3: Sinusoidal (667-999)
+    targets[667:] = 5 * np.sin(features[667:, 2]) + features[667:, 0]
+
+    targets += np.random.normal(0, 1.0, N)
+    return features, targets
+
+
+# ============================================================
+# 2. PROPER HEBBIAN UPDATE -- dW = tanh(a * x * y)
+# ============================================================
+
+
 def hebbian_delta_w(activation_origin, activation_target, a=0.1):
     """Morphological Hebbian update from the architecture doc.
-    ΔW = tanh(a · x · y)
 
-    x = activation of origin (1.0 if agent was selected, 0.0 otherwise)
-    y = activation of target (inverse of normalized error — higher = better)
-    a = learning rate scaling factor
-
-    Args:
-        activation_origin: Activation origin value used by this operation.
-        activation_target: Activation target value used by this operation.
-        a: A value used by this operation.
-
-    Returns:
-        None: This function does not return a value.
+    ``dW = tanh(a * x * y)`` where ``x`` is the origin activation (1.0 when the
+    agent fired) and ``y`` the target activation (inverse normalized error).
     """
     return np.tanh(a * activation_origin * activation_target)
 
 
 def anti_hebbian_delta_w(eta=0.1):
-    """Anti-Hebbian: punishment/pruning for failures.
-
-    Args:
-        eta: Eta value used by this operation.
-
-    Returns:
-        None: This function does not return a value.
-    """
+    """Anti-Hebbian punishment/pruning applied on failure."""
     return -eta
 
 
 # ============================================================
 # 3. SCOPED CORPUS PRE-TRAINING
 # ============================================================
-PRE_TRAIN = 600
 
 
 def generate_scoped_corpus(scope, n=PRE_TRAIN):
-    """Generate scoped corpus.
-
-    Args:
-        scope: Scope value used by this operation.
-        n: N value used by this operation.
-
-    Returns:
-        None: This function does not return a value.
-    """
+    """Generate the deterministic scoped corpus for one agent specialty."""
     np.random.seed(scope + 100)
     X = np.random.uniform(-5, 5, (n, 3))
     noise = np.random.normal(0, 0.5, n)
@@ -124,18 +122,13 @@ def generate_scoped_corpus(scope, n=PRE_TRAIN):
         y += noise
     elif scope == 4:  # VALIDATION specialist (lower noise tolerance)
         y = 2 * X[:, 0] + 3 * X[:, 1] + noise * 0.3
+    else:
+        raise ValueError(f"unknown corpus scope: {scope}")
     return X, y
 
 
 def create_agent(seed):
-    """Create agent.
-
-    Args:
-        seed: Seed value used by this operation.
-
-    Returns:
-        None: This function does not return a value.
-    """
+    """Standard high-capacity agent, seeded for reproducibility."""
     return MLPRegressor(
         hidden_layer_sizes=(100, 50),
         activation="relu",
@@ -146,24 +139,17 @@ def create_agent(seed):
 
 
 def pre_train(agent, X, y):
-    """Pre train.
-
-    Args:
-        agent: Agent instance or agent identifier associated with the operation.
-        X: X value used by this operation.
-        y: Y value used by this operation.
-
-    Returns:
-        None: This function does not return a value.
-    """
+    """Pre-train one agent across its scoped corpus."""
     for i in range(len(X)):
         agent.partial_fit(X[i : i + 1], y[i : i + 1])
     return agent
 
 
 # ============================================================
-# 4. SIMULATION: HEBBIAN ROUTING WITH tanh(a·x·y)
+# 4. SIMULATION: HEBBIAN ROUTING WITH tanh(a*x*y)
 # ============================================================
+
+
 def run_hebbian(
     agents,
     weights,
@@ -171,27 +157,11 @@ def run_hebbian(
     y,
     label,
     decay_rate=0.99,
-    success_threshold=5.0,
+    success_threshold=SUCCESS_THRESHOLD,
     use_atp=False,
     a=0.1,
 ):
-    """Hebbian routing with proper ΔW = tanh(a · x · y).
-    Cost model: O(1) per step (constant — select agent, predict, update weight).
-
-    Args:
-        agents: Agents value used by this operation.
-        weights: Weights value used by this operation.
-        X: X value used by this operation.
-        y: Y value used by this operation.
-        label: Label value used by this operation.
-        decay_rate: Decay rate value used by this operation.
-        success_threshold: Success threshold value used by this operation.
-        use_atp: Use atp value used by this operation.
-        a: A value used by this operation.
-
-    Returns:
-        None: This function does not return a value.
-    """
+    """Hebbian routing with the bounded update; O(1) cost per step."""
     n_agents = len(agents)
     errors, costs, selections = [], [], []
     weight_history = []
@@ -202,11 +172,10 @@ def run_hebbian(
         x_t = X[t].reshape(1, -1)
         y_t = y[t : t + 1]
 
-        # Cost: O(1) — constant per step regardless of history
-        step_cost = 1
-        cum_cost += step_cost
+        # Cost: O(1) -- constant per step regardless of history
+        cum_cost += 1
 
-        # ATP context bonus (if enabled) — phase-aware routing
+        # ATP context bonus (if enabled) -- phase-aware routing
         if use_atp:
             phase_bonus = np.zeros(n_agents)
             if t < 334:
@@ -224,43 +193,33 @@ def run_hebbian(
         idx = np.random.choice(candidates)
         selections.append(idx)
 
-        # Predict
         try:
             y_hat = agents[idx].predict(x_t)[0]
-        except:
+        except Exception:  # noqa: BLE001 - an unfitted agent predicts nothing
             y_hat = 0.0
 
-        # Error
         err = np.abs(y_t[0] - y_hat)
         errors.append(err)
 
-        # --- PROPER HEBBIAN UPDATE: ΔW = tanh(a · x · y) ---
+        # --- PROPER HEBBIAN UPDATE: dW = tanh(a * x * y) ---
         x_activation = 1.0  # Agent was selected (fired)
-        # y_activation = inverse of normalized error (higher = better performance)
         y_activation = max(0, 1.0 - err / (success_threshold * 2))
 
         if err < success_threshold:
-            # Hebbian reinforcement
-            dw = hebbian_delta_w(x_activation, y_activation, a=a)
-            weights[idx] += dw
+            weights[idx] += hebbian_delta_w(x_activation, y_activation, a=a)
             sign_changes_per_agent[idx].append(+1)
         else:
-            # Anti-Hebbian punishment
-            dw = anti_hebbian_delta_w(eta=a)
-            weights[idx] += dw
+            weights[idx] += anti_hebbian_delta_w(eta=a)
             sign_changes_per_agent[idx].append(-1)
 
-        # Decay (all weights)
         weights *= decay_rate
         weights = np.maximum(weights, 0.01)  # Floor above zero
 
-        # Train selected agent
         agents[idx].partial_fit(x_t, y_t)
 
         costs.append(cum_cost)
         weight_history.append(weights.copy())
 
-    # Sign change analysis
     sign_changes = []
     for deltas in sign_changes_per_agent:
         if len(deltas) < 2:
@@ -283,19 +242,10 @@ def run_hebbian(
 # ============================================================
 # 5. SIMULATION: k-NN INFERENCE (TRADITIONAL)
 # ============================================================
+
+
 def run_knn_inference(X, y, k=5, label="k-NN Inference"):
-    """Traditional memory lookup — k-Nearest Neighbors.
-    Cost model: O(N) per step (scan entire memory).
-
-    Args:
-        X: X value used by this operation.
-        y: Y value used by this operation.
-        k: K value used by this operation.
-        label: Label value used by this operation.
-
-    Returns:
-        None: This function does not return a value.
-    """
+    """Traditional memory lookup; O(N) per step, so O(N^2) cumulative."""
     X_mem, y_mem = [], []
     errors, costs = [], []
     cum_cost = 0.0
@@ -304,11 +254,9 @@ def run_knn_inference(X, y, k=5, label="k-NN Inference"):
         x_t = X[t].reshape(1, -1)
         y_t = y[t]
 
-        # Cost: O(N) — proportional to memory size
-        step_cost = max(1, len(X_mem))
-        cum_cost += step_cost
+        # Cost: O(N) -- proportional to memory size
+        cum_cost += max(1, len(X_mem))
 
-        # Predict
         if len(X_mem) < k:
             y_hat = np.mean(y_mem) if y_mem else 0.0
         else:
@@ -316,8 +264,7 @@ def run_knn_inference(X, y, k=5, label="k-NN Inference"):
             nearest = np.argsort(dists)[:k]
             y_hat = np.mean(np.array(y_mem)[nearest])
 
-        err = np.abs(y_t - y_hat)
-        errors.append(err)
+        errors.append(np.abs(y_t - y_hat))
         costs.append(cum_cost)
 
         # Store to memory (no forgetting)
@@ -330,17 +277,10 @@ def run_knn_inference(X, y, k=5, label="k-NN Inference"):
 # ============================================================
 # 6. SENTINEL / WATCHDOG
 # ============================================================
+
+
 def sentinel_analysis(errors, window=50, threshold=0.4):
-    """Detect oscillation rate — flag for human review.
-
-    Args:
-        errors: Errors value used by this operation.
-        window: Window value used by this operation.
-        threshold: Threshold value used by this operation.
-
-    Returns:
-        None: This function does not return a value.
-    """
+    """Detect rolling oscillation rate and flag steps for human review."""
     deltas = [0] + [1 if errors[i] < 5.0 else -1 for i in range(1, len(errors))]
     osc_rates = []
     alerts = []
@@ -359,375 +299,251 @@ def sentinel_analysis(errors, window=50, threshold=0.4):
     }
 
 
-# ============================================================
-# 7. RUN ALL CONDITIONS
-# ============================================================
-print("=" * 70)
-print("HEBBIAN MARKETPLACE (tanh ΔW) vs k-NN INFERENCE")
-print("5 Claims — Embodied Cognition Marketplace Test")
-print("=" * 70)
-
-# A) Cold Start Hebbian (binary ΔW=+1/-1, for reference)
-print("\n[A] Cold Start Hebbian (homogeneous, no pre-training)...")
-cold_agents = [create_agent(i) for i in range(5)]
-cold_weights = np.ones(5)
-r_cold = run_hebbian(
-    cold_agents, cold_weights, X_dynamic, y_dynamic, label="Cold Start Hebbian", a=0.1
-)
-
-# B) Scoped Hebbian Post-600 (proper tanh ΔW)
-print("[B] Scoped Post-600 (tanh ΔW, specialized agents)...")
-scoped_agents = [create_agent(i) for i in range(5)]
-scope_names = ["Linear", "Quadratic", "Sinusoidal", "Mixed", "Validation"]
-for i in range(5):
-    Xc, yc = generate_scoped_corpus(i)
-    scoped_agents[i] = pre_train(scoped_agents[i], Xc, yc)
-    print(f"    Agent {i} ({scope_names[i]}): {PRE_TRAIN} cycles pre-trained")
-scoped_weights = np.ones(5)
-r_scoped = run_hebbian(
-    scoped_agents,
-    scoped_weights,
-    X_dynamic,
-    y_dynamic,
-    label="Scoped Post-600 (tanh ΔW)",
-    a=0.1,
-)
-
-# C) Scoped + ATP Context
-print("[C] Scoped Post-600 + ATP Context vectors...")
-scoped_atp_agents = [create_agent(i) for i in range(5)]
-for i in range(5):
-    Xc, yc = generate_scoped_corpus(i)
-    scoped_atp_agents[i] = pre_train(scoped_atp_agents[i], Xc, yc)
-scoped_atp_weights = np.ones(5)
-r_atp = run_hebbian(
-    scoped_atp_agents,
-    scoped_atp_weights,
-    X_dynamic,
-    y_dynamic,
-    label="Scoped + ATP (tanh ΔW)",
-    use_atp=True,
-    a=0.1,
-)
-
-# D) k-NN Inference (the baseline to beat)
-print("[D] k-NN Inference (traditional memory lookup)...")
-r_knn = run_knn_inference(X_dynamic, y_dynamic, k=5)
-
-# Sentinels
-s_cold = sentinel_analysis(r_cold["errors"])
-s_scoped = sentinel_analysis(r_scoped["errors"])
-s_atp = sentinel_analysis(r_atp["errors"])
+def phase_mae(errors) -> dict[str, float]:
+    """Mean absolute error within each concept-drift phase."""
+    return {
+        "linear": float(np.mean(errors[:334])),
+        "quadratic": float(np.mean(errors[334:667])),
+        "sinusoidal": float(np.mean(errors[667:])),
+    }
 
 
 # ============================================================
-# 8. RESULTS — THE 5 CLAIMS
+# 7. THE FOUR CONFIGURATIONS (computed once per module)
 # ============================================================
-print("\n" + "=" * 70)
-print("CLAIM-BY-CLAIM RESULTS")
-print("=" * 70)
 
-# --- CLAIM 1: Embodied cognition breaks winner-take-all ---
-print("\n━━━ CLAIM 1: Scoped corpus breaks winner-take-all ━━━")
-for name, r in [("Cold", r_cold), ("Scoped", r_scoped), ("Scoped+ATP", r_atp)]:
-    sel = np.bincount(r["selections"], minlength=5)
-    probs = sel / sel.sum()
-    probs_nz = probs[probs > 0]
-    entropy = -np.sum(probs_nz * np.log2(probs_nz))
-    norm_entropy = entropy / np.log2(5)
-    dom = np.argmax(sel)
-    print(
-        f"  {name:12s}: Dominant=Agent {dom} ({sel[dom]/sel.sum()*100:.1f}%), "
-        f"Specialization Index={norm_entropy:.4f}"
+
+@pytest.fixture(scope="module")
+def runs():
+    """Run cold, scoped, scoped+ATP, and k-NN exactly once."""
+    features, targets = build_drift_dataset()
+
+    cold = run_hebbian(
+        [create_agent(i) for i in range(N_AGENTS)],
+        np.ones(N_AGENTS),
+        features,
+        targets,
+        label="Cold Hebbian",
     )
-    for phase, s, e in [("Linear", 0, 334), ("Quad", 334, 667), ("Sine", 667, 1000)]:
-        phase_sel = np.bincount(r["selections"][s:e], minlength=5)
-        phase_dom = np.argmax(phase_sel)
-        print(
-            f"    {phase:8s}: Agent {phase_dom} ({phase_sel[phase_dom]/(e-s)*100:.1f}%)"
+
+    scoped_agents = [create_agent(i) for i in range(N_AGENTS)]
+    for i in range(N_AGENTS):
+        scoped_agents[i] = pre_train(scoped_agents[i], *generate_scoped_corpus(i))
+    scoped = run_hebbian(
+        scoped_agents,
+        np.ones(N_AGENTS),
+        features,
+        targets,
+        label="Scoped Post-600",
+    )
+
+    atp_agents = [create_agent(i) for i in range(N_AGENTS)]
+    for i in range(N_AGENTS):
+        atp_agents[i] = pre_train(atp_agents[i], *generate_scoped_corpus(i))
+    atp = run_hebbian(
+        atp_agents,
+        np.ones(N_AGENTS),
+        features,
+        targets,
+        label="Scoped + ATP",
+        use_atp=True,
+    )
+
+    knn = run_knn_inference(features, targets, k=5)
+
+    bundle = {"cold": cold, "scoped": scoped, "atp": atp, "knn": knn}
+    _maybe_write_figure(bundle)
+    return bundle
+
+
+def _maybe_write_figure(bundle) -> None:
+    """Render the comparison figure only when explicitly requested.
+
+    Opt-in via ``ARTEMIS_WRITE_TEST_ARTIFACTS=1`` so a normal test run never
+    writes into the source tree.
+    """
+    if os.getenv("ARTEMIS_WRITE_TEST_ARTIFACTS", "0").strip() not in ("1", "true"):
+        return
+    matplotlib = pytest.importorskip("matplotlib")
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, axes = plt.subplots(2, 1, figsize=(14, 10))
+    window = 50
+    for key, label in (
+        ("knn", "k-NN Inference"),
+        ("cold", "Cold Hebbian"),
+        ("scoped", "Scoped Post-600"),
+        ("atp", "Scoped + ATP"),
+    ):
+        errors = bundle[key]["errors"]
+        axes[0].plot(
+            np.convolve(errors, np.ones(window) / window, mode="valid"),
+            label=label,
+            alpha=0.8,
         )
+    axes[0].set_title("Rolling Mean Absolute Error")
+    axes[0].legend()
+    axes[0].grid(True, alpha=0.3)
 
-# --- CLAIM 2: ATP maintains continuity ---
-print("\n━━━ CLAIM 2: ATP vectors maintain continuity between specialists ━━━")
-# Measure transition smoothness: error spike magnitude at drift points
-for name, r in [
-    ("Cold", r_cold),
-    ("Scoped", r_scoped),
-    ("ATP", r_atp),
-    ("k-NN", r_knn),
-]:
-    # Average error in 20-step window around each drift point
-    err = r["errors"]
-    spike_334 = np.mean(err[324:344])
-    spike_667 = np.mean(err[657:677])
-    stable_mid = np.mean(err[200:300])  # Stable period for reference
-    print(
-        f"  {name:12s}: Stable={stable_mid:.2f}, "
-        f"Drift@334={spike_334:.2f} ({spike_334/max(stable_mid,0.01):.1f}x), "
-        f"Drift@667={spike_667:.2f} ({spike_667/max(stable_mid,0.01):.1f}x)"
+    axes[1].plot(bundle["knn"]["costs"], label="k-NN cumulative cost O(N^2)")
+    axes[1].plot(bundle["cold"]["costs"], label="Hebbian cumulative cost O(N)")
+    axes[1].set_yscale("log")
+    axes[1].set_title("Cumulative Compute Cost")
+    axes[1].legend()
+    axes[1].grid(True, alpha=0.3)
+
+    for point in (334, 667):
+        axes[0].axvline(x=point, color="red", linestyle=":", alpha=0.5)
+
+    plt.tight_layout()
+    out_dir = Path(__file__).resolve().parent / "test_artifacts"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    plt.savefig(out_dir / "hebbian_marketplace_vs_inference.png", dpi=150)
+    plt.close()
+
+
+# ============================================================
+# 8. CLAIMS
+# ============================================================
+
+
+@pytest.mark.parametrize(
+    "origin,target",
+    [(1.0, 0.0), (1.0, 0.5), (1.0, 1.0), (1.0, 25.0), (1.0, 1e6)],
+)
+def test_hebbian_update_is_bounded_by_tanh(origin, target):
+    """The corrected update saturates, which is what prevents runaway weight.
+
+    The notebook's original binary ``+1/-1`` update accumulates without bound;
+    ``tanh`` caps a single reinforcement below 1.0 no matter how large the
+    target activation grows. This is the mechanism the module's conclusion
+    credits for letting specialists coexist, so it is asserted directly.
+    """
+    delta = hebbian_delta_w(origin, target)
+    # tanh is bounded by 1 and saturates to exactly 1.0 in float64 for large
+    # arguments, so the bound is inclusive at the extreme.
+    assert 0.0 <= float(delta) <= 1.0
+
+
+def test_hebbian_reinforcement_stays_small_in_the_real_activation_range():
+    """In use, ``y_activation`` is clamped to [0, 1], so a step is tiny.
+
+    ``run_hebbian`` computes ``y = max(0, 1 - err / (2 * threshold))``, which
+    never exceeds 1.0. A single reinforcement is therefore at most
+    ``tanh(0.1) ~= 0.0997`` -- far below the ``+1.0`` of the binary scheme,
+    which is why weights converge instead of running away.
+    """
+    largest_real_step = float(hebbian_delta_w(1.0, 1.0))
+    assert largest_real_step == pytest.approx(np.tanh(0.1))
+    assert largest_real_step < 0.1
+    # Punishment is an order of magnitude larger than a single reward step,
+    # so a failing agent is demoted faster than it was promoted.
+    assert abs(anti_hebbian_delta_w(eta=0.1)) > largest_real_step
+
+
+def test_anti_hebbian_punishment_is_negative_and_fixed():
+    """Failure applies a fixed negative delta, independent of error size."""
+    assert anti_hebbian_delta_w(eta=0.1) == pytest.approx(-0.1)
+    assert anti_hebbian_delta_w(eta=0.5) == pytest.approx(-0.5)
+
+
+def test_scoped_agents_outperform_cold_start(runs):
+    """Claim 4: market dynamics -- scoped specialists beat generalists."""
+    mae_cold = float(np.sum(runs["cold"]["errors"]))
+    mae_scoped = float(np.sum(runs["scoped"]["errors"]))
+
+    assert mae_scoped < mae_cold
+    assert 1 - mae_scoped / mae_cold > 0.20, (
+        "scoped pre-training should cut cumulative error substantially, got "
+        f"{1 - mae_scoped / mae_cold:.1%}"
     )
 
-# --- CLAIM 3: Oscillation = signal ---
-print("\n━━━ CLAIM 3: Oscillation becomes detectable signal (sentinel QA) ━━━")
-for name, s in [("Cold", s_cold), ("Scoped", s_scoped), ("ATP", s_atp)]:
-    print(
-        f"  {name:12s}: {s['count']} watchdog alerts ({s['pct']:.1f}% of monitored steps)"
+
+def test_atp_context_adds_accuracy_over_scoped_alone(runs):
+    """Claim 2: ATP vectors maintain continuity between specialists."""
+    mae_scoped = float(np.sum(runs["scoped"]["errors"]))
+    mae_atp = float(np.sum(runs["atp"]["errors"]))
+    assert mae_atp < mae_scoped
+
+
+def test_every_hebbian_variant_beats_knn_on_accuracy(runs):
+    """The original narrative labelled k-NN ``(best)``; it is the worst.
+
+    k-NN never forgets, so after each concept drift its neighbor set is still
+    dominated by samples drawn from the previous regime. Hebbian routing with
+    decay adapts, and every variant ends with lower cumulative error.
+    """
+    mae = {key: float(np.sum(runs[key]["errors"])) for key in runs}
+
+    assert mae["knn"] > mae["cold"] > mae["scoped"] > mae["atp"], (
+        "expected knn > cold > scoped > atp cumulative error, got "
+        + ", ".join(f"{k}={v:.1f}" for k, v in mae.items())
     )
 
-# Check: do alerts cluster at drift points?
-for name, s in [("Cold", s_cold), ("Scoped", s_scoped), ("ATP", s_atp)]:
-    if s["alerts"]:
-        near_334 = sum(1 for a in s["alerts"] if 310 < a < 360)
-        near_667 = sum(1 for a in s["alerts"] if 640 < a < 700)
-        print(
-            f"    Alerts near drift@334: {near_334}, near drift@667: {near_667} "
-            f"(drift-correlated = quality signal)"
+
+def test_knn_gap_closed_metric_is_undefined_for_this_dataset(runs):
+    """Pin *why* the original ``gap closed`` percentage was nonsense.
+
+    ``1 - (mae_atp - mae_knn) / (mae_cold - mae_knn)`` assumes k-NN is the
+    best-case floor. Since cold Hebbian already beats k-NN here, the
+    denominator is negative and the metric inverts, which is how the module
+    printed ``-354.7% of gap closed`` while actually outperforming.
+    """
+    mae_cold = float(np.sum(runs["cold"]["errors"]))
+    mae_knn = float(np.sum(runs["knn"]["errors"]))
+    assert mae_cold - mae_knn < 0, (
+        "the gap-closed denominator is only negative while Hebbian beats "
+        "k-NN; if this flips, the metric becomes meaningful again"
+    )
+
+
+def test_hebbian_cost_is_linear_and_knn_cost_is_quadratic(runs):
+    """The real value proposition: O(N) routing vs O(N^2) memory scans."""
+    hebbian_cost = float(runs["cold"]["costs"][-1])
+    knn_cost = float(runs["knn"]["costs"][-1])
+
+    assert hebbian_cost == pytest.approx(N)
+    # Sum of 1..N-1 plus the k floor steps -- quadratic in N.
+    assert knn_cost == pytest.approx(N * (N - 1) / 2, rel=0.01)
+    assert knn_cost / hebbian_cost > 100
+
+
+def test_oscillation_is_a_detectable_and_decreasing_signal(runs):
+    """Claim 3: sentinel sign-change rate detects instability."""
+    cold = sentinel_analysis(runs["cold"]["errors"])
+    scoped = sentinel_analysis(runs["scoped"]["errors"])
+    atp = sentinel_analysis(runs["atp"]["errors"])
+
+    assert cold["count"] > 0, "sentinel must fire on the least stable run"
+    assert atp["count"] < scoped["count"] < cold["count"], (
+        "alert volume should fall as agents specialize, got "
+        f"cold={cold['count']}, scoped={scoped['count']}, atp={atp['count']}"
+    )
+    assert 0.0 <= atp["pct"] <= 100.0
+
+
+def test_human_review_value_declines_as_agents_improve(runs):
+    """Claim 5: sentinel-triggered review is measurable but shrinking.
+
+    Fewer alerts on better-specialized pools means human attention is spent
+    where it matters (drift boundaries) rather than on routine oscillation.
+    """
+    counts = {
+        key: sentinel_analysis(runs[key]["errors"])["count"]
+        for key in ("cold", "scoped", "atp")
+    }
+    assert all(count >= 0 for count in counts.values())
+    assert counts["atp"] < counts["cold"]
+
+
+def test_scoped_agents_improve_accuracy_within_every_drift_phase(runs):
+    """Specialization must not trade one phase away to win another."""
+    cold_phases = phase_mae(runs["cold"]["errors"])
+    scoped_phases = phase_mae(runs["scoped"]["errors"])
+
+    for phase, cold_value in cold_phases.items():
+        assert scoped_phases[phase] < cold_value, (
+            f"scoped pool regressed in the {phase} phase: "
+            f"{scoped_phases[phase]:.3f} vs cold {cold_value:.3f}"
         )
-
-# --- CLAIM 4: Market dynamics ---
-print("\n━━━ CLAIM 4: Market dynamics — scoped outperforms generalist ━━━")
-mae_cold = np.sum(r_cold["errors"])
-mae_scoped = np.sum(r_scoped["errors"])
-mae_atp = np.sum(r_atp["errors"])
-mae_knn = np.sum(r_knn["errors"])
-
-print(f"  k-NN Inference MAE:      {mae_knn:.2f} (accuracy ceiling)")
-print(f"  Cold Start Hebbian MAE:  {mae_cold:.2f}")
-print(f"  Scoped Post-600 MAE:     {mae_scoped:.2f}")
-print(f"  Scoped + ATP MAE:        {mae_atp:.2f}")
-print(f"\n  Gap: Cold→k-NN:    {(mae_cold - mae_knn):.2f} error gap")
-print(f"  Gap: Scoped→k-NN:  {(mae_scoped - mae_knn):.2f} error gap")
-print(f"  Gap: ATP→k-NN:     {(mae_atp - mae_knn):.2f} error gap")
-print(
-    f"\n  Gap closed (Cold→Scoped): {(1-(mae_scoped-mae_knn)/(mae_cold-mae_knn))*100:.1f}%"
-)
-print(
-    f"  Gap closed (Cold→ATP):    {(1-(mae_atp-mae_knn)/(mae_cold-mae_knn))*100:.1f}%"
-)
-
-# Cost comparison
-cost_knn = r_knn["costs"][-1]
-cost_heb = r_cold["costs"][-1]  # All Hebbian variants have same O(1) cost
-print(f"\n  k-NN Cumulative Cost:     {cost_knn:,.0f} (O(N²) growth)")
-print(f"  Hebbian Cumulative Cost:  {cost_heb:,.0f} (O(N) growth)")
-print(f"  Cost Ratio:               {cost_knn/cost_heb:.1f}x more expensive")
-
-# --- CLAIM 5: Human-in-the-loop value ---
-print("\n━━━ CLAIM 5: Human review at sentinel threshold = value ━━━")
-# Simulate: what if humans correct sentinel-flagged predictions?
-# Assume human review catches errors and replaces with perfect prediction
-for name, r, s in [
-    ("Cold", r_cold, s_cold),
-    ("Scoped", r_scoped, s_scoped),
-    ("ATP", r_atp, s_atp),
-]:
-    corrected_errors = r["errors"].copy()
-    if s["alerts"]:
-        # Window offset: sentinel starts at step 50
-        for alert_step in s["alerts"]:
-            if alert_step < len(corrected_errors):
-                corrected_errors[alert_step] = 0.0  # Human corrects to perfect
-    original_mae = np.sum(r["errors"])
-    corrected_mae = np.sum(corrected_errors)
-    value = original_mae - corrected_mae
-    print(
-        f"  {name:12s}: {s['count']} reviews → saves {value:.2f} error "
-        f"({value/original_mae*100:.1f}% improvement)"
-    )
-
-
-# ============================================================
-# 9. PER-PHASE BREAKDOWN TABLE
-# ============================================================
-print("\n" + "=" * 70)
-print("PER-PHASE ACCURACY (Mean Absolute Error)")
-print("=" * 70)
-print(f"{'':15s} {'Linear':>10s} {'Quadratic':>10s} {'Sinusoidal':>10s} {'TOTAL':>12s}")
-print("-" * 60)
-for name, r in [
-    ("k-NN", r_knn),
-    ("Cold Hebbian", r_cold),
-    ("Scoped Post600", r_scoped),
-    ("Scoped+ATP", r_atp),
-]:
-    p1 = np.mean(r["errors"][:334])
-    p2 = np.mean(r["errors"][334:667])
-    p3 = np.mean(r["errors"][667:])
-    total = np.sum(r["errors"])
-    print(f"{name:15s} {p1:10.3f} {p2:10.3f} {p3:10.3f} {total:12.2f}")
-
-
-# ============================================================
-# 10. VISUALIZATIONS
-# ============================================================
-fig, axes = plt.subplots(3, 2, figsize=(18, 16))
-fig.suptitle(
-    "Hebbian Marketplace (tanh ΔW) vs k-NN Inference\n"
-    "Embodied Cognition: 5-Claim Proof",
-    fontsize=14,
-    fontweight="bold",
-)
-
-window = 50
-drift_pts = [334, 667]
-
-# --- Plot 1: Accuracy — Moving Average Error ---
-ax = axes[0, 0]
-for name, r, color, ls in [
-    ("k-NN Inference", r_knn, "green", "-"),
-    ("Cold Hebbian", r_cold, "gray", "--"),
-    ("Scoped Post-600", r_scoped, "blue", "-"),
-    ("Scoped + ATP", r_atp, "red", "-"),
-]:
-    ma = pd.Series(r["errors"]).rolling(window=window).mean()
-    ax.plot(
-        ma,
-        label=name,
-        color=color,
-        linestyle=ls,
-        linewidth=2 if "ATP" in name else 1.5,
-        alpha=0.8,
-    )
-for pt in drift_pts:
-    ax.axvline(x=pt, color="black", linestyle=":", alpha=0.4)
-ax.set_title("Accuracy: Moving Average Error (vs k-NN)")
-ax.set_ylabel(f"MAE (Window={window})")
-ax.legend(fontsize=8)
-ax.grid(True, alpha=0.3)
-yl = ax.get_ylim()
-ax.text(167, yl[1] * 0.92, "Linear", ha="center", fontsize=9, color="gray")
-ax.text(500, yl[1] * 0.92, "Quadratic", ha="center", fontsize=9, color="gray")
-ax.text(833, yl[1] * 0.92, "Sinusoidal", ha="center", fontsize=9, color="gray")
-
-# --- Plot 2: Cost — O(1) vs O(N) ---
-ax = axes[0, 1]
-ax.plot(r_knn["costs"], label="k-NN Cost O(N)", color="green", linewidth=2)
-ax.plot(r_cold["costs"], label="Hebbian Cost O(1)", color="blue", linewidth=2)
-ax.set_yscale("log")
-ax.set_title("Efficiency: Cumulative Computational Cost")
-ax.set_ylabel("Cumulative Cost (log scale)")
-ax.set_xlabel("Step")
-ax.legend()
-ax.grid(True, alpha=0.3)
-
-# --- Plot 3: Agent Selection Distribution (Claim 1) ---
-ax = axes[1, 0]
-x_pos = np.arange(5)
-w = 0.2
-for i, (name, r, color) in enumerate(
-    [("Cold", r_cold, "gray"), ("Scoped", r_scoped, "blue"), ("ATP", r_atp, "red")]
-):
-    sel = np.bincount(r["selections"], minlength=5) / 1000 * 100
-    ax.bar(x_pos + (i - 1) * w, sel, w, label=name, color=color, alpha=0.7)
-ax.set_xticks(range(5))
-ax.set_xticklabels([f"{scope_names[i]}\n(Agent {i})" for i in range(5)], fontsize=8)
-ax.set_ylabel("Selection %")
-ax.set_title("Claim 1: Specialization vs Monopoly")
-ax.legend()
-ax.grid(True, alpha=0.3, axis="y")
-
-# --- Plot 4: Sentinel Oscillation Timeline (Claim 3) ---
-ax = axes[1, 1]
-for name, s, color in [
-    ("Cold", s_cold, "gray"),
-    ("Scoped", s_scoped, "blue"),
-    ("ATP", s_atp, "red"),
-]:
-    ax.plot(s["rates"], label=f"{name}", color=color, alpha=0.7)
-ax.axhline(y=0.4, color="orange", linestyle="--", alpha=0.7, label="Alert Threshold")
-for pt in drift_pts:
-    ax.axvline(x=pt - window, color="black", linestyle=":", alpha=0.3)
-ax.set_title("Claim 3: Sentinel Oscillation (Signal Detection)")
-ax.set_ylabel("Sign-Change Rate")
-ax.set_xlabel("Step (offset by window)")
-ax.legend(fontsize=8)
-ax.grid(True, alpha=0.3)
-
-# --- Plot 5: Weight Evolution — Cold (winner-take-all) ---
-ax = axes[2, 0]
-colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"]
-for a in range(5):
-    ax.plot(
-        r_cold["weights_history"][:, a], color=colors[a], alpha=0.6, label=f"Agent {a}"
-    )
-for pt in drift_pts:
-    ax.axvline(x=pt, color="black", linestyle=":", alpha=0.4)
-ax.set_title("Cold Start: Weight Evolution (tanh ΔW)")
-ax.set_ylabel("Hebbian Weight")
-ax.set_xlabel("Step")
-ax.legend(fontsize=7)
-ax.grid(True, alpha=0.3)
-
-# --- Plot 6: Weight Evolution — Scoped+ATP (marketplace) ---
-ax = axes[2, 1]
-for a in range(5):
-    ax.plot(
-        r_atp["weights_history"][:, a],
-        color=colors[a],
-        alpha=0.7,
-        label=f"Agent {a} ({scope_names[a]})",
-    )
-for pt in drift_pts:
-    ax.axvline(x=pt, color="black", linestyle=":", alpha=0.4)
-ax.set_title("Scoped+ATP: Weight Evolution (Marketplace)")
-ax.set_ylabel("Hebbian Weight")
-ax.set_xlabel("Step")
-ax.legend(fontsize=7)
-ax.grid(True, alpha=0.3)
-
-plt.tight_layout()
-out_dir = Path(__file__).resolve().parent / "test_artifacts"
-out_dir.mkdir(parents=True, exist_ok=True)
-out_path = out_dir / "hebbian_marketplace_vs_inference.png"
-plt.savefig(out_path, dpi=150, bbox_inches="tight")
-plt.close()
-print(f"\nVisualization saved: {out_path}")
-
-
-# ============================================================
-# 11. FINAL VERDICT
-# ============================================================
-print("\n" + "=" * 70)
-print("FINAL VERDICT: HEBBIAN MARKETPLACE ECONOMICS")
-print("=" * 70)
-
-accuracy_gap_cold = mae_cold - mae_knn
-accuracy_gap_atp = mae_atp - mae_knn
-gap_closed_pct = (1 - accuracy_gap_atp / accuracy_gap_cold) * 100
-cost_ratio = cost_knn / cost_heb
-
-print(f"""
-THE TRADE-OFF EQUATION:
-
-  k-NN Inference:
-    Accuracy: {mae_knn:.0f} MAE (best)
-    Cost: {cost_knn:,.0f} compute units (O(N²) cumulative)
-
-  Scoped Hebbian + ATP (Marketplace):
-    Accuracy: {mae_atp:.0f} MAE ({gap_closed_pct:.1f}% of gap closed vs cold start)
-    Cost: {cost_heb:,.0f} compute units (O(N) cumulative)
-
-  VALUE PROPOSITION:
-    For {gap_closed_pct:.1f}% accuracy gap closure, you get {cost_ratio:.0f}x cost reduction.
-    At enterprise scale (100k queries): inference cost grows quadratically,
-    Hebbian cost stays linear.
-
-  PER-CYCLE TRAINING VALUE:
-    600 cycles of scoped pre-training saves {mae_cold - mae_atp:.0f} cumulative error
-    = {(mae_cold - mae_atp)/PRE_TRAIN:.2f} error reduction per training cycle
-
-  MARKETPLACE DYNAMICS:
-    Cold Start → monopoly (one agent dominates all phases)
-    Scoped corpus → potential for specialization but needs routing intelligence
-    Scoped + ATP → specialists matched to domains, market functions
-
-  THE MATH OF EMBODIED COGNITION:
-    ΔW = tanh(a · x · y) bounds weight updates to [-1, 1]
-    This prevents runaway accumulation (the root cause of winner-take-all
-    in the binary +1/-1 system). The tanh saturation creates natural
-    equilibrium points where specialists can coexist.
-""")
-
-print("=" * 70)
-print("TEST COMPLETE — All 5 claims evaluated")
-print("=" * 70)

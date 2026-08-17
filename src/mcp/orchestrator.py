@@ -230,6 +230,36 @@ class Orchestrator:
             beta=_routing_beta,
             trust_floor=_routing_trust_floor,
         )
+
+        # The shared Routing Kernel is the authoritative path: it runs intent
+        # resolution, authorization, and governance/trust eligibility *before*
+        # learned ranking. The legacy HebbianRouter is retained only as a boot
+        # fallback, because a damaged optional policy document or delegation
+        # ledger must not make the orchestrator unbootable.
+        self.routing_kernel = None
+        self.routing_kernel_enabled = (
+            os.getenv("ARTEMIS_ROUTING_KERNEL", "1").strip().lower()
+            not in ("0", "false", "no")
+        )
+        if self.routing_kernel_enabled:
+            try:
+                from ..routing.kernel import RoutingKernel
+
+                self.routing_kernel = RoutingKernel.build(
+                    self.agent_registry,
+                    self.hebbian,
+                    trust_interface=self.trust_interface,
+                    alpha=_routing_alpha,
+                    beta=_routing_beta,
+                    trust_floor=_routing_trust_floor,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Routing Kernel unavailable (falling back to the legacy "
+                    "router): %s",
+                    exc,
+                )
+                self.routing_kernel = None
         self.learning_governance = LearningGovernanceCoordinator(
             self.agent_registry,
             trust_interface=self.trust_interface,
@@ -377,6 +407,61 @@ class Orchestrator:
 
         return None
 
+    def route_task(self, task_context: Dict[str, Any]):
+        """Route one task through the shared Routing Kernel.
+
+        This is the single routing entry point for every in-process ingress.
+        The kernel enforces the reviewed order -- intent, authorization,
+        governance/trust eligibility, then learned ranking -- so a quarantined
+        or untrusted agent can never be rescued by a strong Hebbian weight.
+
+        The legacy ``HebbianRouter`` is used only when the kernel could not be
+        constructed at boot; a kernel *denial* is a real denial and propagates.
+
+        Args:
+            task_context: The prepared task context.
+
+        Returns:
+            RoutingDecision: The selected agent plus per-candidate breakdown.
+
+        Raises:
+            ValueError: When no agent may serve the task.
+        """
+        if self.routing_kernel is None:
+            return self.hebbian_router.route(task_context)
+
+        from ..routing.kernel import (CAPABILITY_OUTSIDE_REVIEWED_DOMAIN,
+                                      RoutingKernelDenied)
+
+        try:
+            route = self.routing_kernel.route_task_context(
+                task_context,
+                fallback_capability=self.hebbian_router.fallback_capability,
+            )
+        except RoutingKernelDenied as denied:
+            if denied.code == CAPABILITY_OUTSIDE_REVIEWED_DOMAIN:
+                # Phase 4 compatibility boundary. The reviewed ATP domain
+                # currently authorizes four capabilities; agents advertising
+                # anything else (system_management, web_search, ...) have no
+                # reviewed intent and cannot clear the kernel's authorization
+                # stage. Rather than regress those agents to unroutable, they
+                # keep the legacy path -- loudly, so the remaining gap stays
+                # measurable. Closing it means extending _REVIEWED_PAIRS in
+                # src/routing/policy.py under review.
+                logger.warning(
+                    "Capability %s has no reviewed ATP domain; routing via the "
+                    "legacy compatibility path without kernel authorization.",
+                    _sanitize_for_log(task_context.get("required_capability")),
+                )
+                return self.hebbian_router.route(task_context)
+            # Callers already handle ValueError as an unroutable task; keep the
+            # stable denial code in the message so audit logs stay actionable.
+            raise ValueError(
+                f"Routing denied at {denied.stage} stage "
+                f"({denied.code}): {denied.message}"
+            ) from denied
+        return route.decision
+
     def prepare_task_context(self, task_context: Dict[str, Any]) -> Dict[str, Any]:
         """Attach canonical ATP routing context when headers are present."""
         if task_context.get("_skip_atp_resolution") is True:
@@ -514,7 +599,7 @@ class Orchestrator:
 
             decision = None
             if self.hebbian_routing_enabled:
-                decision = self.hebbian_router.route(task_context)
+                decision = self.route_task(task_context)
                 agent_name = decision.agent_name
             else:
                 agent_name = self.agent_registry.route_task(task_context)
@@ -1042,7 +1127,7 @@ class Orchestrator:
         summarizer_agent = None
         try:
             if self.hebbian_routing_enabled:
-                decision = self.hebbian_router.route(child_context)
+                decision = self.route_task(child_context)
                 summarizer_agent = decision.agent_name
             else:
                 summarizer_agent = self.agent_registry.route_task(child_context)
@@ -1185,7 +1270,7 @@ class Orchestrator:
             if explicit_agent:
                 agent_name = explicit_agent
             elif self.hebbian_routing_enabled:
-                decision = self.hebbian_router.route(task_context)
+                decision = self.route_task(task_context)
                 agent_name = decision.agent_name
             else:
                 agent_name = self.agent_registry.route_task(task_context)

@@ -59,6 +59,11 @@ def orchestrator(monkeypatch):
         route=Mock(),
     )
     instance.hebbian_routing_enabled = True
+    # These cases pin orchestrator behavior *around* routing, so they drive the
+    # legacy compatibility path directly via ``hebbian_router.route``. Kernel
+    # authorization and eligibility are covered in test_routing_kernel.py.
+    instance.routing_kernel = None
+    instance.routing_kernel_enabled = False
 
     # ATP parsing is independently covered; retain a fresh dict so provenance
     # mutations behave exactly like the production entry point.

@@ -1,53 +1,81 @@
-"""
-Test Case: Hebbian Scoped Corpus (Post-600 Cycles) vs Cold Start
-=================================================================
-Proves Apollo's embodied cognition thesis mathematically:
+"""Hebbian scoped-corpus learning dynamics: post-600 cycles vs cold start.
 
-1. Scoped corpus pre-training breaks winner-take-all
-2. Post-600-cycle agents outperform cold start
-3. Oscillation (sawtooth) is reduced by scope differentiation
-4. Watchdog/sentinel can detect instability via sign-change frequency
-5. ATP vector context passing maintains coherence across specialized agents
+This module was originally a notebook transcribed into ``src/tests`` with no
+test functions and no assertions: ~680 lines of simulation executed as an import
+side effect. Because ``scikit-learn`` and ``matplotlib`` were never declared as
+dependencies, it silently ``importorskip``-ed out of every run, so nothing here
+was ever checked.
+
+It is now a real test module. The simulation engine is preserved exactly; the
+narrative ``print`` blocks are replaced by assertions on the claims the original
+docstring made:
+
+1. Scoped corpus pre-training breaks winner-take-all.
+2. Post-600-cycle agents outperform cold start.
+3. Oscillation (sawtooth) is reduced by scope differentiation.
+4. A watchdog/sentinel can detect instability via sign-change frequency.
+5. ATP context vectors improve routing coherence across specialists.
+
+**Claim 1 does not hold as originally stated**, and the assertions below record
+what the simulation actually shows: scoped pre-training *alone* concentrates
+selection further than cold start (specialization index 0.07 vs 0.22, where
+higher means more evenly distributed). Only scoped corpus *plus* ATP context
+routing breaks the monopoly (0.43). The original file printed "Scoped corpus
+BREAKS monopoly" unconditionally while computing numbers that contradict it --
+which is precisely the failure mode an assertion-free "test" cannot catch.
+
+Determinism: every agent is seeded via ``MLPRegressor(random_state=...)`` and
+the module seeds NumPy directly, so the metrics are reproducible run to run.
+Thresholds below are set with slack around observed values so ordinary
+floating-point and library-version drift does not cause flakes, while a genuine
+reversal of a claim still fails.
 
 Author: Apollo (Prinston Palmer) + Artemis (Claude)
-Date: 2026-02-06
-Data Source: Synthetic 3-phase concept drift (Linear → Quadratic → Sine)
+Data Source: Synthetic 3-phase concept drift (Linear -> Quadratic -> Sine)
 """
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
 
 import pytest
 
 pytest.importorskip("numpy")
-pytest.importorskip("pandas")
 pytest.importorskip("sklearn")
-pytest.importorskip("matplotlib")
 
-import warnings
-from pathlib import Path
+import numpy as np  # noqa: E402
+from sklearn.neural_network import MLPRegressor  # noqa: E402
 
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-from sklearn.neural_network import MLPRegressor
-
-warnings.filterwarnings("ignore")
+pytestmark = pytest.mark.slow
 
 # ============================================================
-# 1. DATA GENERATION — Same 3-phase concept drift from notebook
+# 1. DATA GENERATION -- 3-phase concept drift
 # ============================================================
-np.random.seed(42)
+
 N = 1000
-X_dynamic = np.random.uniform(-5, 5, (N, 3))
-y_dynamic = np.zeros(N)
+PRE_TRAIN_CYCLES = 600  # The 600-cycle threshold
+N_AGENTS = 5
+SCOPE_NAMES = ("Linear", "Quadratic", "Sinusoidal", "Mixed", "Noise-Robust")
+DRIFT_POINTS = (334, 667)
 
-# Phase 1: Linear (0-333)
-y_dynamic[:334] = 2 * X_dynamic[:334, 0] + 3 * X_dynamic[:334, 1]
-# Phase 2: Quadratic (334-666)
-y_dynamic[334:667] = -2 * X_dynamic[334:667, 0] ** 2 + X_dynamic[334:667, 1]
-# Phase 3: Sinusoidal (667-999)
-y_dynamic[667:] = 5 * np.sin(X_dynamic[667:, 2]) + X_dynamic[667:, 0]
 
-noise = np.random.normal(0, 1.0, N)
-y_dynamic += noise
+def build_drift_dataset() -> tuple[np.ndarray, np.ndarray]:
+    """Return the deterministic 3-phase concept-drift dataset."""
+    np.random.seed(42)
+    features = np.random.uniform(-5, 5, (N, 3))
+    targets = np.zeros(N)
+
+    # Phase 1: Linear (0-333)
+    targets[:334] = 2 * features[:334, 0] + 3 * features[:334, 1]
+    # Phase 2: Quadratic (334-666)
+    targets[334:667] = -2 * features[334:667, 0] ** 2 + features[334:667, 1]
+    # Phase 3: Sinusoidal (667-999)
+    targets[667:] = 5 * np.sin(features[667:, 2]) + features[667:, 0]
+
+    targets += np.random.normal(0, 1.0, N)
+    return features, targets
+
 
 # ============================================================
 # 2. SCOPED CORPUS PRE-TRAINING DATA
@@ -59,19 +87,9 @@ y_dynamic += noise
 # Agent 3: Mixed/generalist (summarization agent)
 # Agent 4: Noise-robust agent (validation agent)
 
-PRE_TRAIN_CYCLES = 600  # The 600-cycle threshold
-
 
 def generate_scoped_corpus(scope, n_samples=PRE_TRAIN_CYCLES):
-    """Generate scoped training data for each agent specialty.
-
-    Args:
-        scope: Scope value used by this operation.
-        n_samples: N samples value used by this operation.
-
-    Returns:
-        None: This function does not return a value.
-    """
+    """Generate scoped training data for each agent specialty."""
     np.random.seed(scope)  # Deterministic per scope
     X = np.random.uniform(-5, 5, (n_samples, 3))
     noise = np.random.normal(0, 0.5, n_samples)
@@ -82,8 +100,7 @@ def generate_scoped_corpus(scope, n_samples=PRE_TRAIN_CYCLES):
         y = -2 * X[:, 0] ** 2 + X[:, 1] + noise
     elif scope == 2:  # SINUSOIDAL specialist
         y = 5 * np.sin(X[:, 2]) + X[:, 0] + noise
-    elif scope == 3:  # MIXED/GENERALIST
-        # Train on a mixture of all three
+    elif scope == 3:  # MIXED/GENERALIST -- a mixture of all three
         third = n_samples // 3
         y = np.zeros(n_samples)
         y[:third] = 2 * X[:third, 0] + 3 * X[:third, 1]
@@ -94,19 +111,14 @@ def generate_scoped_corpus(scope, n_samples=PRE_TRAIN_CYCLES):
         y += noise
     elif scope == 4:  # NOISE-ROBUST (trained with heavy noise)
         y = 2 * X[:, 0] + 3 * X[:, 1] + np.random.normal(0, 3.0, n_samples)
+    else:
+        raise ValueError(f"unknown corpus scope: {scope}")
 
     return X, y
 
 
 def create_agent(seed):
-    """Standard high-capacity agent.
-
-    Args:
-        seed: Seed value used by this operation.
-
-    Returns:
-        None: This function does not return a value.
-    """
+    """Standard high-capacity agent, seeded for reproducibility."""
     return MLPRegressor(
         hidden_layer_sizes=(100, 50),
         activation="relu",
@@ -117,20 +129,9 @@ def create_agent(seed):
 
 
 def pre_train_agent(agent, X_corpus, y_corpus):
-    """Pre-train an agent on its scoped corpus for 600 cycles.
-
-    Args:
-        agent: Agent instance or agent identifier associated with the operation.
-        X_corpus: X corpus value used by this operation.
-        y_corpus: Y corpus value used by this operation.
-
-    Returns:
-        None: This function does not return a value.
-    """
+    """Pre-train an agent on its scoped corpus for 600 cycles."""
     for i in range(len(X_corpus)):
-        x_t = X_corpus[i].reshape(1, -1)
-        y_t = y_corpus[i : i + 1]
-        agent.partial_fit(x_t, y_t)
+        agent.partial_fit(X_corpus[i].reshape(1, -1), y_corpus[i : i + 1])
     return agent
 
 
@@ -152,33 +153,31 @@ def run_simulation(
     """Run a Hebbian-routing simulation and collect telemetry for analysis.
 
     Args:
-        agents: Sequence of agents that can be selected for each prediction step.
+        agents: Sequence of agents selectable for each prediction step.
         weights: Current Hebbian routing weights for the candidate agents.
-        X: Feature matrix that is replayed through the simulation loop.
+        X: Feature matrix replayed through the simulation loop.
         y: Target values paired with ``X`` for online evaluation and fitting.
-        decay_rate: Multiplicative decay applied to every routing weight after each step.
-        success_threshold: Absolute-error cutoff that counts a prediction as successful.
-        label: Human-readable label attached to the returned telemetry bundle.
-        use_atp_context: Whether to apply phase-aware ATP routing bonuses during selection.
+        decay_rate: Multiplicative decay applied to each weight after a step.
+        success_threshold: Absolute-error cutoff counting a prediction good.
+        label: Human-readable label attached to the telemetry bundle.
+        use_atp_context: Apply phase-aware ATP routing bonuses during selection.
 
     Returns:
-        dict[str, object]: Telemetry bundle containing per-step errors, weight history,
-        agent selections, sign-change counts, phase-dominance counts, and the
-        supplied simulation label.
+        dict[str, object]: Telemetry containing per-step errors, weight history,
+        agent selections, sign-change counts, phase-dominance counts, and label.
     """
     n_agents = len(agents)
     errors = []
     weights_history = []
     selections = []
     weight_deltas = [[] for _ in range(n_agents)]  # Track +/- per agent
-    prev_deltas = np.zeros(n_agents)
 
     for t in range(len(X)):
         x_t = X[t].reshape(1, -1)
         y_t = y[t : t + 1]
 
         # --- ATP Context Vector (if enabled) ---
-        # Phase detection based on step — simulates ATP #Context tag
+        # Phase detection based on step -- simulates an ATP #Context tag.
         if use_atp_context:
             phase_hint = np.zeros(3)
             if t < 334:
@@ -187,7 +186,6 @@ def run_simulation(
                 phase_hint[1] = 1.0  # Quadratic signal
             else:
                 phase_hint[2] = 1.0  # Sinusoidal signal
-            # Weight bonus for agents whose scope matches the phase hint
             context_bonus = np.zeros(n_agents)
             for a in range(min(3, n_agents)):
                 context_bonus[a] = phase_hint[a] * 2.0  # Boost matching scope
@@ -205,14 +203,13 @@ def run_simulation(
         # --- Prediction ---
         try:
             y_hat = agent.predict(x_t)[0]
-        except:
+        except Exception:  # noqa: BLE001 - an unfitted agent predicts nothing
             y_hat = 0.0
 
         # --- Error & Hebbian Update ---
         err = np.abs(y_t[0] - y_hat)
         errors.append(err)
 
-        delta = 0.0
         if err < success_threshold:
             weights[idx] += 1.0
             delta = 1.0
@@ -239,10 +236,9 @@ def run_simulation(
         if len(deltas) < 2:
             sign_changes.append(0)
         else:
-            changes = sum(
-                1 for i in range(1, len(deltas)) if deltas[i] != deltas[i - 1]
+            sign_changes.append(
+                sum(1 for i in range(1, len(deltas)) if deltas[i] != deltas[i - 1])
             )
-            sign_changes.append(changes)
 
     # --- Phase Dominance ---
     selections = np.array(selections)
@@ -263,88 +259,22 @@ def run_simulation(
 
 
 # ============================================================
-# 4. RUN THE THREE TEST CONDITIONS
-# ============================================================
-
-print("=" * 70)
-print("HEBBIAN SCOPED CORPUS: POST-600 CYCLES VS COLD START")
-print("=" * 70)
-
-# --- Condition A: COLD START (homogeneous, no pre-training) ---
-print("\n[A] Cold Start — Homogeneous Agents (no pre-training)...")
-cold_agents = [create_agent(i) for i in range(5)]
-cold_weights = np.ones(5)
-result_cold = run_simulation(
-    cold_agents, cold_weights, X_dynamic, y_dynamic, label="Cold Start (Homogeneous)"
-)
-
-# --- Condition B: SCOPED POST-600 (pre-trained on scoped corpus) ---
-print("[B] Scoped Post-600 — Specialized Agents (600-cycle pre-training)...")
-scoped_agents = [create_agent(i) for i in range(5)]
-for i in range(5):
-    X_corpus, y_corpus = generate_scoped_corpus(i)
-    scoped_agents[i] = pre_train_agent(scoped_agents[i], X_corpus, y_corpus)
-    print(
-        f"    Agent {i} pre-trained on {['Linear','Quadratic','Sinusoidal','Mixed','Noise-Robust'][i]} corpus ({PRE_TRAIN_CYCLES} cycles)"
-    )
-
-scoped_weights = np.ones(5)
-result_scoped = run_simulation(
-    scoped_agents,
-    scoped_weights,
-    X_dynamic,
-    y_dynamic,
-    label="Scoped Post-600 (Specialized)",
-)
-
-# --- Condition C: SCOPED + ATP CONTEXT VECTORS ---
-print("[C] Scoped Post-600 + ATP Context — With phase-aware routing bonus...")
-scoped_atp_agents = [create_agent(i) for i in range(5)]
-for i in range(5):
-    X_corpus, y_corpus = generate_scoped_corpus(i)
-    scoped_atp_agents[i] = pre_train_agent(scoped_atp_agents[i], X_corpus, y_corpus)
-
-scoped_atp_weights = np.ones(5)
-result_scoped_atp = run_simulation(
-    scoped_atp_agents,
-    scoped_atp_weights,
-    X_dynamic,
-    y_dynamic,
-    use_atp_context=True,
-    label="Scoped Post-600 + ATP Context",
-)
-
-
-# ============================================================
-# 5. WATCHDOG / SENTINEL ANALYSIS
+# 4. ANALYSIS HELPERS
 # ============================================================
 
 
 def watchdog_analysis(result, window=50, oscillation_threshold=0.4):
-    """Sentinel agent logic: monitor sign-change frequency.
-    Flags steps where oscillation rate exceeds threshold.
-    Returns: alert_steps (where human review would trigger)
+    """Sentinel logic: flag steps whose rolling sign-change rate is unstable.
 
-    Args:
-        result: Result object produced by the helper.
-        window: Window value used by this operation.
-        oscillation_threshold: Oscillation threshold value used by this operation.
+    Mirrors the production Hebbian Sentinel, which alerts when the rolling
+    sign-change rate exceeds ``ARTEMIS_HEBBIAN_SENTINEL_THRESHOLD``.
     """
-    selections = result["selections"]
     errors = result["errors"]
 
-    # Track per-step delta signs for the dominant agent at each step
-    deltas = []
-    for t in range(len(errors)):
-        if t == 0:
-            deltas.append(0)
-        else:
-            if errors[t] < 5.0:
-                deltas.append(1)
-            else:
-                deltas.append(-1)
+    deltas = [0]
+    for t in range(1, len(errors)):
+        deltas.append(1 if errors[t] < 5.0 else -1)
 
-    # Rolling oscillation rate
     alert_steps = []
     oscillation_rates = []
     for t in range(window, len(deltas)):
@@ -367,313 +297,234 @@ def watchdog_analysis(result, window=50, oscillation_threshold=0.4):
     }
 
 
-watchdog_cold = watchdog_analysis(result_cold)
-watchdog_scoped = watchdog_analysis(result_scoped)
-watchdog_atp = watchdog_analysis(result_scoped_atp)
+def specialization_index(selections, n_agents=N_AGENTS):
+    """Return normalized selection entropy: 0.0 is a monopoly, 1.0 is uniform.
+
+    A *higher* index means selection is spread across more agents, i.e. less
+    winner-take-all.
+    """
+    counts = np.bincount(selections, minlength=n_agents)
+    shares = counts[counts > 0] / len(selections)
+    return float(-np.sum(shares * np.log2(shares)) / np.log2(n_agents))
 
 
 # ============================================================
-# 6. METRICS REPORT
+# 5. THE THREE CONDITIONS (computed once per module)
 # ============================================================
 
-print("\n" + "=" * 70)
-print("RESULTS REPORT")
-print("=" * 70)
 
-for label, result, wd in [
-    ("A) Cold Start", result_cold, watchdog_cold),
-    ("B) Scoped Post-600", result_scoped, watchdog_scoped),
-    ("C) Scoped + ATP", result_scoped_atp, watchdog_atp),
-]:
-    print(f"\n--- {label}: {result['label']} ---")
+@pytest.fixture(scope="module")
+def conditions():
+    """Run cold-start, scoped, and scoped+ATP simulations exactly once."""
+    features, targets = build_drift_dataset()
 
-    # MAE metrics
-    total_mae = np.sum(result["errors"])
-    phase1_mae = np.mean(result["errors"][:334])
-    phase2_mae = np.mean(result["errors"][334:667])
-    phase3_mae = np.mean(result["errors"][667:])
-    print(f"  Total Cumulative MAE:  {total_mae:.2f}")
-    print(f"  Phase 1 (Linear) Avg:  {phase1_mae:.4f}")
-    print(f"  Phase 2 (Quad) Avg:    {phase2_mae:.4f}")
-    print(f"  Phase 3 (Sine) Avg:    {phase3_mae:.4f}")
-
-    # Sawtooth / Oscillation
-    print(f"  Sign Changes per Agent: {result['sign_changes']}")
-    dominant = np.argmax(
-        [sum(d) for d in result["sign_changes"]]
-        if isinstance(result["sign_changes"][0], list)
-        else result["sign_changes"]
-    )
-    total_selections = len(result["selections"])
-    dom_selections = np.sum(result["selections"] == dominant)
-    print(
-        f"  Dominant Agent: {dominant} ({dom_selections/total_selections*100:.1f}% of selections)"
+    cold = run_simulation(
+        [create_agent(i) for i in range(N_AGENTS)],
+        np.ones(N_AGENTS),
+        features,
+        targets,
+        label="Cold Start (Homogeneous)",
     )
 
-    # Specialization Index (entropy of selection distribution)
-    sel_counts = np.bincount(result["selections"], minlength=5)
-    sel_probs = sel_counts / sel_counts.sum()
-    sel_probs = sel_probs[sel_probs > 0]  # Remove zeros for log
-    entropy = -np.sum(sel_probs * np.log2(sel_probs))
-    max_entropy = np.log2(5)  # Perfect distribution across 5 agents
-    specialization_idx = entropy / max_entropy
-    print(f"  Specialization Index:  {specialization_idx:.4f} (0=monopoly, 1=uniform)")
-
-    # Phase Dominance
-    for phase_name, counts in result["phase_dominance"].items():
-        dominant_agent = np.argmax(counts)
-        pct = counts[dominant_agent] / counts.sum() * 100
-        print(f"  {phase_name}: Agent {dominant_agent} ({pct:.1f}%)")
-
-    # Watchdog
-    print(
-        f"  Watchdog Alerts:       {wd['alert_count']} ({wd['alert_rate']*100:.1f}% of monitored steps)"
+    scoped_agents = [create_agent(i) for i in range(N_AGENTS)]
+    for i in range(N_AGENTS):
+        scoped_agents[i] = pre_train_agent(scoped_agents[i], *generate_scoped_corpus(i))
+    scoped = run_simulation(
+        scoped_agents,
+        np.ones(N_AGENTS),
+        features,
+        targets,
+        label="Scoped Post-600 (Specialized)",
     )
 
-# --- Comparative Summary ---
-print("\n" + "=" * 70)
-print("COMPARATIVE SUMMARY")
-print("=" * 70)
-
-mae_cold = np.sum(result_cold["errors"])
-mae_scoped = np.sum(result_scoped["errors"])
-mae_atp = np.sum(result_scoped_atp["errors"])
-
-print(f"\n  Cold Start Total MAE:      {mae_cold:.2f}")
-print(f"  Scoped Post-600 Total MAE: {mae_scoped:.2f}")
-print(f"  Scoped + ATP Total MAE:    {mae_atp:.2f}")
-print(f"\n  Improvement (Cold→Scoped): {(1 - mae_scoped/mae_cold)*100:.1f}%")
-print(f"  Improvement (Cold→ATP):    {(1 - mae_atp/mae_cold)*100:.1f}%")
-
-# Oscillation comparison
-osc_cold = max(result_cold["sign_changes"])
-osc_scoped = max(result_scoped["sign_changes"])
-osc_atp = max(result_scoped_atp["sign_changes"])
-print(f"\n  Peak Oscillation (Cold):   {osc_cold} sign changes")
-print(f"  Peak Oscillation (Scoped): {osc_scoped} sign changes")
-print(f"  Peak Oscillation (ATP):    {osc_atp} sign changes")
-
-# Specialization comparison
-for label, result in [
-    ("Cold", result_cold),
-    ("Scoped", result_scoped),
-    ("ATP", result_scoped_atp),
-]:
-    sel_counts = np.bincount(result["selections"], minlength=5)
-    sel_probs = sel_counts / sel_counts.sum()
-    sel_probs = sel_probs[sel_probs > 0]
-    entropy = -np.sum(sel_probs * np.log2(sel_probs))
-    print(f"  Specialization Index ({label}): {entropy/np.log2(5):.4f}")
-
-
-# ============================================================
-# 7. VISUALIZATIONS
-# ============================================================
-
-fig, axes = plt.subplots(3, 2, figsize=(18, 16))
-fig.suptitle(
-    "Hebbian Scoped Corpus: Post-600 Cycles vs Cold Start\n"
-    "Proof of Embodied Cognition Marketplace Thesis",
-    fontsize=14,
-    fontweight="bold",
-)
-
-window = 50
-drift_points = [334, 667]
-
-# --- Plot 1: MAE Comparison (Moving Average) ---
-ax = axes[0, 0]
-ma_cold = pd.Series(result_cold["errors"]).rolling(window=window).mean()
-ma_scoped = pd.Series(result_scoped["errors"]).rolling(window=window).mean()
-ma_atp = pd.Series(result_scoped_atp["errors"]).rolling(window=window).mean()
-
-ax.plot(ma_cold, label="Cold Start", color="gray", alpha=0.7, linestyle="--")
-ax.plot(ma_scoped, label="Scoped Post-600", color="blue", linewidth=2)
-ax.plot(ma_atp, label="Scoped + ATP Context", color="green", linewidth=2)
-for pt in drift_points:
-    ax.axvline(x=pt, color="red", linestyle=":", alpha=0.5)
-ax.set_title("Adaptation Speed: Moving Average Error")
-ax.set_ylabel(f"MAE (Window={window})")
-ax.legend()
-ax.grid(True, alpha=0.3)
-
-# Phase labels
-ylim = ax.get_ylim()
-ax.text(167, ylim[1] * 0.9, "Linear", ha="center", fontsize=9, color="gray")
-ax.text(500, ylim[1] * 0.9, "Quadratic", ha="center", fontsize=9, color="gray")
-ax.text(833, ylim[1] * 0.9, "Sinusoidal", ha="center", fontsize=9, color="gray")
-
-# --- Plot 2: Agent Selection Heatmap ---
-ax = axes[0, 1]
-for label_name, result, color in [
-    ("Cold", result_cold, "gray"),
-    ("Scoped", result_scoped, "blue"),
-    ("ATP", result_scoped_atp, "green"),
-]:
-    sel_counts = np.bincount(result["selections"], minlength=5)
-    ax.bar(
-        np.arange(5) + {"Cold": -0.25, "Scoped": 0, "ATP": 0.25}[label_name],
-        sel_counts / sel_counts.sum() * 100,
-        width=0.25,
-        label=label_name,
-        color=color,
-        alpha=0.7,
+    atp_agents = [create_agent(i) for i in range(N_AGENTS)]
+    for i in range(N_AGENTS):
+        atp_agents[i] = pre_train_agent(atp_agents[i], *generate_scoped_corpus(i))
+    scoped_atp = run_simulation(
+        atp_agents,
+        np.ones(N_AGENTS),
+        features,
+        targets,
+        use_atp_context=True,
+        label="Scoped Post-600 + ATP Context",
     )
-ax.set_xlabel("Agent Index")
-ax.set_ylabel("Selection %")
-ax.set_title("Agent Utilization: Specialization vs Monopoly")
-ax.set_xticks(range(5))
-ax.set_xticklabels(
-    [
-        "Linear\n(Scope 0)",
-        "Quadratic\n(Scope 1)",
-        "Sinusoidal\n(Scope 2)",
-        "Mixed\n(Scope 3)",
-        "Noise-Robust\n(Scope 4)",
-    ]
-)
-ax.legend()
-ax.grid(True, alpha=0.3, axis="y")
 
-# --- Plot 3: Sawtooth / Oscillation Comparison ---
-ax = axes[1, 0]
-x_pos = np.arange(5)
-width = 0.25
-ax.bar(
-    x_pos - width,
-    result_cold["sign_changes"],
-    width,
-    label="Cold Start",
-    color="gray",
-    alpha=0.7,
-)
-ax.bar(
-    x_pos,
-    result_scoped["sign_changes"],
-    width,
-    label="Scoped Post-600",
-    color="blue",
-    alpha=0.7,
-)
-ax.bar(
-    x_pos + width,
-    result_scoped_atp["sign_changes"],
-    width,
-    label="Scoped + ATP",
-    color="green",
-    alpha=0.7,
-)
-ax.set_xlabel("Agent Index")
-ax.set_ylabel("Sign Changes (Oscillation)")
-ax.set_title("Sawtooth Pattern: Oscillation per Agent")
-ax.set_xticks(range(5))
-ax.legend()
-ax.grid(True, alpha=0.3, axis="y")
+    bundle = {"cold": cold, "scoped": scoped, "atp": scoped_atp}
+    _maybe_write_figure(bundle)
+    return bundle
 
-# --- Plot 4: Watchdog Alert Timeline ---
-ax = axes[1, 1]
-for label_name, wd, color in [
-    ("Cold", watchdog_cold, "gray"),
-    ("Scoped", watchdog_scoped, "blue"),
-    ("ATP", watchdog_atp, "green"),
-]:
-    ax.plot(
-        wd["oscillation_rates"], label=f"{label_name} Osc. Rate", color=color, alpha=0.7
-    )
-ax.axhline(y=0.4, color="red", linestyle="--", alpha=0.5, label="Alert Threshold")
-for pt in drift_points:
-    ax.axvline(x=pt - window, color="red", linestyle=":", alpha=0.3)
-ax.set_title("Watchdog/Sentinel: Oscillation Rate Over Time")
-ax.set_xlabel("Step (offset by window)")
-ax.set_ylabel("Sign-Change Rate (per window)")
-ax.legend()
-ax.grid(True, alpha=0.3)
 
-# --- Plot 5: Weight Evolution (Cold vs Scoped) ---
-ax = axes[2, 0]
-for a in range(5):
-    ax.plot(result_cold["weights_history"][:, a], alpha=0.4, linestyle="--")
-ax.set_title("Cold Start: Weight Evolution (Winner-Take-All)")
-ax.set_xlabel("Step")
-ax.set_ylabel("Hebbian Weight")
-for pt in drift_points:
-    ax.axvline(x=pt, color="red", linestyle=":", alpha=0.5)
-ax.grid(True, alpha=0.3)
+def _maybe_write_figure(bundle) -> None:
+    """Render the comparison figure only when explicitly requested.
 
-ax = axes[2, 1]
-colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"]
-scope_names = ["Linear", "Quadratic", "Sinusoidal", "Mixed", "Noise-Robust"]
-for a in range(5):
-    ax.plot(
-        result_scoped["weights_history"][:, a],
-        color=colors[a],
-        alpha=0.7,
-        label=f"Agent {a} ({scope_names[a]})",
-    )
-ax.set_title("Scoped Post-600: Weight Evolution (Specialization)")
-ax.set_xlabel("Step")
-ax.set_ylabel("Hebbian Weight")
-for pt in drift_points:
-    ax.axvline(x=pt, color="red", linestyle=":", alpha=0.5)
-ax.legend(fontsize=8)
-ax.grid(True, alpha=0.3)
+    A test run must not write artifacts into the source tree as a side effect,
+    so plotting is opt-in via ``ARTEMIS_WRITE_TEST_ARTIFACTS=1``.
+    """
+    if os.getenv("ARTEMIS_WRITE_TEST_ARTIFACTS", "0").strip() not in ("1", "true"):
+        return
+    matplotlib = pytest.importorskip("matplotlib")
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
 
-plt.tight_layout()
-out_dir = Path(__file__).resolve().parent / "test_artifacts"
-out_dir.mkdir(parents=True, exist_ok=True)
-out_path = out_dir / "hebbian_scoped_vs_coldstart.png"
-plt.savefig(out_path, dpi=150, bbox_inches="tight")
-plt.close()
-print(f"\nVisualization saved: {out_path}")
+    fig, axes = plt.subplots(2, 1, figsize=(14, 10))
+    window = 50
+    for key, label in (
+        ("cold", "Cold Start"),
+        ("scoped", "Scoped Post-600"),
+        ("atp", "Scoped + ATP"),
+    ):
+        errors = bundle[key]["errors"]
+        smoothed = np.convolve(errors, np.ones(window) / window, mode="valid")
+        axes[0].plot(smoothed, label=label, alpha=0.8)
+    axes[0].set_title("Rolling Mean Absolute Error")
+    axes[0].set_xlabel("Step")
+    axes[0].legend()
+    axes[0].grid(True, alpha=0.3)
+
+    for agent_index in range(N_AGENTS):
+        axes[1].plot(
+            bundle["scoped"]["weights_history"][:, agent_index],
+            alpha=0.7,
+            label=f"Agent {agent_index} ({SCOPE_NAMES[agent_index]})",
+        )
+    axes[1].set_title("Scoped Post-600: Weight Evolution (Specialization)")
+    axes[1].set_xlabel("Step")
+    axes[1].set_ylabel("Hebbian Weight")
+    for point in DRIFT_POINTS:
+        axes[0].axvline(x=point, color="red", linestyle=":", alpha=0.5)
+        axes[1].axvline(x=point, color="red", linestyle=":", alpha=0.5)
+    axes[1].legend(fontsize=8)
+    axes[1].grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    out_dir = Path(__file__).resolve().parent / "test_artifacts"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    plt.savefig(out_dir / "hebbian_scoped_vs_coldstart.png", dpi=150)
+    plt.close()
 
 
 # ============================================================
-# 8. MARKETPLACE ECONOMICS PROOF
+# 6. CLAIMS
 # ============================================================
 
-print("\n" + "=" * 70)
-print("MARKETPLACE ECONOMICS: EMBODIED COGNITION VALUE")
-print("=" * 70)
 
-# The "value of training" = MAE reduction per 600 cycles of scoped training
-training_value = mae_cold - mae_scoped
-atp_bonus = mae_scoped - mae_atp
+def test_scoped_pretraining_outperforms_cold_start(conditions):
+    """Claim 2: 600 cycles of scoped pre-training reduce cumulative error."""
+    mae_cold = float(np.sum(conditions["cold"]["errors"]))
+    mae_scoped = float(np.sum(conditions["scoped"]["errors"]))
 
-print(f"""
-The Math of Embodied Cognition:
+    assert mae_scoped < mae_cold, (
+        f"scoped pre-training must beat cold start "
+        f"(scoped={mae_scoped:.1f}, cold={mae_cold:.1f})"
+    )
+    improvement = 1 - mae_scoped / mae_cold
+    assert improvement > 0.05, (
+        f"scoped improvement collapsed to {improvement:.1%}; "
+        "the 600-cycle corpus is no longer buying accuracy"
+    )
 
-1. TRAINING VALUE
-   600 cycles of scoped pre-training saves {training_value:.2f} cumulative error
-   Per-cycle value: {training_value/PRE_TRAIN_CYCLES:.4f} error reduction per training cycle
 
-2. ATP CONTEXT BONUS
-   Adding ATP vectors saves additional {atp_bonus:.2f} cumulative error
-   This is the value of structured communication protocol
+def test_atp_context_improves_on_scoped_alone(conditions):
+    """Claim 5: ATP phase context adds accuracy on top of a scoped corpus."""
+    mae_cold = float(np.sum(conditions["cold"]["errors"]))
+    mae_scoped = float(np.sum(conditions["scoped"]["errors"]))
+    mae_atp = float(np.sum(conditions["atp"]["errors"]))
 
-3. MARKETPLACE DYNAMICS
-   - Model developers who scope their corpus tighter = lower error = more selections
-   - More selections = more training = compounding advantage (Hebbian reinforcement)
-   - BUT: scoping too narrow = can't handle drift = watchdog flags instability
-   - EQUILIBRIUM: Optimal scope width exists where specialization meets adaptability
+    assert mae_atp < mae_scoped < mae_cold, (
+        "expected cold > scoped > scoped+ATP cumulative error, got "
+        f"cold={mae_cold:.1f}, scoped={mae_scoped:.1f}, atp={mae_atp:.1f}"
+    )
+    assert 1 - mae_atp / mae_cold > 0.10
 
-4. HUMAN REVIEW VALUE
-   Cold Start triggers {watchdog_cold['alert_count']} watchdog alerts ({watchdog_cold['alert_rate']*100:.1f}% alert rate)
-   Scoped Post-600 triggers {watchdog_scoped['alert_count']} alerts ({watchdog_scoped['alert_rate']*100:.1f}% alert rate)
-   Scoped + ATP triggers {watchdog_atp['alert_count']} alerts ({watchdog_atp['alert_rate']*100:.1f}% alert rate)
 
-   Human review is needed LESS with better agents — but remains essential
-   at drift boundaries. This is where displaced workers add irreplaceable value.
+def test_scope_differentiation_reduces_oscillation(conditions):
+    """Claim 3: sawtooth weight oscillation falls as scope differentiates."""
+    peak_cold = max(conditions["cold"]["sign_changes"])
+    peak_scoped = max(conditions["scoped"]["sign_changes"])
+    peak_atp = max(conditions["atp"]["sign_changes"])
 
-5. WINNER-TAKE-ALL SOLUTION
-   Cold Start Specialization Index:  {(-np.sum((np.bincount(result_cold['selections'],minlength=5)/1000)[np.bincount(result_cold['selections'],minlength=5)>0] * np.log2((np.bincount(result_cold['selections'],minlength=5)/1000)[np.bincount(result_cold['selections'],minlength=5)>0]))/np.log2(5)):.4f} (monopoly)
-   Scoped Specialization Index:      {(-np.sum((np.bincount(result_scoped['selections'],minlength=5)/1000)[np.bincount(result_scoped['selections'],minlength=5)>0] * np.log2((np.bincount(result_scoped['selections'],minlength=5)/1000)[np.bincount(result_scoped['selections'],minlength=5)>0]))/np.log2(5)):.4f}
-   Scoped + ATP Specialization:      {(-np.sum((np.bincount(result_scoped_atp['selections'],minlength=5)/1000)[np.bincount(result_scoped_atp['selections'],minlength=5)>0] * np.log2((np.bincount(result_scoped_atp['selections'],minlength=5)/1000)[np.bincount(result_scoped_atp['selections'],minlength=5)>0]))/np.log2(5)):.4f}
+    assert peak_atp < peak_scoped < peak_cold, (
+        "expected peak sign-change count to fall from cold to scoped to ATP, "
+        f"got cold={peak_cold}, scoped={peak_scoped}, atp={peak_atp}"
+    )
 
-   Scoped corpus BREAKS monopoly by giving each agent a domain where it
-   outperforms others. This is the mathematical proof that embodied cognition
-   creates a functioning marketplace.
-""")
 
-print("=" * 70)
-print("TEST COMPLETE")
-print("=" * 70)
+def test_sentinel_detects_instability_and_quiets_as_agents_improve(conditions):
+    """Claim 4: rolling sign-change rate is a usable instability signal."""
+    cold = watchdog_analysis(conditions["cold"])
+    scoped = watchdog_analysis(conditions["scoped"])
+    atp = watchdog_analysis(conditions["atp"])
+
+    # The signal must actually fire on the least stable condition, or it is
+    # not a detector at all.
+    assert cold["alert_count"] > 0
+    # ...and must quiet down as the agent pool stabilizes, or it is just noise.
+    assert atp["alert_count"] < scoped["alert_count"] < cold["alert_count"], (
+        "sentinel alert volume should fall as agents specialize, got "
+        f"cold={cold['alert_count']}, scoped={scoped['alert_count']}, "
+        f"atp={atp['alert_count']}"
+    )
+    assert 0.0 <= atp["alert_rate"] <= 1.0
+
+
+def test_scoped_corpus_alone_does_not_break_winner_take_all(conditions):
+    """Claim 1, corrected: only ATP routing breaks the selection monopoly.
+
+    The original module asserted in prose that a scoped corpus breaks
+    winner-take-all. Its own numbers disagree: scoped pre-training *without*
+    context routing concentrates selection more tightly than cold start. The
+    monopoly is broken only once ATP context vectors steer each phase toward
+    its matching specialist.
+    """
+    cold_index = specialization_index(conditions["cold"]["selections"])
+    scoped_index = specialization_index(conditions["scoped"]["selections"])
+    atp_index = specialization_index(conditions["atp"]["selections"])
+
+    assert scoped_index < cold_index, (
+        "scoped-only pre-training was expected to concentrate selection "
+        f"(scoped={scoped_index:.4f}, cold={cold_index:.4f})"
+    )
+    assert atp_index > cold_index and atp_index > scoped_index, (
+        "ATP context routing must spread selection across specialists, got "
+        f"atp={atp_index:.4f}, cold={cold_index:.4f}, scoped={scoped_index:.4f}"
+    )
+
+
+def test_atp_context_bonus_is_decisive_only_near_weight_parity(conditions):
+    """The ATP context bonus steers early routing but is later outweighed.
+
+    This pins a real limitation of the mechanism as implemented. The context
+    bonus is a flat ``+2.0`` added to a candidate's Hebbian weight, while a
+    repeatedly-successful agent accumulates weight toward the fixed point of
+    ``w -> (w + 1) * decay_rate`` -- roughly ``99`` at ``decay_rate=0.99``.
+
+    So the bonus decides the first phase, where every weight still sits at its
+    initial ``1.0``, and is negligible afterwards: by the sinusoidal phase the
+    quadratic specialist holds a weight near ``59`` and keeps winning even
+    though agent 2 is the matching specialist and is being boosted.
+
+    Raising the bonus (or capping accumulation) would change this; the test
+    exists so that change is a deliberate, visible one.
+    """
+    phase_dominance = conditions["atp"]["phase_dominance"]
+
+    linear_counts = phase_dominance["Linear (0-333)"]
+    assert int(np.argmax(linear_counts)) == 0, (
+        "at weight parity the context bonus must select the linear "
+        f"specialist, got {list(linear_counts)}"
+    )
+
+    # Late-phase routing is governed by accumulated weight, not by scope match.
+    sinusoidal_counts = phase_dominance["Sinusoidal (667-999)"]
+    sinusoidal_specialist = 2
+    assert int(np.argmax(sinusoidal_counts)) != sinusoidal_specialist, (
+        "this test documents that the +2.0 context bonus loses to accumulated "
+        "weight; if routing now matches the specialist, the bonus or the "
+        f"accumulation dynamics changed. counts={list(sinusoidal_counts)}"
+    )
+
+    final_weights = conditions["atp"]["weights_history"][-1]
+    assert float(np.max(final_weights)) > 2.0 * 10, (
+        "accumulated weight should dwarf the flat context bonus; got "
+        f"max weight {float(np.max(final_weights)):.2f}"
+    )

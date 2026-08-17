@@ -809,13 +809,56 @@ default; when explicitly enabled, they are labelled degraded and cannot claim
 `provider: exo`. Failed streaming calls terminate as failures without emitting
 a locally generated token.
 
-The router blends three signals — composite score, Hebbian-learned
+### Routing Kernel
+
+`Orchestrator.route_task()` is the **single routing entry point**; every
+in-process ingress (orchestrator dispatch, governed context-compression
+children, streaming, and the FastAPI `/api/cli/execute*` handlers) goes
+through it. It delegates to `src/routing/kernel.py`, which composes the
+four reviewed stages in a load-bearing order:
+
+```text
+IntentResolver → ArtemisAuthorizer → EligibilityFilter → HebbianRanker
+```
+
+Governance and trust eligibility run **before** learned ranking, so a
+quarantined or below-floor agent can never be rescued by a strong Hebbian
+weight. An empty eligible pool is a denial, not a silent fallback.
+
+The kernel's Protocol ports are bound to live subsystems in
+`src/routing/adapters.py` (registry admission, trust, sandbox preflight),
+`src/routing/authorization_policy.py` (target-zone and Artemis capability
+policy, from `config/routing/authorization-policy.v1.yaml`), and
+`src/routing/delegation_store.py` (delegation grants plus budget
+reservations, SQLite). The sandbox preflight is deliberately read-only:
+`AgentSandbox.check_dispatch` records a violation on a capability miss, so
+routing admission through it would quarantine agents merely for not matching.
+
+Trusted in-process ingresses that hold no HTTP credential present an
+explicit system authority (`RoutingKernel.system_authority()`) rather than
+bypassing the kernel. It is a local trust assertion, not authentication, and
+names the system issuer so audit can distinguish it.
+
+**Known boundary.** `IntentPolicy.load` pins the reviewed ATP execution
+domain to `_REVIEWED_PAIRS` in `src/routing/policy.py` with an equality
+check, so the domain cannot be widened by editing YAML. Only
+`llm_chat`, `reasoning`, `text_generation`, and `text_summarization` are
+routable through the kernel today. A task whose capability has no reviewed
+pair (for example `web_search` or `system_management`) is reported as
+`capability_outside_reviewed_domain` and served by the legacy router with a
+warning, rather than being silently rerouted to a general chat agent or
+regressed to unroutable. Closing that gap means extending `_REVIEWED_PAIRS`
+under review.
+
+The ranker blends three signals — composite score, Hebbian-learned
 weight, and trust score — as
 `(1 - α - β)·composite + α·hebbian_norm + β·trust`. Tune at boot via
 env:
 
 | Env var | Default | Effect |
 |---|---|---|
+| `ARTEMIS_ROUTING_KERNEL` | `1` | Master toggle for the shared Routing Kernel. Set to `0`/`false` to route only through the legacy `HebbianRouter`. |
+| `ARTEMIS_DELEGATION_DB` | `data/delegation_grants.db` | Delegation-grant and budget-reservation ledger path. |
 | `ARTEMIS_HEBBIAN_ROUTING` | `1` | Master toggle. Set to `0`/`false` to fall back to the registry's composite-only routing. |
 | `ARTEMIS_HEBBIAN_ROUTING_ALPHA` | `0.3` | Weight on Hebbian history. |
 | `ARTEMIS_HEBBIAN_ROUTING_BETA` | `0.0` | Weight on trust score. `0` disables the trust signal in the blend. |
@@ -914,6 +957,13 @@ introduced in #74 (data model), #75 (HTTP boundary), and #76 (trust engine
 | Checkpoints + rollback | `src/governance/checkpoints.py` (JSON files with SHA-256 integrity hash, retention window, `RollbackManager`) |
 | Trust-score formula | `src/governance/trust.py` (weighted sub-metrics — see the module docstring for the spec-typo note about the security sign) |
 | Approval tiers | `src/governance/approvals.py` (`SelfUpdateGovernor` → `auto | monitored | human`) |
+| Routing admission facts | `src/integration/agent_registry.py` (`agent_uid`, `tenant_ids`, `scopes` columns via the same idempotent migration; `list_admission_records`, `set_admission_grants`) |
+| Delegation grant ledger | `src/routing/delegation_store.py` (`SqliteDelegationStore`; grants re-validate their canonical SHA-256 on read, so a tampered row cannot load) |
+
+Registry snapshot columns are whitelisted in `_AGENT_SNAPSHOT_COLUMNS`. A new
+`agents` column must be added there **and** to `_AGENT_SNAPSHOT_DEFAULTS` and
+`_AGENT_SNAPSHOT_INSERT_SQL`, or checkpoint rollback fails closed on the
+unknown column — which is the guard working, not a bug to route around.
 
 Every dispatch runs a sandbox capability preflight. Agents that perform
 external actions declare them through `get_sandbox_policies()` and
@@ -971,6 +1021,15 @@ pytest session to disposable data, log, and vault roots before application
 modules import. Do not bypass or weaken it. Tests must never mutate the live
 `data/`, `logs/`, or configured Obsidian vault, even when exercising default
 constructors or subprocess entrypoints.
+
+Redirecting the vault root alone is not sufficient: `AGENT_INPUT_DIR` and
+`AGENT_OUTPUT_DIR` are joined *under* that root, so an operator `.env`
+carrying a path-prefixed value (for example
+`AGENT_OUTPUT_DIR=app/obsidian_vault/Agent_Outputs`) resolves relative to the
+vault and materializes a nested `<vault>/app/obsidian_vault/...` tree. The
+root `conftest.py` therefore also pins both folder names to their documented
+vault-relative defaults. Those two keys are vault-relative **folder names** —
+never include `OBSIDIAN_VAULT_PATH` in them.
 
 ### Environment variables and secrets
 
@@ -1087,7 +1146,11 @@ uvicorn by hand, keep `--port 8000`.
 | TS ↔ Python bridge (TS side) | `app/api/lib/pythonBridge.ts` |
 | TS API routes | `app/api/v1/*.ts` |
 | FastAPI dashboard | `app/api/main.py` |
-| Hebbian-weighted router | `src/integration/hebbian_router.py` |
+| Hebbian-weighted router (legacy compatibility) | `src/integration/hebbian_router.py` |
+| Shared Routing Kernel | `src/routing/kernel.py` |
+| Routing-port production adapters | `src/routing/adapters.py` |
+| Target-zone / Artemis capability policy | `src/routing/authorization_policy.py` |
+| Delegation grants + budget reservations | `src/routing/delegation_store.py` |
 | Executor page (consumes `/api/cli/execute`) | `app/web/frontend/src/pages/Executor.tsx` |
 | Frontend API client | `app/web/frontend/src/api.ts` |
 | Kernel layer | `app/kernel/kernel.py`, `app/kernel/agents/*.py` |

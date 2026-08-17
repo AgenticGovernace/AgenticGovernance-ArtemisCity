@@ -1753,7 +1753,10 @@ async def execute_instruction(
                     note_path,
                 )
             elif orchestrator.hebbian_routing_enabled:
-                routing_decision = orchestrator.hebbian_router.route(task_data)
+                # Delegate to the shared Routing Kernel rather than the legacy
+                # router, so the dashboard ingress runs the same authorization
+                # and eligibility gates as every other entry point.
+                routing_decision = orchestrator.route_task(task_data)
                 chosen_agent_name = routing_decision.agent_name
                 orchestrator.log_routing_decision(
                     task_data,

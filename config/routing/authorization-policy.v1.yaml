@@ -1,0 +1,33 @@
+version: artemis.authorization-policy/1
+
+# Capabilities Artemis itself is permitted to route, independent of what a
+# caller's verified scopes allow. This is the outer bound of the effective
+# capability intersection computed by ArtemisAuthorizer: nothing outside this
+# list can be dispatched, even by a fully authorized principal.
+artemis_capabilities:
+  - llm_chat
+  - reasoning
+  - text_generation
+  - text_summarization
+
+# Target-zone rules narrow capability by the ATP `Target:` header. ATP target
+# zones are free-form path-like strings, so rules are evaluated in declaration
+# order and the FIRST matching pattern wins. Patterns use fnmatch semantics.
+#
+# The shipped ruleset is deliberately permissive: real narrowing comes from the
+# reviewed ATP execution domain (intent-policy.v1.yaml) intersected with the
+# caller's verified scopes. Operators tighten here by inserting more specific
+# patterns ABOVE the trailing catch-all.
+zones:
+  - pattern: unspecified
+    capabilities:
+      - llm_chat
+      - reasoning
+      - text_generation
+      - text_summarization
+  - pattern: "*"
+    capabilities:
+      - llm_chat
+      - reasoning
+      - text_generation
+      - text_summarization

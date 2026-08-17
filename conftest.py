@@ -27,6 +27,16 @@ os.environ["ARTEMIS_LOG_DIR"] = str(_PYTEST_LOG_DIR)
 os.environ["OBSIDIAN_VAULT_PATH"] = str(_PYTEST_VAULT_DIR)
 os.environ["ARTEMIS_OBSIDIAN_VAULT_PATH"] = str(_PYTEST_VAULT_DIR)
 
+# Redirecting only the vault root is not enough. AGENT_INPUT_DIR and
+# AGENT_OUTPUT_DIR are joined *under* that root, so an operator .env carrying a
+# path-prefixed value (for example "app/obsidian_vault/Agent_Outputs") is
+# resolved relative to the vault and materializes a nested
+# "<vault>/app/obsidian_vault/..." tree. Pin both to the documented
+# vault-relative defaults so operator configuration drift cannot reach a test
+# run or the live vault.
+os.environ["AGENT_INPUT_DIR"] = "Agent Inputs"
+os.environ["AGENT_OUTPUT_DIR"] = "Agent Outputs"
+
 # Keep unit tests off an operator's canonical SQL ledger and Obsidian REST
 # credentials even when pytest inherits a live-service shell environment.
 os.environ["ARTEMIS_MEMORY_BACKEND"] = "legacy"

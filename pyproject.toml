@@ -109,6 +109,11 @@ test = [
     "pytest-mock>=3.7.0",
     "pytest-xdist>=3.0.0",
     "responses>=0.22.0",
+    # Required by the Hebbian learning-dynamics tests
+    # (test_hebbian_scoped_vs_coldstart, test_hebbian_marketplace_vs_inference).
+    # Without these declared, both modules importorskip out of every run.
+    "matplotlib>=3.8.0",
+    "scikit-learn>=1.4.0",
 ]
 build = [
     "build>=1.0.0",

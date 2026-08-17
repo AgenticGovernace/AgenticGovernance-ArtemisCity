@@ -136,6 +136,15 @@ class AgentRegistryStore:
             ("hebbian_sentinel_alert", "INTEGER NOT NULL DEFAULT 0"),
             ("hebbian_sentinel_samples", "INTEGER NOT NULL DEFAULT 0"),
             ("learning_updated_at", "TEXT"),
+            # Routing Kernel admission facts. The eligibility gate needs a
+            # stable identity plus the tenant and scope grants that bound an
+            # agent, none of which the legacy scoring schema carried. Defaults
+            # preserve existing behavior: every agent belongs to the default
+            # tenant, and an empty scope grant means "scoped to whatever the
+            # agent declares" rather than "scoped to nothing".
+            ("agent_uid", "TEXT"),
+            ("tenant_ids", "TEXT"),
+            ("scopes", "TEXT"),
         ]
         for column, spec in migrations:
             if column not in existing:
@@ -191,6 +200,109 @@ class AgentRegistryStore:
                     "trust_score": trust_score,
                 }
             return states
+
+    _ADMISSION_RECORDS_SQL = """
+        SELECT name, capabilities, alignment, accuracy, efficiency, status,
+               agent_uid, tenant_ids, scopes
+        FROM agents
+        ORDER BY name ASC
+    """
+
+    def list_admission_records(self) -> List[dict]:
+        """Return the persisted admission facts the Routing Kernel gates on.
+
+        This is deliberately narrower than :meth:`list_agent_records`: it
+        returns only what eligibility filtering is allowed to consider, so a
+        change to scoring or learning columns cannot silently widen admission.
+
+        Returns:
+            List[dict]: Admission facts per agent, ordered by agent name.
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            rows = conn.execute(self._ADMISSION_RECORDS_SQL).fetchall()
+
+        records: List[dict] = []
+        for (
+            name,
+            capabilities,
+            alignment,
+            accuracy,
+            efficiency,
+            status,
+            agent_uid,
+            tenant_ids,
+            scopes,
+        ) in rows:
+            score = AgentScore(
+                alignment=alignment if alignment is not None else 0.0,
+                accuracy=accuracy if accuracy is not None else 0.0,
+                efficiency=efficiency if efficiency is not None else 0.0,
+            )
+            records.append(
+                {
+                    "name": name,
+                    "agent_uid": agent_uid,
+                    "capabilities": self._decode_json_list(capabilities),
+                    "tenant_ids": self._decode_json_list(tenant_ids),
+                    "scopes": self._decode_json_list(scopes),
+                    "status": status or "active",
+                    "composite_score": score.composite_score,
+                }
+            )
+        return records
+
+    def set_admission_grants(
+        self,
+        agent_name: str,
+        *,
+        tenant_ids: Optional[List[str]] = None,
+        scopes: Optional[List[str]] = None,
+        agent_uid: Optional[str] = None,
+    ) -> None:
+        """Persist the tenant, scope, and identity grants used for admission.
+
+        Args:
+            agent_name (str): Agent whose admission grants are being set.
+            tenant_ids (Optional[List[str]]): Tenants permitted to route here.
+            scopes (Optional[List[str]]): Capability scopes granted to the agent.
+            agent_uid (Optional[str]): Stable identity distinct from the name.
+        """
+        assignments: List[str] = []
+        values: List[object] = []
+        for column, value in (
+            ("tenant_ids", tenant_ids),
+            ("scopes", scopes),
+        ):
+            if value is not None:
+                assignments.append(f"{column} = ?")
+                values.append(json.dumps(sorted({str(item) for item in value})))
+        if agent_uid is not None:
+            assignments.append("agent_uid = ?")
+            values.append(str(agent_uid))
+        if not assignments:
+            return
+        values.append(agent_name)
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                f"UPDATE agents SET {', '.join(assignments)} WHERE name = ?",
+                values,
+            )
+            conn.commit()
+
+    @staticmethod
+    def _decode_json_list(raw: object) -> List[str]:
+        """Decode a persisted JSON string list, tolerating legacy NULL rows."""
+        if raw is None:
+            return []
+        if isinstance(raw, (list, tuple)):
+            return [str(item) for item in raw]
+        try:
+            decoded = json.loads(raw)
+        except (TypeError, ValueError):
+            return []
+        if not isinstance(decoded, list):
+            return []
+        return [str(item) for item in decoded]
 
     def _row_to_record(self, row: tuple) -> dict:
         """Shape a full agents row into an API-friendly dict."""
@@ -315,6 +427,9 @@ class AgentRegistryStore:
         "hebbian_sentinel_alert",
         "hebbian_sentinel_samples",
         "learning_updated_at",
+        "agent_uid",
+        "tenant_ids",
+        "scopes",
     )
     _AGENT_SNAPSHOT_DEFAULTS = {
         "id": None,
@@ -345,6 +460,9 @@ class AgentRegistryStore:
         "hebbian_sentinel_alert": 0,
         "hebbian_sentinel_samples": 0,
         "learning_updated_at": None,
+        "agent_uid": None,
+        "tenant_ids": None,
+        "scopes": None,
     }
     _AGENT_SNAPSHOT_INSERT_SQL = """
         INSERT INTO agents (
@@ -354,10 +472,11 @@ class AgentRegistryStore:
             failed_executions, hebbian_weight, hebbian_delta, hebbian_activations,
             hebbian_success_rate, hebbian_task_type, hebbian_pair_bonus,
             hebbian_timing_score, routing_intelligence, hebbian_oscillation_rate,
-            hebbian_sentinel_alert, hebbian_sentinel_samples, learning_updated_at
+            hebbian_sentinel_alert, hebbian_sentinel_samples, learning_updated_at,
+            agent_uid, tenant_ids, scopes
         ) VALUES (
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
     """
     _VIOLATION_SNAPSHOT_COLUMNS = (

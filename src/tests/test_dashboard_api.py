@@ -305,6 +305,7 @@ class _Orchestrator:
         self.agent_registry = _Registry(agent)
         self.hebbian_routing_enabled = hebbian
         self.hebbian_router = SimpleNamespace(route=lambda _task: _Decision())
+        self.routing_kernel = None
         self.obs_manager = MagicMock()
         self.obs_parser = MagicMock()
         self.status_updates = []
@@ -324,6 +325,10 @@ class _Orchestrator:
 
     def update_task_status_in_obsidian(self, path, status, task_id):
         self.status_updates.append((path, status, task_id))
+
+    def route_task(self, task):
+        """Mirror the orchestrator's single routing entry point."""
+        return self.hebbian_router.route(task)
 
     def _resolve_required_capability(self, task):
         return task.get("required_capability") or task.get("capability") or "web_search"
