@@ -15,6 +15,10 @@
 
 .DEFAULT_GOAL := help
 
+# security-node iterates NUL-delimited paths (read -d '') to stay safe for
+# paths with spaces, which POSIX sh cannot parse - pin recipes to bash.
+SHELL := /bin/bash
+
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 ROOT_DIR := $(abspath $(MAKEFILE_DIR))
 LAUNCH_DIR := $(ROOT_DIR)/src/launch
@@ -123,7 +127,7 @@ security-deps: ## Audit locked Python dependencies against known-vulnerability d
 security-node: ## Audit every npm and yarn lockfile tracked in the repository (fails on any advisory)
 	@set -e; cd "$(ROOT_DIR)"; \
 	members=$$($(PYTHON) -c 'import json;print(" ".join(json.load(open("package.json")).get("workspaces",[])))'); \
-	for lock in $$(git ls-files '*package-lock.json'); do \
+	git ls-files -z '*package-lock.json' | while IFS= read -r -d '' lock; do \
 		d=$$(dirname "$$lock"); \
 		is_member=0; for m in $$members; do [ "$$d" = "$$m" ] && is_member=1; done; \
 		if [ "$$is_member" = "1" ]; then \
@@ -137,7 +141,7 @@ security-node: ## Audit every npm and yarn lockfile tracked in the repository (f
 			(cd "$$d" && npm audit --audit-level=low --no-fund); \
 		fi; \
 	done; \
-	for ylock in $$(git ls-files '*yarn.lock'); do \
+	git ls-files -z '*yarn.lock' | while IFS= read -r -d '' ylock; do \
 		yd=$$(dirname "$$ylock"); \
 		echo "yarn audit: $$yd"; \
 		(cd "$$yd" && yarn audit --non-interactive); \

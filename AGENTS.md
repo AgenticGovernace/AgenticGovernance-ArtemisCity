@@ -766,7 +766,8 @@ user instructions here. The response is `ExecuteInstructionResponse`:
 | `note_path` | `str \| None` | Vault-relative path to the persisted report. |
 | `error` | `str \| None` | Failure detail when `status == "failed"`. |
 | `agent_name` | `str \| None` | Which agent actually executed — either the request's `agent` (when pinned) or the agent the Hebbian router picked. |
-| `routing` | `dict \| None` | `HebbianRouter.RoutingDecision.to_dict()` shape: selected agent, capability, routing scope, ATP action, blend settings, fallback, and `candidates[]` (including Hebbian/trust scores plus observational Sentinel fields). `None` when the caller pinned `agent` explicitly. |
+| `routing` | `dict \| None` | `RoutingDecision.to_dict()` shape: selected agent, capability, routing scope, ATP action, blend settings, fallback, `routing_path`, and `candidates[]` (including Hebbian/trust scores plus observational Sentinel fields). `None` when the caller pinned `agent` explicitly. |
+| `routing_path` | `str \| None` | Which routing implementation served the task — see "Routing path labelling" below. Present even when `routing` is `None`, so pinned and composite-only calls are labelled too. |
 | `atp` | `dict \| None` | Canonical ATP headers and validation context when the instruction used ATP. |
 | `provenance_id` | `str \| None` | Parent provenance event linking routing, execution, memory, learning, and completion. |
 | `provider` | `str \| None` | Attempted/actual provider. Verified output and explicit Exo failures use `exo`; a failed Exo call also carries `fallback_used: false` and never emits substitute model text. Opt-in local baselines use their own provider names. |
@@ -912,7 +913,7 @@ this event sequence:
 
 | Event | Data | When |
 |---|---|---|
-| `routing` | `{decision, agent_name, task_id, atp, provenance_id}` | First frame. `decision` is the same `RoutingDecision.to_dict()` blob; `null` when the user pinned an `agent` explicitly. |
+| `routing` | `{decision, agent_name, task_id, atp, provenance_id, routing_path}` | First frame. `decision` is the same `RoutingDecision.to_dict()` blob; `null` when the user pinned an `agent` explicitly. `routing_path` is present either way. |
 | `token` | `{text}` | Zero or more frames as the agent produces output. For `LLMAgent` these are real Exo SSE deltas; for non-streaming agents a single frame carries the full summary. |
 | `complete` | `{task_id, agent_name, status, summary, note_path, error, atp, provenance_id, provider, fallback_used, model, outcome_class, learning_eligible, exo_request, compressed_context, output_compression}` | Terminal on success. Mirrors `ExecuteInstructionResponse`. |
 | `error` | `{error}` | Terminal on failure (routing error, agent crash, etc.). |
