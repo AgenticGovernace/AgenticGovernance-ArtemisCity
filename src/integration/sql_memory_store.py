@@ -666,8 +666,7 @@ class PostgresMemoryStore:
     @staticmethod
     def _lock(cursor: CursorLike, token: str) -> None:
         cursor.execute(
-            "/* memory:lock */ "
-            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+            "/* memory:lock */ SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
             (token,),
         )
 

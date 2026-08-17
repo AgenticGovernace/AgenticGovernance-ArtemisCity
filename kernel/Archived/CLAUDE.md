@@ -358,7 +358,7 @@ def load_agent_router_config(config_path):
     if not os.path.exists(config_path):
         print(f"Error: Agent router config not found at {config_path}")
         return {}
-    with open(config_path, 'r') as f:
+    with open(config_path, "r") as f:
         return yaml.safe_load(f)
 ```
 

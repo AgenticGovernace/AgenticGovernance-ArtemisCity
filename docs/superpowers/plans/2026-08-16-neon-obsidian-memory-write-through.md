@@ -248,9 +248,9 @@ Obsidian filesystem adapter
   keyword-only write inputs:
 
   ```python
-  idempotency_key: str | None = None,
-  provenance_id: str | None = None,
-  source_agent: str | None = None,
+  idempotency_key: str | None = (None,)
+  provenance_id: str | None = (None,)
+  source_agent: str | None = (None,)
   ```
 
   In SQL mode, validate first, stage SQL before any projection, and return

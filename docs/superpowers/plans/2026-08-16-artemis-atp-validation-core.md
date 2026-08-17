@@ -541,10 +541,13 @@ def test_empty_content_is_a_blocking_error() -> None:
 def test_content_length_issues_preserve_canonical_severity(
     content: str, expected: tuple[str, str]
 ) -> None:
-    raw = """#Mode: Build
+    raw = (
+        """#Mode: Build
 #Context: Create the facade
 #ActionType: Execute
-""" + content
+"""
+        + content
+    )
     report = ATPValidationService().validate(raw)
     assert report.valid is True
     assert expected in {(item.code, item.severity) for item in report.issues}
@@ -931,32 +934,31 @@ class ATPValidationService:
 In the same service, render only values already validated by `ATPHeaderInput`:
 
 ```python
-
-    def format(
-        self,
-        header: ATPHeaderInput,
-        syntax: Literal["hash", "bracket"] = "bracket",
-    ) -> str:
-        if not isinstance(header, ATPHeaderInput):
-            raise TypeError("header must be ATPHeaderInput")
-        if syntax not in {"hash", "bracket"}:
-            raise ValueError("syntax must be 'hash' or 'bracket'")
-        tag = (
-            (lambda name: f"#{name}:")
-            if syntax == "hash"
-            else (lambda name: f"[[{name}]]:")
-        )
-        values = [
-            ("Mode", header.mode.value),
-            ("Context", header.context),
-            ("Priority", header.priority.value),
-            ("ActionType", header.action_type.value),
-        ]
-        if header.target_zone is not None:
-            values.append(("TargetZone", header.target_zone))
-        if header.special_notes is not None:
-            values.append(("SpecialNotes", header.special_notes))
-        return "\n".join(f"{tag(name)} {value}" for name, value in values) + "\n\n---\n"
+def format(
+    self,
+    header: ATPHeaderInput,
+    syntax: Literal["hash", "bracket"] = "bracket",
+) -> str:
+    if not isinstance(header, ATPHeaderInput):
+        raise TypeError("header must be ATPHeaderInput")
+    if syntax not in {"hash", "bracket"}:
+        raise ValueError("syntax must be 'hash' or 'bracket'")
+    tag = (
+        (lambda name: f"#{name}:")
+        if syntax == "hash"
+        else (lambda name: f"[[{name}]]:")
+    )
+    values = [
+        ("Mode", header.mode.value),
+        ("Context", header.context),
+        ("Priority", header.priority.value),
+        ("ActionType", header.action_type.value),
+    ]
+    if header.target_zone is not None:
+        values.append(("TargetZone", header.target_zone))
+    if header.special_notes is not None:
+        values.append(("SpecialNotes", header.special_notes))
+    return "\n".join(f"{tag(name)} {value}" for name, value in values) + "\n\n---\n"
 ```
 
 Do not silently default unknown syntax to bracket form. Do not add content, timestamps, IDs, provenance, or authority fields.

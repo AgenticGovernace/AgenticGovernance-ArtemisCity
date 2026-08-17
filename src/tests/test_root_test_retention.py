@@ -338,7 +338,7 @@ def _normalize_collection_errors(output: str) -> list[str]:
             normalized.append(f"{module}|<unparsed origin>|<unparsed exception>")
             continue
         normalized.append(
-            f"{module}|{origin.group(1)}:{origin.group(2)}|" f"{exception.group(1)}"
+            f"{module}|{origin.group(1)}:{origin.group(2)}|{exception.group(1)}"
         )
 
     summary_modules = re.findall(

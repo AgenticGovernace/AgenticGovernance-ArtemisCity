@@ -6,11 +6,11 @@ This example trains a linear regression model to predict the weight of penguins.
 import bigframes.pandas as bpd
 import bigframes.bigquery as bbq
 
-PROJECT_ID = 'my_project'
-DATASET_ID = 'my_dataset'
+PROJECT_ID = "my_project"
+DATASET_ID = "my_dataset"
 
 bpd.options.bigquery.project = PROJECT_ID
-bpd.options.bigquery.ordering_mode = 'partial'
+bpd.options.bigquery.ordering_mode = "partial"
 
 # Data Loading
 df = bpd.read_gbq("bigquery-public-data.ml_datasets.penguins")
@@ -29,7 +29,7 @@ model_metadata = bbq.ml.create_model(
         "model_type": "LINEAR_REG",
     },
     # Explicitly identify the column for prediction
-    training_data=training_data.rename(columns={"body_mass_g": "label"})
+    training_data=training_data.rename(columns={"body_mass_g": "label"}),
 )
 print(model_metadata)
 

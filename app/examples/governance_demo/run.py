@@ -27,10 +27,10 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT))
 
 from src.agents.summarizer_agent import SummarizerAgent  # noqa: E402
-from src.governance.approvals import (SelfUpdateGovernor,  # noqa: E402
-                                      UpdateProposal)
-from src.governance.checkpoints import (CheckpointStore,  # noqa: E402
-                                        RollbackManager)
+from src.governance.approvals import SelfUpdateGovernor  # noqa: E402
+from src.governance.approvals import UpdateProposal
+from src.governance.checkpoints import CheckpointStore  # noqa: E402
+from src.governance.checkpoints import RollbackManager
 from src.integration.agent_registry import AgentRegistry  # noqa: E402
 from src.integration.sandbox import AgentSandbox, ToolPolicy  # noqa: E402
 from src.runtime_paths import data_path  # noqa: E402
@@ -85,9 +85,7 @@ def _demo_sandbox(registry: AgentRegistry, agent_name: str) -> None:
         ("network_post", None),  # tool not whitelisted   (strike 3 -> quarantine)
     ]:
         res = sandbox.check_action(tool, path=path)
-        print(
-            f"  {tool} {path or ''} -> allowed={res.allowed} " f"({res.violation_type})"
-        )
+        print(f"  {tool} {path or ''} -> allowed={res.allowed} ({res.violation_type})")
 
     state = registry.get_governance_state(agent_name)
     print(

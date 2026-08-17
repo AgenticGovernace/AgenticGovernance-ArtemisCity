@@ -15,23 +15,23 @@
 
 
 def parse_components_flag(components_str: str) -> list[str]:
-  """Parses a comma-separated string of components."""
-  valid_components = [
-      "CELERY_WORKER",
-      "KUBERNETES_WORKER",
-      "KUBERNETES_OPERATOR_POD",
-      "SCHEDULER",
-      "DAG_PROCESSOR",
-      "TRIGGERER",
-      "WEB_SERVER",
-  ]
-  if not components_str or components_str.upper() == "ALL":
-    return valid_components
-  components = [c.strip().upper() for c in components_str.split(",")]
-  invalid_components = [c for c in components if c not in valid_components]
-  if invalid_components:
-    raise ValueError(
-        f"Invalid components: {', '.join(invalid_components)}. Valid components"
-        f" are: {', '.join(valid_components)} or 'all'."
-    )
-  return [c.upper() for c in components]
+    """Parses a comma-separated string of components."""
+    valid_components = [
+        "CELERY_WORKER",
+        "KUBERNETES_WORKER",
+        "KUBERNETES_OPERATOR_POD",
+        "SCHEDULER",
+        "DAG_PROCESSOR",
+        "TRIGGERER",
+        "WEB_SERVER",
+    ]
+    if not components_str or components_str.upper() == "ALL":
+        return valid_components
+    components = [c.strip().upper() for c in components_str.split(",")]
+    invalid_components = [c for c in components if c not in valid_components]
+    if invalid_components:
+        raise ValueError(
+            f"Invalid components: {', '.join(invalid_components)}. Valid components"
+            f" are: {', '.join(valid_components)} or 'all'."
+        )
+    return [c.upper() for c in components]

@@ -8,6 +8,7 @@ import-only smoke tests.
 
 from __future__ import annotations
 
+import json
 import runpy
 import sys
 from pathlib import Path
@@ -500,6 +501,11 @@ def test_src_entry_shows_wrapper_help(
         ),
         (["status"], "src.interface.artemis_cli", ["status"]),
         (
+            ["--atp", "status"],
+            "src.launch.atp_cli",
+            ["status"],
+        ),
+        (
             ["--orchestrator", "--help"],
             "src.launch.main",
             ["--help"],
@@ -524,23 +530,244 @@ def test_src_entry_dispatches_and_forwards_arguments(
     assert sys.argv == ["python -m src", *forwarded]
 
 
-def test_src_entry_rejects_atp_until_adapter_lands(
+def test_atp_cli_parse_args_and_build_payload() -> None:
+    """ATP CLI argument parsing should capture all flags and build structured payload."""
+    from src.launch import atp_cli
+
+    parsed = atp_cli.parse_atp_cli_args(
+        [
+            "--instruction",
+            "Research renewable energy",
+            "--capability",
+            "web_search",
+            "--agent",
+            "Research Agent",
+            "--title",
+            "Renewable Overview",
+            "--target-zone",
+            "/energy",
+            "--mode",
+            "Build",
+            "--priority",
+            "High",
+            "--strict",
+            "--json",
+        ]
+    )
+    assert parsed.instruction == "Research renewable energy"
+    assert parsed.capability == "web_search"
+    assert parsed.agent == "Research Agent"
+    assert parsed.strict is True
+    assert parsed.json is True
+
+    payload = atp_cli.build_task_payload(
+        parsed.instruction,
+        capability=parsed.capability,
+        agent_name=parsed.agent,
+        title=parsed.title,
+        target_zone=parsed.target_zone,
+        mode=parsed.mode,
+        priority=parsed.priority,
+        strict=parsed.strict,
+    )
+    assert payload["required_capability"] == "web_search"
+    assert payload["agent"] == "Research Agent"
+    assert payload["title"] == "Renewable Overview"
+    assert payload["target_zone"] == "/energy"
+    assert payload["mode"] == "Build"
+    assert payload["priority"] == "High"
+    assert payload["atp_strict"] is True
+
+
+def test_atp_cli_execute_instruction_routed_success(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """ATP execution should prepare context, log provenance, and route to agent."""
+    from src.launch import atp_cli
+
+    orchestrator = MagicMock()
+    orchestrator.prepare_task_context.side_effect = lambda t: {
+        **t,
+        "required_capability": t.get("required_capability") or "llm_chat",
+    }
+    orchestrator.ensure_task_provenance.side_effect = lambda t, source: {
+        **t,
+        "provenance_id": "prov-12345",
+    }
+    orchestrator.create_new_task_in_obsidian.return_value = "Agent Inputs/task.md"
+    orchestrator.route_and_execute_task.return_value = {
+        "status": "success",
+        "agent": "Research Agent",
+        "routing_path": "kernel",
+        "summary": "Renewable research completed successfully.",
+    }
+
+    task_data = atp_cli.build_task_payload(
+        "Research renewable energy",
+        capability="web_search",
+    )
+    result = atp_cli.execute_instruction(orchestrator, task_data, as_json=False)
+
+    assert result["status"] == "success"
+    orchestrator.route_and_execute_task.assert_called_once()
+    out = capsys.readouterr().out
+    assert "ARTEMIS CITY — AGENT RESPONSE (SUCCESS)" in out
+    assert "Agent:        Research Agent" in out
+    assert "Routing Path: kernel" in out
+    assert "Provenance:   prov-12345" in out
+
+
+def test_atp_cli_execute_instruction_pinned_agent(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """ATP execution with pinned agent should dispatch directly to assigned agent."""
+    from src.launch import atp_cli
+
+    orchestrator = MagicMock()
+    agent_mock = SimpleNamespace(name="Summarizer Agent")
+    orchestrator.agent_registry.get_agent.return_value = agent_mock
+    orchestrator.prepare_task_context.side_effect = lambda t: {**t}
+    orchestrator.ensure_task_provenance.side_effect = lambda t, source: {
+        **t,
+        "provenance_id": "prov-pinned",
+    }
+    orchestrator.assign_and_execute_task.return_value = {
+        "status": "success",
+        "agent": "Summarizer Agent",
+        "summary": "Summary text.",
+    }
+
+    task_data = atp_cli.build_task_payload(
+        "Summarize document",
+        agent_name="Summarizer Agent",
+    )
+    result = atp_cli.execute_instruction(orchestrator, task_data, as_json=True)
+
+    assert result["status"] == "success"
+    orchestrator.assign_and_execute_task.assert_called_once()
+    out = capsys.readouterr().out
+    parsed = json.loads(out)
+    assert parsed["agent"] == "Summarizer Agent"
+    assert parsed["routing_path"] == "pinned"
+
+
+def test_atp_cli_execute_instruction_failure_handled(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """ATP execution error should be caught, sanitized, and reported."""
+    from src.launch import atp_cli
+
+    orchestrator = MagicMock()
+    orchestrator.prepare_task_context.side_effect = lambda t: {**t}
+    orchestrator.ensure_task_provenance.side_effect = lambda t, source: {**t}
+    orchestrator.create_new_task_in_obsidian.return_value = "Agent Inputs/fail.md"
+    orchestrator.route_and_execute_task.side_effect = RuntimeError("network down")
+
+    task_data = atp_cli.build_task_payload("Do impossible work")
+    result = atp_cli.execute_instruction(orchestrator, task_data, as_json=False)
+
+    assert result["status"] == "failed"
+    assert "network down" in result["error"]
+    orchestrator.update_task_status_in_obsidian.assert_called_with(
+        "Agent Inputs/fail.md", "failed", task_data["task_id"]
+    )
+    out = capsys.readouterr().out
+    assert "Error: network down" in out
+
+
+def test_atp_cli_main_one_shot_execution(monkeypatch: pytest.MonkeyPatch) -> None:
+    """ATP CLI main() should handle one-shot command from CLI argument."""
+    from src.launch import atp_cli
+
+    orchestrator = MagicMock()
+    monkeypatch.setattr(
+        atp_cli.src.mcp.orchestrator,
+        "Orchestrator",
+        MagicMock(return_value=orchestrator),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["artemis-atp", "#Mode: Build\n#Context: Demo\nDo work", "--strict"],
+    )
+    execute_mock = MagicMock(return_value={"status": "success"})
+    monkeypatch.setattr(atp_cli, "execute_instruction", execute_mock)
+
+    atp_cli.main()
+
+    execute_mock.assert_called_once()
+    payload = execute_mock.call_args.args[1]
+    assert "#Mode: Build" in payload["content"]
+    assert payload["atp_strict"] is True
+
+
+def test_atp_cli_main_file_input(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """ATP CLI main() should load instruction from file when --file is provided."""
+    from src.launch import atp_cli
+
+    prompt_file = tmp_path / "prompt.atp"
+    prompt_file.write_text("#Mode: Review\nCheck code", encoding="utf-8")
+
+    orchestrator = MagicMock()
+    monkeypatch.setattr(
+        atp_cli.src.mcp.orchestrator,
+        "Orchestrator",
+        MagicMock(return_value=orchestrator),
+    )
+    monkeypatch.setattr(sys, "argv", ["artemis-atp", "--file", str(prompt_file)])
+    execute_mock = MagicMock(return_value={"status": "success"})
+    monkeypatch.setattr(atp_cli, "execute_instruction", execute_mock)
+
+    atp_cli.main()
+
+    execute_mock.assert_called_once()
+    payload = execute_mock.call_args.args[1]
+    assert "#Mode: Review\nCheck code" in payload["content"]
+
+
+def test_atp_cli_interactive_loop(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """The reserved ATP wrapper must fail closed until its adapter exists."""
-    ordinary_cli = MagicMock()
-    monkeypatch.setattr("src.interface.artemis_cli.main", ordinary_cli)
-    monkeypatch.setattr(sys, "argv", ["python -m src", "--atp", "status"])
+    """Interactive ATP loop should support slash commands and exit cleanly."""
+    from src.launch import atp_cli
+
+    orchestrator = MagicMock()
+    orchestrator.agent_registry.get_agent_names.return_value = [
+        "Artemis Agent",
+        "Research Agent",
+    ]
+    inputs = iter(["/agents", "/status", "/help", "quit"])
+    monkeypatch.setattr("builtins.input", lambda _prompt: next(inputs))
+
+    atp_cli.run_interactive_atp_loop(orchestrator)
+
+    out = capsys.readouterr().out
+    assert "Artemis City — Interactive ATP Kernel CLI" in out
+    assert "Registered Agents: Artemis Agent, Research Agent" in out
+    assert "Session closed. Farewell." in out
+
+
+def test_atp_cli_main_boot_failure(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """ATP CLI boot failure should print fatal error and exit with status code 1."""
+    from src.launch import atp_cli
+
+    monkeypatch.setattr(
+        atp_cli.src.mcp.orchestrator,
+        "Orchestrator",
+        MagicMock(side_effect=RuntimeError("database locked")),
+    )
+    monkeypatch.setattr(sys, "argv", ["artemis-atp", "do work"])
 
     with pytest.raises(SystemExit) as exc_info:
-        src.entry()
+        atp_cli.main()
 
-    assert exc_info.value.code == 2
-    assert capsys.readouterr().err == (
-        "--atp is reserved for the forthcoming Routing Kernel ATP adapter; "
-        "use the default CLI or --orchestrator for now.\n"
-    )
-    ordinary_cli.assert_not_called()
+    assert exc_info.value.code == 1
+    err = capsys.readouterr().err
+    assert "Fatal: Orchestrator failed to boot: database locked" in err
 
 
 def test_src_module_entrypoint_calls_package_dispatch(

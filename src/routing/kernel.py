@@ -169,9 +169,9 @@ class RoutingKernel:
         beta: float = DEFAULT_BETA,
         neutral_prior: float = NEUTRAL_PRIOR,
         trust_floor: float = DEFAULT_TRUST_FLOOR,
-        delegation_store: Optional[SqliteDelegationStore] = None,
-        clock: Optional[Callable[[], datetime]] = None,
-        policy_path: Optional[str] = None,
+        delegation_store: SqliteDelegationStore | None = None,
+        clock: Callable[[], datetime] | None = None,
+        policy_path: str | None = None,
     ) -> RoutingKernel:
         """Construct a kernel wired to the live Artemis subsystems."""
         store = delegation_store or SqliteDelegationStore()

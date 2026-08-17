@@ -285,7 +285,7 @@ for i in range(5):
     X_corpus, y_corpus = generate_scoped_corpus(i)
     scoped_agents[i] = pre_train_agent(scoped_agents[i], X_corpus, y_corpus)
     print(
-        f"    Agent {i} pre-trained on {['Linear','Quadratic','Sinusoidal','Mixed','Noise-Robust'][i]} corpus ({PRE_TRAIN_CYCLES} cycles)"
+        f"    Agent {i} pre-trained on {['Linear', 'Quadratic', 'Sinusoidal', 'Mixed', 'Noise-Robust'][i]} corpus ({PRE_TRAIN_CYCLES} cycles)"
     )
 
 scoped_weights = np.ones(5)
@@ -407,7 +407,7 @@ for label, result, wd in [
     total_selections = len(result["selections"])
     dom_selections = np.sum(result["selections"] == dominant)
     print(
-        f"  Dominant Agent: {dominant} ({dom_selections/total_selections*100:.1f}% of selections)"
+        f"  Dominant Agent: {dominant} ({dom_selections / total_selections * 100:.1f}% of selections)"
     )
 
     # Specialization Index (entropy of selection distribution)
@@ -427,7 +427,7 @@ for label, result, wd in [
 
     # Watchdog
     print(
-        f"  Watchdog Alerts:       {wd['alert_count']} ({wd['alert_rate']*100:.1f}% of monitored steps)"
+        f"  Watchdog Alerts:       {wd['alert_count']} ({wd['alert_rate'] * 100:.1f}% of monitored steps)"
     )
 
 # --- Comparative Summary ---
@@ -442,8 +442,8 @@ mae_atp = np.sum(result_scoped_atp["errors"])
 print(f"\n  Cold Start Total MAE:      {mae_cold:.2f}")
 print(f"  Scoped Post-600 Total MAE: {mae_scoped:.2f}")
 print(f"  Scoped + ATP Total MAE:    {mae_atp:.2f}")
-print(f"\n  Improvement (Cold→Scoped): {(1 - mae_scoped/mae_cold)*100:.1f}%")
-print(f"  Improvement (Cold→ATP):    {(1 - mae_atp/mae_cold)*100:.1f}%")
+print(f"\n  Improvement (Cold→Scoped): {(1 - mae_scoped / mae_cold) * 100:.1f}%")
+print(f"  Improvement (Cold→ATP):    {(1 - mae_atp / mae_cold) * 100:.1f}%")
 
 # Oscillation comparison
 osc_cold = max(result_cold["sign_changes"])
@@ -463,7 +463,7 @@ for label, result in [
     sel_probs = sel_counts / sel_counts.sum()
     sel_probs = sel_probs[sel_probs > 0]
     entropy = -np.sum(sel_probs * np.log2(sel_probs))
-    print(f"  Specialization Index ({label}): {entropy/np.log2(5):.4f}")
+    print(f"  Specialization Index ({label}): {entropy / np.log2(5):.4f}")
 
 
 # ============================================================
@@ -644,7 +644,7 @@ The Math of Embodied Cognition:
 
 1. TRAINING VALUE
    600 cycles of scoped pre-training saves {training_value:.2f} cumulative error
-   Per-cycle value: {training_value/PRE_TRAIN_CYCLES:.4f} error reduction per training cycle
+   Per-cycle value: {training_value / PRE_TRAIN_CYCLES:.4f} error reduction per training cycle
 
 2. ATP CONTEXT BONUS
    Adding ATP vectors saves additional {atp_bonus:.2f} cumulative error
@@ -657,17 +657,17 @@ The Math of Embodied Cognition:
    - EQUILIBRIUM: Optimal scope width exists where specialization meets adaptability
 
 4. HUMAN REVIEW VALUE
-   Cold Start triggers {watchdog_cold['alert_count']} watchdog alerts ({watchdog_cold['alert_rate']*100:.1f}% alert rate)
-   Scoped Post-600 triggers {watchdog_scoped['alert_count']} alerts ({watchdog_scoped['alert_rate']*100:.1f}% alert rate)
-   Scoped + ATP triggers {watchdog_atp['alert_count']} alerts ({watchdog_atp['alert_rate']*100:.1f}% alert rate)
+   Cold Start triggers {watchdog_cold["alert_count"]} watchdog alerts ({watchdog_cold["alert_rate"] * 100:.1f}% alert rate)
+   Scoped Post-600 triggers {watchdog_scoped["alert_count"]} alerts ({watchdog_scoped["alert_rate"] * 100:.1f}% alert rate)
+   Scoped + ATP triggers {watchdog_atp["alert_count"]} alerts ({watchdog_atp["alert_rate"] * 100:.1f}% alert rate)
 
    Human review is needed LESS with better agents — but remains essential
    at drift boundaries. This is where displaced workers add irreplaceable value.
 
 5. WINNER-TAKE-ALL SOLUTION
-   Cold Start Specialization Index:  {(-np.sum((np.bincount(result_cold['selections'],minlength=5)/1000)[np.bincount(result_cold['selections'],minlength=5)>0] * np.log2((np.bincount(result_cold['selections'],minlength=5)/1000)[np.bincount(result_cold['selections'],minlength=5)>0]))/np.log2(5)):.4f} (monopoly)
-   Scoped Specialization Index:      {(-np.sum((np.bincount(result_scoped['selections'],minlength=5)/1000)[np.bincount(result_scoped['selections'],minlength=5)>0] * np.log2((np.bincount(result_scoped['selections'],minlength=5)/1000)[np.bincount(result_scoped['selections'],minlength=5)>0]))/np.log2(5)):.4f}
-   Scoped + ATP Specialization:      {(-np.sum((np.bincount(result_scoped_atp['selections'],minlength=5)/1000)[np.bincount(result_scoped_atp['selections'],minlength=5)>0] * np.log2((np.bincount(result_scoped_atp['selections'],minlength=5)/1000)[np.bincount(result_scoped_atp['selections'],minlength=5)>0]))/np.log2(5)):.4f}
+   Cold Start Specialization Index:  {(-np.sum((np.bincount(result_cold["selections"], minlength=5) / 1000)[np.bincount(result_cold["selections"], minlength=5) > 0] * np.log2((np.bincount(result_cold["selections"], minlength=5) / 1000)[np.bincount(result_cold["selections"], minlength=5) > 0])) / np.log2(5)):.4f} (monopoly)
+   Scoped Specialization Index:      {(-np.sum((np.bincount(result_scoped["selections"], minlength=5) / 1000)[np.bincount(result_scoped["selections"], minlength=5) > 0] * np.log2((np.bincount(result_scoped["selections"], minlength=5) / 1000)[np.bincount(result_scoped["selections"], minlength=5) > 0])) / np.log2(5)):.4f}
+   Scoped + ATP Specialization:      {(-np.sum((np.bincount(result_scoped_atp["selections"], minlength=5) / 1000)[np.bincount(result_scoped_atp["selections"], minlength=5) > 0] * np.log2((np.bincount(result_scoped_atp["selections"], minlength=5) / 1000)[np.bincount(result_scoped_atp["selections"], minlength=5) > 0])) / np.log2(5)):.4f}
 
    Scoped corpus BREAKS monopoly by giving each agent a domain where it
    outperforms others. This is the mathematical proof that embodied cognition

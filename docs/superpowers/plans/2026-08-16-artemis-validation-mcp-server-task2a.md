@@ -485,7 +485,6 @@ async def test_non_stdio_async_runners_fail_closed_before_sdk_runner(
     ):
         await getattr(server, method_name)()
     assert parent_calls == []
-
 ```
 
 - [ ] **Step 2: Run startup-admission tests and verify RED**
@@ -612,7 +611,6 @@ def test_server_source_has_no_authority_loader_or_singleton() -> None:
         "os.environ",
     )
     assert all(token not in source for token in forbidden)
-
 ```
 
 - [ ] **Step 4: Add failing real-client schema, success, and diagnostic tests**
@@ -729,7 +727,6 @@ async def test_headerless_input_is_a_successful_typed_diagnostic() -> None:
     assert validated.structured_content is not None
     assert validated.structured_content["valid"] is False
     assert validated.structured_content["issues"][0]["code"] == "no_atp_headers"
-
 ```
 
 - [ ] **Step 5: Add failing lease-order and sanitized-error tests**
@@ -1092,7 +1089,6 @@ class _AuthorityExpiryMiddleware:
                     {"code": "validation_authority_expired"},
                 )
         return await call_next(ctx)
-
 ```
 
 - [ ] **Step 8: Implement strict input enforcement and schema publication**
@@ -1219,7 +1215,6 @@ class _ValidationMCPServer(MCPServer):
                 )
             )
         return published
-
 ```
 
 - [ ] **Step 9: Implement the mandatory factory and three tools**

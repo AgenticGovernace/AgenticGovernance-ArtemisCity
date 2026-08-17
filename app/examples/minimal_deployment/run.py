@@ -75,8 +75,7 @@ def main() -> None:
             metadata={"agent": agent_name, "task_id": task["task_id"]},
         )
         print(
-            "\nMemory write-through OK "
-            f"(total {write_info['total_latency_ms']:.1f}ms)"
+            f"\nMemory write-through OK (total {write_info['total_latency_ms']:.1f}ms)"
         )
 
         recalled = memory.read("Artemis City memory layer", max_results=3)

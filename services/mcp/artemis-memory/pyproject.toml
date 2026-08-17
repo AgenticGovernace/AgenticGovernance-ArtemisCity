@@ -11,8 +11,13 @@ dependencies = [
     "artemis-city==1.0.0",
     "artemis-mcp-common==0.1.0",
     "mcp[cli]==2.0.0",
-    "pydantic>=2.4",
+    "pydantic==2.14.0b1",
     "psycopg2-binary>=2.9",
+    "beartype==0.23.0rc0",
+    "pydantic-core==2.48.0",
+    "hf-xet==1.6.1a0",
+    "cyclopts==5.0.0b1",
+    "protobuf==7.36.0rc2",
 ]
 
 [project.scripts]

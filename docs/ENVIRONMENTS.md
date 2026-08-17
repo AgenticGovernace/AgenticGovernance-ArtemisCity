@@ -43,6 +43,7 @@ handled by `src/utils/environments.py`:
 
 ```python
 from src.utils.environments import load_environment
+
 cfg = load_environment()  # respects ARTEMIS_ENV, defaults to dev
 ```
 

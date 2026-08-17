@@ -291,8 +291,8 @@ class MyAgent(BaseAgent):
 
     def perform_task(self, task_context: dict) -> dict:
         # Access task data
-        topic = task_context.get('topic', 'unknown')
-        context = task_context.get('context', '')
+        topic = task_context.get("topic", "unknown")
+        context = task_context.get("context", "")
 
         # Report progress
         self.report_status(f"Starting work on {topic}...")
@@ -305,7 +305,7 @@ class MyAgent(BaseAgent):
             "summary": "Brief overview of what was accomplished",
             "findings": ["Finding 1", "Finding 2"],
             "recommendations": ["Recommendation 1"],
-            "custom_field": "Any custom data"
+            "custom_field": "Any custom data",
         }
 ```
 
@@ -336,7 +336,7 @@ agent = ResearchAgent()
 task_context = {
     "topic": "Test Topic",
     "keywords": "keyword1, keyword2",
-    "depth": "overview"
+    "depth": "overview",
 }
 results = agent.perform_task(task_context)
 print(results)
@@ -375,7 +375,7 @@ task_data = {
     "agent": "research_agent",
     "status": "pending",
     "context": "Research this topic",
-    "keywords": "AI, ML"
+    "keywords": "AI, ML",
 }
 path = orchestrator.create_new_task_in_obsidian(task_data)
 print(f"Created task at: {path}")
@@ -450,18 +450,19 @@ Current agents run synchronously, blocking the orchestrator.
 ```python
 import asyncio
 
+
 class BaseAgent(ABC):
     @abstractmethod
     async def perform_task(self, task_context: dict) -> dict:
         pass
 
+
 # In orchestrator
 async def process_tasks():
     tasks = self.check_for_new_tasks_from_obsidian()
-    await asyncio.gather(*[
-        self.assign_and_execute_task(agent_name, task_data)
-        for _, task_data in tasks
-    ])
+    await asyncio.gather(
+        *[self.assign_and_execute_task(agent_name, task_data) for _, task_data in tasks]
+    )
 ```
 
 ### More Robust Markdown Parsing
@@ -484,13 +485,15 @@ Enable multi-agent workflows where agents collaborate:
 
 ```python
 # Agent A creates a task for Agent B
-orchestrator.create_new_task_in_obsidian({
-    "title": "Follow-up Research",
-    "agent": "research_agent",
-    "status": "pending",
-    "context": f"Build on results from task {self.current_task_id}",
-    "parent_task": self.current_task_id
-})
+orchestrator.create_new_task_in_obsidian(
+    {
+        "title": "Follow-up Research",
+        "agent": "research_agent",
+        "status": "pending",
+        "context": f"Build on results from task {self.current_task_id}",
+        "parent_task": self.current_task_id,
+    }
+)
 ```
 
 ### Dynamic Agent Registration
@@ -537,8 +540,8 @@ When agents access external APIs:
 1. **Never commit API keys**:
    ```python
    # In .env
-   OPENAI_API_KEY=sk-...
-   SERP_API_KEY=...
+   OPENAI_API_KEY = sk - ...
+   SERP_API_KEY = ...
 
    # In agent
    api_key = os.getenv("OPENAI_API_KEY")
@@ -560,15 +563,19 @@ Create a Flask/FastAPI interface:
 
 ```python
 from fastapi import FastAPI
+
 app = FastAPI()
+
 
 @app.get("/tasks")
 def get_tasks():
     return orchestrator.check_for_new_tasks_from_obsidian()
 
+
 @app.post("/tasks")
 def create_task(task_data: dict):
     return orchestrator.create_new_task_in_obsidian(task_data)
+
 
 @app.get("/agents")
 def list_agents():
@@ -582,8 +589,11 @@ Add retry logic and more granular error tracking:
 ```python
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+
 class ResilientAgent(BaseAgent):
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+    @retry(
+        stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
+    )
     def perform_task(self, task_context: dict) -> dict:
         # Task logic with automatic retries on failure
         pass
@@ -597,7 +607,7 @@ Track errors in reports:
     "error": str(exception),
     "error_type": exception.__class__.__name__,
     "stack_trace": traceback.format_exc(),
-    "retry_count": 3
+    "retry_count": 3,
 }
 ```
 

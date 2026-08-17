@@ -81,14 +81,12 @@ Create the agent directly in `src/agents/`:
 # src/agents/my_new_agent.py
 from .base_agent import BaseAgent
 
+
 class MyNewAgent(BaseAgent):
     """Production agent with a focused capability."""
 
     def __init__(self):
-        super().__init__(
-            name="My New Agent",
-            capabilities=["my_capability"]
-        )
+        super().__init__(name="My New Agent", capabilities=["my_capability"])
 
     def perform_task(self, task_context: dict) -> dict:
         """Simple demo implementation."""
@@ -98,11 +96,7 @@ class MyNewAgent(BaseAgent):
         content = task_context.get("content", "")
         result = f"Processed: {len(content)} characters"
 
-        return {
-            "status": "success",
-            "summary": result,
-            "content": content
-        }
+        return {"status": "success", "summary": result, "content": content}
 ```
 
 ### Step 2: Add a Walkthrough When Useful
@@ -113,6 +107,7 @@ If a human-facing walkthrough helps, add it under `src/launch/`:
 # src/launch/demo_my_agent.py
 from src.agents.my_new_agent import MyNewAgent
 
+
 def main():
     agent = MyNewAgent()
 
@@ -120,11 +115,12 @@ def main():
         "task_id": "demo_001",
         "title": "Test Task",
         "content": "Sample content for testing",
-        "required_capability": "my_capability"
+        "required_capability": "my_capability",
     }
 
     result = agent.perform_task(task)
     print(f"Result: {result}")
+
 
 if __name__ == "__main__":
     main()
@@ -145,18 +141,18 @@ from typing import Dict, Optional
 from .base_agent import BaseAgent
 from utils.helpers import logger
 
+
 class MyNewAgent(BaseAgent):
     """Production-ready agent with full error handling."""
 
     def __init__(self, name: str = "My New Agent", api_key: Optional[str] = None):
-        super().__init__(
-            name=name,
-            capabilities=["my_capability"]
-        )
+        super().__init__(name=name, capabilities=["my_capability"])
         self.api_key = api_key
 
         if not self.api_key:
-            logger.warning(f"{self.name}: API key not provided, some features may be unavailable")
+            logger.warning(
+                f"{self.name}: API key not provided, some features may be unavailable"
+            )
 
     def perform_task(self, task_context: Dict) -> Dict:
         """Production implementation with comprehensive error handling."""
@@ -165,10 +161,12 @@ class MyNewAgent(BaseAgent):
                 return {
                     "status": "failed",
                     "summary": "Invalid task context",
-                    "error": "TaskValidationError"
+                    "error": "TaskValidationError",
                 }
 
-            self.report_status(f"Processing task: {task_context.get('title', 'Untitled')}")
+            self.report_status(
+                f"Processing task: {task_context.get('title', 'Untitled')}"
+            )
 
             content = task_context.get("content", "")
 
@@ -185,10 +183,7 @@ class MyNewAgent(BaseAgent):
                 "status": "success",
                 "summary": f"Processed {len(content)} characters",
                 "result": result,
-                "metrics": {
-                    "input_size": len(content),
-                    "output_size": len(result)
-                }
+                "metrics": {"input_size": len(content), "output_size": len(result)},
             }
 
         except Exception as e:
@@ -196,7 +191,7 @@ class MyNewAgent(BaseAgent):
             return {
                 "status": "failed",
                 "summary": f"Task failed: {str(e)}",
-                "error": str(e)
+                "error": str(e),
             }
 
     def _process_content(self, content: str) -> str:
@@ -212,6 +207,7 @@ Add your agent to the orchestrator (`src/mcp/orchestrator.py`):
 ```python
 # In Orchestrator.__init__()
 from agents.my_new_agent import MyNewAgent
+
 
 def __init__(self):
     # ... existing initialization ...
@@ -272,6 +268,7 @@ import os
 import requests
 from typing import Dict, List, Optional
 
+
 class ResearchAgent(BaseAgent):
     def __init__(self, name: str = "Research Agent"):
         super().__init__(name, capabilities=["web_search", "research"])
@@ -296,7 +293,7 @@ class ResearchAgent(BaseAgent):
                 "status": "success",
                 "summary": summary,
                 "results": results,
-                "source_count": len(results)
+                "source_count": len(results),
             }
         except Exception as e:
             self.logger.error(f"Research failed: {e}", exc_info=True)
@@ -325,6 +322,7 @@ Create tests in `src/tests/test_my_agent.py`:
 import pytest
 from src.agents.my_new_agent import MyNewAgent
 
+
 class TestMyNewAgent:
     @pytest.fixture
     def agent(self):
@@ -339,7 +337,7 @@ class TestMyNewAgent:
             "task_id": "test_001",
             "title": "Test Task",
             "content": "Test content",
-            "required_capability": "my_capability"
+            "required_capability": "my_capability",
         }
 
         result = agent.perform_task(task)
@@ -380,6 +378,7 @@ Test with the full orchestrator:
 import pytest
 from src.mcp.orchestrator import Orchestrator
 
+
 def test_my_agent_integration():
     orchestrator = Orchestrator()
 
@@ -388,7 +387,7 @@ def test_my_agent_integration():
         "title": "Integration Test",
         "content": "Test content",
         "required_capability": "my_capability",
-        "status": "pending"
+        "status": "pending",
     }
 
     # This tests the full flow: routing → execution → Obsidian write
@@ -459,10 +458,10 @@ Use clear, descriptive capability names:
 
 ```python
 # Good
-capabilities=["web_search", "text_summarization", "code_review"]
+capabilities = ["web_search", "text_summarization", "code_review"]
 
 # Avoid
-capabilities=["search", "summarize", "check"]
+capabilities = ["search", "summarize", "check"]
 ```
 
 ### 2. **Task Context Structure**
@@ -471,16 +470,16 @@ Always expect and handle these keys:
 
 ```python
 {
-    "task_id": str,          # Unique identifier
-    "title": str,            # Human-readable title
-    "content": str,          # Main task content
+    "task_id": str,  # Unique identifier
+    "title": str,  # Human-readable title
+    "content": str,  # Main task content
     "required_capability": str,  # Capability needed
-    "status": str,           # "pending", "in progress", "completed", "failed"
+    "status": str,  # "pending", "in progress", "completed", "failed"
     # Optional:
-    "query": str,            # Search/lookup query
-    "context": str,          # Additional context
-    "tags": List[str],       # Semantic tags
-    "agent": str             # Explicit agent assignment
+    "query": str,  # Search/lookup query
+    "context": str,  # Additional context
+    "tags": List[str],  # Semantic tags
+    "agent": str,  # Explicit agent assignment
 }
 ```
 
@@ -491,13 +490,13 @@ Always return a consistent result format:
 ```python
 {
     "status": "success" | "failed",  # Required
-    "summary": str,                   # Required - human-readable summary
+    "summary": str,  # Required - human-readable summary
     # Optional but recommended:
-    "content": str,                   # Generated content
-    "error": str,                     # Error message if failed
-    "metrics": dict,                  # Performance metrics
-    "sources": List[str],             # Citations/sources
-    "semantic_tags": List[str]        # Extracted tags
+    "content": str,  # Generated content
+    "error": str,  # Error message if failed
+    "metrics": dict,  # Performance metrics
+    "sources": List[str],  # Citations/sources
+    "semantic_tags": List[str],  # Extracted tags
 }
 ```
 
@@ -519,14 +518,15 @@ Store configuration in environment variables:
 
 ```python
 # .env.example
-MY_AGENT_API_KEY=your_api_key_here
-MY_AGENT_TIMEOUT=30
-MY_AGENT_MAX_RETRIES=3
+MY_AGENT_API_KEY = your_api_key_here
+MY_AGENT_TIMEOUT = 30
+MY_AGENT_MAX_RETRIES = 3
 ```
 
 ```python
 # In agent code
 import os
+
 
 class MyAgent(BaseAgent):
     def __init__(self):
@@ -544,20 +544,20 @@ Format outputs as markdown with proper frontmatter:
 def _format_for_obsidian(self, result: dict) -> str:
     """Format agent output for Obsidian vault."""
     return f"""---
-task_id: {result['task_id']}
+task_id: {result["task_id"]}
 agent: {self.name}
-status: {result['status']}
+status: {result["status"]}
 created: {datetime.now().isoformat()}
-tags: {result.get('semantic_tags', [])}
+tags: {result.get("semantic_tags", [])}
 ---
 
-# {result['title']}
+# {result["title"]}
 
 ## Summary
-{result['summary']}
+{result["summary"]}
 
 ## Details
-{result.get('content', '')}
+{result.get("content", "")}
 
 ---
 Generated by {self.name}
@@ -570,6 +570,7 @@ If your agent interacts with ATP messages:
 
 ```python
 from agents.atp import ATPParser, ATPValidator
+
 
 def process_atp_message(self, message_text: str):
     parser = ATPParser()
@@ -597,6 +598,7 @@ import os
 import requests
 from typing import Dict, Optional
 from .base_agent import BaseAgent
+
 
 class TranslatorAgent(BaseAgent):
     """Production translator using DeepL API."""
@@ -627,7 +629,9 @@ class TranslatorAgent(BaseAgent):
                 )
 
             # Execute translation
-            self.report_status(f"Translating {len(text)} characters to {target_lang}...")
+            self.report_status(
+                f"Translating {len(text)} characters to {target_lang}..."
+            )
 
             translated = self._translate(text, target_lang)
 
@@ -641,8 +645,8 @@ class TranslatorAgent(BaseAgent):
                 "target_language": target_lang,
                 "metrics": {
                     "char_count": len(text),
-                    "translated_char_count": len(translated)
-                }
+                    "translated_char_count": len(translated),
+                },
             }
 
         except requests.RequestException as e:
@@ -663,9 +667,9 @@ class TranslatorAgent(BaseAgent):
             data={
                 "auth_key": self.api_key,
                 "text": text,
-                "target_lang": target_lang.upper()
+                "target_lang": target_lang.upper(),
             },
-            timeout=30
+            timeout=30,
         )
 
         response.raise_for_status()
@@ -678,7 +682,7 @@ class TranslatorAgent(BaseAgent):
         return {
             "status": "failed",
             "summary": f"Translation failed: {error_msg}",
-            "error": error_msg
+            "error": error_msg,
         }
 ```
 

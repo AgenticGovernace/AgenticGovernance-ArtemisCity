@@ -437,14 +437,14 @@ for name, r in [("Cold", r_cold), ("Scoped", r_scoped), ("Scoped+ATP", r_atp)]:
     norm_entropy = entropy / np.log2(5)
     dom = np.argmax(sel)
     print(
-        f"  {name:12s}: Dominant=Agent {dom} ({sel[dom]/sel.sum()*100:.1f}%), "
+        f"  {name:12s}: Dominant=Agent {dom} ({sel[dom] / sel.sum() * 100:.1f}%), "
         f"Specialization Index={norm_entropy:.4f}"
     )
     for phase, s, e in [("Linear", 0, 334), ("Quad", 334, 667), ("Sine", 667, 1000)]:
         phase_sel = np.bincount(r["selections"][s:e], minlength=5)
         phase_dom = np.argmax(phase_sel)
         print(
-            f"    {phase:8s}: Agent {phase_dom} ({phase_sel[phase_dom]/(e-s)*100:.1f}%)"
+            f"    {phase:8s}: Agent {phase_dom} ({phase_sel[phase_dom] / (e - s) * 100:.1f}%)"
         )
 
 # --- CLAIM 2: ATP maintains continuity ---
@@ -463,8 +463,8 @@ for name, r in [
     stable_mid = np.mean(err[200:300])  # Stable period for reference
     print(
         f"  {name:12s}: Stable={stable_mid:.2f}, "
-        f"Drift@334={spike_334:.2f} ({spike_334/max(stable_mid,0.01):.1f}x), "
-        f"Drift@667={spike_667:.2f} ({spike_667/max(stable_mid,0.01):.1f}x)"
+        f"Drift@334={spike_334:.2f} ({spike_334 / max(stable_mid, 0.01):.1f}x), "
+        f"Drift@667={spike_667:.2f} ({spike_667 / max(stable_mid, 0.01):.1f}x)"
     )
 
 # --- CLAIM 3: Oscillation = signal ---
@@ -499,10 +499,10 @@ print(f"\n  Gap: Cold→k-NN:    {(mae_cold - mae_knn):.2f} error gap")
 print(f"  Gap: Scoped→k-NN:  {(mae_scoped - mae_knn):.2f} error gap")
 print(f"  Gap: ATP→k-NN:     {(mae_atp - mae_knn):.2f} error gap")
 print(
-    f"\n  Gap closed (Cold→Scoped): {(1-(mae_scoped-mae_knn)/(mae_cold-mae_knn))*100:.1f}%"
+    f"\n  Gap closed (Cold→Scoped): {(1 - (mae_scoped - mae_knn) / (mae_cold - mae_knn)) * 100:.1f}%"
 )
 print(
-    f"  Gap closed (Cold→ATP):    {(1-(mae_atp-mae_knn)/(mae_cold-mae_knn))*100:.1f}%"
+    f"  Gap closed (Cold→ATP):    {(1 - (mae_atp - mae_knn) / (mae_cold - mae_knn)) * 100:.1f}%"
 )
 
 # Cost comparison
@@ -510,7 +510,7 @@ cost_knn = r_knn["costs"][-1]
 cost_heb = r_cold["costs"][-1]  # All Hebbian variants have same O(1) cost
 print(f"\n  k-NN Cumulative Cost:     {cost_knn:,.0f} (O(N²) growth)")
 print(f"  Hebbian Cumulative Cost:  {cost_heb:,.0f} (O(N) growth)")
-print(f"  Cost Ratio:               {cost_knn/cost_heb:.1f}x more expensive")
+print(f"  Cost Ratio:               {cost_knn / cost_heb:.1f}x more expensive")
 
 # --- CLAIM 5: Human-in-the-loop value ---
 print("\n━━━ CLAIM 5: Human review at sentinel threshold = value ━━━")
@@ -532,7 +532,7 @@ for name, r, s in [
     value = original_mae - corrected_mae
     print(
         f"  {name:12s}: {s['count']} reviews → saves {value:.2f} error "
-        f"({value/original_mae*100:.1f}% improvement)"
+        f"({value / original_mae * 100:.1f}% improvement)"
     )
 
 
@@ -714,7 +714,7 @@ THE TRADE-OFF EQUATION:
 
   PER-CYCLE TRAINING VALUE:
     600 cycles of scoped pre-training saves {mae_cold - mae_atp:.0f} cumulative error
-    = {(mae_cold - mae_atp)/PRE_TRAIN:.2f} error reduction per training cycle
+    = {(mae_cold - mae_atp) / PRE_TRAIN:.2f} error reduction per training cycle
 
   MARKETPLACE DYNAMICS:
     Cold Start → monopoly (one agent dominates all phases)

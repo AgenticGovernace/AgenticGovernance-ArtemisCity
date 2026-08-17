@@ -591,3 +591,4 @@ Artemis_City.code-workspace
 prometheus-*.tar.gz
 # Prometheus TSDB state is regenerated on every run.
 /src/utils/monitoring/data/
+/services/cluster-starter/

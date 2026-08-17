@@ -24,7 +24,7 @@ class ObsidianGenerator:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         report_title = f"Agent Report: {agent_name} - {task_id}"
 
-        markdown = f"""---\ntask_id: {task_id}\nagent: {agent_name}\ntimestamp: {timestamp}\nstatus: completed\ntags: ["agent_report", "{agent_name.lower().replace(' ', '_')}"]\n---\n\n# {report_title}\n\n## Summary of Findings\n\n{results.get('summary', 'No summary provided.')}\n\n## Key Data/Outputs\n\n"""
+        markdown = f"""---\ntask_id: {task_id}\nagent: {agent_name}\ntimestamp: {timestamp}\nstatus: completed\ntags: ["agent_report", "{agent_name.lower().replace(" ", "_")}"]\n---\n\n# {report_title}\n\n## Summary of Findings\n\n{results.get("summary", "No summary provided.")}\n\n## Key Data/Outputs\n\n"""
         # Add key-value pairs from results
         for key, value in results.items():
             if key not in ["summary"]:  # Exclude summary as it's handled above

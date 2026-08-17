@@ -26,8 +26,10 @@ st.set_page_config(
 if "theme" not in st.session_state:
     st.session_state.theme = "light"
 
+
 def toggle_theme():
     st.session_state.theme = "dark" if st.session_state.theme == "light" else "light"
+
 
 IS_DARK = st.session_state.theme == "dark"
 ```
@@ -120,14 +122,19 @@ button[data-baseweb="tab"][aria-selected="true"] {
 def metric_card(label, value, delta=None, delta_type="up"):
     cls = f"delta-{delta_type}"
     arrow = "↑" if delta_type == "up" else ("↓" if delta_type == "down" else "→")
-    delta_html = f'<div class="metric-delta {cls}">{arrow} {delta}</div>' if delta else ""
-    st.markdown(f"""
+    delta_html = (
+        f'<div class="metric-delta {cls}">{arrow} {delta}</div>' if delta else ""
+    )
+    st.markdown(
+        f"""
     <div class="metric-card">
         <div class="metric-label">{label}</div>
         <div class="metric-value">{value}</div>
         {delta_html}
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 ```
 CSS:
 ```css
@@ -143,11 +150,14 @@ CSS:
 ### Chart Container
 Wrap every Plotly chart in a styled card:
 ```python
-st.markdown("""
+st.markdown(
+    """
 <div class="chart-wrap">
     <div class="chart-title">Chart Title</div>
     <div class="chart-subtitle">Description text</div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
@@ -163,12 +173,15 @@ CSS:
 ### Data Table (HTML)
 Use HTML tables with custom styling instead of `st.dataframe`:
 ```python
-st.markdown(f"""
+st.markdown(
+    f"""
 <table class="data-table">
     <thead><tr><th>Col1</th><th>Status</th></tr></thead>
     <tbody>{rows}</tbody>
 </table>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 ```
 CSS:
 ```css
@@ -191,11 +204,14 @@ CSS:
 ```python
 head_left, head_right = st.columns([8, 1])
 with head_left:
-    st.markdown("""
+    st.markdown(
+        """
     <div class="brand">
         <span class="brand-name">App Name</span>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 with head_right:
     theme_label = "☀️ Light" if IS_DARK else "🌙 Dark"
     st.button(theme_label, on_click=toggle_theme, use_container_width=True)
@@ -207,7 +223,11 @@ Apply this layout to ALL charts:
 PLOT_LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="DM Sans, sans-serif", color="#71717a" if not IS_DARK else "#a1a1aa", size=11),
+    font=dict(
+        family="DM Sans, sans-serif",
+        color="#71717a" if not IS_DARK else "#a1a1aa",
+        size=11,
+    ),
     margin=dict(l=0, r=0, t=8, b=0),
     xaxis=dict(
         gridcolor="rgba(0,0,0,0.04)" if not IS_DARK else "rgba(255,255,255,0.04)",
@@ -227,7 +247,8 @@ PLOT_LAYOUT = dict(
 ### Row of KPIs
 ```python
 c1, c2, c3, c4 = st.columns(4)
-with c1: metric_card("Label", "Value", delta="Change", delta_type="up")
+with c1:
+    metric_card("Label", "Value", delta="Change", delta_type="up")
 ```
 
 ### Column gap CSS

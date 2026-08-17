@@ -221,9 +221,7 @@ def test_result_models_are_typed_frozen_and_non_echoing_in_summary() -> None:
         summary="ATP header formatted using bracket syntax.",
     )
     with pytest.raises(ValidationError):
-        FormatATPResult.model_validate(
-            {**format_result.model_dump(), "summary": ""}
-        )
+        FormatATPResult.model_validate({**format_result.model_dump(), "summary": ""})
     with pytest.raises(ValidationError, match="frozen"):
         setattr(format_result, "summary", "changed")
 ```
@@ -304,9 +302,7 @@ class FormatATPInput(ATPHeaderInput):
     syntax: Literal["hash", "bracket"] = "bracket"
 
     def to_header(self) -> ATPHeaderInput:
-        return ATPHeaderInput.model_validate(
-            self.model_dump(exclude={"syntax"})
-        )
+        return ATPHeaderInput.model_validate(self.model_dump(exclude={"syntax"}))
 
 
 class ParseATPResult(ValidationMCPModel):
@@ -500,10 +496,7 @@ async def test_tools_list_exposes_exact_strict_typed_contract() -> None:
     assert tools["parse-atp"].input_schema["required"] == ["raw_input"]
     assert tools["validate-atp"].input_schema["required"] == ["raw_input"]
     assert tools["parse-atp"].input_schema == ParseATPInput.model_json_schema()
-    assert (
-        tools["validate-atp"].input_schema
-        == ValidateATPInput.model_json_schema()
-    )
+    assert tools["validate-atp"].input_schema == ValidateATPInput.model_json_schema()
     assert tools["format-atp"].input_schema == FormatATPInput.model_json_schema()
     assert tools["validate-atp"].input_schema["properties"]["strict"] == {
         "default": True,
@@ -536,9 +529,7 @@ async def test_tools_list_exposes_exact_strict_typed_contract() -> None:
         "summary",
     ]
     parsed_schema = parse_output["$defs"]["ParsedATP"]
-    assert parse_output["properties"]["parsed"] == {
-        "$ref": "#/$defs/ParsedATP"
-    }
+    assert parse_output["properties"]["parsed"] == {"$ref": "#/$defs/ParsedATP"}
     assert parsed_schema["required"] == [
         "mode",
         "priority",
@@ -1020,9 +1011,7 @@ def create_server(
         except ValidationError as exc:
             _invalid_input(exc)
         header = request.to_header()
-        formatted = _call_service(
-            lambda: validation.format(header, request.syntax)
-        )
+        formatted = _call_service(lambda: validation.format(header, request.syntax))
         return FormatATPResult(
             header=header,
             syntax=request.syntax,

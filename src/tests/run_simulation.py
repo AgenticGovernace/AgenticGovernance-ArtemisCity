@@ -583,8 +583,8 @@ class CitySimulation:
             print(f"• {action['actor']} {action['summary']}{location}")
 
         print(textwrap.dedent(f"""
-                Scores: service_health={scores['service_health']:.3f} | stability={scores['stability']:.2f} | load={scores['load']:.2f} | risk={scores['risk']:.2f}
-                        morale={scores['morale']:.2f} | trust={scores['trust']:.2f} | energy={scores['energy']:.2f}
+                Scores: service_health={scores["service_health"]:.3f} | stability={scores["stability"]:.2f} | load={scores["load"]:.2f} | risk={scores["risk"]:.2f}
+                        morale={scores["morale"]:.2f} | trust={scores["trust"]:.2f} | energy={scores["energy"]:.2f}
                 """).strip())
 
 

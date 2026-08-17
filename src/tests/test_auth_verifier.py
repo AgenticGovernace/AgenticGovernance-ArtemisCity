@@ -1258,8 +1258,7 @@ def _request_with_uri_ingress(
         ).encode()
     else:
         body = (
-            f'{{"outer":{{"url":{json.dumps(benign_url)},'
-            f'"url":{json.dumps(uri)}}}}}'
+            f'{{"outer":{{"url":{json.dumps(benign_url)},"url":{json.dumps(uri)}}}}}'
         ).encode()
     return AuthenticationRequest(
         transport="http",

@@ -40,7 +40,7 @@ class RunLogger:
         self.log_dir = Path(log_path(".", log_dir))
         self.db_path = data_path("run_logs.db", db_path, env_var="ARTEMIS_RUN_LOG_DB")
         self.run_id = run_id or (
-            f"{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}_" f"{uuid.uuid4().hex[:8]}"
+            f"{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}_{uuid.uuid4().hex[:8]}"
         )
         self.run_start_time = time.perf_counter()
         self._events: List[Dict] = []

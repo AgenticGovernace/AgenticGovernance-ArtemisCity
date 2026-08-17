@@ -7,7 +7,7 @@ organizing knowledge and referencing files, concepts, and conversations.
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 
 @dataclass
@@ -90,7 +90,7 @@ class SemanticTagger:
         self.citations: List[Citation] = []
         self.item_tags: Dict[str, Set[str]] = {}
 
-    def tag_item(self, item: str, tags: List[str], category: str = "concept") -> None:
+    def tag_item(self, item: str, tags: List[str], category: str = "concept"):
         """Tag an item with semantic tags.
 
         Args:
@@ -207,7 +207,6 @@ class SemanticTagger:
         """Generate summary of all tags and their usage."""
         if not self.tags:
             return "No tags defined yet."
-
         parts = ["## Semantic Tag Summary\n"]
 
         by_category: Dict[str, List[SemanticTag]] = {}
@@ -238,7 +237,7 @@ class SemanticTagger:
         normalized = tag.lstrip("#").lower().replace(" ", "-")
         return normalized
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> Dict[str, Any]:
         """Get tagging system statistics."""
         return {
             "total_tags": len(self.tags),

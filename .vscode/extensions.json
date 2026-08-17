@@ -1,6 +1,7 @@
 {
     "recommendations": [
         "ms-toolsai.jupyter",
-        "docker.docker"
+        "docker.docker",
+        "dbaeumer.vscode-eslint"
     ]
 }

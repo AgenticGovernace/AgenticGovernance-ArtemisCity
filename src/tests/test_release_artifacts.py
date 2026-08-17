@@ -277,10 +277,9 @@ def _exact_mapping(
 
 
 def _mapping_list(value: object, context: str) -> list[object]:
-    assert isinstance(value, list), (
-        f"RELEASE_HOLD_SCHEMA: {context} must be a list, "
-        f"found {type(value).__name__}."
-    )
+    assert isinstance(
+        value, list
+    ), f"RELEASE_HOLD_SCHEMA: {context} must be a list, found {type(value).__name__}."
     return value
 
 
@@ -501,7 +500,7 @@ def test_release_hold_contract_yaml_loader_rejects_duplicate_keys(
 ) -> None:
     duplicate_yaml = tmp_path / "duplicate.yaml"
     duplicate_yaml.write_text(
-        "permissions:\n" "  authorizes_build: false\n" "  authorizes_build: true\n",
+        "permissions:\n  authorizes_build: false\n  authorizes_build: true\n",
         encoding="utf-8",
     )
 

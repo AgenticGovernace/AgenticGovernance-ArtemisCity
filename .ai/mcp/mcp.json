@@ -1,1 +1,29 @@
-{}
+{
+  "mcpServers": {
+    "artemis_loki": {
+      "url": "http://127.0.0.1:8081/api/agents/artemis-loki/mcp",
+      "type": "stdio",
+      "command": "",
+      "args": []
+    },
+    "artemis_packrat": {
+      "url": "http://127.0.0.1:8081/api/agents/artemis-packrat/mcp",
+      "type": "stdio",
+      "command": "",
+      "args": []
+    },
+    "artemis_compsuite": {
+      "url": "http://127.0.0.1:8081/api/agents/artemis-compsuite/mcp",
+      "type": "stdio",
+      "command": "",
+      "args": []
+    }
+  },
+  "toolServers": {
+    "artemis-validators-tools": {
+      "url": "http://127.0.0.1:8081/api/tool-servers/artemis-validators-tools/mcp",
+      "command": "",
+      "args": []  
+    } 
+  }
+}

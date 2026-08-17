@@ -132,9 +132,9 @@ class TestInterfaceCompliance:
         Returns:
             None: This function does not return a value.
         """
-        assert issubclass(
-            agent_class, BaseAgent
-        ), f"{agent_class.__name__} must inherit from BaseAgent"
+        assert issubclass(agent_class, BaseAgent), (
+            f"{agent_class.__name__} must inherit from BaseAgent"
+        )
 
     def test_agent_has_perform_task_method(self, agent_instance: BaseAgent) -> None:
         """All agents must implement perform_task method.
@@ -145,12 +145,12 @@ class TestInterfaceCompliance:
         Returns:
             None: This function does not return a value.
         """
-        assert hasattr(
-            agent_instance, "perform_task"
-        ), f"{agent_instance.name} missing perform_task method"
-        assert callable(
-            agent_instance.perform_task
-        ), f"{agent_instance.name}.perform_task must be callable"
+        assert hasattr(agent_instance, "perform_task"), (
+            f"{agent_instance.name} missing perform_task method"
+        )
+        assert callable(agent_instance.perform_task), (
+            f"{agent_instance.name}.perform_task must be callable"
+        )
 
     def test_agent_has_report_status_method(self, agent_instance: BaseAgent) -> None:
         """All agents must have report_status method (inherited or overridden).
@@ -161,12 +161,12 @@ class TestInterfaceCompliance:
         Returns:
             None: This function does not return a value.
         """
-        assert hasattr(
-            agent_instance, "report_status"
-        ), f"{agent_instance.name} missing report_status method"
-        assert callable(
-            agent_instance.report_status
-        ), f"{agent_instance.name}.report_status must be callable"
+        assert hasattr(agent_instance, "report_status"), (
+            f"{agent_instance.name} missing report_status method"
+        )
+        assert callable(agent_instance.report_status), (
+            f"{agent_instance.name}.report_status must be callable"
+        )
 
     def test_agent_has_name_attribute(self, agent_instance: BaseAgent) -> None:
         """All agents must have a non-empty name attribute.
@@ -178,9 +178,9 @@ class TestInterfaceCompliance:
             None: This function does not return a value.
         """
         assert hasattr(agent_instance, "name"), f"Agent missing name attribute"
-        assert isinstance(
-            agent_instance.name, str
-        ), f"{agent_instance.name} name must be a string"
+        assert isinstance(agent_instance.name, str), (
+            f"{agent_instance.name} name must be a string"
+        )
         assert len(agent_instance.name) > 0, f"Agent name cannot be empty"
 
     def test_agent_has_capabilities_attribute(self, agent_instance: BaseAgent) -> None:
@@ -192,12 +192,12 @@ class TestInterfaceCompliance:
         Returns:
             None: This function does not return a value.
         """
-        assert hasattr(
-            agent_instance, "capabilities"
-        ), f"{agent_instance.name} missing capabilities attribute"
-        assert isinstance(
-            agent_instance.capabilities, list
-        ), f"{agent_instance.name}.capabilities must be a list"
+        assert hasattr(agent_instance, "capabilities"), (
+            f"{agent_instance.name} missing capabilities attribute"
+        )
+        assert isinstance(agent_instance.capabilities, list), (
+            f"{agent_instance.name}.capabilities must be a list"
+        )
 
     def test_agent_has_logger_attribute(self, agent_instance: BaseAgent) -> None:
         """All agents must have a logger attribute.
@@ -208,9 +208,9 @@ class TestInterfaceCompliance:
         Returns:
             None: This function does not return a value.
         """
-        assert hasattr(
-            agent_instance, "logger"
-        ), f"{agent_instance.name} missing logger attribute"
+        assert hasattr(agent_instance, "logger"), (
+            f"{agent_instance.name} missing logger attribute"
+        )
 
 
 # =============================================================================
@@ -234,9 +234,9 @@ class TestContractCompliance:
         params = list(sig.parameters.keys())
 
         # Should have self and task_context parameters
-        assert (
-            "self" in params or len(params) >= 1
-        ), f"{agent_class.__name__}.perform_task missing parameters"
+        assert "self" in params or len(params) >= 1, (
+            f"{agent_class.__name__}.perform_task missing parameters"
+        )
 
     def test_perform_task_accepts_dict(
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
@@ -300,9 +300,9 @@ class TestBehaviorCompliance:
             None: This function does not return a value.
         """
         result = agent_instance.perform_task(minimal_task_context)
-        assert (
-            "status" in result
-        ), f"{agent_instance.name} result missing 'status' field"
+        assert "status" in result, (
+            f"{agent_instance.name} result missing 'status' field"
+        )
 
     def test_result_status_is_valid(
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
@@ -337,9 +337,9 @@ class TestBehaviorCompliance:
             None: This function does not return a value.
         """
         result = agent_instance.perform_task(minimal_task_context)
-        assert (
-            "summary" in result
-        ), f"{agent_instance.name} result missing 'summary' field"
+        assert "summary" in result, (
+            f"{agent_instance.name} result missing 'summary' field"
+        )
 
     def test_result_summary_is_string(
         self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
@@ -355,9 +355,9 @@ class TestBehaviorCompliance:
             None: This function does not return a value.
         """
         result = agent_instance.perform_task(minimal_task_context)
-        assert isinstance(
-            result.get("summary"), str
-        ), f"{agent_instance.name} summary must be string"
+        assert isinstance(result.get("summary"), str), (
+            f"{agent_instance.name} summary must be string"
+        )
 
     def test_capabilities_are_strings(self, agent_instance: BaseAgent) -> None:
         """All capability entries must be strings.
@@ -369,9 +369,9 @@ class TestBehaviorCompliance:
             None: This function does not return a value.
         """
         for cap in agent_instance.capabilities:
-            assert isinstance(
-                cap, str
-            ), f"{agent_instance.name} has non-string capability: {cap}"
+            assert isinstance(cap, str), (
+                f"{agent_instance.name} has non-string capability: {cap}"
+            )
 
 
 # =============================================================================
@@ -402,9 +402,9 @@ class TestErrorHandling:
         except Exception as e:
             # If it raises, it should be a documented exception type
             # not an unexpected crash
-            assert not isinstance(
-                e, (AttributeError, KeyError, TypeError)
-            ), f"{agent_instance.name} crashed on empty context: {e}"
+            assert not isinstance(e, (AttributeError, KeyError, TypeError)), (
+                f"{agent_instance.name} crashed on empty context: {e}"
+            )
 
     def test_report_status_accepts_string(self, agent_instance: BaseAgent) -> None:
         """report_status should accept string messages without error.
@@ -509,9 +509,9 @@ class TestAgentDiscovery:
             None: This function does not return a value.
         """
         for agent in get_all_agent_instances():
-            assert (
-                len(agent.capabilities) > 0
-            ), f"{agent.name} has no capabilities declared"
+            assert len(agent.capabilities) > 0, (
+                f"{agent.name} has no capabilities declared"
+            )
 
     def test_minimum_agent_count(self) -> None:
         """System should have at least 3 agents registered.

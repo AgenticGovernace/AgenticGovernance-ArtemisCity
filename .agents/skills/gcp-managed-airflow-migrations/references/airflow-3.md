@@ -186,6 +186,7 @@ with DAG(
 from airflow.sdk import dag, task, Asset
 from datetime import datetime
 
+
 @dag(
     dag_id="example_dag",
     start_date=datetime(2023, 1, 1),
@@ -198,6 +199,7 @@ def example_dag():
         return "echo hello"
 
     run_script()
+
 
 example_dag()
 ```

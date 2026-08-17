@@ -164,9 +164,9 @@ class CitySimulation:
         self.tick: int = 0
         self.zones: Dict[str, ZoneState] = self._default_zones()
         self.residents: List[Resident] = self._default_residents()
-        self.history: List[Dict[str, object]] = (
-            []
-        )  # Snapshots per tick for offline analysis
+        self.history: List[
+            Dict[str, object]
+        ] = []  # Snapshots per tick for offline analysis
 
     # ---- Public API -----------------------------------------------------
 
@@ -582,10 +582,12 @@ class CitySimulation:
             location = f" @ {action['zone']}" if action["zone"] else ""
             print(f"• {action['actor']} {action['summary']}{location}")
 
-        print(textwrap.dedent(f"""
-                Scores: service_health={scores['service_health']:.3f} | stability={scores['stability']:.2f} | load={scores['load']:.2f} | risk={scores['risk']:.2f}
-                        morale={scores['morale']:.2f} | trust={scores['trust']:.2f} | energy={scores['energy']:.2f}
-                """).strip())
+        print(
+            textwrap.dedent(f"""
+                Scores: service_health={scores["service_health"]:.3f} | stability={scores["stability"]:.2f} | load={scores["load"]:.2f} | risk={scores["risk"]:.2f}
+                        morale={scores["morale"]:.2f} | trust={scores["trust"]:.2f} | energy={scores["energy"]:.2f}
+                """).strip()
+        )
 
 
 def _parse_args() -> argparse.Namespace:

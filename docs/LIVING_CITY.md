@@ -73,7 +73,7 @@ packet = post_office.send_mail(
     recipient="pack_rat",
     subject="New Postal Route Request",
     content="Please establish route to Sandbox District",
-    priority="urgent"
+    priority="urgent",
 )
 
 print(f"Mail #{packet.tracking_id} - Status: {packet.delivery_status}")
@@ -102,7 +102,7 @@ response = post_office.send_to_archives(
     sender="artemis",
     archive_section="Reflections",
     title="Q4_City_Report",
-    content="# Quarterly Report\n\nThe city thrives..."
+    content="# Quarterly Report\n\nThe city thrives...",
 )
 ```
 ### Archive Sections
@@ -115,9 +115,7 @@ response = post_office.send_to_archives(
 ```python
 # Search the archives
 documents = post_office.request_from_archives(
-    requester="copilot",
-    query="governance policy",
-    section="Policies"
+    requester="copilot", query="governance policy", section="Policies"
 )
 
 for doc in documents:
@@ -134,7 +132,7 @@ from src.integration.memory_bus import MemoryBus
 result = memory_bus.write_note_with_embedding(
     relative_path="Reports/daily_summary.md",
     content="# Daily Summary\n\nCity operations nominal...",
-    metadata={"agent": "artemis", "type": "report"}
+    metadata={"agent": "artemis", "type": "report"},
 )
 
 print(f"Written in {result['total_latency_ms']:.2f}ms")
@@ -143,10 +141,7 @@ print(f"Vector indexed: {result['vector_latency_ms']:.2f}ms")
 ### Hierarchical Read Strategy
 ```python
 # Reads cascade through: Exact Match → Keyword Scan → Semantic Search
-results = memory_bus.read(
-    query="governance policies",
-    max_results=5
-)
+results = memory_bus.read(query="governance policies", max_results=5)
 
 for result in results:
     print(f"[{result['source']}] {result['path']} (score: {result['score']:.2f})")
@@ -188,7 +183,7 @@ if trust.can_perform_operation("pack_rat", "write"):
 report = trust.get_trust_report()
 
 print(f"Total Citizens: {report['total_entities']}")
-for level, entities in report['by_level'].items():
+for level, entities in report["by_level"].items():
     if entities:
         print(f"  {level.upper()}: {len(entities)} citizen(s)")
 ```
@@ -212,7 +207,7 @@ hebbian = HebbianWeightManager()
 summary = hebbian.get_network_summary()
 print(f"Total Connections: {summary['total_connections']}")
 print(f"Average Weight: {summary['average_weight']:.2f}")
-print(f"Success Rate: {summary['success_rate']*100:.1f}%")
+print(f"Success Rate: {summary['success_rate'] * 100:.1f}%")
 
 # Get agent-specific stats
 connections = hebbian.get_strongest_connections("Artemis Agent", limit=5)
@@ -240,7 +235,7 @@ for citizen in ["pack_rat", "copilot", "Daemon_daemon"]:
         sender="artemis",
         recipient=citizen,
         subject="Daily Briefing",
-        content=f"Good morning, {citizen}! Today's priorities..."
+        content=f"Good morning, {citizen}! Today's priorities...",
     )
 ```
 ### Example 2: Archive Research with Memory Bus
@@ -250,12 +245,14 @@ from src.mcp.orchestrator import Orchestrator
 orchestrator = Orchestrator()
 
 # Research task routed through the kernel
-result = orchestrator.route_and_execute_task({
-    "task_id": "research_001",
-    "title": "ATP Protocol Analysis",
-    "required_capability": "document_analysis",
-    "content": "Analyze the ATP protocol decisions from archives"
-})
+result = orchestrator.route_and_execute_task(
+    {
+        "task_id": "research_001",
+        "title": "ATP Protocol Analysis",
+        "required_capability": "document_analysis",
+        "content": "Analyze the ATP protocol decisions from archives",
+    }
+)
 
 print(f"Status: {result['status']}")
 print(f"Summary: {result['summary']}")
@@ -269,10 +266,10 @@ hebbian_summary = orchestrator.hebbian.get_network_summary()
 print(f"""
 🏛️ ARTEMIS CITY WEEKLY REPORT
 
-📬 Postal Service: {report['successful']} deliveries
-🎖️ Trust Office: {report['trust_report']['total_entities']} citizens
-🧠 Neural Network: {hebbian_summary['total_connections']} connections
-📈 Success Rate: {hebbian_summary['success_rate']*100:.1f}%
+📬 Postal Service: {report["successful"]} deliveries
+🎖️ Trust Office: {report["trust_report"]["total_entities"]} citizens
+🧠 Neural Network: {hebbian_summary["total_connections"]} connections
+📈 Success Rate: {hebbian_summary["success_rate"] * 100:.1f}%
 📊 Status: City thriving!
 """)
 ```
@@ -328,8 +325,7 @@ class NewCitizenAgent(BaseAgent):
 
     def __init__(self):
         super().__init__(
-            name="New Citizen",
-            capabilities=["explore", "report", "collaborate"]
+            name="New Citizen", capabilities=["explore", "report", "collaborate"]
         )
 
     def perform_task(self, task_context: dict) -> dict:
@@ -341,7 +337,7 @@ class NewCitizenAgent(BaseAgent):
         self.report_status("Task complete!")
         return {
             "status": "success",
-            "summary": f"Completed: {task_context.get('title', 'task')}"
+            "summary": f"Completed: {task_context.get('title', 'task')}",
         }
 
     def _do_work(self, context):
@@ -366,7 +362,7 @@ post_office.send_mail(
     sender="New Citizen",
     recipient="artemis",
     subject="New Citizen Introduction",
-    content="Hello! I'm ready to serve the city!"
+    content="Hello! I'm ready to serve the city!",
 )
 ```
 ## 🔮 Advanced City Features
@@ -375,12 +371,14 @@ post_office.send_mail(
 orchestrator = Orchestrator()
 
 # Task automatically routed to best agent
-result = orchestrator.route_and_execute_task({
-    "task_id": "collab_001",
-    "title": "Build ATP Extension",
-    "required_capability": "system_management",
-    "content": "Design and implement new ATP message types"
-})
+result = orchestrator.route_and_execute_task(
+    {
+        "task_id": "collab_001",
+        "title": "Build ATP Extension",
+        "required_capability": "system_management",
+        "content": "Design and implement new ATP message types",
+    }
+)
 
 # Hebbian weights updated automatically based on success/failure
 ```

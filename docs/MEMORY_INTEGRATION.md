@@ -88,21 +88,15 @@ Python REST client for the MCP server with full coverage of 8 MCP operations.
 ```python
 from memory.integration import MemoryClient
 
-client = MemoryClient(
-    base_url="http://localhost:3000",
-    api_key="your_mcp_api_key"
-)
+client = MemoryClient(base_url="http://localhost:3000", api_key="your_mcp_api_key")
 
 # Read a note
 response = client.get_context("Daily/2025-11-23.md")
 if response.success:
-    print(response.data['content'])
+    print(response.data["content"])
 
 # Store agent context
-client.store_agent_context(
-    "artemis",
-    "Completed ATP integration successfully"
-)
+client.store_agent_context("artemis", "Completed ATP integration successfully")
 ```
 
 ### 2. Trust Interface (`src/integration/trust_interface.py`)
@@ -135,9 +129,9 @@ from memory.integration import get_trust_interface
 trust = get_trust_interface()
 
 # Check permission
-if trust.can_perform_operation('artemis', 'write'):
+if trust.can_perform_operation("artemis", "write"):
     # Perform write operation
-    trust.record_success('artemis')  # Reinforce trust
+    trust.record_success("artemis")  # Reinforce trust
 else:
     print("Access denied - insufficient trust")
 
@@ -236,7 +230,7 @@ client = MemoryClient()
 agent_name = "artemis"
 
 # Check permission
-if trust.can_perform_operation(agent_name, 'write'):
+if trust.can_perform_operation(agent_name, "write"):
     # Store reflection
     reflection = "Today's synthesis: ATP integration complete"
     response = client.store_agent_context(agent_name, reflection)
@@ -259,9 +253,7 @@ history = loader.load_agent_history("artemis", limit=5)
 
 # Filter by date range
 recent = loader.filter_by_date_range(
-    history,
-    start_date="2025-11-01",
-    end_date="2025-11-30"
+    history, start_date="2025-11-01", end_date="2025-11-30"
 )
 
 # Generate summary
@@ -279,9 +271,7 @@ loader = ContextLoader()
 
 # Pack Rat stores transfer log
 client.store_agent_context(
-    "pack_rat",
-    "Transfer completed: ATP specs to Artemis",
-    folder="Agents/Transfers"
+    "pack_rat", "Transfer completed: ATP specs to Artemis", folder="Agents/Transfers"
 )
 
 # Artemis loads Pack Rat's logs
@@ -302,14 +292,10 @@ loader = ContextLoader()
 
 # Load all agent histories
 all_history = []
-for agent in ['artemis', 'pack_rat', 'copilot']:
+for agent in ["artemis", "pack_rat", "copilot"]:
     history = loader.load_agent_history(agent, limit=5)
     for entry in history:
-        all_history.append({
-            'entity_id': agent,
-            'entity_type': 'agent',
-            'data': entry
-        })
+        all_history.append({"entity_id": agent, "entity_type": "agent", "data": entry})
 
 # Filter by trust level
 trusted_only = trust.filter_by_trust(all_history, min_trust_level=TrustLevel.HIGH)

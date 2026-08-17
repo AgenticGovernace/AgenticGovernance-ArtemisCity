@@ -117,6 +117,7 @@ production-library coverage targets.
 ```python
 """Unit tests for ArtemisPersona."""
 
+
 class TestResponseMode:
     """Tests for ResponseMode enum."""
 
@@ -125,6 +126,7 @@ class TestResponseMode:
 
     def test_response_mode_default(self):
         """Default mode should be REFLECTIVE."""
+
 
 class TestArtemisPersona:
     """Tests for ArtemisPersona class."""
@@ -209,6 +211,7 @@ class TestArtemisPersona:
 ```python
 """Unit tests for ReflectionEngine."""
 
+
 class TestConceptNode:
     """Tests for ConceptNode dataclass."""
 
@@ -220,6 +223,7 @@ class TestConceptNode:
 
     def test_relate_to_adds_relationship(self):
         """Relating concepts creates bidirectional link."""
+
 
 class TestConceptGraph:
     """Tests for ConceptGraph dataclass."""
@@ -241,6 +245,7 @@ class TestConceptGraph:
 
     def test_find_concept_clusters_connected(self):
         """Connected concepts form single cluster."""
+
 
 class TestReflectionEngine:
     """Tests for ReflectionEngine class."""
@@ -288,6 +293,7 @@ class TestReflectionEngine:
 ```python
 """Unit tests for SemanticTagger."""
 
+
 class TestSemanticTag:
     """Tests for SemanticTag dataclass."""
 
@@ -296,6 +302,7 @@ class TestSemanticTag:
 
     def test_str_format(self):
         """String format shows tag, category, ref count."""
+
 
 class TestCitation:
     """Tests for Citation dataclass."""
@@ -308,6 +315,7 @@ class TestCitation:
 
     def test_format_url_citation(self):
         """URL citation formatted correctly."""
+
 
 class TestSemanticTagger:
     """Tests for SemanticTagger class."""
@@ -373,6 +381,7 @@ class TestSemanticTagger:
 ```python
 """Unit tests for ATP models."""
 
+
 class TestATPEnums:
     """Tests for ATP enum types."""
 
@@ -384,6 +393,7 @@ class TestATPEnums:
 
     def test_atp_action_type_values(self):
         """All ATPActionType values defined."""
+
 
 class TestATPMessage:
     """Tests for ATPMessage dataclass."""
@@ -414,6 +424,7 @@ class TestATPMessage:
 
 ```python
 """Unit tests for ATPParser."""
+
 
 class TestATPParser:
     """Tests for ATPParser class."""
@@ -505,6 +516,7 @@ class TestATPParser:
 ```python
 """Unit tests for ATPValidator."""
 
+
 class TestValidationResult:
     """Tests for ValidationResult class."""
 
@@ -522,6 +534,7 @@ class TestValidationResult:
 
     def test_str_format(self):
         """String includes all issues."""
+
 
 class TestATPValidator:
     """Tests for ATPValidator class."""
@@ -590,11 +603,13 @@ class TestATPValidator:
 ```python
 """Unit tests for InstructionLoader."""
 
+
 class TestInstructionScope:
     """Tests for InstructionScope dataclass."""
 
     def test_init_all_fields(self):
         """Scope initializes with all fields."""
+
 
 class TestInstructionSet:
     """Tests for InstructionSet dataclass."""
@@ -613,6 +628,7 @@ class TestInstructionSet:
 
     def test_get_merged_without_markers(self):
         """Markers excluded when not requested."""
+
 
 class TestInstructionLoader:
     """Tests for InstructionLoader class."""
@@ -667,6 +683,7 @@ class TestInstructionLoader:
 ```python
 """Unit tests for InstructionCache."""
 
+
 class TestInstructionCache:
     """Tests for InstructionCache class."""
 
@@ -708,6 +725,7 @@ class TestInstructionCache:
     def test_get_stats_accurate(self, tmp_path):
         """Stats reflect cache state."""
 
+
 class TestGlobalCache:
     """Tests for global cache functions."""
 
@@ -725,6 +743,7 @@ class TestGlobalCache:
 ```python
 """Unit tests for MemoryClient."""
 
+
 class TestMCPResponse:
     """Tests for MCPResponse dataclass."""
 
@@ -733,6 +752,7 @@ class TestMCPResponse:
 
     def test_from_json_error(self):
         """Creates response from error JSON."""
+
 
 class TestMemoryClient:
     """Tests for MemoryClient class."""
@@ -814,6 +834,7 @@ class TestMemoryClient:
 ```python
 """Unit tests for ContextLoader."""
 
+
 class TestContextEntry:
     """Tests for ContextEntry dataclass."""
 
@@ -822,6 +843,7 @@ class TestContextEntry:
 
     def test_get_summary_truncates(self):
         """Long content truncated with ellipsis."""
+
 
 class TestContextLoader:
     """Tests for ContextLoader class."""
@@ -882,11 +904,13 @@ class TestContextLoader:
 ```python
 """Unit tests for TrustInterface."""
 
+
 class TestTrustLevel:
     """Tests for TrustLevel enum."""
 
     def test_trust_level_thresholds(self):
         """Verify threshold values for each level."""
+
 
 class TestTrustScore:
     """Tests for TrustScore dataclass."""
@@ -936,6 +960,7 @@ class TestTrustScore:
 
     def test_update_level_untrusted(self):
         """Score < 0.3 is UNTRUSTED."""
+
 
 class TestTrustInterface:
     """Tests for TrustInterface class."""
@@ -998,6 +1023,7 @@ class TestTrustInterface:
 ```python
 """Integration tests for ATP pipeline."""
 
+
 class TestATPPipeline:
     """Tests for Parser → Validator → Message flow."""
 
@@ -1019,6 +1045,7 @@ class TestATPPipeline:
 ```python
 """Integration tests for instruction system."""
 
+
 class TestInstructionSystem:
     """Tests for Loader → Cache → merged output."""
 
@@ -1037,6 +1064,7 @@ class TestInstructionSystem:
 ```python
 """Integration tests for Artemis agent components."""
 
+
 class TestArtemisIntegration:
     """Tests for Persona + Reflection + Tagging."""
 
@@ -1054,6 +1082,7 @@ class TestArtemisIntegration:
 
 ```python
 """Integration tests for memory system."""
+
 
 class TestMemorySystem:
     """Tests for Client → ContextLoader → Trust."""
@@ -1077,6 +1106,7 @@ class TestMemorySystem:
 ```python
 """End-to-end tests for CLI."""
 
+
 class TestCLIWorkflow:
     """Tests for complete CLI interactions."""
 
@@ -1097,6 +1127,7 @@ class TestCLIWorkflow:
 
 ```python
 """End-to-end tests for demo scripts."""
+
 
 class TestDemoScripts:
     """Tests verifying demo scripts run without error."""
@@ -1120,6 +1151,7 @@ class TestDemoScripts:
 import pytest
 from pathlib import Path
 
+
 # Sample ATP Messages
 @pytest.fixture
 def sample_atp_hash():
@@ -1132,6 +1164,7 @@ def sample_atp_hash():
 
 Build the new agent component."""
 
+
 @pytest.fixture
 def sample_atp_bracket():
     """Sample ATP message in bracket format."""
@@ -1140,6 +1173,7 @@ def sample_atp_bracket():
 [[ActionType]]: Reflect
 
 Review the implementation."""
+
 
 # Temporary Project Structure
 @pytest.fixture
@@ -1156,6 +1190,7 @@ def project_structure(tmp_path):
 
     return tmp_path
 
+
 # Mock Memory Client
 @pytest.fixture
 def mock_memory_client(mocker):
@@ -1163,42 +1198,39 @@ def mock_memory_client(mocker):
     mock = mocker.MagicMock()
     mock.health_check.return_value = True
     mock.get_context.return_value = mocker.MagicMock(
-        success=True,
-        data={"content": "test content"}
+        success=True, data={"content": "test content"}
     )
     return mock
+
 
 # Sample Trust Scores
 @pytest.fixture
 def sample_trust_scores():
     """Sample trust score data."""
-    return {
-        "artemis": 0.95,
-        "pack_rat": 0.85,
-        "new_agent": 0.50,
-        "untrusted": 0.20
-    }
+    return {"artemis": 0.95, "pack_rat": 0.85, "new_agent": 0.50, "untrusted": 0.20}
+
 
 # Context Entries
 @pytest.fixture
 def sample_context_entries():
     """Sample context entries for testing."""
     from memory.integration import ContextEntry
+
     return [
         ContextEntry(
             path="test/note1.md",
             content="First note content",
             tags=["test", "sample"],
             frontmatter={"date": "2025-11-01"},
-            relevance_score=0.9
+            relevance_score=0.9,
         ),
         ContextEntry(
             path="test/note2.md",
             content="Second note content",
             tags=["test"],
             frontmatter={"date": "2025-11-15"},
-            relevance_score=0.7
-        )
+            relevance_score=0.7,
+        ),
     ]
 ```
 

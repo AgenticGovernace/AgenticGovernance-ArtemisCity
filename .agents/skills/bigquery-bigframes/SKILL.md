@@ -23,7 +23,8 @@ data processing by using familiar Python APIs.
   row-sequence constraints.
   ```python
   import bigframes.pandas as bpd
-  bpd.options.bigquery.ordering_mode = 'partial'
+
+  bpd.options.bigquery.ordering_mode = "partial"
   ```
 * **Use `peek()` for data preview**: Use `peek(n)` to preview data instead of
   `head(n)`. `peek(n)` randomly samples `n` rows and is significantly faster.
