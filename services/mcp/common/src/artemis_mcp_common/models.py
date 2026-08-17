@@ -47,4 +47,5 @@ class GovernedContext(StrictInput):
     principal: ServicePrincipal
     atp: AtpEnvelope
     capability: str
+    scope: str | None = None
     accepted_at: datetime

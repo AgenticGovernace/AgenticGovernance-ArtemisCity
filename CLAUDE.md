@@ -668,8 +668,8 @@ authoritative, what is in transition, and what is deliberately frozen.
 | FastAPI dashboard | `app/api/main.py` | `/api/*` dashboard backend, SQLite-only fallback | Edit for dashboard endpoints. Falls back to read-only SQLite if orchestrator imports fail. |
 | TS Express API | `app/api/index.ts`, `app/api/v1/*.ts`, `app/api/controllers/*.ts` | `/api/v1/*` public HTTP boundary | Boundary for new registry / governance / ATP endpoints. Spawns the bridge — do **not** reimplement Python logic in TS. |
 | Kernel layer | `app/kernel/` | In-process router with concrete `DaemonAgent`, `PlannerAgent` | Newer layer; growing toward orchestrator parity. Used by `app/kernel/cli.py` for local probing. |
-| Obsidian MCP server shell | `src/Artemis Agentic Memory Layer/` | Historical placeholder for a standalone vault service | **Unavailable in this checkout**: no package manifest or Docker files are present. Restore the service and register it in the root workspace before treating it as runnable. |
-| Imported Obsidian REST shells | `src/mcp-server/`, `src/memory/mcp-server/` | Imported HTTP adapters for Obsidian Local REST API | **Transitional and non-authoritative**. Neither package is registered in the root workspace or implements the reviewed Model Context Protocol boundary. Select one owner before extending either copy. |
+| Obsidian REST shell | `src/Artemis Agentic Memory Layer/` | Standalone Express/TS service fronting the Obsidian Local REST API | **Populated, not registered**: has a working `package.json`, `Dockerfile`, and `middleware/auth.ts`. `make server` runs it. It is branding-only — plain REST, no `@modelcontextprotocol/sdk` dependency — and is not the Model Context Protocol implementation; see `services/mcp/` below for that. Register it in the root workspace before treating it as a production dependency. Two byte-identical, broken duplicates (`src/mcp-server/`, `src/memory/mcp-server/`) were removed; this is the sole canonical copy. |
+| MCP servers (official SDK) | `services/mcp/` | Python servers built on the real `mcp[cli]==2.0.0` SDK, adapting `src/` domain services | Per the accepted design (`docs/superpowers/specs/2026-08-16-artemis-mcp-backend-servers-design.md`), `src/` remains the sole domain-logic owner; server packages are thin transport adapters (stdio default, authenticated Streamable HTTP at `/mcp`). `artemis-validation` (read-only ATP tools) and `artemis-memory` (write/read/search/status-memory tools over `MemoryService`) are implemented. `common` is explicitly quarantined — not for production wiring until its governed-core replacement is reviewed. Five more servers (`artemis-provenance`, `-task`, `-registry`, `-governance`, `-routing`) are planned but not yet built. |
 | Frontend (mixed) | `app/web/frontend/` | React/Vite client; also carries leftover TS controllers/middleware | **In transition**. Treat as a mixed client/server workspace per README §"Dashboard and web-facing code". |
 | Concept demos | `Concept_Demos/` | Prototype ground for agents and flows | Older but supported. Per the Agent Implementation Guide, work prototyped here graduates to `src/`. |
 
@@ -1115,7 +1115,7 @@ point.
 | Python CLI | `make cli` |
 | Orchestrator pipeline | `make orchestrator` (`make run` is an alias) |
 | Concept demos | `make demo` |
-| Obsidian MCP server | Unavailable; `make server` fails closed until its package is restored |
+| Obsidian REST shell server | `make server` (runs `src/Artemis Agentic Memory Layer/`) |
 | FastAPI dashboard backend (`:8000`) | `make api` |
 | Frontend dev server (`:5173`, proxies `/api` -> `:8000`) | `make frontend` |
 | TypeScript Express API (`:4000`) | `make express-api` |
@@ -1162,3 +1162,7 @@ uvicorn by hand, keep `--port 8000`.
 | ATP parser / validator | `src/agents/atp/` |
 | Environment loader | `src/utils/environments.py` |
 | Test conftest | `src/tests/conftest.py` |
+| Transport-independent memory domain | `src/memory/{models,ports,service}.py`, `src/memory/backends/` |
+| MCP common package (shared gate/principals, quarantined) | `services/mcp/common/src/artemis_mcp_common/` |
+| ATP validation MCP server | `services/mcp/artemis-validation/` |
+| Memory MCP server | `services/mcp/artemis-memory/` |

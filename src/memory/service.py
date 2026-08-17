@@ -4,10 +4,19 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from .models import (ClaimDisposition, LedgerWrite, MemoryLedgerUnavailable,
-                     MemoryRecord, MemoryValidationError, MemoryWriteCommand,
-                     MemoryWriteReceipt, ProjectionState, validate_key,
-                     validate_namespace, validate_required_text)
+from .models import (
+    ClaimDisposition,
+    LedgerWrite,
+    MemoryLedgerUnavailable,
+    MemoryRecord,
+    MemoryValidationError,
+    MemoryWriteCommand,
+    MemoryWriteReceipt,
+    ProjectionState,
+    validate_key,
+    validate_namespace,
+    validate_required_text,
+)
 from .ports import MemoryLedger, MemoryProjection, ProjectionClaim
 
 PROJECTION_FAILURE_CODE = "projection_failed"

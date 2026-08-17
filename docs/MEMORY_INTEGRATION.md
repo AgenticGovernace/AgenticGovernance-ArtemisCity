@@ -204,11 +204,11 @@ export OBSIDIAN_API_KEY="your_obsidian_plugin_api_key"
 
 ### Starting the MCP Server
 
-The historical standalone MCP package is not present in this checkout (the
-directory has no `package.json`). Do not install dependencies inside that
-directory. If the package is restored, add it to the root npm workspace and
-expose its install and launch commands through the root Makefile before using
-the port-3000 examples below.
+The standalone service is present in this checkout and runnable via
+`make server` (see the root Makefile's `server` target). It is not yet
+registered in the root npm workspace — install its dependencies from inside
+`src/Artemis Agentic Memory Layer/` directly (`npm install`) until that
+registration lands.
 
 ### Verifying Connection
 
@@ -547,7 +547,7 @@ Planned improvements aligned with the plan:
 
 ## References
 
-- **MCP Server Status**: See `PROJECT_BOUNDARIES.md`; the standalone package is unavailable in this checkout
+- **MCP Server Status**: See `PROJECT_BOUNDARIES.md`; the standalone package is present and runnable via `make server`, but not yet registered in the root npm workspace
 - **ATP Protocol**: See `agents/artemis_transmission_protocol (ATP)`
 - **Trust Decay Model**: See `memory/trust_decay_model.md`
 - **Agent Cards**: See `agents/*.md`

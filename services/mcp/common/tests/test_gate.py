@@ -110,6 +110,72 @@ def test_gate_returns_timezone_aware_context_for_authorized_request():
     assert context.accepted_at.tzinfo == UTC
 
 
+def test_gate_rejects_missing_namespace_scope():
+    """A capability grant alone must not satisfy a required namespace scope."""
+    principal = ServicePrincipal(
+        principal_id="writer",
+        capabilities={"memory:write"},
+    )
+
+    with pytest.raises(GovernanceDenied, match="memory:namespace:reviewed"):
+        GovernedGate().authorize(
+            principal,
+            _approved_envelope(),
+            "memory:write",
+            required_scope="memory:namespace:reviewed",
+        )
+
+
+def test_gate_accepts_exact_namespace_scope():
+    """An exact namespace grant satisfies its matching required scope."""
+    principal = ServicePrincipal(
+        principal_id="writer",
+        capabilities={"memory:write", "memory:namespace:reviewed"},
+    )
+
+    context = GovernedGate().authorize(
+        principal,
+        _approved_envelope(),
+        "memory:write",
+        required_scope="memory:namespace:reviewed",
+    )
+
+    assert context.scope == "memory:namespace:reviewed"
+
+
+def test_gate_accepts_wildcard_namespace_scope():
+    """The server-recognized wildcard grant satisfies any exact namespace scope."""
+    principal = ServicePrincipal(
+        principal_id="writer",
+        capabilities={"memory:write", "memory:namespace:*"},
+    )
+
+    context = GovernedGate().authorize(
+        principal,
+        _approved_envelope(),
+        "memory:write",
+        required_scope="memory:namespace:private",
+    )
+
+    assert context.scope == "memory:namespace:private"
+
+
+def test_gate_rejects_exact_grant_for_a_different_namespace():
+    """An exact grant for one namespace must not authorize a different one."""
+    principal = ServicePrincipal(
+        principal_id="writer",
+        capabilities={"memory:write", "memory:namespace:reviewed"},
+    )
+
+    with pytest.raises(GovernanceDenied, match="memory:namespace:private"):
+        GovernedGate().authorize(
+            principal,
+            _approved_envelope(),
+            "memory:write",
+            required_scope="memory:namespace:private",
+        )
+
+
 def test_bearer_principal_uses_sdk_auth_context(monkeypatch):
     """HTTP principals derive identity and scopes only from SDK auth context."""
     sdk_token = AccessToken(

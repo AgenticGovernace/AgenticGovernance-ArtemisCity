@@ -22,8 +22,9 @@ class GovernedGate:
         principal: ServicePrincipal,
         envelope: AtpEnvelope,
         required_capability: str,
+        required_scope: str | None = None,
     ) -> GovernedContext:
-        """Validate ATP, enforce capability policy, and return accepted context."""
+        """Validate ATP, enforce capability and scope policy, return accepted context."""
         atp_message = self._strict_message(envelope)
         validation = ATPValidator(strict=True).validate(atp_message)
         if not validation.is_valid:
@@ -34,12 +35,26 @@ class GovernedGate:
             raise GovernanceDenied(
                 f"principal lacks required capability: {required_capability}"
             )
+        if required_scope is not None:
+            self._require_scope(principal, required_scope)
         return GovernedContext(
             principal=principal,
             atp=envelope,
             capability=required_capability,
+            scope=required_scope,
             accepted_at=datetime.now(UTC),
         )
+
+    @staticmethod
+    def _require_scope(principal: ServicePrincipal, required_scope: str) -> None:
+        """Grant a scope only via its exact string or a server-recognized wildcard."""
+        prefix, _, _ = required_scope.rpartition(":")
+        wildcard = f"{prefix}:*" if prefix else None
+        if required_scope in principal.capabilities:
+            return
+        if wildcard is not None and wildcard in principal.capabilities:
+            return
+        raise GovernanceDenied(f"principal lacks required scope: {required_scope}")
 
     @staticmethod
     def _strict_message(envelope: AtpEnvelope) -> ATPMessage:

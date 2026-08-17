@@ -125,12 +125,15 @@ dependency gates run through `make security` and the CI promotion workflow.
 | Launch demos | `src/launch/` | Maintained CLI demonstrations | `make demo` |
 | Concept demos | `Concept_Demos/` | Static prototypes and compatibility examples | `python3 -m http.server` |
 
-The historical `src/Artemis Agentic Memory Layer/` service is not runnable in
-this checkout because it has no package manifest or Docker assets.
-`src/mcp-server/` and `src/memory/mcp-server/` are imported Obsidian REST shells,
-not registered root workspaces or authoritative Model Context Protocol
-implementations. See [`docs/PROJECT_BOUNDARIES.md`](docs/PROJECT_BOUNDARIES.md)
-before editing transitional copies.
+`src/Artemis Agentic Memory Layer/` is a working Express/TS service (`make server`)
+that fronts the Obsidian Local REST API. It is not registered in the root npm
+workspace, and despite its name it is branding-only — plain REST, no
+`@modelcontextprotocol/sdk` dependency, not an authoritative Model Context
+Protocol implementation. The real MCP SDK is used under `services/mcp/`, where
+Python servers (`artemis-validation`, `artemis-memory`) adapt `src/` domain
+services over the official `mcp` package. See
+[`docs/PROJECT_BOUNDARIES.md`](docs/PROJECT_BOUNDARIES.md) for the full surface
+map.
 
 ## Repository map
 

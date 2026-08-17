@@ -114,8 +114,8 @@ jobs:
   #                     justified `# nosec` annotations, not silent skips).
   #   security-deps   — pip-audit over the exact uv.lock resolution.
   #   security-node   — npm audit over every lockfile in the repo
-  #                     (src, src/launch, src/memory/mcp-server, app/api,
-  #                     app/web/frontend), --audit-level=low.
+  #                     (src, src/launch, src/Artemis Agentic Memory Layer,
+  #                     app/api, app/web/frontend), --audit-level=low.
   # npm comes from the runner image; lockfileVersion 3 needs npm >= 7, which
   # every supported ubuntu-22.04 image ships.
   security:

@@ -5,18 +5,25 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from src.integration.sql_memory_store import (CanonicalIdempotencyConflict,
-                                              CanonicalMemoryRevision,
-                                              CanonicalNamespaceConflict,
-                                              CanonicalProjectionClaim,
-                                              MemoryStoreError,
-                                              PostgresMemoryStore)
-from src.memory.models import (ClaimDisposition, LedgerWrite,
-                               MemoryIdempotencyConflict,
-                               MemoryLedgerUnavailable,
-                               MemoryNamespaceConflict, MemoryRecord,
-                               MemoryWriteCommand, ProjectionState,
-                               WriteDisposition)
+from src.integration.sql_memory_store import (
+    CanonicalIdempotencyConflict,
+    CanonicalMemoryRevision,
+    CanonicalNamespaceConflict,
+    CanonicalProjectionClaim,
+    MemoryStoreError,
+    PostgresMemoryStore,
+)
+from src.memory.models import (
+    ClaimDisposition,
+    LedgerWrite,
+    MemoryIdempotencyConflict,
+    MemoryLedgerUnavailable,
+    MemoryNamespaceConflict,
+    MemoryRecord,
+    MemoryWriteCommand,
+    ProjectionState,
+    WriteDisposition,
+)
 
 
 class PostgresProjectionClaim:
@@ -49,7 +56,9 @@ class PostgresMemoryLedger:
 
     def write_version(self, command: MemoryWriteCommand) -> LedgerWrite:
         """Create or replay one canonical memory version transactionally."""
-        assert command.projection_path is not None  # narrowing: canonical writes always carry a projection path  # nosec B101
+        assert (
+            command.projection_path is not None
+        )  # narrowing: canonical writes always carry a projection path  # nosec B101
         try:
             stored = self._store.stage_canonical_write(
                 namespace=command.namespace,
