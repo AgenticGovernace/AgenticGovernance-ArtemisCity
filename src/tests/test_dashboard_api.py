@@ -1772,3 +1772,14 @@ def test_connect_db_sets_row_factory(dashboard_db: Path, dashboard):
         assert row["name"] == "Alpha"
     finally:
         conn.close()
+
+
+def test_metrics_endpoint_serves_prometheus_exposition_without_auth(
+    dashboard, client: TestClient
+):
+    """/metrics must be scrapeable with no API key, like /health."""
+    response = client.get("/metrics")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    assert "artemis_governance_scrape_ok" in response.text
+    assert "artemis_agents" in response.text
