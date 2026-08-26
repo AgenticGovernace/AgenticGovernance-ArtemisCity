@@ -312,7 +312,7 @@ deltas before that terminal compression step.
 ```
 ## Planned Kernel API
 ### Submit Task
-**Endpoint:** `POST /api/v1/tasks` 
+**Endpoint:** `POST /api/v1/tasks`
 
 **Request:**
 
@@ -343,7 +343,7 @@ deltas before that terminal compression step.
 }
 ```
 ### Get Task Status
-**Endpoint:** `GET /api/v1/tasks/{task_id}` 
+**Endpoint:** `GET /api/v1/tasks/{task_id}`
 
 **Response:**
 
@@ -360,7 +360,7 @@ deltas before that terminal compression step.
 }
 ```
 ### Cancel Task
-**Endpoint:** `POST /api/v1/tasks/{task_id}/cancel` 
+**Endpoint:** `POST /api/v1/tasks/{task_id}/cancel`
 
 **Response:**
 
@@ -372,7 +372,7 @@ deltas before that terminal compression step.
 }
 ```
 ### List Tasks
-**Endpoint:** `GET /api/v1/tasks?status=completed&limit=100&offset=0` 
+**Endpoint:** `GET /api/v1/tasks?status=completed&limit=100&offset=0`
 
 **Query Parameters:**
 
@@ -466,7 +466,7 @@ no background outbox worker.
 `MEMORY_DELETE_UNSUPPORTED` (HTTP 409) until canonical tombstones exist.
 ## Planned Agent Registry API
 ### Register Agent
-**Endpoint:** `POST /api/v1/registry/agents` 
+**Endpoint:** `POST /api/v1/registry/agents`
 
 **Request:**
 
@@ -505,7 +505,7 @@ no background outbox worker.
 }
 ```
 ### Get Agent
-**Endpoint:** `GET /api/v1/registry/agents/{agent_id}` 
+**Endpoint:** `GET /api/v1/registry/agents/{agent_id}`
 
 **Response:**
 
@@ -526,7 +526,7 @@ no background outbox worker.
 }
 ```
 ### List Agents
-**Endpoint:** `GET /api/v1/registry/agents?capability=nlp&status=active&limit=100` 
+**Endpoint:** `GET /api/v1/registry/agents?capability=nlp&status=active&limit=100`
 
 **Query Parameters:**
 
@@ -552,7 +552,7 @@ no background outbox worker.
 }
 ```
 ### Update Agent Scores
-**Endpoint:** `PATCH /api/v1/registry/agents/{agent_id}` 
+**Endpoint:** `PATCH /api/v1/registry/agents/{agent_id}`
 
 **Request:**
 
@@ -575,7 +575,7 @@ no background outbox worker.
 }
 ```
 ### Get Agent Violations
-**Endpoint:** `GET /api/v1/registry/agents/{agent_id}/violations` 
+**Endpoint:** `GET /api/v1/registry/agents/{agent_id}/violations`
 
 **Response:**
 
@@ -595,7 +595,7 @@ no background outbox worker.
 }
 ```
 ### Clear Agent Violations
-**Endpoint:** `POST /api/v1/registry/agents/{agent_id}/clear-violations` 
+**Endpoint:** `POST /api/v1/registry/agents/{agent_id}/clear-violations`
 
 **Request:**
 
@@ -618,7 +618,7 @@ no background outbox worker.
 ```
 ## Planned Governance API
 ### Propose Update
-**Endpoint:** `POST /api/v1/governance/updates` 
+**Endpoint:** `POST /api/v1/governance/updates`
 
 **Request:** (See ATP Example 4 in section above)
 
@@ -633,7 +633,7 @@ no background outbox worker.
 }
 ```
 ### Get Update Status
-**Endpoint:** `GET /api/v1/governance/updates/{update_id}` 
+**Endpoint:** `GET /api/v1/governance/updates/{update_id}`
 
 **Response:**
 
@@ -653,7 +653,7 @@ no background outbox worker.
 }
 ```
 ### List Pending Approvals
-**Endpoint:** `GET /api/v1/governance/approvals?tier=2&status=pending` 
+**Endpoint:** `GET /api/v1/governance/approvals?tier=2&status=pending`
 
 **Response:**
 
@@ -673,7 +673,7 @@ no background outbox worker.
 }
 ```
 ### Approve Update
-**Endpoint:** `POST /api/v1/governance/updates/{update_id}/approve` 
+**Endpoint:** `POST /api/v1/governance/updates/{update_id}/approve`
 
 **Request:**
 
@@ -695,7 +695,7 @@ no background outbox worker.
 }
 ```
 ### Reject Update
-**Endpoint:** `POST /api/v1/governance/updates/{update_id}/reject` 
+**Endpoint:** `POST /api/v1/governance/updates/{update_id}/reject`
 
 **Request:**
 
@@ -716,7 +716,7 @@ no background outbox worker.
 }
 ```
 ### Propose Rollback
-**Endpoint:** `POST /api/v1/governance/rollbacks` 
+**Endpoint:** `POST /api/v1/governance/rollbacks`
 
 **Request:**
 
@@ -739,7 +739,7 @@ no background outbox worker.
 }
 ```
 ### Get Rollback Status
-**Endpoint:** `GET /api/v1/governance/rollbacks/{rollback_id}` 
+**Endpoint:** `GET /api/v1/governance/rollbacks/{rollback_id}`
 
 **Response:**
 
@@ -756,7 +756,7 @@ no background outbox worker.
 ```
 ## Planned Hebbian Learning API
 ### Get Hebbian Weights
-**Endpoint:** `GET /api/v1/hebbian/weights?agent_id={agent_id}` 
+**Endpoint:** `GET /api/v1/hebbian/weights?agent_id={agent_id}`
 
 **Response:**
 
@@ -772,7 +772,7 @@ no background outbox worker.
 }
 ```
 ### Get Learning History
-**Endpoint:** `GET /api/v1/hebbian/history/{agent_id}?limit=100` 
+**Endpoint:** `GET /api/v1/hebbian/history/{agent_id}?limit=100`
 
 **Response:**
 

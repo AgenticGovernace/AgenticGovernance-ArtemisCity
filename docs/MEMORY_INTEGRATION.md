@@ -41,15 +41,15 @@ The memory integration bridge connects the Python-based Artemis City agent syste
 │ REST API (Bearer Token)
 ▼
 ┌──────────────────────────────────────────────────────┐
-│ Artemis Agentic Memory Layer (MCP Server)        
-│ ┌──────────┐    ┌──────────┐   ┌──────────┐   ┌──────────┐ 
-│ │ Express  │──► │ Auth     │──►│ Router   │──►│ Tools    │ 
-│ │ Server   │    │Middleware│   │ (8 ops)  │   │ Layer    │ 
+│ Artemis Agentic Memory Layer (MCP Server)  
+│ ┌──────────┐    ┌──────────┐   ┌──────────┐   ┌──────────┐
+│ │ Express  │──► │ Auth     │──►│ Router   │──►│ Tools    │
+│ │ Server   │    │Middleware│   │ (8 ops)  │   │ Layer    │
 │ └──────────┘    └──────────┘   └──────────┘   └────┬─────┘
-│         ▼ 
-│ ┌─────────────────┐                                            
-│ │ Obsidian REST   │                                │   
-│ │ API Service     │ │                                  
+│         ▼
+│ ┌─────────────────┐  
+│ │ Obsidian REST   │                                │  
+│ │ API Service     │ │  
 │ └────────┬────────┘                                 │
 └───────────────────────────────────────────┼─────────┘
 │

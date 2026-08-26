@@ -612,3 +612,6 @@ ide-index-mcp.skill
 -/*
 .claude/
 .env.example
+/.vscode
+/.vscode
+/docs/audit/*

@@ -738,5 +738,5 @@ For questions or issues, see:
 
 ---
 
-**Happy building! Welcome to Artemis City development.** 
+**Happy building! Welcome to Artemis City development.**
 ~~~~

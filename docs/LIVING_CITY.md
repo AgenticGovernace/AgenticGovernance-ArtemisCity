@@ -28,37 +28,37 @@ Artemis City transforms technical operations into a vibrant urban experience:
 - **Clearance**: FULL (0.95)
 - **Duties**: Policy, dispute resolution, city planning, task coordination
 - **Office**: City Hall
-- **Capabilities**: `orchestrate` , `delegate` , `monitor` , `report` , `system_management` , `agent_coordination` 
+- **Capabilities**: `orchestrate` , `delegate` , `monitor` , `report` , `system_management` , `agent_coordination`
 ### Pack Rat (Postmaster)
 - **Role**: Secure mail delivery, routing, and memory management
 - **Clearance**: HIGH (0.85)
 - **Duties**: Deliver mail, maintain postal logs, route messages, manage vault operations
 - **Office**: Post Office
-- **Capabilities**: `read` , `write` , `search` , `organize` , `archive` 
+- **Capabilities**: `read` , `write` , `search` , `organize` , `archive`
 ### Daemon Daemon / CompSuite (City Manager)
 - **Role**: System monitoring, background services, and operations
 - **Clearance**: HIGH (0.85)
 - **Duties**: Monitor city health, manage configuration, status reports, background tasks
 - **Office**: Operations Center
-- **Capabilities**: `schedule` , `maintain` , `backup` , `optimize` 
+- **Capabilities**: `schedule` , `maintain` , `backup` , `optimize`
 ### Copilot (Assistant)
 - **Role**: Citizen assistance and information
 - **Clearance**: HIGH (0.80)
 - **Duties**: Help citizens, provide context, answer queries, format responses
 - **Office**: Information Desk
-- **Capabilities**: `assist` , `query` , `suggest` , `format` 
+- **Capabilities**: `assist` , `query` , `suggest` , `format`
 ### Research Agent (Scholar)
 - **Role**: Information gathering and analysis
 - **Clearance**: HIGH (0.80)
 - **Duties**: Web search, document analysis, research synthesis
 - **Office**: City Library
-- **Capabilities**: `web_search` , `document_analysis` 
+- **Capabilities**: `web_search` , `document_analysis`
 ### Summarizer Agent (Scribe)
 - **Role**: Content condensation and summarization
 - **Clearance**: MEDIUM (0.70)
 - **Duties**: Summarize documents, extract key points
 - **Office**: Records Office
-- **Capabilities**: `text_summarization` 
+- **Capabilities**: `text_summarization`
 ## The Postal System
 ### Sending Mail
 
@@ -89,10 +89,10 @@ for letter in mail:
 ```
 ### Mail Features
 - **Tracking IDs**: Every piece of mail gets a unique ID (e.g., `ART-12345` )
-- **Priority Levels**: `urgent` , `normal` , `low` 
+- **Priority Levels**: `urgent` , `normal` , `low`
 - **Automatic Tagging**: Mail tagged with sender, recipient, and type
 - **Delivery Confirmation**: Real-time status updates
-- **Archive Storage**: All mail stored in `Postal/Agents/{recipient}/` 
+- **Archive Storage**: All mail stored in `Postal/Agents/{recipient}/`
 - **Trust Verification**: Sender clearance checked before delivery
 ## The City Archives
 ### Filing Documents

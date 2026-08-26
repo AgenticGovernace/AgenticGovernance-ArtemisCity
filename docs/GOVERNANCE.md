@@ -479,4 +479,3 @@ ARTEMIS_TRUST_SCORE_UPDATE_INTERVAL_MINUTES=15
 5. **Rotate approval authorities** quarterly
 6. **Maintain policy documentation** in version control
 7. **Run post-mortems** on all rollbacks and Tier 3 rejections
-

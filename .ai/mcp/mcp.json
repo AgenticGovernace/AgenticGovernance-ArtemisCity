@@ -23,7 +23,7 @@
     "artemis-validators-tools": {
       "url": "http://127.0.0.1:8081/api/tool-servers/artemis-validators-tools/mcp",
       "command": "",
-      "args": []  
-    } 
+      "args": []
+    }
   }
 }
