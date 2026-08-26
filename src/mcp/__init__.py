@@ -9,6 +9,7 @@ CLI instead of raising an opaque import error.
 from __future__ import annotations
 
 from importlib import import_module
+from typing import Any
 
 
 def _run_as_script() -> None:
@@ -29,9 +30,12 @@ def _run_as_script() -> None:
 if __name__ == "__main__" and not __package__:
     _run_as_script()
 
-from . import config  # noqa: E402  (direct-execution guard must run first)
-from .config import (  # noqa: E402  (direct-execution guard must run first)
-    AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH)
+from . import config  # noqa: E402
+from .config import (  # noqa: E402
+    AGENT_INPUT_DIR,
+    AGENT_OUTPUT_DIR,
+    OBSIDIAN_VAULT_PATH,
+)
 
 _LAZY_EXPORTS = {
     "Orchestrator": (".orchestrator", "Orchestrator"),
@@ -43,7 +47,7 @@ _LAZY_EXPORTS = {
 }
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     """Load heavyweight MCP exports only when they are requested."""
     if name not in _LAZY_EXPORTS:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
@@ -59,12 +63,12 @@ def __dir__() -> list[str]:
 
 
 __all__ = [
-    "Orchestrator",
-    "HebbianWeightManager",
-    "LocalVectorStore",
-    "VectorRecord",
-    "OBSIDIAN_VAULT_PATH",
     "AGENT_INPUT_DIR",
     "AGENT_OUTPUT_DIR",
+    "OBSIDIAN_VAULT_PATH",
+    "HebbianWeightManager",
+    "LocalVectorStore",
+    "Orchestrator",
+    "VectorRecord",
     "config",
 ]

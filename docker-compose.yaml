@@ -17,7 +17,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - ARTEMIS_ENV=production
+      - ARTEMIS_ENV=${ARTEMIS_ENV:-dev}
       - ARTEMIS_LOG_LEVEL=INFO
       - OBSIDIAN_VAULT_PATH=/data/vault
       - ARTEMIS_VECTOR_STORE_URL=http://vector-store:6333
@@ -40,7 +40,7 @@ services:
       - artemis
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -74,7 +74,7 @@ services:
       - artemis
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/health', (res) => res.statusCode === 200 ? process.exit(0) : process.exit(1))"]
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:4000/health', (res) => res.statusCode === 200 ? process.exit(0) : process.exit(1))" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -157,3 +157,6 @@ volumes: { redis-data:  , vector-data:  , prometheus-data:  , grafana-data: }
 networks:
   artemis:
     driver: bridge
+
+openapi:
+info:

@@ -50,7 +50,9 @@ class TestDockerCompose:
         for service in expected_services:
             assert service in services, f"Missing required service: {service}"
 
-    def test_kernel_service_configuration(self, docker_compose_config):
+    def test_kernel_service_configuration(
+        self, docker_compose_config, docker_compose_path
+    ):
         """Test the configuration of the kernel service."""
         kernel = docker_compose_config["services"]["kernel"]
 
@@ -61,7 +63,12 @@ class TestDockerCompose:
 
         # Check environment configurations
         env = kernel.get("environment", [])
-        assert "ARTEMIS_ENV=production" in env
+        assert "ARTEMIS_ENV=${ARTEMIS_ENV:-dev}" in env
+        python_dockerfile = (
+            docker_compose_path.parent / "src/Dockerfile-python"
+        ).read_text(encoding="utf-8")
+        assert "ARTEMIS_ENV=dev" in python_dockerfile
+        assert "ARTEMIS_ENV=production" not in python_dockerfile
         assert "ARTEMIS_REDIS_URL=redis://redis:6379" in env
         assert "ARTEMIS_VECTOR_STORE_URL=http://vector-store:6333" in env
 
@@ -115,9 +122,9 @@ class TestDockerCompose:
         services = docker_compose_config["services"]
 
         assert "healthcheck" in services["kernel"], "Kernel missing healthcheck"
-        assert (
-            "healthcheck" in services["express-api"]
-        ), "Express API missing healthcheck"
+        assert "healthcheck" in services["express-api"], (
+            "Express API missing healthcheck"
+        )
 
         # Validate healthcheck structure
         kernel_hc = services["kernel"]["healthcheck"]

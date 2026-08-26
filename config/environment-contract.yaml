@@ -1,0 +1,85 @@
+schema_version: 1
+
+# Root .env is the operator-owned local source. Every service file below is a
+# generated view containing only the keys declared by that service template.
+targets:
+  - name: root
+    template: .env.example
+    output: .env
+  - name: express_api
+    template: app/api/.env.example
+    output: app/api/.env
+  - name: frontend
+    template: app/web/frontend/.env.example
+    output: app/web/frontend/.env
+  - name: python_core
+    template: src/.env.example
+    output: src/.env
+  - name: obsidian_memory_layer
+    template: src/Artemis Agentic Memory Layer/.env.example
+    output: src/Artemis Agentic Memory Layer/.env
+  - name: memory_mcp
+    template: services/mcp/artemis-memory/.env.example
+    output: services/mcp/artemis-memory/.env
+  - name: provenance
+    template: config/service-env/provenance.env.example
+    output: services/prove/.env
+
+# These values are generated and rotated by setup_secrets.sh. Operator-owned
+# credentials and URLs are never fabricated or rotated by automation.
+generated_secrets:
+  - MCP_API_KEY
+  - FASTAPI_API_KEY
+  - ARTEMIS_API_KEY_DEFAULT
+  - REDIS_PASSWORD
+  - QDRANT_API_KEY
+  - GRAFANA_PASSWORD
+
+derived_values:
+  ARTEMIS_VECTOR_STORE_API_KEY: QDRANT_API_KEY
+  VITE_FASTAPI_API_KEY: FASTAPI_API_KEY
+  VITE_MCP_API_KEY: MCP_API_KEY
+
+# Process/runtime mechanics are intentionally outside the application contract.
+ignored_source_variables:
+  - CIRCLE_BRANCH
+  - GIT_BRANCH
+  - PATH
+  - PYTHONHOME
+
+source_globs:
+  - main.py
+  - app/api/**/*.py
+  - app/api/**/*.ts
+  - app/kernel/**/*.py
+  - app/scripts/**/*.sh
+  - app/web/frontend/**/*.ts
+  - app/web/frontend/**/*.tsx
+  - src/**/*.py
+  - src/Artemis Agentic Memory Layer/src/**/*.ts
+  - src/Artemis Agentic Memory Layer/docker-compose.yml
+  - services/mcp/artemis-memory/src/**/*.py
+  - services/mcp/artemis-validation/src/**/*.py
+  - services/mcp/common/src/**/*.py
+  - services/prove/*.py
+  - services/prove/*.sh
+  - scripts/**/*.py
+  - setup_secrets.sh
+  - docker-compose.yaml
+
+source_excludes:
+  - app/api/__tests__
+  - app/api/test
+  - src/tests
+  - src/Experiments
+  - services/mcp/artemis-memory/tests
+
+live_checks:
+  - name: provenance
+    url_variable: PROVENANCE_SERVICE_URL
+    path: /health
+    required: true
+  - name: prometheus
+    url_variable: ARTEMIS_PROMETHEUS_URL
+    path: /-/ready
+    required: false

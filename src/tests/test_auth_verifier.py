@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -15,13 +16,18 @@ from urllib.parse import quote
 
 import pytest
 
-from src.auth.authstructure import (AuthstructureReceiptArtifact,
-                                    AuthstructureVerifier)
-from src.auth.config import (AuthConfigurationError, AuthstructureConfig,
-                             load_auth_verifier)
+from src.auth.authstructure import AuthstructureReceiptArtifact, AuthstructureVerifier
+from src.auth.config import (
+    AuthConfigurationError,
+    AuthstructureConfig,
+    load_auth_verifier,
+)
 from src.auth.contracts import AuthReceiptSourceV1, AuthReceiptV1, PrincipalV1
-from src.auth.verifier import (AuthenticationDenied, AuthenticationRequest,
-                               AuthorityContextFactory)
+from src.auth.verifier import (
+    AuthenticationDenied,
+    AuthenticationRequest,
+    AuthorityContextFactory,
+)
 from src.tests.fakes import FakeAuthVerifier
 
 NOW = datetime(2026, 8, 16, 12, 0, tzinfo=UTC)
@@ -1769,6 +1775,36 @@ ARTEMIS_AUTHSTRUCTURE_SIGNER_NAMESPACE=
 ARTEMIS_AUTHSTRUCTURE_RECEIPT_KEY_ID=
 """
 
+_SETUP_FIXTURE_ASSETS = (
+    "setup_secrets.sh",
+    "scripts/environment_config.py",
+    "config/environment-contract.yaml",
+    "src/utils/environments.py",
+    ".env.example",
+    "app/api/.env.example",
+    "app/web/frontend/.env.example",
+    "src/.env.example",
+    "src/Artemis Agentic Memory Layer/.env.example",
+    "services/mcp/artemis-memory/.env.example",
+    "config/service-env/provenance.env.example",
+)
+
+_SETUP_TARGET_PAIRS = (
+    (".env.example", ".env"),
+    ("app/api/.env.example", "app/api/.env"),
+    ("app/web/frontend/.env.example", "app/web/frontend/.env"),
+    ("src/.env.example", "src/.env"),
+    (
+        "src/Artemis Agentic Memory Layer/.env.example",
+        "src/Artemis Agentic Memory Layer/.env",
+    ),
+    (
+        "services/mcp/artemis-memory/.env.example",
+        "services/mcp/artemis-memory/.env",
+    ),
+    ("config/service-env/provenance.env.example", "services/prove/.env"),
+)
+
 
 def _authstructure_env(values: dict[str, str]) -> str:
     order = (
@@ -1811,30 +1847,53 @@ def _duplicated_authstructure_env(
     return ("\n".join(lines) + "\n").encode()
 
 
-def _setup_secrets_fixture(tmp_path: Path, values: dict[str, str]) -> tuple[Path, Path]:
+def _copy_setup_fixture_assets(tmp_path: Path) -> Path:
     repository_root = Path(__file__).resolve().parents[2]
-    script = tmp_path / "setup_secrets.sh"
-    shutil.copy2(repository_root / "setup_secrets.sh", script)
+    for relative in _SETUP_FIXTURE_ASSETS:
+        source = repository_root / relative
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+    return tmp_path / "setup_secrets.sh"
 
-    root_env = tmp_path / ".env"
-    (tmp_path / ".env.example").write_text(_AUTHSTRUCTURE_TEMPLATE)
-    root_env.write_text(_authstructure_env(values))
 
-    empty_pairs = (
-        ("app/api/.env.example", "app/api/.env"),
-        ("src/.env.example", "src/.env"),
-        (
-            "src/Artemis Agentic Memory Layer/.env.example",
-            "src/Artemis Agentic Memory Layer/.env",
-        ),
+def _replace_authstructure_values(
+    path: Path,
+    values: dict[str, str],
+    *,
+    append_missing: bool,
+) -> None:
+    keys = tuple(_valid_setup_values())
+    seen: set[str] = set()
+    rendered: list[str] = []
+    for line in path.read_text().splitlines():
+        key = line.split("=", 1)[0]
+        if key not in keys:
+            rendered.append(line)
+            continue
+        if key in values:
+            rendered.append(f"{key}={values[key]}")
+            seen.add(key)
+    if append_missing:
+        rendered.extend(
+            f"{key}={values[key]}" for key in keys if key in values and key not in seen
+        )
+    path.write_text("\n".join(rendered).rstrip("\n") + "\n")
+
+
+def _setup_secrets_fixture(tmp_path: Path, values: dict[str, str]) -> tuple[Path, Path]:
+    script, root_env, targets = _realistic_setup_fixture(
+        tmp_path,
+        _authstructure_env(_valid_setup_values()).encode(),
     )
-    for example_name, env_name in empty_pairs:
-        example = tmp_path / example_name
-        env_file = tmp_path / env_name
-        example.parent.mkdir(parents=True, exist_ok=True)
-        env_file.parent.mkdir(parents=True, exist_ok=True)
-        example.write_text("")
-        env_file.write_text("")
+    bootstrap = _run_setup(script, tmp_path, "sync")
+    assert bootstrap.returncode == 0, bootstrap.stdout + bootstrap.stderr
+    for target in targets:
+        _replace_authstructure_values(
+            target,
+            values,
+            append_missing=target == root_env,
+        )
     return script, root_env
 
 
@@ -1842,27 +1901,11 @@ def _realistic_setup_fixture(
     tmp_path: Path,
     root_env_bytes: bytes | None,
 ) -> tuple[Path, Path, tuple[Path, ...]]:
-    repository_root = Path(__file__).resolve().parents[2]
-    script = tmp_path / "setup_secrets.sh"
-    shutil.copy2(repository_root / "setup_secrets.sh", script)
-
-    pairs = (
-        (".env.example", ".env"),
-        ("app/api/.env.example", "app/api/.env"),
-        ("src/.env.example", "src/.env"),
-        (
-            "src/Artemis Agentic Memory Layer/.env.example",
-            "src/Artemis Agentic Memory Layer/.env",
-        ),
-    )
+    script = _copy_setup_fixture_assets(tmp_path)
     targets: list[Path] = []
-    for example_name, env_name in pairs:
-        source_example = repository_root / example_name
-        example = tmp_path / example_name
+    for _example_name, env_name in _SETUP_TARGET_PAIRS:
         target = tmp_path / env_name
-        example.parent.mkdir(parents=True, exist_ok=True)
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source_example, example)
         targets.append(target)
         if env_name == ".env":
             if root_env_bytes is not None:
@@ -1893,6 +1936,8 @@ def _run_setup(
         command.append("--regenerate")
     elif mode == "check":
         command.append("--check")
+    runtime_environment = dict(os.environ if environment is None else environment)
+    runtime_environment["ARTEMIS_PYTHON"] = sys.executable
     return subprocess.run(
         command,
         cwd=cwd,
@@ -1900,7 +1945,7 @@ def _run_setup(
         text=True,
         input="y\n",
         check=False,
-        env=environment,
+        env=runtime_environment,
     )
 
 
@@ -1947,13 +1992,7 @@ def test_setup_check_reports_missing_blank_and_malformed_authstructure_values(
             values[key] = value
     script, _ = _setup_secrets_fixture(tmp_path, values)
 
-    result = subprocess.run(
-        ["bash", str(script), "--check"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    result = _run_setup(script, tmp_path, "check")
     output = result.stdout + result.stderr
 
     assert result.returncode == 1
@@ -1967,13 +2006,7 @@ def test_setup_check_accepts_valid_authstructure_configuration(
     """A complete semantically valid operator configuration is in sync."""
     script, _ = _setup_secrets_fixture(tmp_path, _valid_setup_values())
 
-    result = subprocess.run(
-        ["bash", str(script), "--check"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    result = _run_setup(script, tmp_path, "check")
 
     assert result.returncode == 0, result.stdout + result.stderr
 
@@ -2052,21 +2085,13 @@ def test_setup_sync_and_regenerate_preserve_authstructure_values(
 ) -> None:
     """Neither setup mode may invent or rotate operator Authstructure fields."""
     script, root_env = _setup_secrets_fixture(tmp_path, _valid_setup_values())
-    expected = root_env.read_bytes()
+    expected = _valid_setup_values()
 
-    for mode in (None, "--regenerate"):
-        command = ["bash", str(script)]
-        if mode is not None:
-            command.append(mode)
-        result = subprocess.run(
-            command,
-            cwd=tmp_path,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+    for mode in ("sync", "regenerate"):
+        result = _run_setup(script, tmp_path, mode)
         assert result.returncode == 0, result.stdout + result.stderr
-        assert root_env.read_bytes() == expected
+        lines = set(root_env.read_text().splitlines())
+        assert all(f"{key}={value}" in lines for key, value in expected.items())
 
 
 @pytest.mark.parametrize("mode", ["sync", "regenerate"])

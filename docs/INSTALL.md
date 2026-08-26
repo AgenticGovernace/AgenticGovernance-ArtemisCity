@@ -6,7 +6,7 @@ This guide covers the supported Artemis City setup path.
 
 - **Python**: 3.12
 - **uv**: required for Python dependency installation
-- **Node.js**: 20+ for the TypeScript API and React frontend
+- **Node.js**: 24+ for the TypeScript API and React frontend
 - **Git**: for cloning the repository
 - **Obsidian**: with the Local REST API plugin when using vault-backed memory
 
@@ -30,13 +30,15 @@ cd Artemis-City
 ```bash
 ./setup_secrets.sh              # sync: heal drift, generate what's missing
 ./setup_secrets.sh --check      # read-only; exits 1 if any consumer is out of sync
-./setup_secrets.sh --regenerate # rotate ALL canonical keys (use after a leak)
+./setup_secrets.sh --regenerate # rotate the six Artemis-owned secrets
 ```
 
-The script writes `.env`, `app/api/.env`, `src/.env`, and
-`src/Artemis Agentic Memory Layer/.env` when that memory-layer directory exists.
-It keeps one shared `MCP_API_KEY`, plus `FASTAPI_API_KEY` for the dashboard and
-`ARTEMIS_API_KEY_DEFAULT` for the TypeScript Express API.
+The script treats root `.env` as the sole operator source and generates views at
+`app/api/.env`, `app/web/frontend/.env`, `src/.env`,
+`src/Artemis Agentic Memory Layer/.env`,
+`services/mcp/artemis-memory/.env`, and `services/prove/.env`. The manifest at
+`config/environment-contract.yaml` owns this list. Do not edit a generated view
+directly.
 
 ### 3. Install Python Dependencies
 
@@ -65,10 +67,14 @@ make install-web
 ### 5. Verify Installation
 
 ```bash
+make env-check
 make test
 make run
 python3.12 -m app.kernel.cli "system status"
 ```
+
+Install the deterministic pre-commit fixer, pre-push live check, and
+commit-message hook with `make setup-hooks`.
 
 ## Common Commands
 
@@ -78,6 +84,10 @@ python3.12 -m app.kernel.cli "system status"
 | Dev dependencies | `make install-dev` |
 | API and frontend dependencies | `make install-web` |
 | All development dependencies | `make install-all` |
+| Environment source contract | `make env-check` |
+| Deterministic environment repair | `make env-fix` |
+| Local environment provisioning | `make env-setup` |
+| Live dependency checks | `make env-live-check` |
 | Tests | `make test` |
 | Tests with coverage | `make test-cov` |
 | FastAPI dashboard backend | `make api` |
@@ -87,7 +97,8 @@ python3.12 -m app.kernel.cli "system status"
 
 ## Environment Variables
 
-After `./setup_secrets.sh`, set any optional service-specific values in `.env`:
+After `./setup_secrets.sh`, set optional or operator-owned values only in root
+`.env`, then rerun the provisioner to refresh every service view:
 
 ```bash
 OBSIDIAN_BASE_URL=http://localhost:27124

@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Keep `app/web/frontend` on React Router declarative mode until the project deliberately migrates to React 19-compatible data/framework mode.
-- Keep the frontend-to-backend boundary on `app/web/frontend/src/api.ts`; do not read the Obsidian vault or reimplement task routing in browser code.
+- Keep the frontend-to-backend boundary on `app/web/frontend/src/api.ts`; read the Obsidian vault or reimplement task routing in browser code.
 - Treat every route parameter as untrusted display/query input; task execution must use the server-provided `relative_path`, and report reads must continue through the authenticated API.
 - Preserve the backend's report containment checks and existing `X-API-Key` behavior.
 - Use `apply_patch` for source edits, preserve unrelated working-tree changes, and do not commit or push unless separately requested.

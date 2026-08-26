@@ -103,16 +103,8 @@ jobs:
           enable-cache: true
       - name: Install deps
         run: make install-dev
-      - name: Validate environment configs
-        run: |
-          .venv/bin/python - <<'PY'
-          from src.utils.environments import load_environment, VALID_ENVIRONMENTS
-          for env in VALID_ENVIRONMENTS:
-              cfg = load_environment(env)
-              assert cfg["name"] == env, (env, cfg)
-              assert cfg["deploy"]["branch"] == env, (env, cfg)
-          print("env configs OK")
-          PY
+      - name: Validate environment source contract
+        run: make env-check
       - name: Reject undefined Python names
         # Jupyter/IDE virtual-document snapshots are not application source;
         # some are plain Python exports with an .ipynb suffix and cannot be
@@ -204,9 +196,34 @@ jobs:
           done
           exit "$diverged"
 
+  staging-live:
+    name: Staging protected live gate
+    needs: [resolve, docs-mirror, test, security, branch-lineage]
+    if: github.event_name != 'pull_request'
+    environment: staging
+    runs-on: ubuntu-22.04
+    env:
+      ARTEMIS_ENV: staging
+      PROVENANCE_SERVICE_URL: ${{ vars.PROVENANCE_SERVICE_URL }}
+      ARTEMIS_PROMETHEUS_URL: ${{ vars.ARTEMIS_PROMETHEUS_URL }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          enable-cache: true
+      - name: Install runtime dependencies
+        run: make install
+      - name: Check staging dependencies
+        run: make env-live-check
+
   promote-staging:
     name: Promote dev -> staging
-    needs: [resolve, docs-mirror, test, security, branch-lineage]
+    needs: [resolve, staging-live]
     # Pull-request runs stop at the gates; nothing is promoted until the change
     # is actually on dev.
     if: github.event_name != 'pull_request'
@@ -224,10 +241,35 @@ jobs:
           # No --force: a non-fast-forward push fails loudly, which is the right
           # signal that someone diverged staging outside the cascade.
           git push origin "HEAD:refs/heads/staging"
-          
+
+  prod-live:
+    name: Production protected live gate
+    needs: [resolve, promote-staging]
+    if: github.event_name != 'pull_request'
+    environment: prod
+    runs-on: ubuntu-22.04
+    env:
+      ARTEMIS_ENV: prod
+      PROVENANCE_SERVICE_URL: ${{ vars.PROVENANCE_SERVICE_URL }}
+      ARTEMIS_PROMETHEUS_URL: ${{ vars.ARTEMIS_PROMETHEUS_URL }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          enable-cache: true
+      - name: Install runtime dependencies
+        run: make install
+      - name: Check production dependencies
+        run: make env-live-check
+
   promote-prod:
     name: Promote staging -> prod
-    needs: [resolve, promote-staging]
+    needs: [resolve, prod-live]
     if: github.event_name != 'pull_request'
     permissions:
       contents: write

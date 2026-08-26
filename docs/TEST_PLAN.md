@@ -1316,7 +1316,7 @@ exclude_also = [
 ]
 ```
 
-Both `make test-cov` and CircleCI invoke pytest with bare `--cov`, so this
+The `make test-cov` target invokes pytest with bare `--cov`, so this
 single configuration controls the measured source set in every environment.
 
 ---

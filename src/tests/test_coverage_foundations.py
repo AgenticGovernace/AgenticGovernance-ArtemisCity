@@ -132,29 +132,28 @@ def test_current_environment_rejects_unknown_name(
         environments.current_environment()
 
 
-def test_load_environment_reads_explicit_yaml(
+def test_load_environment_rejects_legacy_explicit_yaml(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Explicit environments should load the selected YAML document."""
+    """Explicit profiles must still obey the policy-only schema."""
     config_path = tmp_path / "staging.yaml"
     config_path.write_text("environment: staging\nfeature:\n  enabled: true\n")
     monkeypatch.setattr(environments, "_config_path", lambda _name: config_path)
 
-    assert environments.load_environment("staging") == {
-        "environment": "staging",
-        "feature": {"enabled": True},
-    }
+    with pytest.raises(ValueError, match="unknown top-level fields"):
+        environments.load_environment("staging")
 
 
-def test_load_environment_returns_empty_mapping_for_empty_yaml(
+def test_load_environment_rejects_empty_yaml(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """An empty but present configuration file should have a stable shape."""
+    """An empty policy file must fail closed rather than masquerade as defaults."""
     config_path = tmp_path / "dev.yaml"
     config_path.write_text("")
     monkeypatch.setattr(environments, "_config_path", lambda _name: config_path)
 
-    assert environments.load_environment("dev") == {}
+    with pytest.raises(ValueError, match="missing fields"):
+        environments.load_environment("dev")
 
 
 def test_load_environment_reports_missing_file(

@@ -19,48 +19,50 @@ Secrets are **never committed**. The root `.gitignore` already excludes every
 `.env` file, and pre-commit hooks (`detect-private-key`, `detect-secrets`, and
 a custom staged-file grep) block accidental commits.
 
-`./setup_secrets.sh` is the canonical provisioner. It writes four `.env` files,
-each read by a different consumer:
+`./setup_secrets.sh` is the canonical provisioner. Root `.env` is the only
+operator-edited local source. It writes seven outputs:
 
 | File | Read by |
 |---|---|
-| `.env` | Python core, FastAPI dashboard |
-| `app/api/.env` | TS Express API |
-| `src/.env` | Memory-layer Python |
-| `src/Artemis Agentic Memory Layer/.env` | Standalone MCP server (if present) |
+| `.env` | Operator source; Python core, FastAPI, and Compose |
+| `app/api/.env` | TypeScript Express API and Python bridge |
+| `app/web/frontend/.env` | Vite browser-facing derived aliases |
+| `src/.env` | Python source runtime |
+| `src/Artemis Agentic Memory Layer/.env` | Obsidian REST shell |
+| `services/mcp/artemis-memory/.env` | Memory MCP server |
+| `services/prove/.env` | Provenance service, proxy, MCP, and UI mesh |
 
-Canonical keys, and the files each one belongs in:
-
-| Key | `.env` | `app/api/.env` | `src/.env` | `…Memory Layer/.env` |
-|---|:-:|:-:|:-:|:-:|
-| `MCP_API_KEY` | ✓ | ✓ | ✓ | ✓ |
-| `FASTAPI_API_KEY` | ✓ | | | |
-| `ARTEMIS_API_KEY_DEFAULT` | ✓ | ✓ | | |
+`config/environment-contract.yaml` and the declared templates own each view's
+shape. `VITE_FASTAPI_API_KEY`, `VITE_MCP_API_KEY`, and
+`ARTEMIS_VECTOR_STORE_API_KEY` are derived from their root source keys. Do not
+put an independent credential in a derived field.
 
 The script has three modes:
 
-- `./setup_secrets.sh` (default) — **sync**: discover the value already present
-  in root `.env`, propagate it into every other file that declares the same key,
-  and generate any missing keys. Existing values are preserved.
+- `./setup_secrets.sh` (default) — **sync**: preserve ordinary and
+  operator-supplied root values, generate missing owned secrets, and replace
+  every service view from its template plus root values.
 - `./setup_secrets.sh --check` — **read-only**: report any out-of-sync or missing
-  keys and exit `1` if drift is found. Safe to run in CI.
-- `./setup_secrets.sh --regenerate` — **force-rotate ALL canonical keys**. Use
-  this after a leak (see below).
+  keys and exit `1` if local runtime drift is found. PR CI instead runs
+  `make env-check`, which never requires a populated `.env`.
+- `./setup_secrets.sh --regenerate` — rotate only the six repository-owned
+  secrets. Operator credentials, URLs, and identities are preserved.
 
 ## Secret scoping
 
 - **Per-environment secrets.** Deploy credentials are scoped per GitHub
   Environment (`dev` / `staging` / `prod`), not per repository. Production
   credentials are therefore unreachable from a `dev` or `staging` deploy.
-- **Least privilege.** `MCP_API_KEY` is shared across components; `FASTAPI_API_KEY`
-  is dashboard-only; `ARTEMIS_API_KEY_DEFAULT` is a `key:role:permissions` tuple
-  used by the TS Express API. Do not widen a key's file set beyond the table above.
+- **Least privilege.** `MCP_API_KEY` is shared only with declared consumers;
+  `FASTAPI_API_KEY` is the dashboard source; `ARTEMIS_API_KEY_DEFAULT` is a
+  `key:role:permissions` tuple for Express. Do not widen a template's key set
+  without updating and testing the contract.
 
 ## Secret scanning gates
 
-- **`detect-secrets`** runs both as a pre-commit hook and as the CircleCI
-  `secrets-check` job, diffing tracked files against `.secrets.baseline`. A newly
-  introduced secret that is not already audited in the baseline fails the check.
+- **`detect-secrets`** runs as a pre-commit hook against
+  `.secrets.baseline`. A newly introduced secret that is not already audited in
+  the baseline fails the local check.
 - To (re)generate the baseline after an intentional, audited change:
   `detect-secrets scan > .secrets.baseline` then review with
   `detect-secrets audit .secrets.baseline`.

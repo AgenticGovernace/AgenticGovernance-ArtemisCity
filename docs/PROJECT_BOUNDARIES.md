@@ -12,7 +12,7 @@ For the responsibility, data, and test boundaries *inside* these projects, use
 
 | Project | Current path | Runtime | Manifest or entry point | Status | Separation target |
 |---|---|---|---|---|---|
-| Artemis Python core | `src/` | Python 3.12 | `pyproject.toml`, `requirements.txt`, `src/mcp/orchestrator.py` | Active authoritative core | Root `pyproject.toml` is canonical; `src/pyproject.toml` is pointer-only |
+| Artemis Python core | `src/` | Python 3.12 | `pyproject.toml`, `requirements.txt`, `src/mcp/orchestrator.py` | Active authoritative core | Root `pyproject.toml` is canonical |
 | In-process kernel | `app/kernel/` | Python 3.12 | `app/kernel/cli.py`, `app/kernel/kernel.py` | Active, packaged with the core | Keep with the Python core package |
 | FastAPI dashboard backend | `app/api/main.py` | Python/FastAPI | `make api`, `app/api/main.py` | Active dashboard surface | Split into `services/dashboard-api/` after imports are stable |
 | TypeScript Express API | `app/api/**/*.ts` | Node/TypeScript/Express | `app/api/package.json`, `app/api/tsconfig.json`, `app/api/index.ts` | Active public HTTP boundary | Ready for a later physical move to `services/express-api/` |
@@ -50,8 +50,6 @@ These must be resolved before broad file moves or package extraction:
 
 1. No `<<<<<<<` or `>>>>>>>` merge-conflict markers are currently present.
 2. Root `pyproject.toml` is the canonical Python package manifest.
-   `src/pyproject.toml` is intentionally pointer-only for compatibility with
-   stale scripts and docs.
 3. Package-lock files parse as JSON. The Express API now has a local manifest,
    local TypeScript config, and regenerated local lockfile.
 4. `src/Artemis Agentic Memory Layer/` is a runnable standalone Obsidian REST
@@ -84,8 +82,7 @@ These must be resolved before broad file moves or package extraction:
   the workspace resolves without forced peer-dependency overrides.
 - Verified `npm run typecheck` from the root, which delegates to both the
   Express API and React frontend typechecks.
-- Promoted root `pyproject.toml` to the canonical Python package manifest and
-  made `src/pyproject.toml` pointer-only.
+- Promoted root `pyproject.toml` to the canonical Python package manifest.
 - Verified the Python wheel build from the root manifest with
   `uv run --with build --with hatchling python -m build --wheel --no-isolation`.
 - Moved the obsolete `app/web/api/` FastAPI copy into

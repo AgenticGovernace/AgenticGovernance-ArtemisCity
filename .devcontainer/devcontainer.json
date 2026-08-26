@@ -46,7 +46,8 @@
         "ms-vscode.makefile-tools",
         "docker.docker",
         "VisualStudioExptTeam.intellicode-api-usage-examples",
-        "ms-vscode.vscode-typescript-tslint-plugin"
+        "ms-vscode.vscode-typescript-tslint-plugin",
+        "cweijan.dbclient-jdbc"
       ],
       "settings": {
         "python.defaultInterpreterPath": "./.venv/bin/python",

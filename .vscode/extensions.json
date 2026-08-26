@@ -2,6 +2,7 @@
     "recommendations": [
         "ms-toolsai.jupyter",
         "docker.docker",
-        "dbaeumer.vscode-eslint"
+        "dbaeumer.vscode-eslint",
+        "cweijan.vscode-database-client2"
     ]
 }

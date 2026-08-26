@@ -595,3 +595,12 @@ prometheus-*.tar.gz
 /services/Colab Notebooks
 /services/prove
 /app/obsidian_vault
+/Agent Inputs
+/agents/skills
+/app/obsidian_vault
+/app/obsidian_vault
+/app/web
+ide-index-mcp.skill
+/agents
+/Agent Outputs
+.aiignore

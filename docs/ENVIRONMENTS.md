@@ -1,87 +1,103 @@
-# Environment branching
+# Environment ownership and promotion
 
-Artemis City uses three long-lived environment branches that map 1:1 to
-GitHub Environments and deploy targets. The names `dev`, `staging`, and
-`prod` are kept identical across the branch, the GitHub Environment, and
-the file under `config/environments/` so there is no mapping layer to
-forget.
+Artemis City uses three long-lived branches, policy profiles, and GitHub
+Environments with the same names. There is no translation layer:
 
-| Branch    | GitHub Environment | Purpose                                       | Approvals |
-|-----------|--------------------|-----------------------------------------------|-----------|
-| `dev`     | `dev`              | Integration of feature work                   | 0         |
-| `staging` | `staging`          | Pre-production rehearsal, synthetic data      | 1         |
-| `prod`    | `prod`             | Production. Default branch.                   | 2         |
+| Branch | Policy profile | GitHub Environment | Purpose |
+|---|---|---|---|
+| `dev` | `config/environments/dev.yaml` | `dev` | Integration |
+| `staging` | `config/environments/staging.yaml` | `staging` | Pre-production rehearsal |
+| `prod` | `config/environments/prod.yaml` | `prod` | Production and default branch |
 
-## Flow
+Approval counts do not live in YAML. Required reviewers, wait timers, branch
+restrictions, environment variables, and environment secrets are configured in
+GitHub Settings for each Environment.
 
+## Promotion flow
+
+```text
+dev --source/test/security gates--> staging live gate --ff--> staging
+    --production live gate-------------------------------------> prod
 ```
-feature/* --PR--> dev --push--> [Promote cascade] --ff--> staging --ff--> prod
-```
 
-- Feature branches always target `dev`. Day to day you only touch `dev`.
-- A **push to `dev`** triggers the `Promote` cascade (`promote.yml`): it
-  runs the test gate, then fast-forwards `staging` to the tested commit,
-  deploys `staging`, fast-forwards `prod`, and deploys `prod` — all in one
-  run, with no manual branch surgery.
-- Promotion advances the env branches with a plain `git push` of the tested
-  commit, **not** a promotion pull request. Because `dev` is never used as a
-  PR head branch, it is never auto-deleted — you no longer have to recreate
-  `dev` after every promotion.
-- Approval gates live on the GitHub **Environments**, not on branch PRs: if
-  the `staging` / `prod` Environments have required reviewers, the matching
-  deploy job pauses for approval before it runs. The cascade still flows
-  hands-off through any environment that has zero required reviewers.
-- The cascade is fast-forward only (no `--force`). If `staging` or `prod`
-  was diverged outside the cascade, the push fails loudly instead of
-  clobbering history.
+- Day-to-day changes land on `dev`.
+- Pull requests run deterministic source, profile, test, documentation, and
+  security gates. They never contact staging or production services.
+- A push to `dev` pins one commit, validates branch lineage, and enters the
+  protected `staging` GitHub Environment. Its live endpoints must pass before
+  the workflow fast-forwards `staging`.
+- The same tested commit then enters the protected `prod` GitHub Environment.
+  Its live endpoints must pass before `prod` is fast-forwarded.
+- Promotion never uses `--force`. Divergence fails with an actionable lineage
+  error instead of overwriting environment history.
 
-## Config
+The workflow proves validation, protection, and branch promotion. It does not
+claim an application deployment that is not defined in this checkout.
 
-Each environment has a YAML file in `config/environments/<env>.yaml`.
-Pick the active environment with the `ARTEMIS_ENV` variable; loading is
-handled by `src/utils/environments.py`:
+## Policy profiles
+
+`config/environments/<env>.yaml` contains policy only:
+
+- schema/name/description;
+- runtime log level, debug, and reload policy;
+- ATP strictness and default trust level; and
+- branch/GitHub Environment identity.
+
+It must not contain URLs, ports, database paths, credentials, or approval
+counts. `src/utils/environments.py` validates exact fields and rejects unknown
+environment names before constructing a path.
+
+The older `.github/environments/*.yaml` files are frozen historical artifacts
+covered by the active reverse-sync hold. Runtime code, hooks, and workflows do
+not read them; changing or deleting them requires that hold's release process.
+
+Select a profile with `ARTEMIS_ENV=dev|staging|prod`:
 
 ```python
 from src.utils.environments import load_environment
 
-cfg = load_environment()  # respects ARTEMIS_ENV, defaults to dev
+cfg = load_environment()  # respects ARTEMIS_ENV; defaults to dev
 ```
 
-## Secrets
+## Runtime values and generated views
 
-Secrets are scoped per GitHub Environment, not per repo, so production
-credentials are unreachable from `dev` or `staging` deploys. Required
-approvals are configured on the Environment itself in repo Settings.
+`config/environment-contract.yaml` owns the complete target list, generated
+secret ownership, derived mappings, source discovery, and live checks.
 
-## Workflows
+Root `.env` is the local operator source. `./setup_secrets.sh` reconciles it
+against `.env.example` and generates consumer-specific views for Express,
+Vite, the Python core, the Obsidian REST shell, the Memory MCP server, and the
+provenance mesh. Never edit a service view to create an independent value.
 
-CircleCI (`.circleci/config.yml`) is the primary CI/CD system: it runs the
-test matrix, docs-mirror and secrets checks on every push, and owns the
-per-environment deploy workflows with their approval gates.
+```bash
+make env-check                 # tracked source/profile/template contract
+make env-fix                   # deterministic policy repair only
+./setup_secrets.sh             # root plus generated local views
+./setup_secrets.sh --check     # local view drift, read-only
+make env-live-check            # manifest-declared endpoint health
+```
 
-GitHub Actions retains only the promotion cascade:
+The pre-commit hook runs `env-fix` and never reads or writes `.env`. The
+pre-push hook runs the read-only live check. Install pre-commit, pre-push, and
+commit-message hooks with `make setup-hooks`.
 
-- `promote.yml` is the promotion cascade. On a push to `dev` (or manual
-  dispatch) it runs the test gate and then advances `staging` and `prod`
-  by fast-forward. It needs `contents: write` to move the branch
-  pointers. Advancing an environment branch is what triggers the
-  corresponding CircleCI deploy workflow.
+## GitHub Environment setup
 
-> **Note on `GITHUB_TOKEN` and branch protection.** If you protect
-> `staging` / `prod` with rules that *require a pull request*, the
-> cascade's direct push will be rejected — gate those environments with
-> **required reviewers / approvals in CircleCI** instead, and keep
-> "Automatically delete head branches" off so manual PRs never eat `dev`.
+Create `dev`, `staging`, and `prod` under Settings -> Environments. Configure
+reviewers and wait rules there. For protected live jobs, define:
 
-## One-time setup (after merge)
+- `PROVENANCE_SERVICE_URL` (required) as an Environment variable; and
+- `ARTEMIS_PROMETHEUS_URL` (optional) when that environment exposes Prometheus.
 
-1. Rename `main` -> `prod` in repo Settings -> Branches and set `prod` as
-   the default branch.
-2. Create the `dev` and `staging` branches from `prod` if they do not yet
-   exist.
-3. Under Settings -> Environments, create `dev`, `staging`, `prod` and
-   attach any required reviewers / wait timers and per-env secrets.
-4. Add branch protection rules requiring CI green and the configured
-   number of approvals before merging into each env branch. These rules
-   live under Settings -> Rules -> Rulesets as `Protect dev`,
-   `Protect staging`, and `Protect prod`.
+Keep credentials in Environment secrets, not variables. Production credentials
+remain inaccessible to jobs that have not entered the `prod` Environment.
+
+Create branch/ruleset protection for `dev`, `staging`, and `prod` that matches
+the direct fast-forward cascade. A rule that requires a pull request for
+`staging` or `prod` will reject the workflow's intentional direct push.
+
+## Active CI
+
+`.github/workflows/promote.yml` is the active in-repository pipeline. This
+checkout has no `.circleci/config.yml`; historical CircleCI descriptions are
+not executable evidence.

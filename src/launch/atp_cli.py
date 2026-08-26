@@ -280,7 +280,7 @@ def execute_instruction(
                     note_path, "failed", task_id
                 )
             except Exception:
-                pass
+                logger.error("Failed to mark failed on Obsidian note.", exc_info=True)
 
         error_summary = f"Execution failed: {exc}"
         if as_json:

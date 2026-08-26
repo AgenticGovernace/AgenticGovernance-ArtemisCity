@@ -146,7 +146,9 @@ map.
 │   └── web/frontend/           # React/Vite operator dashboard
 ├── Concept_Demos/              # Static prototypes
 ├── config/
-│   ├── environments/           # dev, staging, and prod profiles
+│   ├── environments/           # dev, staging, and prod policy profiles
+│   ├── service-env/            # Tracked templates for external/nested services
+│   ├── environment-contract.yaml # Runtime targets and variable ownership
 │   └── routing/                # Reviewed intent and authorization policy
 ├── docs/                       # Authoritative architecture and operations docs
 ├── monitoring/                 # Prometheus and alert configuration
@@ -203,12 +205,19 @@ installation inside `app/api` or `app/web/frontend`.
 ./setup_secrets.sh --regenerate # rotate Artemis-owned generated secrets
 ```
 
-The provisioner coordinates `.env`, `app/api/.env`, `src/.env`, and the optional
-historical memory-service environment. It generates or rotates only
-Artemis-owned secrets. Provider credentials such as `OPENAI_API_KEY`,
+Root `.env` is the only local operator source. The provisioner reconciles it
+against `.env.example`, then generates exact service views for Express, Vite,
+the Python core, the Obsidian REST shell, the Memory MCP server, and the
+provenance mesh. `config/environment-contract.yaml` owns that target list and
+the source-to-derived mappings. Service `.env` files are outputs; edit root
+`.env` and rerun setup instead of editing a generated view.
+
+Only six Artemis-owned secrets are generated or rotated: `MCP_API_KEY`,
+`FASTAPI_API_KEY`, `ARTEMIS_API_KEY_DEFAULT`, `REDIS_PASSWORD`,
+`QDRANT_API_KEY`, and `GRAFANA_PASSWORD`. Provider credentials and operator
+settings such as database URLs, MCP bearer identity, `OPENAI_API_KEY`,
 `EXO_API_KEY`, `HF_TOKEN`, `OBSIDIAN_API_KEY`, `ANTHROPIC_API_KEY`, and
-`GITHUB_TOKEN` remain operator supplied and must never be fabricated or
-committed.
+`GITHUB_TOKEN` are never fabricated or rotated.
 
 Use `ARTEMIS_ENV=dev|staging|prod` to select the environment profile. Use
 `ARTEMIS_MEMORY_BACKEND=postgres` or `neon` only with valid SQL configuration;
@@ -218,11 +227,18 @@ memory.
 ### Validate
 
 ```bash
+make env-check    # code/profile/template contract; safe for PR CI
+make env-fix      # deterministic policy repair; never touches .env files
+make env-live-check # manifest-declared endpoint checks
 make check       # Black, Ruff, isort, and MyPy gates
 make test        # canonical Python suite
 make security    # static, dependency, and secret checks
 make docs        # strict MkDocs build, including rendered docstrings
 ```
+
+`make setup-hooks` installs pre-commit, pre-push, and commit-message hooks.
+Pre-commit runs the deterministic policy fixer; pre-push performs the read-only
+live dependency checks.
 
 Run the full operator gate with:
 
@@ -277,16 +293,17 @@ The active coding and test requirements are in
 
 ## CI and branch model
 
-CircleCI runs the documentation mirror, Python 3.12, TypeScript API, security,
-and deployment gates. GitHub Actions retains the promotion cascade:
+GitHub Actions owns the active source, test, security, lineage, live, and
+promotion gates. This checkout has no CircleCI configuration:
 
 ```text
 feature/* --PR--> dev --validated promotion--> staging --> prod
 ```
 
-`dev` deploys automatically after its required checks. `staging` and `prod`
-remain approval-gated. See [`docs/CICD.md`](docs/CICD.md) and
-[`docs/ENVIRONMENTS.md`](docs/ENVIRONMENTS.md).
+Pull requests run only deterministic source gates. Promotions then pass through
+the protected `staging` and `prod` GitHub Environments, whose reviewer and wait
+settings own approvals, before either branch is fast-forwarded. See
+[`docs/CICD.md`](docs/CICD.md) and [`docs/ENVIRONMENTS.md`](docs/ENVIRONMENTS.md).
 
 ## Documentation
 

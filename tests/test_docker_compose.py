@@ -61,7 +61,7 @@ class TestDockerCompose:
 
         # Check environment configurations
         env = kernel.get("environment", [])
-        assert "ARTEMIS_ENV=production" in env
+        assert "ARTEMIS_ENV=${ARTEMIS_ENV:-dev}" in env
         assert "ARTEMIS_REDIS_URL=redis://redis:6379" in env
         assert "ARTEMIS_VECTOR_STORE_URL=http://vector-store:6333" in env
 

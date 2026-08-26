@@ -118,7 +118,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - ARTEMIS_ENV=production
+      - ARTEMIS_ENV=prod
       - ARTEMIS_LOG_LEVEL=INFO
       - ARTEMIS_REGISTRY_URL=http://registry:8002
       - ARTEMIS_MEMORY_BUS_URL=http://memory-bus:8001
@@ -148,7 +148,7 @@ services:
     ports:
       - "8001:8001"
     environment:
-      - ARTEMIS_ENV=production
+      - ARTEMIS_ENV=prod
       - OBSIDIAN_VAULT_PATH=/data/vault
       - ARTEMIS_VECTOR_STORE_URL=http://vector-store:6333
       - ARTEMIS_REDIS_URL=redis://redis:6379
@@ -171,7 +171,7 @@ services:
     ports:
       - "8002:8002"
     environment:
-      - ARTEMIS_ENV=production
+      - ARTEMIS_ENV=prod
       - ARTEMIS_REDIS_URL=redis://redis:6379
     depends_on:
       - redis
@@ -254,11 +254,11 @@ networks:
 
 ### Environment Configuration
 
-The checked-in `.env.example` files are the complete variable contracts for
-each runtime location; the values below are the deployment defaults from this
-document. Do not infer completeness from an existing `.env` file. Run
-`./setup_secrets.sh` to backfill keys that were added after a local file was
-created.
+`config/environment-contract.yaml` is the target and ownership manifest. Root
+`.env` is the sole local operator source; checked-in service templates define
+the shape of generated views. Do not infer completeness from an existing
+`.env`, and do not preserve a conflicting value in a service view. Edit root
+`.env` and run `./setup_secrets.sh` to reconcile all consumers.
 
 The provisioner uses four value classes:
 
@@ -267,12 +267,12 @@ The provisioner uses four value classes:
   `GRAFANA_PASSWORD`) are generated on first setup and rotated with
   `./setup_secrets.sh --regenerate`. The shared/API secrets are propagated to
   their declared runtime consumers.
-- **Derived values** such as `ARTEMIS_VECTOR_STORE_API_KEY` follow their
-  source secret (`QDRANT_API_KEY`) so container and application settings stay
-  aligned.
-- **Ordinary defaults** are copied from the matching runtime template only
-  when a key is absent or commented out. Existing non-secret values are
-  preserved, including local paths and service overrides.
+- **Derived values** such as `ARTEMIS_VECTOR_STORE_API_KEY`,
+  `VITE_FASTAPI_API_KEY`, and `VITE_MCP_API_KEY` follow their declared root
+  sources so consumers cannot drift.
+- **Ordinary defaults** fill missing root declarations. Root values are
+  preserved; generated service views are replaced from the root plus their
+  templates.
 - **Operator-supplied memory and vault settings**
   (`ARTEMIS_MEMORY_DATABASE_URL`, `ARTEMIS_MEMORY_MIGRATION_DATABASE_URL`,
   `OBSIDIAN_VAULT_PATH`, and `OBSIDIAN_API_KEY`) are preserved in both normal
@@ -287,15 +287,17 @@ Runtime template locations are:
 |---|---|
 | Python core, FastAPI, and Docker Compose | `.env.example` |
 | TypeScript Express API and bridge | `app/api/.env.example` |
+| React/Vite dashboard | `app/web/frontend/.env.example` |
 | Python source runtime | `src/.env.example` |
-| Optional standalone memory-layer MCP server | `src/Artemis Agentic Memory Layer/.env.example` |
-| Vite frontend-only overrides | `app/web/frontend/.env.example` |
+| Obsidian REST shell | `src/Artemis Agentic Memory Layer/.env.example` |
+| Memory MCP server | `services/mcp/artemis-memory/.env.example` |
+| Nested provenance mesh | `config/service-env/provenance.env.example` |
 
 **Create `.env` file:**
 
 ```bash
 # Deployment Environment
-ARTEMIS_ENV=production
+ARTEMIS_ENV=prod
 ARTEMIS_LOG_LEVEL=INFO
 
 # Service URLs

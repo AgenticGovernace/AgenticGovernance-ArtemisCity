@@ -1,24 +1,14 @@
+schema_version: 1
 name: staging
-description: Pre-production environment mirroring prod topology with synthetic data.
-
-mcp:
-  base_url: https://mcp.staging.artemis.invalid
+description: Pre-production environment mirroring production policy with synthetic
+  data.
+runtime:
   log_level: INFO
-
-obsidian:
-  base_url: https://obsidian.staging.artemis.invalid
-
-exo:
-  base_url: https://exo.staging.artemis.invalid
-
-vector_store:
-  path: data/vector_store.staging.db
-
+  debug: false
+  reload: false
 governance:
   strict_atp: true
   trust_default_level: 1
-
 deploy:
   branch: staging
   github_environment: staging
-  approvals_required: 1

@@ -26,9 +26,9 @@ later in this document are historical until that configuration is restored.
 GitHub Actions contains the promotion workflow:
 
 - **Promote** (`promote.yml`): the promotion cascade. A push to `dev`
-  flows automatically to `staging` and then `prod` by fast-forwarding
-  the environment branches after the mirrored-docs, environment, lint, test,
-  and MkDocs gates pass.
+  advances the same tested commit through protected staging and production live
+  gates before fast-forwarding either environment branch. Pull requests run the
+  offline source, docs, lint, test, and security gates only.
 
 ### Technology Stack
 
@@ -52,16 +52,22 @@ The only remaining GitHub Actions workflow — the promotion cascade. See
 **Triggers:**
 
 - Push to `dev`
+- Pull request targeting `dev` (offline gates only)
 - Manual dispatch (promotes the current `dev` tip)
 
 **Jobs (sequential):**
 
-1. **resolve** — pins the exact `dev` commit being promoted.
-2. **docs-mirror** / **test** — gates. Nothing promotes unless these are
-   green.
-3. **promote-staging** — fast-forwards `staging` to the tested commit with
-   `git push` (no PR, no branch deletion).
-4. **promote-prod** — fast-forwards `prod` to the same commit.
+1. **resolve** — pins the exact commit once.
+2. **docs-mirror** / **test** / **security** — offline gates. The test job runs
+   `make env-check`, which validates policy and code/template coverage without
+   requiring credentials or live services.
+3. **branch-lineage** — proves both environment branches can fast-forward.
+4. **staging-live** — enters the protected `staging` GitHub Environment and
+   checks its manifest-declared endpoints.
+5. **promote-staging** — fast-forwards `staging` to the tested commit.
+6. **prod-live** — enters the protected `prod` GitHub Environment and checks
+   its endpoints.
+7. **promote-prod** — fast-forwards `prod` to the same commit.
 
 This repository currently proves branch promotion only. Deployment automation
 must be verified separately in the environment that owns it.
@@ -123,13 +129,19 @@ must be verified separately in the environment that owns it.
 
 ### Environment Variables
 
-Set in workflow files:
+The protected live jobs read Environment variables from the matching GitHub
+Environment:
 
 ```yaml
 env:
-  PYTHON_VERSION: '3.12'
-  NODE_VERSION: '24'
+  ARTEMIS_ENV: staging # or prod
+  PROVENANCE_SERVICE_URL: ${{ vars.PROVENANCE_SERVICE_URL }}
+  ARTEMIS_PROMETHEUS_URL: ${{ vars.ARTEMIS_PROMETHEUS_URL }}
 ```
+
+`PROVENANCE_SERVICE_URL` is required. Prometheus is checked only when its
+variable is configured. Required reviewers and wait timers belong to GitHub
+Environment settings; they are not represented by numeric YAML fields.
 
 ### Python Version
 
@@ -385,6 +397,8 @@ gh run download <run-id>
 
 1. **Run checks locally before pushing:**
    ```bash
+   make env-check
+   make env-live-check
    make check
    make test
    make security

@@ -129,12 +129,38 @@ repos:
   # PYTHON SECURITY
   # ==========================================
 
+  # Kept in lockstep with the `security-static` target in the root Makefile and
+  # with SCANNED_PATHS in src/tests/test_security_policy.py, which asserts all
+  # three agree. Three details are load-bearing:
+  #
+  #  - `rev` ALONE selects the bandit version, and must track the bandit the
+  #    rest of the toolchain runs. pre-commit builds this hook its own isolated
+  #    venv from the checked-out repo, so a stale rev silently enforces a
+  #    different rule set — and a different exclusion matcher — than
+  #    `make security-static` does against the same tree.
+  #    Do NOT add a version to `bandit[toml]` below. pre-commit's clone is
+  #    shallow and carries no tags, so setuptools_scm builds it as 0.0.0;
+  #    `bandit[toml]==<rev>` then conflicts with that local build and the hook
+  #    fails to install at all ("Cannot install bandit 0.0.0 and bandit==...").
+  #    The extra resolves against the local build, so unpinned is correct here.
+  #  - `pass_filenames: false` because the roots below are the whole reviewed
+  #    surface. Left at the default, pre-commit appends the staged filenames to
+  #    argv and bandit scans them IN ADDITION to the roots, dragging in
+  #    gitignored vendored files the moment one is staged.
+  #  - Roots are named explicitly, never `-r .`, which walks the ~113k vendored
+  #    .py files under services/ that .gitignore excludes and bandit — which
+  #    reads the filesystem, not git — does not.
+  #
+  # `exclude` no longer filters what is scanned (pass_filenames is off); it now
+  # only decides whether the hook fires at all, skipping the scan when the only
+  # staged Python is test code that the bandit policy excludes anyway.
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.7
+    rev: 1.9.4
     hooks:
       - id: bandit
-        args: [ -c, pyproject.toml, -r, . ]
+        args: [ -c, pyproject.toml, -r, src, app, services/mcp ]
         additional_dependencies: [ "bandit[toml]" ]
+        pass_filenames: false
         exclude: ^(tests/|src/tests/)
 
   # ==========================================
@@ -231,6 +257,26 @@ repos:
 
   - repo: local
     hooks:
+      # Repair only deterministic, tracked policy sources. This hook never
+      # reads or writes .env files and never generates credentials.
+      - id: environment-contract-fix
+        name: Repair environment policy contract
+        entry: .venv/bin/python scripts/environment_config.py fix
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [ pre-commit ]
+
+      # Verify configured endpoints immediately before code leaves the local
+      # checkout. Root .env remains the local source; this hook is read-only.
+      - id: environment-live-check
+        name: Check live environment dependencies
+        entry: .venv/bin/python scripts/environment_config.py live
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [ pre-push ]
+
       # Custom secret check
       - id: check-secrets-custom
         name: Check for secrets (custom patterns)
@@ -254,4 +300,4 @@ ci:
   autofix_prs: true
   autoupdate_commit_msg: "chore: update pre-commit hooks"
   autoupdate_schedule: weekly
-  skip: [ ]
+  skip: [ environment-live-check ]

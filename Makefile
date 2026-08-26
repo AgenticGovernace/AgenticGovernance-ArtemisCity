@@ -6,6 +6,7 @@
 # feature commands are delegated to src/launch/Makefile.
 
 .PHONY: help venv install install-dev install-web install-all setup-hooks \
+        env-check env-fix env-setup env-live-check \
         lint lint-fix format check security secrets test test-cov \
         pre-commit pre-commit-update clean clean-env \
         run cli atp orchestrator kernel demo demo-artemis demo-memory demo-postal \
@@ -77,7 +78,20 @@ install-web: ## Install API and frontend workspace dependencies from the root lo
 install-all: install-dev install-web ## Install canonical Python and web dependencies
 
 setup-hooks: ## Configure pre-commit hooks from the installed root environment
-	cd "$(ROOT_DIR)" && $(PYTHON) -m pre_commit install
+	cd "$(ROOT_DIR)" && $(PYTHON) -m pre_commit install \
+		--hook-type pre-commit --hook-type pre-push --hook-type commit-msg
+
+env-check: ## Validate policy profiles and code/template environment coverage
+	cd "$(ROOT_DIR)" && $(PYTHON) scripts/environment_config.py check
+
+env-fix: ## Repair deterministic tracked environment-policy drift
+	cd "$(ROOT_DIR)" && $(PYTHON) scripts/environment_config.py fix
+
+env-setup: ## Provision root .env and all generated service views
+	cd "$(ROOT_DIR)" && ./setup_secrets.sh $(ARGS)
+
+env-live-check: ## Check manifest-declared live dependencies without mutation
+	cd "$(ROOT_DIR)" && $(PYTHON) scripts/environment_config.py live
 
 # ============================================
 # CODE QUALITY
@@ -108,7 +122,7 @@ check: lint ## Run formatting, import-order, and type checks
 security: security-static security-deps security-node ## Run all source and dependency security gates
 
 security-static: ## Static security analysis of the runtime surface (fails on any finding)
-	cd "$(ROOT_DIR)" && $(PYTHON) -m bandit -r src app services -c pyproject.toml -q
+	cd "$(ROOT_DIR)" && $(PYTHON) -m bandit -r src app services/mcp -c pyproject.toml -q
 
 security-deps: ## Audit locked Python dependencies against known-vulnerability databases
 	cd "$(ROOT_DIR)" && UV_PYTHON="$(PYTHON)" $(UV) export --locked --no-emit-project \
@@ -307,4 +321,4 @@ docs-serve: ## Serve documentation locally
 
 all: install-all check security test docs ## Install dependencies and run Python/docs quality gates
 
-ci: lint test docs ## Run the promotion Python/docs gates
+ci: env-check lint test docs ## Run the promotion Python/docs gates

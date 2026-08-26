@@ -11,6 +11,19 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MEMORY_LAYER = "src/Artemis Agentic Memory Layer"
+MEMORY_MCP = "services/mcp/artemis-memory"
+PROVENANCE = "services/prove"
+FRONTEND = "app/web/frontend"
+
+TARGET_ENV_FILES = (
+    ".env",
+    "app/api/.env",
+    f"{FRONTEND}/.env",
+    "src/.env",
+    f"{MEMORY_LAYER}/.env",
+    f"{MEMORY_MCP}/.env",
+    f"{PROVENANCE}/.env",
+)
 
 
 AUTHSTRUCTURE_CONFIG = (
@@ -27,10 +40,16 @@ def _copy_provisioner_fixture(tmp_path: Path) -> Path:
     shutil.copy2(REPO_ROOT / "setup_secrets.sh", fixture / "setup_secrets.sh")
 
     for relative in (
+        "scripts/environment_config.py",
+        "config/environment-contract.yaml",
+        "src/utils/environments.py",
         ".env.example",
         "app/api/.env.example",
+        f"{FRONTEND}/.env.example",
         "src/.env.example",
         f"{MEMORY_LAYER}/.env.example",
+        f"{MEMORY_MCP}/.env.example",
+        "config/service-env/provenance.env.example",
     ):
         source = REPO_ROOT / relative
         target = fixture / relative
@@ -63,6 +82,7 @@ def _run(
     return subprocess.run(
         ["bash", "setup_secrets.sh", *args],
         cwd=fixture,
+        env={**os.environ, "ARTEMIS_PYTHON": sys.executable},
         input=input_text,
         text=True,
         capture_output=True,
@@ -89,6 +109,8 @@ def test_sync_backfills_every_runtime_template_and_check_detects_drift(
     (fixture / ".env").write_text(
         AUTHSTRUCTURE_CONFIG + "MCP_API_KEY=keep-mcp\n"
         "ARTEMIS_API_KEY_DEFAULT=keep-ts:admin:read,write\n"
+        "ARTEMIS_MCP_BEARER_TOKEN=operator-http-token\n"
+        "PROVENANCE_SERVICE_URL=https://provenance.example.test\n"
         "\n"
     )
     (fixture / "app/api").mkdir(parents=True, exist_ok=True)
@@ -100,13 +122,29 @@ def test_sync_backfills_every_runtime_template_and_check_detects_drift(
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert _env_value(fixture / ".env", "MCP_API_KEY") == "keep-mcp"
-    assert _env_value(fixture / "app/api/.env", "API_PORT") == "4999"
+    assert _env_value(fixture / "app/api/.env", "API_PORT") == "4000"
     assert _env_value(fixture / "app/api/.env", "MCP_API_KEY") == "keep-mcp"
+    assert _env_value(fixture / f"{FRONTEND}/.env", "VITE_MCP_API_KEY") == ("keep-mcp")
+    assert _env_value(fixture / f"{FRONTEND}/.env", "VITE_FASTAPI_API_KEY") == (
+        _env_value(fixture / ".env", "FASTAPI_API_KEY")
+    )
     assert _env_value(fixture / "src/.env", "MCP_API_KEY") == "keep-mcp"
     assert _env_value(fixture / ".env", "ARTEMIS_HEBBIAN_ROUTING") == "1"
     assert _env_value(fixture / "app/api/.env", "EXO_READ_TIMEOUT_SECONDS") == "900"
     assert _env_value(fixture / "src/.env", "ARTEMIS_VECTOR_BACKEND") == "sqlite"
     assert _env_value(fixture / f"{MEMORY_LAYER}/.env", "OBSIDIAN_CA_CERT") == ""
+    assert _env_value(fixture / f"{MEMORY_MCP}/.env", "ARTEMIS_MCP_TRANSPORT") == (
+        "stdio"
+    )
+    assert (
+        _env_value(fixture / f"{MEMORY_MCP}/.env", "ARTEMIS_MCP_BEARER_TOKEN")
+        == "operator-http-token"
+    )
+    assert _env_value(fixture / f"{PROVENANCE}/.env", "PROV_PORT") == "8787"
+    assert (
+        _env_value(fixture / f"{PROVENANCE}/.env", "PROVENANCE_SERVICE_URL")
+        == "https://provenance.example.test"
+    )
     assert stat.S_IMODE((fixture / ".env").stat().st_mode) == 0o600
 
     check = _run(fixture, "--check")
@@ -128,7 +166,7 @@ def test_sync_backfills_every_runtime_template_and_check_detects_drift(
 
 def test_regenerate_rotates_owned_secrets_and_propagates_them(tmp_path: Path) -> None:
     fixture = _copy_provisioner_fixture(tmp_path)
-    for relative in (".env", "app/api/.env", "src/.env", f"{MEMORY_LAYER}/.env"):
+    for relative in TARGET_ENV_FILES:
         target = fixture / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         content = (AUTHSTRUCTURE_CONFIG if relative == ".env" else "") + (

@@ -7,7 +7,7 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    ARTEMIS_ENV=production
+    ARTEMIS_ENV=dev
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 

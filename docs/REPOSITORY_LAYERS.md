@@ -197,8 +197,8 @@ Sources: `src/integration/run_logger.py`, `src/utils/`, `monitoring/`,
   normalized before logging and credentials must never appear.
 - `src/runtime_paths.py` resolves repo-stable data and log roots, with explicit
   environment overrides for deployment and tests.
-- CircleCI owns validation and deployment gates. GitHub Actions only advances
-  the reviewed `dev -> staging -> prod` promotion cascade.
+- GitHub Actions owns source, test, security, lineage, protected live, and
+  `dev -> staging -> prod` promotion gates. No CircleCI config is present.
 
 Operational commands and environment ownership are documented in
 [`DEPLOYMENT.md`](DEPLOYMENT.md), [`ENVIRONMENTS.md`](ENVIRONMENTS.md), and
