@@ -10,9 +10,9 @@ import pytest
 from artemis_kernel_mcp.models import TaskStatus
 from artemis_kernel_mcp.server import create_server
 from artemis_kernel_mcp.service import TaskStore
+from mcp import Client
 from mcp.shared.exceptions import MCPError
 
-from mcp import Client
 from src.agents.atp.atp_models import ATPMode, ATPPriority
 
 EXPECTED_TOOLS = {
@@ -73,8 +73,11 @@ def test_cancel_rejects_terminal_tasks(tmp_path: Path) -> None:
 
     _, store = _server(tmp_path)
     task = store.create(
-        description="t", mode=ATPMode.BUILD, priority=ATPPriority.NORMAL,
-        target_zone="", assigned_agent="",
+        description="t",
+        mode=ATPMode.BUILD,
+        priority=ATPPriority.NORMAL,
+        target_zone="",
+        assigned_agent="",
     )
     store.update_status(task.task_id, TaskStatus.COMPLETED, "")
     with pytest.raises(TaskNotCancellable):
@@ -87,8 +90,10 @@ def test_list_filters_and_reports_total_before_truncation(tmp_path: Path) -> Non
     _, store = _server(tmp_path)
     for index in range(5):
         store.create(
-            description=f"task {index}", mode=ATPMode.BUILD,
-            priority=ATPPriority.NORMAL, target_zone="",
+            description=f"task {index}",
+            mode=ATPMode.BUILD,
+            priority=ATPPriority.NORMAL,
+            target_zone="",
             assigned_agent="alice" if index % 2 == 0 else "bob",
         )
     page, total = store.list(status=None, assigned_agent="alice", limit=2)
@@ -102,8 +107,11 @@ def test_state_survives_reload_and_write_is_atomic(tmp_path: Path) -> None:
     path = tmp_path / "kernel_tasks.json"
     store = TaskStore(path)
     created = store.create(
-        description="persisted", mode=ATPMode.REVIEW, priority=ATPPriority.CRITICAL,
-        target_zone="zone", assigned_agent="agent",
+        description="persisted",
+        mode=ATPMode.REVIEW,
+        priority=ATPPriority.CRITICAL,
+        target_zone="zone",
+        assigned_agent="agent",
     )
     reloaded = TaskStore(path)
     reloaded.load()

@@ -10,8 +10,8 @@ import pytest
 from artemis_mcp_common.gate import GovernedGate
 from artemis_mcp_common.models import ServicePrincipal
 from artemis_memory_mcp.server import create_memory_server
-
 from mcp import Client
+
 from src.memory.models import (
     ClaimDisposition,
     LedgerWrite,

@@ -13,7 +13,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # Ensure project root is on sys.path
 _project_root = str(Path(__file__).resolve().parents[2])
@@ -22,7 +22,7 @@ if _project_root not in sys.path:
 
 import src.mcp.orchestrator
 from src.agents.atp.atp_parser import ATPParser
-from src.mcp.config import AGENT_INPUT_DIR, OBSIDIAN_VAULT_PATH
+from src.mcp.config import OBSIDIAN_VAULT_PATH
 from src.utils.helpers import logger, sanitize_for_log
 from src.utils.run_logger import init_run_logger
 
@@ -33,7 +33,7 @@ def _sql_memory_selected() -> bool:
     return backend not in {"", "legacy", "disabled"}
 
 
-def parse_atp_cli_args(args: Optional[List[str]] = None) -> argparse.Namespace:
+def parse_atp_cli_args(args: list[str] | None = None) -> argparse.Namespace:
     """Parse command-line arguments for the ATP CLI.
 
     Args:
@@ -127,14 +127,14 @@ def parse_atp_cli_args(args: Optional[List[str]] = None) -> argparse.Namespace:
 def build_task_payload(
     raw_text: str,
     *,
-    capability: Optional[str] = None,
-    agent_name: Optional[str] = None,
-    title: Optional[str] = None,
-    target_zone: Optional[str] = None,
-    mode: Optional[str] = None,
-    priority: Optional[str] = None,
+    capability: str | None = None,
+    agent_name: str | None = None,
+    title: str | None = None,
+    target_zone: str | None = None,
+    mode: str | None = None,
+    priority: str | None = None,
     strict: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build a structured task context dictionary from CLI inputs.
 
     Args:
@@ -154,7 +154,7 @@ def build_task_payload(
     task_id = f"atp_cli_{timestamp}"
     task_title = title or raw_text.strip().split("\n")[0][:80] or "ATP Instruction"
 
-    task_data: Dict[str, Any] = {
+    task_data: dict[str, Any] = {
         "task_id": task_id,
         "title": task_title,
         "context": raw_text,
@@ -182,11 +182,11 @@ def build_task_payload(
 
 def execute_instruction(
     orchestrator: src.mcp.orchestrator.Orchestrator,
-    task_data: Dict[str, Any],
+    task_data: dict[str, Any],
     *,
     show_routing: bool = False,
     as_json: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Execute a task context through the Orchestrator and Routing Kernel.
 
     Args:
@@ -222,7 +222,7 @@ def execute_instruction(
 
     # 4. Route and execute
     pinned_agent = prepared_task.get("agent")
-    result: Dict[str, Any] = {}
+    result: dict[str, Any] = {}
     routing_path = "pinned" if pinned_agent else "kernel"
     selected_agent = pinned_agent
 

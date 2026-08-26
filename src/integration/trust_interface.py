@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import sqlite3
 import threading
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional, Tuple
 
 from src.runtime_paths import data_path
 
@@ -28,7 +28,7 @@ class TrustLevel(Enum):
 
 # Canonical score → level thresholds. A score `s` belongs to the highest
 # level whose threshold it meets, i.e. `s >= TRUST_THRESHOLDS[level]`.
-TRUST_THRESHOLDS: Dict[TrustLevel, float] = {
+TRUST_THRESHOLDS: dict[TrustLevel, float] = {
     TrustLevel.FULL: 0.9,
     TrustLevel.HIGH: 0.7,
     TrustLevel.MEDIUM: 0.5,
@@ -36,7 +36,7 @@ TRUST_THRESHOLDS: Dict[TrustLevel, float] = {
     TrustLevel.UNTRUSTED: 0.0,
 }
 
-_LEVELS_DESC: Tuple[TrustLevel, ...] = (
+_LEVELS_DESC: tuple[TrustLevel, ...] = (
     TrustLevel.FULL,
     TrustLevel.HIGH,
     TrustLevel.MEDIUM,
@@ -91,7 +91,7 @@ class TrustScore:
     reinforcement_events: int = 0
     penalty_events: int = 0
 
-    def apply_decay(self, *, now: Optional[datetime] = None) -> float:
+    def apply_decay(self, *, now: datetime | None = None) -> float:
         """Apply natural decay based on elapsed time since ``last_updated``.
 
         Continuous in elapsed time (fractional days), floored at the
@@ -136,7 +136,7 @@ class TrustScore:
 
     # ---- (de)serialization ------------------------------------------------
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Serialize for storage / API responses (ISO-8601 UTC)."""
         return {
             "entity_id": self.entity_id,
@@ -150,7 +150,7 @@ class TrustScore:
         }
 
     @classmethod
-    def from_row(cls, row: sqlite3.Row) -> "TrustScore":
+    def from_row(cls, row: sqlite3.Row) -> TrustScore:
         """Reconstruct a TrustScore from a DB row produced by ``TrustStore``."""
         return cls(
             entity_id=row["entity_id"],
@@ -195,7 +195,7 @@ CREATE TABLE IF NOT EXISTS trust_scores (
 class TrustStore:
     """Thin SQLite-backed persistence layer for :class:`TrustScore`."""
 
-    def __init__(self, db_path: Optional[Path] = None) -> None:
+    def __init__(self, db_path: Path | None = None) -> None:
         self._db_path = (
             _default_db_path()
             if db_path is None
@@ -220,9 +220,9 @@ class TrustStore:
         finally:
             conn.close()
 
-    def load_all(self) -> Dict[str, TrustScore]:
+    def load_all(self) -> dict[str, TrustScore]:
         """Return all persisted scores keyed by ``entity_type:entity_id``."""
-        out: Dict[str, TrustScore] = {}
+        out: dict[str, TrustScore] = {}
         with self._lock, self._connect() as conn:
             for row in conn.execute("SELECT * FROM trust_scores"):
                 score = TrustScore.from_row(row)
@@ -276,7 +276,7 @@ class TrustInterface:
 
     # Kept in sync with TRUST_OPERATIONS in
     # app/api/controllers/trustController.ts.
-    OPERATION_PERMISSIONS: Dict[TrustLevel, List[str]] = {
+    OPERATION_PERMISSIONS: dict[TrustLevel, list[str]] = {
         TrustLevel.FULL: [
             "read",
             "write",
@@ -302,8 +302,8 @@ class TrustInterface:
     def __init__(
         self,
         *,
-        store: Optional[TrustStore] = None,
-        db_path: Optional[Path] = None,
+        store: TrustStore | None = None,
+        db_path: Path | None = None,
     ) -> None:
         """Initialize trust interface.
 
@@ -312,7 +312,7 @@ class TrustInterface:
             db_path: Override the SQLite path; ignored if ``store`` is provided.
         """
         self._store = store if store is not None else TrustStore(db_path)
-        self.trust_scores: Dict[str, TrustScore] = self._store.load_all()
+        self.trust_scores: dict[str, TrustScore] = self._store.load_all()
         # Seed only the entries that aren't already persisted.
         self._initialize_default_agents()
 
@@ -443,7 +443,7 @@ class TrustInterface:
         score: float,
         *,
         entity_type: str = "agent",
-        success: Optional[bool] = None,
+        success: bool | None = None,
     ) -> TrustScore:
         """Persist an externally computed score without a second adjustment.
 
@@ -463,8 +463,8 @@ class TrustInterface:
         self._persist(trust_score)
         return trust_score
 
-    def get_trust_report(self) -> Dict:
-        by_level: Dict[str, List[Dict]] = {}
+    def get_trust_report(self) -> dict:
+        by_level: dict[str, list[dict]] = {}
         for trust_score in self.trust_scores.values():
             by_level.setdefault(trust_score.level.value, []).append(
                 {
@@ -483,11 +483,11 @@ class TrustInterface:
 
     def filter_by_trust(
         self,
-        items: List[Dict],
+        items: list[dict],
         min_trust_level: TrustLevel = TrustLevel.MEDIUM,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         min_score = TRUST_THRESHOLDS[min_trust_level]
-        filtered: List[Dict] = []
+        filtered: list[dict] = []
         for item in items:
             entity_id = item.get("entity_id")
             if not entity_id:
@@ -504,7 +504,7 @@ class TrustInterface:
 # ---------------------------------------------------------------------------
 
 
-_global_trust_interface: Optional[TrustInterface] = None
+_global_trust_interface: TrustInterface | None = None
 _global_lock = threading.Lock()
 
 

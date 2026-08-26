@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import UTC, datetime
-from typing import Optional
 
 from src.auth.delegation import DelegationGrantV1
 from src.runtime_paths import data_path
@@ -67,7 +66,7 @@ class SqliteDelegationStore:
         )
     """
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: str | None = None):
         self.db_path = data_path(
             "delegation_grants.db", db_path, env_var="ARTEMIS_DELEGATION_DB"
         )
@@ -111,7 +110,7 @@ class SqliteDelegationStore:
             # Re-validation on read re-checks the canonical grant hash, so a
             # tampered ledger row cannot be loaded as a usable grant.
             return DelegationGrantV1.model_validate_json(row[0])
-        except Exception as error:  # noqa: BLE001 - a corrupt row is not a grant
+        except Exception as error:
             logger.error("Persisted delegation grant failed re-validation on read.")
             raise DelegationStoreError(
                 "persisted delegation grant failed integrity re-validation"
@@ -203,8 +202,8 @@ class SqliteDelegationStore:
         self,
         reservation_id: str,
         *,
-        remaining_units: Optional[int] = None,
-        expires_at: Optional[datetime] = None,
+        remaining_units: int | None = None,
+        expires_at: datetime | None = None,
     ) -> None:
         """Create or reopen one active budget reservation."""
         if not isinstance(reservation_id, str) or not reservation_id.strip():
@@ -284,9 +283,9 @@ class SqliteDelegationStore:
 
 
 __all__ = [
-    "DelegationStoreError",
     "RESERVATION_ACTIVE",
     "RESERVATION_EXHAUSTED",
     "RESERVATION_RELEASED",
+    "DelegationStoreError",
     "SqliteDelegationStore",
 ]

@@ -4,8 +4,8 @@
  * Centralized error handling for the API.
  */
 
-import { Request, Response, NextFunction } from 'express';
-import { sanitizeForLog } from './logger';
+import { Request, Response, NextFunction } from "express";
+import { sanitizeForLog } from "./logger";
 
 /**
  * Custom API Error class
@@ -15,9 +15,14 @@ export class APIError extends Error {
   code: string;
   details?: any;
 
-  constructor(message: string, statusCode: number = 500, code: string = 'INTERNAL_ERROR', details?: any) {
+  constructor(
+    message: string,
+    statusCode: number = 500,
+    code: string = "INTERNAL_ERROR",
+    details?: any,
+  ) {
     super(message);
-    this.name = 'APIError';
+    this.name = "APIError";
     this.statusCode = statusCode;
     this.code = code;
     this.details = details;
@@ -29,28 +34,26 @@ export class APIError extends Error {
  */
 export const Errors = {
   NotFound: (resource: string) =>
-    new APIError(`${resource} not found`, 404, 'NOT_FOUND'),
+    new APIError(`${resource} not found`, 404, "NOT_FOUND"),
 
   BadRequest: (message: string, details?: any) =>
-    new APIError(message, 400, 'BAD_REQUEST', details),
+    new APIError(message, 400, "BAD_REQUEST", details),
 
-  Unauthorized: (message: string = 'Authentication required') =>
-    new APIError(message, 401, 'UNAUTHORIZED'),
+  Unauthorized: (message: string = "Authentication required") =>
+    new APIError(message, 401, "UNAUTHORIZED"),
 
-  Forbidden: (message: string = 'Permission denied') =>
-    new APIError(message, 403, 'FORBIDDEN'),
+  Forbidden: (message: string = "Permission denied") =>
+    new APIError(message, 403, "FORBIDDEN"),
 
-  Conflict: (message: string) =>
-    new APIError(message, 409, 'CONFLICT'),
+  Conflict: (message: string) => new APIError(message, 409, "CONFLICT"),
 
   ValidationError: (errors: any[]) =>
-    new APIError('Validation failed', 400, 'VALIDATION_ERROR', { errors }),
+    new APIError("Validation failed", 400, "VALIDATION_ERROR", { errors }),
 
-  RateLimited: () =>
-    new APIError('Too many requests', 429, 'RATE_LIMITED'),
+  RateLimited: () => new APIError("Too many requests", 429, "RATE_LIMITED"),
 
-  InternalError: (message: string = 'Internal server error') =>
-    new APIError(message, 500, 'INTERNAL_ERROR')
+  InternalError: (message: string = "Internal server error") =>
+    new APIError(message, 500, "INTERNAL_ERROR"),
 };
 
 /**
@@ -82,19 +85,24 @@ export const errorHandler = (
   err: Error | APIError,
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): void => {
   // Log error (sanitize request-derived values to prevent log forgery)
   console.error(
-    `[ERROR] ${new Date().toISOString()} - ${sanitizeForLog(req.method)} ${sanitizeForLog(req.path)}`
+    `[ERROR] ${new Date().toISOString()} - ${sanitizeForLog(req.method)} ${sanitizeForLog(req.path)}`,
   );
-  console.error(sanitizeForLog(process.env.NODE_ENV === 'development' ? (err.stack || err.message) : err.message));
-
+  console.error(
+    sanitizeForLog(
+      process.env.NODE_ENV === "development"
+        ? err.stack || err.message
+        : err.message,
+    ),
+  );
 
   // Determine status code and error details
   let statusCode = 500;
-  let code = 'INTERNAL_ERROR';
-  let message = 'An unexpected error occurred';
+  let code = "INTERNAL_ERROR";
+  let message = "An unexpected error occurred";
   let details: any = undefined;
 
   if (err instanceof APIError) {
@@ -102,18 +110,18 @@ export const errorHandler = (
     code = err.code;
     message = err.message;
     details = err.details;
-  } else if (err.name === 'ValidationError') {
+  } else if (err.name === "ValidationError") {
     statusCode = 400;
-    code = 'VALIDATION_ERROR';
+    code = "VALIDATION_ERROR";
     message = err.message;
-  } else if (err.name === 'SyntaxError' && 'body' in err) {
+  } else if (err.name === "SyntaxError" && "body" in err) {
     statusCode = 400;
-    code = 'INVALID_JSON';
-    message = 'Invalid JSON in request body';
-  } else if (err.name === 'UnauthorizedError') {
+    code = "INVALID_JSON";
+    message = "Invalid JSON in request body";
+  } else if (err.name === "UnauthorizedError") {
     statusCode = 401;
-    code = 'UNAUTHORIZED';
-    message = 'Invalid or expired token';
+    code = "UNAUTHORIZED";
+    message = "Invalid or expired token";
   }
 
   // Build error response
@@ -124,16 +132,16 @@ export const errorHandler = (
       code,
       statusCode,
       timestamp: new Date().toISOString(),
-      path: req.path
-    }
+      path: req.path,
+    },
   };
 
   // Include details in development mode
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === "development") {
     errorResponse.error.details = details || {
-      stack: err.stack?.split('\n').slice(0, 5)
+      stack: err.stack?.split("\n").slice(0, 5),
     };
-  } else if (details && code === 'VALIDATION_ERROR') {
+  } else if (details && code === "VALIDATION_ERROR") {
     // Always include validation errors
     errorResponse.error.details = details;
   }
@@ -153,11 +161,11 @@ export const notFoundHandler = (req: Request, res: Response): void => {
     success: false,
     error: {
       message: `Route not found: ${req.method} ${req.path}`,
-      code: 'ROUTE_NOT_FOUND',
+      code: "ROUTE_NOT_FOUND",
       statusCode: 404,
       timestamp: new Date().toISOString(),
-      path: req.path
-    }
+      path: req.path,
+    },
   });
 };
 
@@ -167,7 +175,9 @@ export const notFoundHandler = (req: Request, res: Response): void => {
  * @param fn - Function or handler to invoke inside the helper wrapper.
  * @returns A request, res: response, next: nextfunction): void value produced by asyncing handler wrapper to catch async errors.
  */
-export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) => {
+export const asyncHandler = (
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<any>,
+) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };

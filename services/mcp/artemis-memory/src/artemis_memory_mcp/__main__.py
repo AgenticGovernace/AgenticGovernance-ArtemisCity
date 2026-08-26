@@ -8,9 +8,6 @@ import signal
 import sys
 from collections.abc import Sequence
 
-from posthog import Posthog
-from posthog.mcp import instrument as _mcp_instrument
-
 from artemis_mcp_common.gate import GovernedGate
 from artemis_mcp_common.principals import (
     BearerPrincipalProvider,
@@ -19,6 +16,8 @@ from artemis_mcp_common.principals import (
 )
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.mcpserver import MCPServer
+from posthog import Posthog
+from posthog.mcp import instrument as _mcp_instrument
 
 from .server import create_memory_server
 from .wiring import MemoryServerConfigurationError, build_memory_service

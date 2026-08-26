@@ -18,8 +18,7 @@ import collections
 import datetime
 import json
 
-from lib import flagutils
-from lib import monitoring
+from lib import flagutils, monitoring
 
 NUM_POINTS = 10
 

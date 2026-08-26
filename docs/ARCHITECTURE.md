@@ -373,7 +373,7 @@ consumer report was durably written.
 
 - Classify as `agent_failure`
 - Apply the anti-Hebbian update and synchronize execution/trust projections
-**Memory Bus Projection Failure:**
+  **Memory Bus Projection Failure:**
 - Retain the committed SQL revision and pending outbox event
 - Restore projection connectivity, then manually replay the same explicitly
   retained idempotency key to retry deterministic delivery; no worker retries

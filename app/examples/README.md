@@ -12,11 +12,11 @@ python examples/multi_agent_workflow/run.py
 python examples/governance_demo/run.py
 ```
 
-| Example | What it shows | Key modules |
-|---|---|---|
-| [`minimal_deployment/`](minimal_deployment/) | The smallest slice: register one agent, route a task by capability, execute it, and write/recall the result through the memory bus. | `AgentRegistry`, `MemoryBus`, `LocalVectorStore` |
+| Example                                          | What it shows                                                                                                                                | Key modules                                                                |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| [`minimal_deployment/`](minimal_deployment/)     | The smallest slice: register one agent, route a task by capability, execute it, and write/recall the result through the memory bus.          | `AgentRegistry`, `MemoryBus`, `LocalVectorStore`                           |
 | [`multi_agent_workflow/`](multi_agent_workflow/) | Research → Summarize pipeline where agents collaborate **through shared memory**, with Hebbian reinforcement and batched weight propagation. | `AgentRegistry`, `MemoryBus`, `HebbianWeightManager`, `HebbianSyncService` |
-| [`governance_demo/`](governance_demo/) | Sandbox whitelist enforcement → 3-strike quarantine → approval tiers (auto/monitored/human) → checkpoint + rollback. | `AgentSandbox`, `SelfUpdateGovernor`, `CheckpointStore`, `RollbackManager` |
+| [`governance_demo/`](governance_demo/)           | Sandbox whitelist enforcement → 3-strike quarantine → approval tiers (auto/monitored/human) → checkpoint + rollback.                         | `AgentSandbox`, `SelfUpdateGovernor`, `CheckpointStore`, `RollbackManager` |
 
 ## Requirements
 

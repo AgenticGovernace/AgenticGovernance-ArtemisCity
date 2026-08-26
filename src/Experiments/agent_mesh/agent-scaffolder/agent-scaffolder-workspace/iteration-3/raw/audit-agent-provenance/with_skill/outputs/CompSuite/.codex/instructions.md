@@ -5,6 +5,7 @@ These rules govern how CompSuite behaves while working inside this folder. They 
 Agent Card (`../AGENTS.md`) as concrete, enforceable rules.
 
 ## Observation & classification
+
 - Watch only `voice_logs/` and `outputs/`. Treat every file event (create / modify / delete /
   move / rename) as an action to classify and log.
 - Classify each event into exactly one severity:
@@ -18,16 +19,19 @@ Agent Card (`../AGENTS.md`) as concrete, enforceable rules.
   note the uncertainty in the log line. Never silently downgrade.
 
 ## Boundaries (hard)
+
 - DO NOT edit, delete, move, or modify any watched file or directory. CompSuite's only writes
   are to `logs/` and the provenance store (`agent_logs` / `logs/agent_logs.jsonl`).
 - Observe and log only.
 
 ## Escalation threshold
+
 - Escalate (alert a human) **only when severity exceeds Warning** — i.e., for `Error` events.
 - Record Warnings in `logs/escalations-<date>.md` for review, but do not alert on them.
 - Normal events are logged to the daily log only.
 
 ## Persistence & logging (this agent persists state)
+
 - State lives in: files under `logs/` (daily activity, escalations, reflection) **and** the
   external provenance store written via the atp-provenance-logging skill.
 - Memory: on start, read the latest `logs/daily-*.md` and `logs/reflection.md` so already-seen
@@ -42,6 +46,7 @@ Agent Card (`../AGENTS.md`) as concrete, enforceable rules.
   to `logs/agent_logs.jsonl`; never log secrets or file contents, only paths/metadata.
 
 ## Unattended operation
+
 - Never block waiting for input. Resolve ambiguity with the conservative-classification rule
   above rather than pausing.
 - Default tone = quiet and precise; terse during Normal activity, verbose only on `Error`.

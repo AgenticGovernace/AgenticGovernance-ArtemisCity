@@ -12,9 +12,9 @@ implements it.
 from __future__ import annotations
 
 __all__ = [
-    "provenance",
     "classifier",
     "escalation",
+    "provenance",
     "reflection",
     "watcher",
 ]

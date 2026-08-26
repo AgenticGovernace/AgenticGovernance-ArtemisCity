@@ -14,8 +14,7 @@ from src.integration.memory_bus import MemoryBus
 from src.integration.memory_decay import MemoryDecayService
 from src.integration.sql_memory_store import MemoryRevision, MemoryWriteReceipt
 from src.mcp.vector_store import LocalVectorStore
-from src.obsidian_integration.manager import (ObsidianManager,
-                                              ObsidianProjectionError)
+from src.obsidian_integration.manager import ObsidianManager, ObsidianProjectionError
 
 
 class _InMemorySqlMemoryStore:
@@ -890,7 +889,7 @@ def test_vector_write_rolls_back_on_file_failure(tmp_path):
             self.vault_path = vault_root
 
         def write_note(self, *args, **kwargs):
-            raise IOError("disk full")
+            raise OSError("disk full")
 
         def read_note(self, *args, **kwargs):
             return None
@@ -955,7 +954,7 @@ def test_governance_alert_on_repeated_failures(tmp_path):
             self.vault_path = vault_root
 
         def write_note(self, *args, **kwargs):
-            raise IOError("disk full")
+            raise OSError("disk full")
 
         def read_note(self, *args, **kwargs):
             return None

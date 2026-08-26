@@ -14,13 +14,15 @@ tags: ["agent_report", "research_agent"]
 AI ethics is the study and practice of ensuring that artificial intelligence systems are developed and deployed in ways that are fair, transparent, accountable, and respectful of human rights — particularly concerning privacy, bias, and accountability. As machine learning models grow more complex and pervasive, ethical challenges around data usage, algorithmic fairness, and responsibility for AI decisions become increasingly urgent.
 
 2) Key Findings  
+
 - **Bias**: AI systems often inherit and amplify societal biases present in training data, leading to discriminatory outcomes (e.g., facial recognition inaccuracies for minorities, hiring algorithms favoring certain demographics).  
 - **Privacy**: AI systems frequently collect and process vast amounts of personal data, raising concerns about consent, surveillance, and data misuse.  
 - **Accountability**: Lack of clear ownership or responsibility for AI-driven harms (e.g., autonomous vehicle accidents) creates legal and ethical gray areas.  
 - **Machine Learning**: The opacity of deep learning models (“black box” nature) impedes ethical review and oversight, making bias detection and accountability difficult.  
 - **Global Standards**: While frameworks like the EU’s AI Act and IEEE standards exist, enforcement and alignment across jurisdictions remain inconsistent.
 
-3) Recommended Next Steps  
+1) Recommended Next Steps  
+
 - Develop and adopt standardized, auditable AI ethics frameworks (e.g., ISO/IEC 29100) with clear bias detection, privacy-by-design, and accountability protocols.  
 - Implement mandatory third-party audits for high-risk AI systems (e.g., in healthcare, criminal justice).  
 - Promote open-source ethical ML tools and datasets to improve transparency and reduce bias.  
@@ -35,14 +37,16 @@ AI ethics is the study and practice of ensuring that artificial intelligence sys
 - **Raw Output**: 1) Concise Summary  
 AI ethics is the study and practice of ensuring that artificial intelligence systems are developed and deployed in ways that are fair, transparent, accountable, and respectful of human rights — particularly concerning privacy, bias, and accountability. As machine learning models grow more complex and pervasive, ethical challenges around data usage, algorithmic fairness, and responsibility for AI decisions become increasingly urgent.
 
-2) Key Findings  
+1) Key Findings  
+
 - **Bias**: AI systems often inherit and amplify societal biases present in training data, leading to discriminatory outcomes (e.g., facial recognition inaccuracies for minorities, hiring algorithms favoring certain demographics).  
 - **Privacy**: AI systems frequently collect and process vast amounts of personal data, raising concerns about consent, surveillance, and data misuse.  
 - **Accountability**: Lack of clear ownership or responsibility for AI-driven harms (e.g., autonomous vehicle accidents) creates legal and ethical gray areas.  
 - **Machine Learning**: The opacity of deep learning models (“black box” nature) impedes ethical review and oversight, making bias detection and accountability difficult.  
 - **Global Standards**: While frameworks like the EU’s AI Act and IEEE standards exist, enforcement and alignment across jurisdictions remain inconsistent.
 
-3) Recommended Next Steps  
+1) Recommended Next Steps  
+
 - Develop and adopt standardized, auditable AI ethics frameworks (e.g., ISO/IEC 29100) with clear bias detection, privacy-by-design, and accountability protocols.  
 - Implement mandatory third-party audits for high-risk AI systems (e.g., in healthcare, criminal justice).  
 - Promote open-source ethical ML tools and datasets to improve transparency and reduce bias.  
@@ -52,17 +56,20 @@ AI ethics is the study and practice of ensuring that artificial intelligence sys
 *Note: Ethical AI is not optional — it’s a prerequisite for sustainable innovation.*
 
 ### Findings
+
 - 1) Concise Summary  
 AI ethics is the study and practice of ensuring that artificial intelligence systems are developed and deployed in ways that are fair, transparent, accountable, and respectful of human rights — particularly concerning privacy, bias, and accountability. As machine learning models grow more complex and pervasive, ethical challenges around data usage, algorithmic fairness, and responsibility for AI decisions become increasingly urgent.
 
-2) Key Findings  
+1) Key Findings  
+
 - **Bias**: AI systems often inherit and amplify societal biases present in training data, leading to discriminatory outcomes (e.g., facial recognition inaccuracies for minorities, hiring algorithms favoring certain demographics).  
 - **Privacy**: AI systems frequently collect and process vast amounts of personal data, raising concerns about consent, surveillance, and data misuse.  
 - **Accountability**: Lack of clear ownership or responsibility for AI-driven harms (e.g., autonomous vehicle accidents) creates legal and ethical gray areas.  
 - **Machine Learning**: The opacity of deep learning models (“black box” nature) impedes ethical review and oversight, making bias detection and accountability difficult.  
 - **Global Standards**: While frameworks like the EU’s AI Act and IEEE standards exist, enforcement and alignment across jurisdictions remain inconsistent.
 
-3) Recommended Next Steps  
+1) Recommended Next Steps  
+
 - Develop and adopt standardized, auditable AI ethics frameworks (e.g., ISO/IEC 29100) with clear bias detection, privacy-by-design, and accountability protocols.  
 - Implement mandatory third-party audits for high-risk AI systems (e.g., in healthcare, criminal justice).  
 - Promote open-source ethical ML tools and datasets to improve transparency and reduce bias.  
@@ -72,18 +79,21 @@ AI ethics is the study and practice of ensuring that artificial intelligence sys
 *Note: Ethical AI is not optional — it’s a prerequisite for sustainable innovation.*
 
 ### Sources Consulted
+
 - LLM provider: exo
 
 ### Recommendations
+
 - Validate cited claims with primary sources.
 - **Provider**: exo
 - **Fallback Used**: False
 - **Outcome Class**: success
 - **Learning Eligible**: True
 - **Model**: mlx-community/Qwen3-VL-4B-Instruct-4bit
-- **Model Url**: http://localhost:52415/v1
+- **Model Url**: <http://localhost:52415/v1>
 
 ### Usage
+
 - **Prompt_Tokens**: 65
 - **Completion_Tokens**: 381
 - **Total_Tokens**: 446
@@ -92,9 +102,10 @@ AI ethics is the study and practice of ensuring that artificial intelligence sys
 - **Response Id**: 5cfc5509-5a3b-4138-9e6d-af9e72dc53c9
 
 ### Exo Request
+
 - **Request_Id**: 5f2158e8-dbd4-4241-b247-6cbceaf69be6
 - **Server_Request_Id**: None
-- **Endpoint**: http://localhost:52415/v1/chat/completions
+- **Endpoint**: <http://localhost:52415/v1/chat/completions>
 - **Http_Status**: 200
 - **Latency_Ms**: 12548.855
 - **Requested_Model**: mlx-community/Qwen3-VL-4B-Instruct-4bit

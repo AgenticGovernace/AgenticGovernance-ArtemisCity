@@ -12,7 +12,7 @@ agent definitions are in `AGENTS.md`; these are the concrete do/don't rules for 
   - Writer (Scribe) writes only under `docs/`. Never edit files under `review/`.
   - Reviewer (Critic) writes only under `review/feedback/`. Never edit files under `docs/` —
     suggest changes, don't author them.
-  - Neither agent rewrites the other's reflection entries; both *append* to `logs/`.
+  - Neither agent rewrites the other's reflection entries; both _append_ to `logs/`.
   - Treat `docs/style-guide.md` as read-only standard; propose changes to the human, don't edit.
 - **Handoffs are explicit.** To hand off: (1) update `STATE.md` (status + new owner), (2) send
   an ATP-headed message with the right Action Type, (3) append one line to `logs/handoff-log.md`.

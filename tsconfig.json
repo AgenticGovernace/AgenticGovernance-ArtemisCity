@@ -15,5 +15,11 @@
     "moduleResolution": "node"
   },
   "include": ["app/api/**/*.ts"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "app/web/**", "app/kernel/**"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "app/web/**",
+    "app/kernel/**"
+  ]
 }

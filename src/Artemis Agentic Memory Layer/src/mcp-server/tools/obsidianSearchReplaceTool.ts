@@ -1,5 +1,5 @@
-import { searchReplace as obsidianSearchReplace } from '../../services/obsidianRestAPI/methods';
-import { wrapTool } from './wrapTool';
+import { searchReplace as obsidianSearchReplace } from "../../services/obsidianRestAPI/methods";
+import { wrapTool } from "./wrapTool";
 
 /**
  * Replace matching text inside a note and return the updated content.
@@ -10,7 +10,7 @@ import { wrapTool } from './wrapTool';
  * @returns Wrapped tool result containing the updated note content and status message.
  */
 export const searchReplace = wrapTool(
-  'searchReplace',
+  "searchReplace",
   async (path: string, search: string, replace: string) => {
     const content = await obsidianSearchReplace(path, search, replace);
     return {

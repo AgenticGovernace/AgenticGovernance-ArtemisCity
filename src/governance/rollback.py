@@ -17,7 +17,6 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from src.runtime_paths import data_path
 from utils.helpers import logger
@@ -47,10 +46,10 @@ class Checkpoint:
     id: str
     label: str
     timestamp: float
-    data: Dict
-    metadata: Dict = field(default_factory=dict)
+    data: dict
+    metadata: dict = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "id": self.id,
             "label": self.label,
@@ -78,7 +77,7 @@ class RollbackManager:
 
     def __init__(
         self,
-        checkpoint_dir: Optional[str] = None,
+        checkpoint_dir: str | None = None,
         max_checkpoints: int = DEFAULT_MAX_CHECKPOINTS,
     ):
         self.checkpoint_dir = Path(
@@ -90,8 +89,8 @@ class RollbackManager:
         )
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         self.max_checkpoints = max_checkpoints
-        self.checkpoint_history: List[str] = []
-        self._rollback_log: List[Dict] = []
+        self.checkpoint_history: list[str] = []
+        self._rollback_log: list[dict] = []
 
         # Load existing checkpoint history from disk
         self._load_checkpoint_index()
@@ -99,8 +98,8 @@ class RollbackManager:
     def create_checkpoint(
         self,
         label: str,
-        state: Optional[Dict] = None,
-        metadata: Optional[Dict] = None,
+        state: dict | None = None,
+        metadata: dict | None = None,
     ) -> str:
         """
         Create a versioned checkpoint of current system state.
@@ -147,7 +146,7 @@ class RollbackManager:
         logger.info(f"[ROLLBACK] Checkpoint created: {checkpoint_id}")
         return checkpoint_id
 
-    def rollback_to(self, checkpoint_id: str) -> Dict:
+    def rollback_to(self, checkpoint_id: str) -> dict:
         """
         Restore system state from a checkpoint.
 
@@ -189,7 +188,7 @@ class RollbackManager:
         logger.info(f"[ROLLBACK] Restored to checkpoint: {checkpoint_id}")
         return state
 
-    def get_checkpoint(self, checkpoint_id: str) -> Optional[Checkpoint]:
+    def get_checkpoint(self, checkpoint_id: str) -> Checkpoint | None:
         """Load a specific checkpoint without applying it."""
         checkpoint_path = (
             self.checkpoint_dir / f"{_validate_checkpoint_id(checkpoint_id)}.json"
@@ -208,7 +207,7 @@ class RollbackManager:
             metadata=data.get("metadata", {}),
         )
 
-    def list_checkpoints(self) -> List[Dict]:
+    def list_checkpoints(self) -> list[dict]:
         """List all available checkpoints with metadata."""
         checkpoints = []
         for cp_id in self.checkpoint_history:
@@ -233,7 +232,7 @@ class RollbackManager:
                     continue
         return checkpoints
 
-    def get_latest_checkpoint_id(self) -> Optional[str]:
+    def get_latest_checkpoint_id(self) -> str | None:
         """Return the most recent checkpoint ID, or None."""
         return self.checkpoint_history[-1] if self.checkpoint_history else None
 
@@ -252,7 +251,7 @@ class RollbackManager:
             return True
         return False
 
-    def diff_checkpoints(self, cp_id_a: str, cp_id_b: str) -> Dict:
+    def diff_checkpoints(self, cp_id_a: str, cp_id_b: str) -> dict:
         """
         Compare two checkpoints and return differences.
 
@@ -283,7 +282,7 @@ class RollbackManager:
             "keys_changed": list(diff.keys()),
         }
 
-    def get_rollback_history(self, limit: int = 50) -> List[Dict]:
+    def get_rollback_history(self, limit: int = 50) -> list[dict]:
         """Return recent rollback events."""
         return self._rollback_log[-limit:]
 
@@ -318,7 +317,7 @@ class RollbackManager:
         except OSError:
             logger.warning("Failed to save checkpoint index")
 
-    def _persist_rollback_event(self, event: Dict):
+    def _persist_rollback_event(self, event: dict):
         """Append rollback event to provenance log."""
         log_path = self.checkpoint_dir / "rollback_history.jsonl"
         try:

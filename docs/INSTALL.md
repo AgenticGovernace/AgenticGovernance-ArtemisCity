@@ -78,22 +78,22 @@ commit-message hook with `make setup-hooks`.
 
 ## Common Commands
 
-| Action | Command |
-|---|---|
-| Runtime dependencies | `make install` |
-| Dev dependencies | `make install-dev` |
-| API and frontend dependencies | `make install-web` |
-| All development dependencies | `make install-all` |
-| Environment source contract | `make env-check` |
-| Deterministic environment repair | `make env-fix` |
-| Local environment provisioning | `make env-setup` |
-| Live dependency checks | `make env-live-check` |
-| Tests | `make test` |
-| Tests with coverage | `make test-cov` |
-| FastAPI dashboard backend | `make api` |
-| React frontend | `make frontend` |
-| TypeScript Express API | `make express-api` |
-| Kernel CLI probe | `python -m app.kernel.cli "system status"` |
+| Action                           | Command                                    |
+| -------------------------------- | ------------------------------------------ |
+| Runtime dependencies             | `make install`                             |
+| Dev dependencies                 | `make install-dev`                         |
+| API and frontend dependencies    | `make install-web`                         |
+| All development dependencies     | `make install-all`                         |
+| Environment source contract      | `make env-check`                           |
+| Deterministic environment repair | `make env-fix`                             |
+| Local environment provisioning   | `make env-setup`                           |
+| Live dependency checks           | `make env-live-check`                      |
+| Tests                            | `make test`                                |
+| Tests with coverage              | `make test-cov`                            |
+| FastAPI dashboard backend        | `make api`                                 |
+| React frontend                   | `make frontend`                            |
+| TypeScript Express API           | `make express-api`                         |
+| Kernel CLI probe                 | `python -m app.kernel.cli "system status"` |
 
 ## Environment Variables
 

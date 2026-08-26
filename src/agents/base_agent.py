@@ -34,7 +34,7 @@ Example:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from ..utils.helpers import logger, sanitize_for_log
 
@@ -83,7 +83,7 @@ class BaseAgent(ABC):
     def __init__(
         self,
         name: str,
-        capabilities: Optional[List[str]] = None,
+        capabilities: list[str] | None = None,
     ) -> None:
         """
         Initialize a new agent instance.
@@ -109,7 +109,7 @@ class BaseAgent(ABC):
             raise ValueError("Agent name must be a non-empty string")
 
         self.name: str = name
-        self.capabilities: List[str] = capabilities if capabilities is not None else []
+        self.capabilities: list[str] = capabilities if capabilities is not None else []
         self._logger: Logger = logger.getChild(self.name.replace(" ", "_"))
         self._logger.info(
             f"{self.name} initialized with capabilities: {self.capabilities}"

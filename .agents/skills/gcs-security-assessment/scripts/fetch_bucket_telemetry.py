@@ -15,12 +15,13 @@
 """Script to fetch telemetry from a Storage Insights bucket."""
 
 import argparse
-from collections.abc import Mapping, Sequence
 import json
 import textwrap
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 import cloud_rest_helpers_nodeps
+
 import validation
 
 _SKILL = "gcs-security-assessment"
@@ -83,7 +84,9 @@ def fetch_bucket_telemetry(
       cloud_rest_helpers_nodeps.CloudRestError: If the REST query fails.
       RuntimeError: If the query job does not complete in time.
     """
-    validation.validate_inputs(project_id, dataset_name, bucket_names)  # pyrefly: ignore[bad-argument-type]
+    validation.validate_inputs(
+        project_id, dataset_name, bucket_names
+    )  # pyrefly: ignore[bad-argument-type]
 
     if not bucket_names:
         bucket_filter = ""

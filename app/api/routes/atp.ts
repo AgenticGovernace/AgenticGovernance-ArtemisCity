@@ -4,8 +4,8 @@
  * Endpoints for sending and processing ATP messages.
  */
 
-import { Request, Response, Router } from 'express';
-import { ATPController } from '../controllers/atpController';
+import { Request, Response, Router } from "express";
+import { ATPController } from "../controllers/atpController";
 
 const router = Router();
 const controller = new ATPController();
@@ -14,7 +14,7 @@ const controller = new ATPController();
  * POST /api/v1/atp/send
  * Send an ATP message for routing
  */
-router.post('/send', async (req: Request, res: Response) => {
+router.post("/send", async (req: Request, res: Response) => {
   try {
     const result = await controller.sendMessage(req.body);
     res.json(result);
@@ -30,14 +30,14 @@ router.post('/send', async (req: Request, res: Response) => {
  * POST /api/v1/atp/route
  * Route a message to appropriate agent(s)
  */
-router.post('/route', async (req: Request, res: Response) => {
+router.post("/route", async (req: Request, res: Response) => {
   try {
     const { message } = req.body;
 
     if (!message) {
       res.status(400).json({
         success: false,
-        error: 'message is required',
+        error: "message is required",
       });
       return;
     }
@@ -59,7 +59,7 @@ router.post('/route', async (req: Request, res: Response) => {
  * POST /api/v1/atp/validate
  * Validate an ATP message format
  */
-router.post('/validate', (req: Request, res: Response) => {
+router.post("/validate", (req: Request, res: Response) => {
   try {
     const validation = controller.validateMessage(req.body);
     res.json({
@@ -78,7 +78,7 @@ router.post('/validate', (req: Request, res: Response) => {
  * GET /api/v1/atp/modes
  * Get available ATP modes
  */
-router.get('/modes', (req: Request, res: Response) => {
+router.get("/modes", (req: Request, res: Response) => {
   res.json({
     success: true,
     data: controller.getModes(),
@@ -89,7 +89,7 @@ router.get('/modes', (req: Request, res: Response) => {
  * GET /api/v1/atp/priorities
  * Get available ATP priorities
  */
-router.get('/priorities', (req: Request, res: Response) => {
+router.get("/priorities", (req: Request, res: Response) => {
   res.json({
     success: true,
     data: controller.getPriorities(),
@@ -100,7 +100,7 @@ router.get('/priorities', (req: Request, res: Response) => {
  * GET /api/v1/atp/action-types
  * Get available ATP action types
  */
-router.get('/action-types', (req: Request, res: Response) => {
+router.get("/action-types", (req: Request, res: Response) => {
   res.json({
     success: true,
     data: controller.getActionTypes(),
@@ -111,30 +111,30 @@ router.get('/action-types', (req: Request, res: Response) => {
  * GET /api/v1/atp/template
  * Get ATP message template
  */
-router.get('/template', (req: Request, res: Response) => {
+router.get("/template", (req: Request, res: Response) => {
   res.json({
     success: true,
     data: {
       template: {
         header: {
-          mode: 'QUERY',
-          context: 'Brief description of the task',
-          priority: 'MEDIUM',
-          actionType: 'READ',
-          targetZone: 'system',
-          specialNotes: 'Optional special instructions',
-          senderId: 'your-agent-id',
+          mode: "QUERY",
+          context: "Brief description of the task",
+          priority: "MEDIUM",
+          actionType: "READ",
+          targetZone: "system",
+          specialNotes: "Optional special instructions",
+          senderId: "your-agent-id",
         },
         payload: {
-          content: 'Main message content',
+          content: "Main message content",
         },
       },
-      requiredFields: ['header.mode', 'header.context', 'payload'],
+      requiredFields: ["header.mode", "header.context", "payload"],
       optionalFields: [
-        'header.priority',
-        'header.actionType',
-        'header.targetZone',
-        'header.specialNotes',
+        "header.priority",
+        "header.actionType",
+        "header.targetZone",
+        "header.specialNotes",
       ],
     },
   });
@@ -144,7 +144,7 @@ router.get('/template', (req: Request, res: Response) => {
  * POST /api/v1/atp/format
  * Format content as ATP message (returns formatted string)
  */
-router.post('/format', async (req: Request, res: Response) => {
+router.post("/format", async (req: Request, res: Response) => {
   try {
     // First validate and send to get a complete message
     const sendResult = await controller.sendMessage(req.body);
@@ -159,7 +159,7 @@ router.post('/format', async (req: Request, res: Response) => {
     if (!message) {
       res.status(404).json({
         success: false,
-        error: 'Message not found after creation',
+        error: "Message not found after creation",
       });
       return;
     }
@@ -184,7 +184,7 @@ router.post('/format', async (req: Request, res: Response) => {
  * GET /api/v1/atp/message/:id
  * Get a message by ID
  */
-router.get('/message/:id', (req: Request, res: Response) => {
+router.get("/message/:id", (req: Request, res: Response) => {
   try {
     const message = controller.getMessage(req.params.id);
 
@@ -212,7 +212,7 @@ router.get('/message/:id', (req: Request, res: Response) => {
  * GET /api/v1/atp/response/:id
  * Get response for a message
  */
-router.get('/response/:id', (req: Request, res: Response) => {
+router.get("/response/:id", (req: Request, res: Response) => {
   try {
     const response = controller.getResponse(req.params.id);
 
@@ -240,7 +240,7 @@ router.get('/response/:id', (req: Request, res: Response) => {
  * GET /api/v1/atp/queue
  * Get message queue status
  */
-router.get('/queue', (req: Request, res: Response) => {
+router.get("/queue", (req: Request, res: Response) => {
   try {
     const status = controller.getQueueStatus();
     res.json({

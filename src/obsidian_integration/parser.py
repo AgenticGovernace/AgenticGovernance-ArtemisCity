@@ -1,7 +1,6 @@
 """Parse task notes and update their YAML-front-matter status safely."""
 
 import re
-from typing import Optional
 
 from ..utils.helpers import logger
 
@@ -82,7 +81,7 @@ class ObsidianParser:
         return task_data
 
     def update_status_in_note(
-        self, original_content: str, new_status: str, task_id: Optional[str] = None
+        self, original_content: str, new_status: str, task_id: str | None = None
     ) -> str:
         """Updates the 'status' field in the YAML front matter of a note, or adds it.
         If task_id is provided, it tries to match and update a specific task.

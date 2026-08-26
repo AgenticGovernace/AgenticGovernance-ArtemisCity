@@ -14,6 +14,7 @@ surface returns.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from typing import Any, Literal, Never
 
 from mcp.server.mcpserver import MCPServer
@@ -80,7 +81,9 @@ def _domain_error(error: KernelError) -> MCPError:
 
 def _service_error() -> MCPError:
     message = "Kernel task service failed."
-    return MCPError(INTERNAL_ERROR, message, _envelope("kernel_service_failed", message))
+    return MCPError(
+        INTERNAL_ERROR, message, _envelope("kernel_service_failed", message)
+    )
 
 
 class _KernelMCPServer(MCPServer):
@@ -117,7 +120,7 @@ def create_server(*, service: TaskStore | None = None) -> MCPServer:
     store = service if service is not None else TaskStore()
     mcp_server = _KernelMCPServer()
 
-    def _run[ResultT](operation) -> ResultT:
+    def _run[ResultT](operation: Callable[[], ResultT]) -> ResultT:
         """Translate domain failures; never leak an adapter's raw exception."""
         try:
             return operation()

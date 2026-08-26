@@ -13,6 +13,7 @@ otherwise serve as a human-readable offline mirror. Relay writes here; it never 
 anything outside this folder.
 
 ## Files Relay maintains here (tier-3 fallback only)
+
 - `reflection.md` — appended reflection write-ups, used when neither the ramble server nor
   the Notion MCP can be reached. Each entry follows the reflection format in the
   agent-scaffolder skill's `references/notion-memory.md` (Attempted / Assumptions / Drift
@@ -24,6 +25,7 @@ anything outside this folder.
   `agent_logs`; reconcile to the provenance store when it is reachable.
 
 ## Note on the halt rule
+
 Relay's audit contract is **halt-and-alert if a log write fails** (atp-provenance-logging).
 Falling back to `actions.ndjson` here is acceptable degradation only while the provenance
 service is unreachable; if even the local write fails, Relay halts rather than acting

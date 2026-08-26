@@ -19,10 +19,10 @@ import logging
 import os
 import platform
 import sys
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from importlib import metadata
 from pathlib import Path
-from typing import Callable, Iterator, Optional
 
 from src.runtime_paths import data_path
 
@@ -146,11 +146,11 @@ class JudgmentRecord:
 
 
 def resolve_hf_token(
-    explicit_token: Optional[str] = None,
+    explicit_token: str | None = None,
     *,
     prompt: bool = False,
-    prompt_fn: Optional[Callable[[str], str]] = None,
-) -> tuple[Optional[str], str]:
+    prompt_fn: Callable[[str], str] | None = None,
+) -> tuple[str | None, str]:
     """Resolve a Hub token without logging or persisting its value.
 
     Returns:
@@ -199,16 +199,16 @@ class LegalDatasetLoader:
 
     def __init__(
         self,
-        local_path: Optional[str] = None,
+        local_path: str | None = None,
         *,
         source: str = "auto",
-        dataset_id: Optional[str] = None,
-        dataset_name: Optional[str] = None,
-        revision: Optional[str] = None,
-        cache_dir: Optional[str] = None,
-        data_files: Optional[list[str]] = None,
+        dataset_id: str | None = None,
+        dataset_name: str | None = None,
+        revision: str | None = None,
+        cache_dir: str | None = None,
+        data_files: list[str] | None = None,
         streaming: bool = False,
-        token: Optional[str] = None,
+        token: str | None = None,
         prompt_for_token: bool = False,
         input_column: str = "input",
         reference_column: str = "output",
@@ -249,9 +249,9 @@ class LegalDatasetLoader:
 
     def load(
         self,
-        config: Optional[str] = "summary_en",
+        config: str | None = "summary_en",
         split: str = "train",
-        limit: Optional[int] = None,
+        limit: int | None = None,
     ) -> list[JudgmentRecord]:
         """Load one dataset slice and normalize its source/reference columns."""
         if limit is not None and limit < 1:
@@ -293,7 +293,7 @@ class LegalDatasetLoader:
 
     def describe(
         self,
-        config: Optional[str] = "summary_en",
+        config: str | None = "summary_en",
         split: str = "train",
     ) -> dict:
         """Load a small sample and return source/schema metadata without secrets."""
@@ -316,8 +316,8 @@ class LegalDatasetLoader:
     def _source_info(
         self,
         *,
-        source_used: Optional[str],
-        record_count: Optional[int] = None,
+        source_used: str | None,
+        record_count: int | None = None,
         token_source: str = "unresolved",
     ) -> dict:
         return {
@@ -335,9 +335,9 @@ class LegalDatasetLoader:
 
     def _iter_local(
         self,
-        config: Optional[str],
+        config: str | None,
         split: str,
-        limit: Optional[int],
+        limit: int | None,
     ) -> Iterator[JudgmentRecord]:
         if self.local_path is None or not self.local_path.exists():
             return
@@ -379,9 +379,9 @@ class LegalDatasetLoader:
 
     def _iter_huggingface(
         self,
-        config: Optional[str],
+        config: str | None,
         split: str,
-        limit: Optional[int],
+        limit: int | None,
     ) -> Iterator[JudgmentRecord]:
         require_huggingface_runtime()
         load_dataset = importlib.import_module("datasets").load_dataset
@@ -433,9 +433,9 @@ class LegalDatasetLoader:
         self,
         row: dict,
         index: int,
-        config: Optional[str],
+        config: str | None,
         split: str,
-    ) -> Optional[JudgmentRecord]:
+    ) -> JudgmentRecord | None:
         if self.input_column not in row:
             available = ", ".join(sorted(str(key) for key in row))
             raise ValueError(

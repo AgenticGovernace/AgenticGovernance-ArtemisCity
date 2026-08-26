@@ -7,7 +7,7 @@ organizing knowledge and referencing files, concepts, and conversations.
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 
 @dataclass
@@ -23,8 +23,8 @@ class SemanticTag:
 
     tag: str
     category: str
-    references: Set[str] = field(default_factory=set)
-    description: Optional[str] = None
+    references: set[str] = field(default_factory=set)
+    description: str | None = None
 
     def add_reference(self, reference: str) -> None:
         """Add a reference to this tag."""
@@ -48,8 +48,8 @@ class Citation:
 
     target: str
     citation_type: str
-    context: Optional[str] = None
-    line_number: Optional[int] = None
+    context: str | None = None
+    line_number: int | None = None
 
     def format(self) -> str:
         """Format citation for display."""
@@ -86,11 +86,11 @@ class SemanticTagger:
 
     def __init__(self):
         """Initialize semantic tagger."""
-        self.tags: Dict[str, SemanticTag] = {}
-        self.citations: List[Citation] = []
-        self.item_tags: Dict[str, Set[str]] = {}
+        self.tags: dict[str, SemanticTag] = {}
+        self.citations: list[Citation] = []
+        self.item_tags: dict[str, set[str]] = {}
 
-    def tag_item(self, item: str, tags: List[str], category: str = "concept"):
+    def tag_item(self, item: str, tags: list[str], category: str = "concept"):
         """Tag an item with semantic tags.
 
         Args:
@@ -113,8 +113,8 @@ class SemanticTagger:
         self,
         target: str,
         citation_type: str,
-        context: Optional[str] = None,
-        line_number: Optional[int] = None,
+        context: str | None = None,
+        line_number: int | None = None,
     ) -> Citation:
         """Add a citation.
 
@@ -136,14 +136,14 @@ class SemanticTagger:
         self.citations.append(citation)
         return citation
 
-    def get_items_by_tag(self, tag: str) -> List[str]:
+    def get_items_by_tag(self, tag: str) -> list[str]:
         """Get all items with a specific tag."""
         tag_key = self._normalize_tag(tag)
         if tag_key in self.tags:
             return list(self.tags[tag_key].references)
         return []
 
-    def get_tags_for_item(self, item: str) -> List[str]:
+    def get_tags_for_item(self, item: str) -> list[str]:
         """Get all tags for an item."""
         if item in self.item_tags:
             return [
@@ -153,7 +153,7 @@ class SemanticTagger:
             ]
         return []
 
-    def find_related_items(self, item: str) -> List[str]:
+    def find_related_items(self, item: str) -> list[str]:
         """Find items related to given item through shared tags."""
         if item not in self.item_tags:
             return []
@@ -169,13 +169,13 @@ class SemanticTagger:
 
         return list(related)
 
-    def extract_tags_from_text(self, text: str) -> List[str]:
+    def extract_tags_from_text(self, text: str) -> list[str]:
         """Extract hashtags from text."""
         pattern = r"#([\w-]+)"
         matches = re.findall(pattern, text)
         return matches
 
-    def extract_citations_from_text(self, text: str) -> List[Citation]:
+    def extract_citations_from_text(self, text: str) -> list[Citation]:
         """Extract citations from text."""
         citations = []
 
@@ -209,7 +209,7 @@ class SemanticTagger:
             return "No tags defined yet."
         parts = ["## Semantic Tag Summary\n"]
 
-        by_category: Dict[str, List[SemanticTag]] = {}
+        by_category: dict[str, list[SemanticTag]] = {}
         for tag in self.tags.values():
             if tag.category not in by_category:
                 by_category[tag.category] = []
@@ -223,7 +223,7 @@ class SemanticTagger:
 
         return "\n".join(parts)
 
-    def get_citation_context(self, target: str) -> List[str]:
+    def get_citation_context(self, target: str) -> list[str]:
         """Get all contexts where a target was cited."""
         contexts = []
         for citation in self.citations:
@@ -237,7 +237,7 @@ class SemanticTagger:
         normalized = tag.lstrip("#").lower().replace(" ", "-")
         return normalized
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get tagging system statistics."""
         return {
             "total_tags": len(self.tags),

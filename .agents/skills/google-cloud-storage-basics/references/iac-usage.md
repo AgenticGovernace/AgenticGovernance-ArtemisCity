@@ -12,18 +12,18 @@ delete them.
 
 ## Advantages of Terraform
 
--   **Declarative Configuration:** You define the target state of your buckets,
-    IAM policies, and lifecycle rules. Terraform determines what changes are
-    necessary to achieve that state.
--   **Version Control and Collaboration:** Infrastructure configurations live
-    alongside application code in version control systems (like Git), enabling
-    peer code reviews, auditability, and rollback capabilities.
--   **Repeatability and Consistency:** You can reliably provision identical
-    storage architectures across multiple environments (e.g., development,
-    staging, production) without human error.
--   **Automated Drift Detection:** Running `terraform plan` compares your active
-    cloud resources against your defined code, immediately highlighting
-    unauthorized manual changes ("configuration drift").
+- **Declarative Configuration:** You define the target state of your buckets,
+  IAM policies, and lifecycle rules. Terraform determines what changes are
+  necessary to achieve that state.
+- **Version Control and Collaboration:** Infrastructure configurations live
+  alongside application code in version control systems (like Git), enabling
+  peer code reviews, auditability, and rollback capabilities.
+- **Repeatability and Consistency:** You can reliably provision identical
+  storage architectures across multiple environments (e.g., development,
+  staging, production) without human error.
+- **Automated Drift Detection:** Running `terraform plan` compares your active
+  cloud resources against your defined code, immediately highlighting
+  unauthorized manual changes ("configuration drift").
 
 > [!WARNING]
 > **State Management & Immutability Limits:** Terraform tracks
@@ -35,7 +35,7 @@ delete them.
 > these fields in Terraform will force a destructive resource replacement
 > (`destroy` followed by `create`), which will fail if the bucket contains
 > objects or cause permanent data loss if safeguards like `lifecycle {
-> prevent_destroy = true }` are omitted.
+prevent_destroy = true }` are omitted.
 
 ## Core Concepts in Terraform
 
@@ -142,11 +142,11 @@ resource "google_storage_bucket" "mission_critical_dr" {
 }
 ```
 
-*Note: For predefined dual-regions like `NAM4` or `EUR4`, GCS automatically
+_Note: For predefined dual-regions like `NAM4` or `EUR4`, GCS automatically
 manages the underlying region pairing. To create a **custom dual-region** (e.g.,
 pairing `US-EAST1` and `US-WEST1`), set `location` to the parent continent
 multi-region (e.g., `"US"`) and define the specific region pair inside a
-`custom_placement_config` block:*
+`custom_placement_config` block:_
 
 ```
 resource "google_storage_bucket" "custom_dual_region" {
@@ -193,9 +193,9 @@ resource "google_storage_bucket" "compliance_vault" {
 }
 ```
 
-*Note: To apply specific retention periods to individual objects within a
+_Note: To apply specific retention periods to individual objects within a
 retention-enabled bucket, use the `google_storage_bucket_object` resource or
-SDKs to set object-level retention rules.*
+SDKs to set object-level retention rules._
 
 ### Scenario 4: Bucket IAM Policy and Service Account Access
 
@@ -228,9 +228,9 @@ resource "google_storage_bucket_iam_member" "sa_object_viewer" {
 
 ## Documentation and References
 
--   [Cloud Storage Overview](https://docs.cloud.google.com/storage/docs/introduction)
--   [Terraform Google Provider Documentation: google_storage_bucket](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/storage_bucket)
--   [Terraform Google Provider Documentation: google_storage_bucket_object](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/storage_bucket_object)
--   [Terraform Google Provider Documentation: google_storage_bucket_iam](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/storage_bucket_iam)
--   [Google Cloud Terraform Best Practices](https://docs.cloud.google.com/docs/terraform/best-practices/general-style-structure)
--   [Sample for Creating a Bucket to Store Terraform State](https://docs.cloud.google.com/storage/docs/samples/storage-bucket-tf-with-versioning?hl=en)
+- [Cloud Storage Overview](https://docs.cloud.google.com/storage/docs/introduction)
+- [Terraform Google Provider Documentation: google_storage_bucket](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/storage_bucket)
+- [Terraform Google Provider Documentation: google_storage_bucket_object](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/storage_bucket_object)
+- [Terraform Google Provider Documentation: google_storage_bucket_iam](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/storage_bucket_iam)
+- [Google Cloud Terraform Best Practices](https://docs.cloud.google.com/docs/terraform/best-practices/general-style-structure)
+- [Sample for Creating a Bucket to Store Terraform State](https://docs.cloud.google.com/storage/docs/samples/storage-bucket-tf-with-versioning?hl=en)

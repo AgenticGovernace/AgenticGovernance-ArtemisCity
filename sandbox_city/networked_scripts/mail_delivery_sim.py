@@ -21,7 +21,7 @@ def simulate_mail_delivery(sender, recipient, message):
         bool: True if the message is delivered successfully, False if the
               delivery fails.
     """
-    print(f"\n--- Mail Delivery Simulation ---")
+    print("\n--- Mail Delivery Simulation ---")
     print(f"Sender: {sender}, Recipient: {recipient}")
     print(f"Message: '{message}'")
     print("Pack Rat is initiating secure transfer...")

@@ -65,7 +65,9 @@ def initialize_posthog() -> Posthog | None:
 
     project_token = settings.posthog_project_token
     posthog_host = settings.posthog_host
-    assert project_token is not None and posthog_host is not None
+    assert (
+        project_token is not None and posthog_host is not None
+    )  # nosec B101 - narrows types after the explicit None check above
     posthog_client = Posthog(
         project_api_key=project_token,
         host=posthog_host,

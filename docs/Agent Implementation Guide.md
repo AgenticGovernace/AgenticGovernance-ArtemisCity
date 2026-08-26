@@ -38,8 +38,6 @@ development:
 └─────────────────────────────────────────────────────────────┘
 ```
 
-
-
 ### Runtime Locations
 
 | Purpose                                         | Location                  |
@@ -125,6 +123,7 @@ if __name__ == "__main__":
 ```
 
 Run it:
+
 ```bash
 python3 src/launch/demo_my_agent.py
 ```
@@ -224,39 +223,39 @@ def __init__(self):
 Use this checklist when adding or changing an agent:
 
 - [ ] **Code Quality**
-    - [ ] Add comprehensive docstrings
-    - [ ] Add type hints to all methods
-    - [ ] Follow PEP 8 style guidelines
-    - [ ] Run linters (flake8, pylint)
+  - [ ] Add comprehensive docstrings
+  - [ ] Add type hints to all methods
+  - [ ] Follow PEP 8 style guidelines
+  - [ ] Run linters (flake8, pylint)
 
 - [ ] **Error Handling**
-    - [ ] Wrap perform_task in try/except
-    - [ ] Handle network failures gracefully
-    - [ ] Validate all inputs
-    - [ ] Return structured error responses
+  - [ ] Wrap perform_task in try/except
+  - [ ] Handle network failures gracefully
+  - [ ] Validate all inputs
+  - [ ] Return structured error responses
 
 - [ ] **Dependencies**
-    - [ ] Add to `requirements.txt`
-    - [ ] Update `requirements.txt` / `requirements-dev.txt` and verify with `uv`
-    - [ ] Document environment variables in `.env.example`
+  - [ ] Add to `requirements.txt`
+  - [ ] Update `requirements.txt` / `requirements-dev.txt` and verify with `uv`
+  - [ ] Document environment variables in `.env.example`
 
 - [ ] **Integration**
-    - [ ] Register with orchestrator
-    - [ ] Add to agent registry
-    - [ ] Update Hebbian weights if applicable
-    - [ ] Test with real Obsidian vault
+  - [ ] Register with orchestrator
+  - [ ] Add to agent registry
+  - [ ] Update Hebbian weights if applicable
+  - [ ] Test with real Obsidian vault
 
 - [ ] **Testing**
-    - [ ] Write unit tests in `src/tests/`
-    - [ ] Create integration tests
-    - [ ] Test error scenarios
-    - [ ] Verify Obsidian output format
+  - [ ] Write unit tests in `src/tests/`
+  - [ ] Create integration tests
+  - [ ] Test error scenarios
+  - [ ] Verify Obsidian output format
 
 - [ ] **Documentation**
-    - [ ] Add agent profile to `src/agents/_Index_of_agents.md`
-    - [ ] Create agent documentation (e.g., `src/agents/my_agent.md`)
-    - [ ] Update `docs/ARCHITECTURE.md` if needed
-    - [ ] Add usage examples to README
+  - [ ] Add agent profile to `src/agents/_Index_of_agents.md`
+  - [ ] Create agent documentation (e.g., `src/agents/my_agent.md`)
+  - [ ] Update `docs/ARCHITECTURE.md` if needed
+  - [ ] Add usage examples to README
 
 ### Example: Research Agent
 
@@ -363,6 +362,7 @@ class TestMyNewAgent:
 ```
 
 Run tests:
+
 ```bash
 python -m pytest src/tests/test_my_agent.py -v
 ```
@@ -690,13 +690,13 @@ class TranslatorAgent(BaseAgent):
 
 ### File Locations
 
-| Component | Path |
-|-----------|------|
-| Base Agent | `src/agents/base_agent.py` |
-| Your Agent | `src/agents/my_agent.py` |
-| Agent Tests | `src/tests/test_my_agent.py` |
+| Component            | Path                          |
+| -------------------- | ----------------------------- |
+| Base Agent           | `src/agents/base_agent.py`    |
+| Your Agent           | `src/agents/my_agent.py`      |
+| Agent Tests          | `src/tests/test_my_agent.py`  |
 | Optional Walkthrough | `src/launch/demo_my_agent.py` |
-| Entry Point | `src/launch/main.py` |
+| Entry Point          | `src/launch/main.py`          |
 
 ### Command Reference
 
@@ -732,6 +732,7 @@ python3 src/launch/main.py --agent-stats "My Agent"
 6. **Deploy**: Register with orchestrator and test end-to-end
 
 For questions or issues, see:
+
 - [Architecture Documentation](ARCHITECTURE.md)
 - [API Reference](API_REFERENCE.md)
 - [Living City Guide](LIVING_CITY.md)
@@ -739,4 +740,7 @@ For questions or issues, see:
 ---
 
 **Happy building! Welcome to Artemis City development.**
-~~~~
+
+```
+
+```

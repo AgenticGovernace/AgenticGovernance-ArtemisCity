@@ -605,13 +605,9 @@ ide-index-mcp.skill
 /Agent Outputs
 .aiignore
 
-.env*
+# NOTE: a bare `.env*` here would override the negations at lines 89-96
+# (last matching pattern wins), re-ignoring .env.example and the
+# *.template reproducibility assets. Policy lives above; do not re-add.
 .flaskenv*
-.env.project
-.env.vault
--/*
-.claude/
-.env.example
-/.vscode
-/.vscode
-/docs/audit/*
+!.env.project
+!.env.vault

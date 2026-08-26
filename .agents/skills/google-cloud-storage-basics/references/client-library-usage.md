@@ -32,12 +32,12 @@ federation instead. See
 
 Depending on your environment, you can also use other credentials:
 
--   **API Keys**: Some APIs support authentication using API keys provided by
-    external entities, passed to client options.
--   **Service Account Keys**: Directly initializing the client using a
-    downloaded JSON key file path (strongly discouraged for security reasons).
--   **External Credential Configurations**: Loading credentials config (e.g.,
-    Workload Identity Federation) from external sources.
+- **API Keys**: Some APIs support authentication using API keys provided by
+  external entities, passed to client options.
+- **Service Account Keys**: Directly initializing the client using a
+  downloaded JSON key file path (strongly discouraged for security reasons).
+- **External Credential Configurations**: Loading credentials config (e.g.,
+  Workload Identity Federation) from external sources.
 
 For details, see
 [Authenticate with client libraries](https://docs.cloud.google.com/docs/authentication/client-libraries).
@@ -62,7 +62,7 @@ blob.upload_from_filename("./my-file.txt")
 contents = bucket.blob("my-file.txt").download_as_bytes()
 ```
 
--   [Python reference](https://docs.cloud.google.com/python/docs/reference/storage/latest)
+- [Python reference](https://docs.cloud.google.com/python/docs/reference/storage/latest)
 
 ## Java
 
@@ -91,7 +91,7 @@ storage.createFrom(blobInfo, Paths.get("./my-file.txt"));
 byte[] contents = storage.readAllBytes(blobId);
 ```
 
--   [Java reference](https://docs.cloud.google.com/java/docs/reference/google-cloud-storage/latest/overview)
+- [Java reference](https://docs.cloud.google.com/java/docs/reference/google-cloud-storage/latest/overview)
 
 ## Node.js
 
@@ -100,20 +100,20 @@ npm install @google-cloud/storage
 ```
 
 ```javascript
-const {Storage} = require('@google-cloud/storage');
+const { Storage } = require("@google-cloud/storage");
 const storage = new Storage();
 
 // Upload a file.
-await storage.bucket('my-bucket').upload('./my-file.txt');
+await storage.bucket("my-bucket").upload("./my-file.txt");
 
 // Download to a local file.
 await storage
-  .bucket('my-bucket')
-  .file('my-file.txt')
-  .download({destination: './my-file.txt'});
+  .bucket("my-bucket")
+  .file("my-file.txt")
+  .download({ destination: "./my-file.txt" });
 ```
 
--   [Node.js reference](https://docs.cloud.google.com/nodejs/docs/reference/storage/latest)
+- [Node.js reference](https://docs.cloud.google.com/nodejs/docs/reference/storage/latest)
 
 ## Go
 
@@ -163,7 +163,7 @@ if err != nil {
 }
 ```
 
--   [Go reference](https://docs.cloud.google.com/go/docs/reference/cloud.google.com/go/storage/latest)
+- [Go reference](https://docs.cloud.google.com/go/docs/reference/cloud.google.com/go/storage/latest)
 
 ## Other Languages
 

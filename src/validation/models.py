@@ -6,8 +6,7 @@ import re
 from enum import Enum
 from typing import Annotated, Literal
 
-from pydantic import (BaseModel, ConfigDict, Field, WithJsonSchema,
-                      field_validator)
+from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema, field_validator
 
 from src.agents.atp.atp_models import ATPActionType, ATPMode, ATPPriority
 

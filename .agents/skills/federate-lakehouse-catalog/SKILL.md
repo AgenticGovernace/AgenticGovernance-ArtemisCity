@@ -1,6 +1,7 @@
 ---
 name: federate-lakehouse-catalog
-description: 'Sets up Google Cloud Lakehouse federated catalogs to remote Iceberg
+description:
+  'Sets up Google Cloud Lakehouse federated catalogs to remote Iceberg
   REST Catalogs. Currently supported catalogs: Databricks Unity, AWS Glue. Supported
   clouds hosting those catalogs: GCP, AWS. The primary use case is connecting to remote
   data to query it from GCP engines (BigQuery, Spark). Examples of when to use this:
@@ -22,12 +23,12 @@ AWS over the public internet.
 
 ## Prerequisites
 
--   For Databricks: Databricks Workspace URL and OAuth Service Principal (Client
-    ID and Secret) with read access.
--   For AWS Glue: AWS Administrator access to create IAM roles and permissions
-    policies.
--   Active Google Cloud project with administrative access to create lakehouse
-    resources, and secrets in the case of Databricks.
+- For Databricks: Databricks Workspace URL and OAuth Service Principal (Client
+  ID and Secret) with read access.
+- For AWS Glue: AWS Administrator access to create IAM roles and permissions
+  policies.
+- Active Google Cloud project with administrative access to create lakehouse
+  resources, and secrets in the case of Databricks.
 
 ## Procedure
 
@@ -36,13 +37,13 @@ AWS over the public internet.
 Before running any commands, the agent **MUST** collect the following
 information from the user:
 
-1.  Determine which catalog the user wants to federate to (e.g., Databricks
-    Unity or AWS Glue) and verify it is supported.
-2.  Determine where the remote data is located (the specific AWS region).
-3.  Using the Region Pairing Best Practice in the Gotchas section, help the user
-    pick the optimal GCP region to minimize latency.
-4.  Collect the necessary configuration variables for the chosen flow (e.g.,
-    Databricks credentials or AWS Account ID).
+1. Determine which catalog the user wants to federate to (e.g., Databricks
+   Unity or AWS Glue) and verify it is supported.
+2. Determine where the remote data is located (the specific AWS region).
+3. Using the Region Pairing Best Practice in the Gotchas section, help the user
+   pick the optimal GCP region to minimize latency.
+4. Collect the necessary configuration variables for the chosen flow (e.g.,
+   Databricks credentials or AWS Account ID).
 
 Only proceed to the next steps once this information is confirmed.
 
@@ -65,7 +66,7 @@ Store the Databricks client ID and secret in Secret Manager. Ensure the
 `secretmanager.googleapis.com` API is enabled. The secret **MUST** be in the
 same region as your Lakehouse catalog.
 
-1.  Create a JSON file named `credentials.json`:
+1. Create a JSON file named `credentials.json`:
 
 ```json
 {
@@ -74,13 +75,13 @@ same region as your Lakehouse catalog.
 }
 ```
 
-1.  Set the Secret Manager API endpoint override for the region:
+1. Set the Secret Manager API endpoint override for the region:
 
 ```bash
 gcloud config set api_endpoint_overrides/secretmanager https://secretmanager.<REGION>.rep.googleapis.com/
 ```
 
-1.  Create the secret:
+1. Create the secret:
 
 ```bash
 gcloud secrets create <SECRET_NAME> \
@@ -109,7 +110,7 @@ gcloud alpha biglake iceberg catalogs create <CATALOG_NAME> \
 
 Grant the service account created for the catalog access to read the secret.
 
-1.  Get the service account email by describing the catalog:
+1. Get the service account email by describing the catalog:
 
 ```bash
 gcloud alpha biglake iceberg catalogs describe <CATALOG_NAME> \
@@ -118,7 +119,7 @@ gcloud alpha biglake iceberg catalogs describe <CATALOG_NAME> \
     --format="value(biglake-service-account-id)"
 ```
 
-1.  Grant access:
+1. Grant access:
 
 ```bash
 gcloud secrets add-iam-policy-binding <SECRET_NAME> \
@@ -135,7 +136,7 @@ gcloud secrets add-iam-policy-binding <SECRET_NAME> \
 Lakehouse provisions a Google service account ID after catalog creation. Create
 the AWS IAM role with a placeholder trust policy first.
 
-1.  Create a file named `trust_policy.json`:
+1. Create a file named `trust_policy.json`:
 
 ```json
 {
@@ -158,7 +159,7 @@ the AWS IAM role with a placeholder trust policy first.
 }
 ```
 
-1.  Run the AWS CLI command to create the role:
+1. Run the AWS CLI command to create the role:
 
 ```bash
 aws iam create-role \
@@ -195,10 +196,7 @@ Attach a policy that allows Lakehouse to read from Glue and S3.
     {
       "Sid": "S3Read",
       "Effect": "Allow",
-      "Action": [
-        "s3:ListBucket",
-        "s3:GetObject"
-      ],
+      "Action": ["s3:ListBucket", "s3:GetObject"],
       "Resource": [
         "arn:aws:s3:::<SPECIFIC_BUCKET>",
         "arn:aws:s3:::<SPECIFIC_BUCKET>/*"
@@ -268,7 +266,7 @@ SELECT * FROM `<PROJECT_ID>.<CATALOG_NAME>.<NAMESPACE>.<TABLE_NAME>` LIMIT 10;
 > `europe-west2` (London) - AWS `eu-central-1` (Frankfurt) pairs best with GCP
 > `europe-west3` (Frankfurt) For the exhaustive list of mappings, read the full
 > capabilities table at:
-> https://docs.cloud.google.com/lakehouse/docs/regions-capabilities-cross-cloud-lakehouse
+> <https://docs.cloud.google.com/lakehouse/docs/regions-capabilities-cross-cloud-lakehouse>
 
 > [!IMPORTANT] **BigQuery Query Location**: When querying the federated catalog
 > via BigQuery, you **MUST** ensure the query runs in the same region as the
@@ -279,36 +277,36 @@ SELECT * FROM `<PROJECT_ID>.<CATALOG_NAME>.<NAMESPACE>.<TABLE_NAME>` LIMIT 10;
 After completing the setup, the agent **MUST** validate that the federation is
 working and propose next steps to the user.
 
-1.  **Validate the Connection**:
+1. **Validate the Connection**:
 
-    -   Attempt to list the namespaces or tables in the newly federated catalog
-        using the `bq` CLI or BigQuery API. For example:
+   - Attempt to list the namespaces or tables in the newly federated catalog
+     using the `bq` CLI or BigQuery API. For example:
 
-        ```bash
-        bq ls --location="<REGION>" <PROJECT_ID>.<CATALOG_NAME>
-        ```
+     ```bash
+     bq ls --location="<REGION>" <PROJECT_ID>.<CATALOG_NAME>
+     ```
 
-    -   If the command returns a list of namespaces/schemas, the federation is
-        successful.
+   - If the command returns a list of namespaces/schemas, the federation is
+     successful.
 
-2.  **Troubleshooting**:
+2. **Troubleshooting**:
 
-    -   If the validation fails (e.g., permission errors, empty results,
-        timeout), the agent should consult the Cross-Cloud Lakehouse
-        Troubleshooting documentation:
-        https://docs.cloud.google.com/lakehouse/docs/troubleshooting.
-    -   For AWS Glue, verify that the trust policy correctly references the
-        `biglake-service-account-id` and that the GCP and AWS regions match your
-        configuration.
-    -   For Databricks, verify that the secret exists in the correct region and
-        the service account has `roles/secretmanager.secretAccessor`.
+   - If the validation fails (e.g., permission errors, empty results,
+     timeout), the agent should consult the Cross-Cloud Lakehouse
+     Troubleshooting documentation:
+     <https://docs.cloud.google.com/lakehouse/docs/troubleshooting>.
+   - For AWS Glue, verify that the trust policy correctly references the
+     `biglake-service-account-id` and that the GCP and AWS regions match your
+     configuration.
+   - For Databricks, verify that the secret exists in the correct region and
+     the service account has `roles/secretmanager.secretAccessor`.
 
-3.  **Explore and Propose**:
+3. **Explore and Propose**:
 
-    -   Assuming the federation is working, browse the available namespaces and
-        a few key tables.
-    -   Summarize to the user what kind of data was found (e.g., "I see you have
-        tables related to e-commerce transactions and customer profiles").
-    -   Propose a business or analytical question to the user that would result
-        in a meaningful query of their data (e.g., "Would you like me to write a
-        query to find the top 5 purchasing customers from last month?").
+   - Assuming the federation is working, browse the available namespaces and
+     a few key tables.
+   - Summarize to the user what kind of data was found (e.g., "I see you have
+     tables related to e-commerce transactions and customer profiles").
+   - Propose a business or analytical question to the user that would result
+     in a meaningful query of their data (e.g., "Would you like me to write a
+     query to find the top 5 purchasing customers from last month?").

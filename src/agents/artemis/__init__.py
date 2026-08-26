@@ -10,11 +10,11 @@ from .semantic_tagging import Citation, SemanticTag, SemanticTagger
 
 __all__ = [
     "ArtemisPersona",
-    "ResponseMode",
-    "ReflectionEngine",
+    "Citation",
     "ConceptGraph",
     "ConceptNode",
-    "SemanticTagger",
+    "ReflectionEngine",
+    "ResponseMode",
     "SemanticTag",
-    "Citation",
+    "SemanticTagger",
 ]

@@ -7,7 +7,7 @@
  * violation tracking, and quarantine.
  */
 
-import { callBridge } from '../lib/pythonBridge';
+import { callBridge } from "../lib/pythonBridge";
 
 /**
  * Controller responsible for proxying registry operations to the Python bridge.
@@ -20,7 +20,7 @@ export class RegistryController {
    * @returns Promise resolving to the operation result produced by listing agents.
    */
   async listAgents(): Promise<any> {
-    return callBridge('registry.list_agents');
+    return callBridge("registry.list_agents");
   }
 
   /** Get one agent's full record (scores + governance), or 404. */
@@ -31,7 +31,7 @@ export class RegistryController {
    * @returns Promise resolving to the operation result produced by getting agent.
    */
   async getAgent(agentName: string): Promise<any> {
-    return callBridge('registry.get_agent', { name: agentName });
+    return callBridge("registry.get_agent", { name: agentName });
   }
 
   /** Get an agent's violations and current quarantine state. */
@@ -46,9 +46,9 @@ export class RegistryController {
   async getViolations(
     agentName: string,
     includeCleared = false,
-    limit = 100
+    limit = 100,
   ): Promise<any> {
-    return callBridge('registry.get_violations', {
+    return callBridge("registry.get_violations", {
       name: agentName,
       include_cleared: includeCleared,
       limit,
@@ -67,9 +67,9 @@ export class RegistryController {
   async clearViolations(
     agentName: string,
     rationale: string,
-    overrideTier?: string
+    overrideTier?: string,
   ): Promise<any> {
-    return callBridge('registry.clear_violations', {
+    return callBridge("registry.clear_violations", {
       name: agentName,
       rationale,
       override_tier: overrideTier ?? null,
@@ -85,6 +85,6 @@ export class RegistryController {
    * @returns Promise resolving to the operation result produced by setting trust tier.
    */
   async setTrustTier(agentName: string, tier: string): Promise<any> {
-    return callBridge('registry.set_trust_tier', { name: agentName, tier });
+    return callBridge("registry.set_trust_tier", { name: agentName, tier });
   }
 }

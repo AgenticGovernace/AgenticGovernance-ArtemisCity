@@ -12,8 +12,8 @@ quarantine state; the sandbox only enforces and reports.
 from __future__ import annotations
 
 import fnmatch
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Callable, Iterable, List, Optional
 
 from src.utils.helpers import logger, sanitize_for_log
 
@@ -31,8 +31,8 @@ class ToolPolicy:
     """A single whitelisted tool and the constraints on its use."""
 
     name: str
-    paths: List[str] = field(default_factory=list)  # glob patterns; empty = any
-    operations: List[str] = field(default_factory=list)  # empty = any
+    paths: list[str] = field(default_factory=list)  # glob patterns; empty = any
+    operations: list[str] = field(default_factory=list)  # empty = any
 
     def allows_path(self, path: str) -> bool:
         """Allows path.
@@ -47,7 +47,7 @@ class ToolPolicy:
             return True
         return any(fnmatch.fnmatch(path, pattern) for pattern in self.paths)
 
-    def allows_operation(self, operation: Optional[str]) -> bool:
+    def allows_operation(self, operation: str | None) -> bool:
         """Allows operation.
 
         Args:
@@ -66,8 +66,8 @@ class CheckResult:
     """Outcome of a sandbox permission check."""
 
     allowed: bool
-    violation_type: Optional[str] = None
-    reason: Optional[str] = None
+    violation_type: str | None = None
+    reason: str | None = None
 
 
 class AgentSandbox:
@@ -90,8 +90,8 @@ class AgentSandbox:
         agent_name,
         policies=None,
         registry=None,
-        violation_recorder: Optional[Callable[[str, str, dict], dict]] = None,
-        capabilities: Optional[Iterable[str]] = None,
+        violation_recorder: Callable[[str, str, dict], dict] | None = None,
+        capabilities: Iterable[str] | None = None,
     ):
         self.agent_name = agent_name
         self.registry = registry
@@ -99,7 +99,7 @@ class AgentSandbox:
         self.violation_recorder = violation_recorder
         self.capabilities = set(capabilities or [])
 
-    def check_dispatch(self, required_capability: Optional[str]) -> CheckResult:
+    def check_dispatch(self, required_capability: str | None) -> CheckResult:
         """Validate governance state and capability before agent execution.
 
         Tool calls still use :meth:`check_action`; this preflight closes the
@@ -126,8 +126,8 @@ class AgentSandbox:
     def check_action(
         self,
         tool_name: str,
-        path: Optional[str] = None,
-        operation: Optional[str] = None,
+        path: str | None = None,
+        operation: str | None = None,
     ) -> CheckResult:
         """Check whether the agent may invoke the requested tool.
 

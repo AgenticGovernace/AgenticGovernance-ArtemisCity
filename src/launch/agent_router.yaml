@@ -16,5 +16,17 @@ agents:
     action_description: "Querying system status or memory interface."
   planner:
     role: "Architect, planning and contextual assistance"
-    keywords: ["help", "assist", "explain", "augment", "clarify", "suggest", "plan", "roadmap", "blueprint", "schedule"]
+    keywords:
+      [
+        "help",
+        "assist",
+        "explain",
+        "augment",
+        "clarify",
+        "suggest",
+        "plan",
+        "roadmap",
+        "blueprint",
+        "schedule",
+      ]
     action_description: "Providing contextual assistance, augmentation, or developing execution plan."

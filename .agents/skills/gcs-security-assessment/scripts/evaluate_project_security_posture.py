@@ -17,9 +17,9 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Collection, Mapping, MutableMapping
 import enum
 import json
+from collections.abc import Collection, Mapping, MutableMapping
 from typing import Any, TypedDict
 
 import cloud_rest_helpers_nodeps
@@ -95,7 +95,7 @@ class _EnforcedOrgPolicyRule(TypedDict, total=False):
 
 
 def _check_no_allow_all_org_policy(
-    rules: (Collection[_NoAllowAllOrgPolicyRule] | Collection[_EnforcedOrgPolicyRule]),
+    rules: Collection[_NoAllowAllOrgPolicyRule] | Collection[_EnforcedOrgPolicyRule],
 ) -> bool:
     """Checks if the provided OrgPolicy rules enforce at least one restriction.
 
@@ -117,7 +117,9 @@ def _check_no_allow_all_org_policy(
 
     for rule in rules:
         values = rule.get("values") or {}
-        if values.get("deniedValues", []) or values.get("allowedValues", []):  # pyrefly: ignore[missing-attribute]
+        if values.get("deniedValues", []) or values.get(
+            "allowedValues", []
+        ):  # pyrefly: ignore[missing-attribute]
             # Deny rules always override allow rules.
             return True
     # If a rule is empty or only has allowAll enabled with no overrides, it is

@@ -5,19 +5,19 @@ global:
     environment: production
 
 scrape_configs:
-  - job_name: 'artemis-kernel'
+  - job_name: "artemis-kernel"
     static_configs:
       - targets:
-          - 'kernel:8000'
-    metrics_path: '/metrics'
+          - "kernel:8000"
+    metrics_path: "/metrics"
 
-  - job_name: 'artemis-express-api'
+  - job_name: "artemis-express-api"
     static_configs:
       - targets:
-          - 'express-api:4000'
-    metrics_path: '/metrics'
+          - "express-api:4000"
+    metrics_path: "/metrics"
 
-  - job_name: 'prometheus'
+  - job_name: "prometheus"
     static_configs:
       - targets:
-          - 'localhost:9090'
+          - "localhost:9090"

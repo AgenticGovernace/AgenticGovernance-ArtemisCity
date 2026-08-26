@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { MCP_API_KEY } from '../../config';
-import { logger } from '../../utils/logger';
+import { Request, Response, NextFunction } from "express";
+import { MCP_API_KEY } from "../../config";
+import { logger } from "../../utils/logger";
 
 /**
  * Middleware to authenticate requests using a Bearer token.
@@ -12,32 +12,42 @@ import { logger } from '../../utils/logger';
  * @param next The next middleware function in the stack.
  * @returns void
  */
-const authenticateMCP = (req: Request, res: Response, next: NextFunction): void => {
+const authenticateMCP = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void => {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    logger.warn('Authentication failed: Missing or malformed Bearer token.');
-    res.status(401).json({ success: false, error: 'Unauthorized: Bearer token required.' });
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    logger.warn("Authentication failed: Missing or malformed Bearer token.");
+    res
+      .status(401)
+      .json({ success: false, error: "Unauthorized: Bearer token required." });
     return;
   }
 
-  const token = authHeader.split(' ')[1].trim();
+  const token = authHeader.split(" ")[1].trim();
 
   // Ensure MCP_API_KEY is not empty, though config validation should prevent this.
   if (!MCP_API_KEY) {
-    logger.error('Server configuration error: MCP_API_KEY is not set.');
-    res.status(500).json({ success: false, error: 'Server configuration error.' });
+    logger.error("Server configuration error: MCP_API_KEY is not set.");
+    res
+      .status(500)
+      .json({ success: false, error: "Server configuration error." });
     return;
   }
 
   if (token === MCP_API_KEY) {
-    logger.debug('Authentication successful for incoming request.');
+    logger.debug("Authentication successful for incoming request.");
     next();
     return;
   }
 
-  logger.warn('Authentication failed: Invalid MCP_API_KEY provided.');
-  res.status(403).json({ success: false, error: 'Forbidden: Invalid API Key.' });
+  logger.warn("Authentication failed: Invalid MCP_API_KEY provided.");
+  res
+    .status(403)
+    .json({ success: false, error: "Forbidden: Invalid API Key." });
 };
 
 export default authenticateMCP;

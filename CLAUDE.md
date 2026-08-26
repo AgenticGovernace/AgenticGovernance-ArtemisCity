@@ -25,17 +25,17 @@ This is a Multi-Agent Coordination Platform (MCP) that integrates Python-based a
 **Three-Layer Architecture:**
 
 1. **MCP Layer** (`src/mcp/`): Central orchestration
-    - `orchestrator.py`: Coordinates agent lifecycle, task assignment, and Obsidian synchronization
-    - `config.py`: System configuration loaded from `.env` file
+   - `orchestrator.py`: Coordinates agent lifecycle, task assignment, and Obsidian synchronization
+   - `config.py`: System configuration loaded from `.env` file
 
 2. **Obsidian Integration Layer** (`src/obsidian_integration/`): Vault I/O abstraction
-    - `manager.py`: File system operations (read/write notes, list folders)
-    - `parser.py`: Parses Markdown with YAML front matter into structured task data
-    - `generator.py`: Generates formatted Markdown reports and task notes
+   - `manager.py`: File system operations (read/write notes, list folders)
+   - `parser.py`: Parses Markdown with YAML front matter into structured task data
+   - `generator.py`: Generates formatted Markdown reports and task notes
 
 3. **Agent Layer** (`src/agents/`): Extensible agent implementations
-    - `base_agent.py`: Abstract base class defining `perform_task(task_context: dict) -> dict`
-    - Concrete agents (e.g., `research_agent.py`, `summarizer_agent.py`) implement task logic
+   - `base_agent.py`: Abstract base class defining `perform_task(task_context: dict) -> dict`
+   - Concrete agents (e.g., `research_agent.py`, `summarizer_agent.py`) implement task logic
 
 ### Data Flow
 
@@ -56,7 +56,6 @@ agent: research_agent
 status: pending
 tags: ["example"]
 ---
-
 # Task Title
 Context: Description here
 Keywords: keyword1, keyword2
@@ -95,12 +94,14 @@ This will:
 1. Create a new file in `src/agents/` (e.g., `my_agent.py`)
 2. Inherit from `BaseAgent` and implement `perform_task(task_context: dict) -> dict`
 3. Register in `orchestrator.py`:
+
    ```python
    self.agents = {
        "my_agent": MyAgent(),
        # existing agents...
    }
    ```
+
 4. Create task notes with `agent: my_agent` in front matter
 
 ## Key Implementation Details
@@ -166,13 +167,13 @@ When you run `main.py` for the first time:
 ### Obsidian-Triggered Workflow
 
 1. Create a Markdown file in `<vault>/Agent Inputs/` with YAML front matter:
+
    ```yaml
    ---
    task_id: T_NEW_RESEARCH
    agent: research_agent
    status: pending
    ---
-
    # New Topic for Research
 
    Topic: The future of renewable energy technologies
@@ -181,12 +182,12 @@ When you run `main.py` for the first time:
    ```
 
 2. Run `python main.py` - the orchestrator will:
-    - Detect the pending task
-    - Update status to `in progress`
-    - Assign to the specified agent
-    - Execute the task
-    - Write a report to `Agent Outputs/`
-    - Update original note status to `completed`
+   - Detect the pending task
+   - Update status to `in progress`
+   - Assign to the specified agent
+   - Execute the task
+   - Write a report to `Agent Outputs/`
+   - Update original note status to `completed`
 
 ### Direct Task Assignment (Code-Triggered)
 
@@ -220,10 +221,10 @@ All paths are relative to the vault root specified in `OBSIDIAN_VAULT_PATH`.
 Converts Markdown to structured data:
 
 - `parse_task_note(content: str) -> dict | None`: Parses YAML front matter and content sections into task dictionary. Supports:
-    - YAML front matter fields (task_id, agent, status, tags)
-    - H1 headings as titles
-    - Key-value pairs (e.g., `Context: Some text`)
-    - Checkbox lists for subtasks
+  - YAML front matter fields (task_id, agent, status, tags)
+  - H1 headings as titles
+  - Key-value pairs (e.g., `Context: Some text`)
+  - Checkbox lists for subtasks
 
 - `update_status_in_note(original_content: str, new_status: str, task_id: str = None) -> str`: Updates or adds status field in YAML front matter
 
@@ -232,10 +233,10 @@ Converts Markdown to structured data:
 Creates formatted Markdown from structured data:
 
 - `generate_agent_report(agent_name: str, task_id: str, results: dict) -> str`: Generates a report with:
-    - YAML front matter (task_id, agent, timestamp, status, tags)
-    - Summary section
-    - Structured output of all result dictionary keys
-    - Optional next steps checklist
+  - YAML front matter (task_id, agent, timestamp, status, tags)
+  - Summary section
+  - Structured output of all result dictionary keys
+  - Optional next steps checklist
 
 - `generate_task_note(task_data: dict) -> str`: Creates a new task note from dictionary
 
@@ -246,21 +247,21 @@ The central coordinator managing all agent operations:
 **Key Methods:**
 
 - `assign_and_execute_task(agent_name: str, task_context: dict, original_task_note_path: str = None) -> dict`:
-    - Assigns task to agent
-    - Executes via `agent.perform_task()`
-    - Writes report to Obsidian
-    - Updates original task status if path provided
+  - Assigns task to agent
+  - Executes via `agent.perform_task()`
+  - Writes report to Obsidian
+  - Updates original task status if path provided
 
 - `check_for_new_tasks_from_obsidian() -> list[tuple[str, dict]]`:
-    - Scans `AGENT_INPUT_DIR` for .md files
-    - Parses each note
-    - Returns list of (note_path, task_data) for `status: pending` tasks
+  - Scans `AGENT_INPUT_DIR` for .md files
+  - Parses each note
+  - Returns list of (note_path, task_data) for `status: pending` tasks
 
 - `update_task_status_in_obsidian(relative_note_path: str, new_status: str, task_id: str = None)`:
-    - Updates status field in original task note
+  - Updates status field in original task note
 
 - `create_new_task_in_obsidian(task_data: dict, filename: str | None = None) -> str`:
-    - Programmatically creates new task notes
+  - Programmatically creates new task notes
 
 ### BaseAgent (src/agents/base_agent.py)
 
@@ -473,11 +474,11 @@ Current parser is regex-based and simple.
 
 - Use `markdown-it-py` or `mistune` for proper AST parsing
 - Support Obsidian-specific syntax:
-    - `[[Wiki Links]]`
-    - `![[Embedded Notes]]`
-    - `#tags` and nested tags
-    - Dataview queries
-    - Block references `^block-id`
+  - `[[Wiki Links]]`
+  - `![[Embedded Notes]]`
+  - `#tags` and nested tags
+  - Dataview queries
+  - Block references `^block-id`
 
 ### Agent Communication
 
@@ -538,6 +539,7 @@ Still sync to Obsidian for human readability, but use DB as source of truth.
 When agents access external APIs:
 
 1. **Never commit API keys**:
+
    ```python
    # In .env
    OPENAI_API_KEY = sk - ...
@@ -548,6 +550,7 @@ When agents access external APIs:
    ```
 
 2. **Update .gitignore**:
+
    ```
    .env
    *.log
@@ -618,10 +621,9 @@ Track errors in reports:
 - Code is documented with docstrings
 - Log files in `mcp_obsidian.log` provide runtime debugging information
 
-
 ---
 
-# ⚠️ ACTIVE INSTRUCTIONS BEGIN HERE — everything above is legacy context only and must not be followed when it conflicts.
+# ⚠️ ACTIVE INSTRUCTIONS BEGIN HERE — everything above is legacy context only and must not be followed when it conflicts
 
 # Implementation Notes for Artemis City
 
@@ -650,19 +652,19 @@ win**. Within this document, this Artemis City section supersedes all
 content above it. If an authoritative document is unavailable, follow this
 file as-is.
 
-| Document | Owns |
-|---|---|
-| `README.md` | Project identity, three pillars, repo map, quick start |
-| `docs/ARCHITECTURE.md` | System design — kernel, memory bus, governance, sandbox |
-| `docs/MEMORY_BUS.md` | Write-through protocol, read hierarchy, conflict resolution |
-| `docs/API_REFERENCE.md` | ATP message format and REST endpoint shapes |
-| `docs/Agent Implementation Guide.md` | Dual-track Concept_Demos → src/ graduation path |
-| `docs/LIVING_CITY.md` | The Mayor / Postmaster / City Manager metaphor |
-| `docs/ENVIRONMENTS.md` | `dev → staging → prod` branch flow and `ARTEMIS_ENV` |
-| `docs/CODING_STANDARDS.md` | Coding, safety, testing, and incremental adoption rules |
-| `AGENTS.md` | Tool-neutral mirror of `CLAUDE.md` (for non-Claude agents) |
-| `docs/TEST_PLAN.md` | Test plan (pyramid, coverage bars, naming convention) |
-| `SECURITY.md` | Secret handling, key rotation, incident response |
+| Document                             | Owns                                                        |
+| ------------------------------------ | ----------------------------------------------------------- |
+| `README.md`                          | Project identity, three pillars, repo map, quick start      |
+| `docs/ARCHITECTURE.md`               | System design — kernel, memory bus, governance, sandbox     |
+| `docs/MEMORY_BUS.md`                 | Write-through protocol, read hierarchy, conflict resolution |
+| `docs/API_REFERENCE.md`              | ATP message format and REST endpoint shapes                 |
+| `docs/Agent Implementation Guide.md` | Dual-track Concept_Demos → src/ graduation path             |
+| `docs/LIVING_CITY.md`                | The Mayor / Postmaster / City Manager metaphor              |
+| `docs/ENVIRONMENTS.md`               | `dev → staging → prod` branch flow and `ARTEMIS_ENV`        |
+| `docs/CODING_STANDARDS.md`           | Coding, safety, testing, and incremental adoption rules     |
+| `AGENTS.md`                          | Tool-neutral mirror of `CLAUDE.md` (for non-Claude agents)  |
+| `docs/TEST_PLAN.md`                  | Test plan (pyramid, coverage bars, naming convention)       |
+| `SECURITY.md`                        | Secret handling, key rotation, incident response            |
 
 ---
 
@@ -671,17 +673,17 @@ file as-is.
 The repo ships several runtime layers. The table below tells you what is
 authoritative, what is in transition, and what is deliberately frozen.
 
-| Surface | Path | Role | Editing posture |
-|---|---|---|---|
-| Python core | `src/` | Orchestrator, agents, integration, governance, tests | **Authoritative**. Most work happens here. |
-| Bridge | `src/api_bridge.py` | JSON stdin/stdout dispatch for the TS API | Extend by adding to `COMMANDS`. See "Bridge behavior" below. |
-| FastAPI dashboard | `app/api/main.py` | `/api/*` dashboard backend, SQLite-only fallback | Edit for dashboard endpoints. Falls back to read-only SQLite if orchestrator imports fail. |
-| TS Express API | `app/api/index.ts`, `app/api/v1/*.ts`, `app/api/controllers/*.ts` | `/api/v1/*` public HTTP boundary | Boundary for new registry / governance / ATP endpoints. Spawns the bridge — do **not** reimplement Python logic in TS. |
-| Kernel layer | `app/kernel/` | In-process router with concrete `DaemonAgent`, `PlannerAgent` | Newer layer; growing toward orchestrator parity. Used by `app/kernel/cli.py` for local probing. |
-| Obsidian REST shell | `src/Artemis Agentic Memory Layer/` | Standalone Express/TS service fronting the Obsidian Local REST API | **Populated, not registered**: has a working `package.json`, `Dockerfile`, and `middleware/auth.ts`. `make server` runs it. It is branding-only — plain REST, no `@modelcontextprotocol/sdk` dependency — and is not the Model Context Protocol implementation; see `services/mcp/` below for that. Register it in the root workspace before treating it as a production dependency. Two byte-identical, broken duplicates (`src/mcp-server/`, `src/memory/mcp-server/`) were removed; this is the sole canonical copy. |
-| MCP servers (official SDK) | `services/mcp/` | Python servers built on the real `mcp[cli]==2.0.0` SDK, adapting `src/` domain services | Per the accepted design (`docs/superpowers/specs/2026-08-16-artemis-mcp-backend-servers-design.md`), `src/` remains the sole domain-logic owner; server packages are thin transport adapters (stdio default, authenticated Streamable HTTP at `/mcp`). `artemis-validation` (read-only ATP tools) and `artemis-memory` (write/read/search/status-memory tools over `MemoryService`) are implemented. `common` is explicitly quarantined — not for production wiring until its governed-core replacement is reviewed. Five more servers (`artemis-provenance`, `-task`, `-registry`, `-governance`, `-routing`) are planned but not yet built. |
-| Frontend (mixed) | `app/web/frontend/` | React/Vite client; also carries leftover TS controllers/middleware | **In transition**. Treat as a mixed client/server workspace per README §"Dashboard and web-facing code". |
-| Concept demos | `Concept_Demos/` | Prototype ground for agents and flows | Older but supported. Per the Agent Implementation Guide, work prototyped here graduates to `src/`. |
+| Surface                    | Path                                                              | Role                                                                                    | Editing posture                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Python core                | `src/`                                                            | Orchestrator, agents, integration, governance, tests                                    | **Authoritative**. Most work happens here.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Bridge                     | `src/api_bridge.py`                                               | JSON stdin/stdout dispatch for the TS API                                               | Extend by adding to `COMMANDS`. See "Bridge behavior" below.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| FastAPI dashboard          | `app/api/main.py`                                                 | `/api/*` dashboard backend, SQLite-only fallback                                        | Edit for dashboard endpoints. Falls back to read-only SQLite if orchestrator imports fail.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| TS Express API             | `app/api/index.ts`, `app/api/v1/*.ts`, `app/api/controllers/*.ts` | `/api/v1/*` public HTTP boundary                                                        | Boundary for new registry / governance / ATP endpoints. Spawns the bridge — do **not** reimplement Python logic in TS.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Kernel layer               | `app/kernel/`                                                     | In-process router with concrete `DaemonAgent`, `PlannerAgent`                           | Newer layer; growing toward orchestrator parity. Used by `app/kernel/cli.py` for local probing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Obsidian REST shell        | `src/Artemis Agentic Memory Layer/`                               | Standalone Express/TS service fronting the Obsidian Local REST API                      | **Populated, not registered**: has a working `package.json`, `Dockerfile`, and `middleware/auth.ts`. `make server` runs it. It is branding-only — plain REST, no `@modelcontextprotocol/sdk` dependency — and is not the Model Context Protocol implementation; see `services/mcp/` below for that. Register it in the root workspace before treating it as a production dependency. Two byte-identical, broken duplicates (`src/mcp-server/`, `src/memory/mcp-server/`) were removed; this is the sole canonical copy.                                                                                                                       |
+| MCP servers (official SDK) | `services/mcp/`                                                   | Python servers built on the real `mcp[cli]==2.0.0` SDK, adapting `src/` domain services | Per the accepted design (`docs/superpowers/specs/2026-08-16-artemis-mcp-backend-servers-design.md`), `src/` remains the sole domain-logic owner; server packages are thin transport adapters (stdio default, authenticated Streamable HTTP at `/mcp`). `artemis-validation` (read-only ATP tools) and `artemis-memory` (write/read/search/status-memory tools over `MemoryService`) are implemented. `common` is explicitly quarantined — not for production wiring until its governed-core replacement is reviewed. Five more servers (`artemis-provenance`, `-task`, `-registry`, `-governance`, `-routing`) are planned but not yet built. |
+| Frontend (mixed)           | `app/web/frontend/`                                               | React/Vite client; also carries leftover TS controllers/middleware                      | **In transition**. Treat as a mixed client/server workspace per README §"Dashboard and web-facing code".                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Concept demos              | `Concept_Demos/`                                                  | Prototype ground for agents and flows                                                   | Older but supported. Per the Agent Implementation Guide, work prototyped here graduates to `src/`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 The Hatch wheel ships **only `src/` and `app/kernel/`** (see
 root `pyproject.toml` — `app/api`, `app/web`, `app/scripts` are explicitly
@@ -722,14 +724,14 @@ Response:
 
 ### Error code → HTTP status (in `app/api/lib/pythonBridge.ts`)
 
-| Bridge code | HTTP |
-|---|---|
-| `NOT_FOUND` | 404 |
-| `INVALID_REQUEST`, `INVALID_JSON` | 400 |
-| `UNKNOWN_COMMAND`, `BRIDGE_ERROR`, `INTERNAL_ERROR` | 500 |
-| `BRIDGE_UNAVAILABLE` | 500 (set by the TS layer when the subprocess cannot be spawned) |
-| `MEMORY_IDEMPOTENCY_CONFLICT`, `MEMORY_DELETE_UNSUPPORTED` | 409 |
-| `MEMORY_STORAGE_UNAVAILABLE`, `MEMORY_DATABASE_CONFIGURATION_ERROR` | 503 |
+| Bridge code                                                         | HTTP                                                            |
+| ------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `NOT_FOUND`                                                         | 404                                                             |
+| `INVALID_REQUEST`, `INVALID_JSON`                                   | 400                                                             |
+| `UNKNOWN_COMMAND`, `BRIDGE_ERROR`, `INTERNAL_ERROR`                 | 500                                                             |
+| `BRIDGE_UNAVAILABLE`                                                | 500 (set by the TS layer when the subprocess cannot be spawned) |
+| `MEMORY_IDEMPOTENCY_CONFLICT`, `MEMORY_DELETE_UNSUPPORTED`          | 409                                                             |
+| `MEMORY_STORAGE_UNAVAILABLE`, `MEMORY_DATABASE_CONFIGURATION_ERROR` | 503                                                             |
 
 ### Adding a new bridge command
 
@@ -757,7 +759,7 @@ explicit `ARTEMIS_PYTHON` override.
 ## Dashboard executor contract
 
 The Vite frontend (`app/web/frontend`) talks directly to the **FastAPI**
-dashboard (`app/api/main.py`), *not* the TS Express layer. The proxy is
+dashboard (`app/api/main.py`), _not_ the TS Express layer. The proxy is
 `/api/* -> http://localhost:8000` (see `app/web/frontend/vite.config.ts`),
 and Express on `:4000` is only consumed by external API clients.
 
@@ -768,30 +770,30 @@ Two endpoints carry contracts the frontend depends on:
 The Executor page (`app/web/frontend/src/pages/Executor.tsx`) submits
 user instructions here. The response is `ExecuteInstructionResponse`:
 
-| Field | Type | Meaning |
-|---|---|---|
-| `task_id` | `str` | Synthetic ID; also the Obsidian note key. |
-| `status` | `"success" \| "failed"` | Top-level outcome. |
-| `summary` | `str` | Human-readable result from the agent. |
-| `note_path` | `str \| None` | Vault-relative path to the persisted report. |
-| `error` | `str \| None` | Failure detail when `status == "failed"`. |
-| `agent_name` | `str \| None` | Which agent actually executed — either the request's `agent` (when pinned) or the agent the Hebbian router picked. |
-| `routing` | `dict \| None` | `RoutingDecision.to_dict()` shape: selected agent, capability, routing scope, ATP action, blend settings, fallback, `routing_path`, and `candidates[]` (including Hebbian/trust scores plus observational Sentinel fields). `None` when the caller pinned `agent` explicitly. |
-| `routing_path` | `str \| None` | Which routing implementation served the task — see "Routing path labelling" below. Present even when `routing` is `None`, so pinned and composite-only calls are labelled too. |
-| `atp` | `dict \| None` | Canonical ATP headers and validation context when the instruction used ATP. |
-| `provenance_id` | `str \| None` | Parent provenance event linking routing, execution, memory, learning, and completion. |
-| `provider` | `str \| None` | Attempted/actual provider. Verified output and explicit Exo failures use `exo`; a failed Exo call also carries `fallback_used: false` and never emits substitute model text. Opt-in local baselines use their own provider names. |
-| `fallback_used` | `bool \| None` | `false` for real Exo success/failure paths; `true` only for an explicitly enabled, visibly degraded local baseline. |
-| `model` | `str \| None` | Requested Exo model identifier. The observed response model is also recorded in `exo_request`. |
-| `outcome_class` | `str \| None` | Learning classification such as `success`, `provider_failure`, `degraded_success`, or `agent_failure`. |
-| `learning_eligible` | `bool \| None` | Whether this outcome was allowed to update Hebbian/trust state. |
-| `exo_request` | `dict \| None` | Redacted wire evidence: request/response IDs, concrete endpoint, HTTP status, latency, actual response model, attempts, and output length/SHA-256. |
-| `compressed_context` | `str \| None` | Follow-on context produced when a long Exo result is summarized. |
-| `output_compression` | `dict \| None` | Raw-artifact hash/path plus Hebbian summarizer route, chosen summarizer, scope, lengths, and compression status. |
+| Field                | Type                    | Meaning                                                                                                                                                                                                                                                                       |
+| -------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `task_id`            | `str`                   | Synthetic ID; also the Obsidian note key.                                                                                                                                                                                                                                     |
+| `status`             | `"success" \| "failed"` | Top-level outcome.                                                                                                                                                                                                                                                            |
+| `summary`            | `str`                   | Human-readable result from the agent.                                                                                                                                                                                                                                         |
+| `note_path`          | `str \| None`           | Vault-relative path to the persisted report.                                                                                                                                                                                                                                  |
+| `error`              | `str \| None`           | Failure detail when `status == "failed"`.                                                                                                                                                                                                                                     |
+| `agent_name`         | `str \| None`           | Which agent actually executed — either the request's `agent` (when pinned) or the agent the Hebbian router picked.                                                                                                                                                            |
+| `routing`            | `dict \| None`          | `RoutingDecision.to_dict()` shape: selected agent, capability, routing scope, ATP action, blend settings, fallback, `routing_path`, and `candidates[]` (including Hebbian/trust scores plus observational Sentinel fields). `None` when the caller pinned `agent` explicitly. |
+| `routing_path`       | `str \| None`           | Which routing implementation served the task — see "Routing path labelling" below. Present even when `routing` is `None`, so pinned and composite-only calls are labelled too.                                                                                                |
+| `atp`                | `dict \| None`          | Canonical ATP headers and validation context when the instruction used ATP.                                                                                                                                                                                                   |
+| `provenance_id`      | `str \| None`           | Parent provenance event linking routing, execution, memory, learning, and completion.                                                                                                                                                                                         |
+| `provider`           | `str \| None`           | Attempted/actual provider. Verified output and explicit Exo failures use `exo`; a failed Exo call also carries `fallback_used: false` and never emits substitute model text. Opt-in local baselines use their own provider names.                                             |
+| `fallback_used`      | `bool \| None`          | `false` for real Exo success/failure paths; `true` only for an explicitly enabled, visibly degraded local baseline.                                                                                                                                                           |
+| `model`              | `str \| None`           | Requested Exo model identifier. The observed response model is also recorded in `exo_request`.                                                                                                                                                                                |
+| `outcome_class`      | `str \| None`           | Learning classification such as `success`, `provider_failure`, `degraded_success`, or `agent_failure`.                                                                                                                                                                        |
+| `learning_eligible`  | `bool \| None`          | Whether this outcome was allowed to update Hebbian/trust state.                                                                                                                                                                                                               |
+| `exo_request`        | `dict \| None`          | Redacted wire evidence: request/response IDs, concrete endpoint, HTTP status, latency, actual response model, attempts, and output length/SHA-256.                                                                                                                            |
+| `compressed_context` | `str \| None`           | Follow-on context produced when a long Exo result is summarized.                                                                                                                                                                                                              |
+| `output_compression` | `dict \| None`          | Raw-artifact hash/path plus Hebbian summarizer route, chosen summarizer, scope, lengths, and compression status.                                                                                                                                                              |
 
 Behaviorally: when the request lacks an `agent`, the handler calls
 `orchestrator.hebbian_router.route(task_data)` to capture the decision
-*before* dispatching, then calls `assign_and_execute_task(chosen, ...)`
+_before_ dispatching, then calls `assign_and_execute_task(chosen, ...)`
 with the picked agent. Routing is side-effect-free, so this does not
 double-execute.
 
@@ -867,31 +869,31 @@ weight, and trust score — as
 `(1 - α - β)·composite + α·hebbian_norm + β·trust`. Tune at boot via
 env:
 
-| Env var | Default | Effect |
-|---|---|---|
-| `ARTEMIS_ROUTING_KERNEL` | `1` | Master toggle for the shared Routing Kernel. Set to `0`/`false` to route only through the legacy `HebbianRouter`. |
-| `ARTEMIS_DELEGATION_DB` | `data/delegation_grants.db` | Delegation-grant and budget-reservation ledger path. |
-| `ARTEMIS_HEBBIAN_ROUTING` | `1` | Master toggle. Set to `0`/`false` to fall back to the registry's composite-only routing. |
-| `ARTEMIS_HEBBIAN_ROUTING_ALPHA` | `0.3` | Weight on Hebbian history. |
-| `ARTEMIS_HEBBIAN_ROUTING_BETA` | `0.0` | Weight on trust score. `0` disables the trust signal in the blend. |
-| `ARTEMIS_ROUTING_TRUST_FLOOR` | `0.0` | Hard cutoff: agents with trust below this are excluded before scoring. `0` disables floor exclusion. |
-| `ARTEMIS_ROUTING_FALLBACK_CAPABILITY` | `llm_chat` | Capability to retry on if no agent advertises the requested one. Empty string disables fallback. |
-| `ARTEMIS_ATP_STRICT` | `0` | Set to `1` to reject ATP validation errors instead of attaching them for compatibility. |
-| `ARTEMIS_HEBBIAN_SENTINEL_WINDOW` | `50` | Number of recent outcomes used for sign-change stability analysis. |
-| `ARTEMIS_HEBBIAN_SENTINEL_THRESHOLD` | `0.4` | Alert when the rolling sign-change rate exceeds this value after warmup. |
-| `ARTEMIS_HEBBIAN_SENTINEL_WARMUP` | `10` | Minimum samples required before Sentinel can alert. |
-| `EXO_CONNECT_TIMEOUT_SECONDS` | `10` | Connection-establishment timeout. |
-| `EXO_READ_TIMEOUT_SECONDS` | `900` | Maximum wait for Exo generation; `0` means no read deadline. |
-| `EXO_MAX_RETRIES` | `2` | Additional attempts for connect failures and HTTP 429/502/503/504. Read timeouts and partial streams are not replayed. |
-| `EXO_RETRY_BACKOFF_SECONDS` | `1` | Base exponential retry delay when Exo does not send `Retry-After`. |
-| `EXO_RETRY_MAX_DELAY_SECONDS` | `60` | Maximum delay for exponential or `Retry-After` backoff. |
-| `ARTEMIS_EXO_SUMMARY_THRESHOLD_CHARS` | `12000` | Character threshold for raw preservation plus governed context compression; `0` disables. |
-| `ARTEMIS_SYNTHETIC_AGENT_FALLBACK` | `0` | Opt in to visibly degraded local baselines; these outcomes never update Hebbian/trust. |
-| `ARTEMIS_SSE_HEARTBEAT_SECONDS` | `15` | Heartbeat interval while a long Exo stream has not produced a frame. |
-| `ARTEMIS_VECTOR_BACKEND` | `sqlite` | Vector store backend: `sqlite` (local, default) or `supabase` (pgvector over direct Postgres). A Supabase backend that cannot be constructed at boot logs a warning and falls back to SQLite. |
-| `ARTEMIS_SUPABASE_DB_URL` | — | Postgres connection string for the Supabase vector backend (`SUPABASE_DB_URL` is honored as a fallback). |
-| `ARTEMIS_VECTOR_TABLE` | `artemis_vectors` | Supabase table holding vector records. |
-| `ARTEMIS_VECTOR_DIM` | `16` | pgvector embedding dimension; must match the embedding function in use. |
+| Env var                               | Default                     | Effect                                                                                                                                                                                        |
+| ------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ARTEMIS_ROUTING_KERNEL`              | `1`                         | Master toggle for the shared Routing Kernel. Set to `0`/`false` to route only through the legacy `HebbianRouter`.                                                                             |
+| `ARTEMIS_DELEGATION_DB`               | `data/delegation_grants.db` | Delegation-grant and budget-reservation ledger path.                                                                                                                                          |
+| `ARTEMIS_HEBBIAN_ROUTING`             | `1`                         | Master toggle. Set to `0`/`false` to fall back to the registry's composite-only routing.                                                                                                      |
+| `ARTEMIS_HEBBIAN_ROUTING_ALPHA`       | `0.3`                       | Weight on Hebbian history.                                                                                                                                                                    |
+| `ARTEMIS_HEBBIAN_ROUTING_BETA`        | `0.0`                       | Weight on trust score. `0` disables the trust signal in the blend.                                                                                                                            |
+| `ARTEMIS_ROUTING_TRUST_FLOOR`         | `0.0`                       | Hard cutoff: agents with trust below this are excluded before scoring. `0` disables floor exclusion.                                                                                          |
+| `ARTEMIS_ROUTING_FALLBACK_CAPABILITY` | `llm_chat`                  | Capability to retry on if no agent advertises the requested one. Empty string disables fallback.                                                                                              |
+| `ARTEMIS_ATP_STRICT`                  | `0`                         | Set to `1` to reject ATP validation errors instead of attaching them for compatibility.                                                                                                       |
+| `ARTEMIS_HEBBIAN_SENTINEL_WINDOW`     | `50`                        | Number of recent outcomes used for sign-change stability analysis.                                                                                                                            |
+| `ARTEMIS_HEBBIAN_SENTINEL_THRESHOLD`  | `0.4`                       | Alert when the rolling sign-change rate exceeds this value after warmup.                                                                                                                      |
+| `ARTEMIS_HEBBIAN_SENTINEL_WARMUP`     | `10`                        | Minimum samples required before Sentinel can alert.                                                                                                                                           |
+| `EXO_CONNECT_TIMEOUT_SECONDS`         | `10`                        | Connection-establishment timeout.                                                                                                                                                             |
+| `EXO_READ_TIMEOUT_SECONDS`            | `900`                       | Maximum wait for Exo generation; `0` means no read deadline.                                                                                                                                  |
+| `EXO_MAX_RETRIES`                     | `2`                         | Additional attempts for connect failures and HTTP 429/502/503/504. Read timeouts and partial streams are not replayed.                                                                        |
+| `EXO_RETRY_BACKOFF_SECONDS`           | `1`                         | Base exponential retry delay when Exo does not send `Retry-After`.                                                                                                                            |
+| `EXO_RETRY_MAX_DELAY_SECONDS`         | `60`                        | Maximum delay for exponential or `Retry-After` backoff.                                                                                                                                       |
+| `ARTEMIS_EXO_SUMMARY_THRESHOLD_CHARS` | `12000`                     | Character threshold for raw preservation plus governed context compression; `0` disables.                                                                                                     |
+| `ARTEMIS_SYNTHETIC_AGENT_FALLBACK`    | `0`                         | Opt in to visibly degraded local baselines; these outcomes never update Hebbian/trust.                                                                                                        |
+| `ARTEMIS_SSE_HEARTBEAT_SECONDS`       | `15`                        | Heartbeat interval while a long Exo stream has not produced a frame.                                                                                                                          |
+| `ARTEMIS_VECTOR_BACKEND`              | `sqlite`                    | Vector store backend: `sqlite` (local, default) or `supabase` (pgvector over direct Postgres). A Supabase backend that cannot be constructed at boot logs a warning and falls back to SQLite. |
+| `ARTEMIS_SUPABASE_DB_URL`             | —                           | Postgres connection string for the Supabase vector backend (`SUPABASE_DB_URL` is honored as a fallback).                                                                                      |
+| `ARTEMIS_VECTOR_TABLE`                | `artemis_vectors`           | Supabase table holding vector records.                                                                                                                                                        |
+| `ARTEMIS_VECTOR_DIM`                  | `16`                        | pgvector embedding dimension; must match the embedding function in use.                                                                                                                       |
 
 `TrustInterface` is instantiated for every orchestrator so completed outcomes
 always update `data/trust_scores.db`, even when `beta == 0` and trust is not a
@@ -903,8 +905,8 @@ best-effort, not load-bearing.
 
 ### `GET /api/agents`
 
-Returns only agents currently *loaded in the orchestrator's in-memory
-registry* (`orchestrator.agent_registry.get_all_agents()`), not the
+Returns only agents currently _loaded in the orchestrator's in-memory
+registry_ (`orchestrator.agent_registry.get_all_agents()`), not the
 SQLite `agents` table. This filters out rows persisted by past test
 runs whose Python classes are no longer registered — picking one of
 those from the frontend dropdown would otherwise 400 with
@@ -921,12 +923,12 @@ SSE variant of the executor for live token rendering. Same request body
 as `/api/cli/execute`. The response is a `text/event-stream` carrying
 this event sequence:
 
-| Event | Data | When |
-|---|---|---|
-| `routing` | `{decision, agent_name, task_id, atp, provenance_id, routing_path}` | First frame. `decision` is the same `RoutingDecision.to_dict()` blob; `null` when the user pinned an `agent` explicitly. `routing_path` is present either way. |
-| `token` | `{text}` | Zero or more frames as the agent produces output. For `LLMAgent` these are real Exo SSE deltas; for non-streaming agents a single frame carries the full summary. |
-| `complete` | `{task_id, agent_name, status, summary, note_path, error, atp, provenance_id, provider, fallback_used, model, outcome_class, learning_eligible, exo_request, compressed_context, output_compression}` | Terminal on success. Mirrors `ExecuteInstructionResponse`. |
-| `error` | `{error}` | Terminal on failure (routing error, agent crash, etc.). |
+| Event      | Data                                                                                                                                                                                                  | When                                                                                                                                                              |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `routing`  | `{decision, agent_name, task_id, atp, provenance_id, routing_path}`                                                                                                                                   | First frame. `decision` is the same `RoutingDecision.to_dict()` blob; `null` when the user pinned an `agent` explicitly. `routing_path` is present either way.    |
+| `token`    | `{text}`                                                                                                                                                                                              | Zero or more frames as the agent produces output. For `LLMAgent` these are real Exo SSE deltas; for non-streaming agents a single frame carries the full summary. |
+| `complete` | `{task_id, agent_name, status, summary, note_path, error, atp, provenance_id, provider, fallback_used, model, outcome_class, learning_eligible, exo_request, compressed_context, output_compression}` | Terminal on success. Mirrors `ExecuteInstructionResponse`.                                                                                                        |
+| `error`    | `{error}`                                                                                                                                                                                             | Terminal on failure (routing error, agent crash, etc.).                                                                                                           |
 
 Streaming is opt-in per request — `Executor.tsx` exposes it as a
 "Stream response" checkbox and falls back to the JSON endpoint when
@@ -959,18 +961,19 @@ routing rank, weights, trust, or quarantine state on their own.
 
 These live in `src/integration/` and `src/governance/`. They were
 introduced in #74 (data model), #75 (HTTP boundary), and #76 (trust engine
-+ approval tiers), so older notes may not mention them.
 
-| Concern | File |
-|---|---|
+- approval tiers), so older notes may not mention them.
+
+| Concern                             | File                                                                                                                                                                                  |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Trust tiers, violations, quarantine | `src/integration/agent_registry.py` (extends the `agents` table via idempotent `ALTER TABLE` migration; `violations` table; `record_violation`, `clear_violations`, `set_trust_tier`) |
-| Learning/governance write-through | `src/integration/learning_governance.py` (registry-authoritative trust synchronization, administrative Hebbian mirrors, automatic pre-mutation checkpoints) |
-| Sandbox enforcement | `src/integration/sandbox.py` (`AgentSandbox`, `ToolPolicy`; 3-strike quarantine via the registry) |
-| Checkpoints + rollback | `src/governance/checkpoints.py` (JSON files with SHA-256 integrity hash, retention window, `RollbackManager`) |
-| Trust-score formula | `src/governance/trust.py` (weighted sub-metrics — see the module docstring for the spec-typo note about the security sign) |
-| Approval tiers | `src/governance/approvals.py` (`SelfUpdateGovernor` → `auto | monitored | human`) |
-| Routing admission facts | `src/integration/agent_registry.py` (`agent_uid`, `tenant_ids`, `scopes` columns via the same idempotent migration; `list_admission_records`, `set_admission_grants`) |
-| Delegation grant ledger | `src/routing/delegation_store.py` (`SqliteDelegationStore`; grants re-validate their canonical SHA-256 on read, so a tampered row cannot load) |
+| Learning/governance write-through   | `src/integration/learning_governance.py` (registry-authoritative trust synchronization, administrative Hebbian mirrors, automatic pre-mutation checkpoints)                           |
+| Sandbox enforcement                 | `src/integration/sandbox.py` (`AgentSandbox`, `ToolPolicy`; 3-strike quarantine via the registry)                                                                                     |
+| Checkpoints + rollback              | `src/governance/checkpoints.py` (JSON files with SHA-256 integrity hash, retention window, `RollbackManager`)                                                                         |
+| Trust-score formula                 | `src/governance/trust.py` (weighted sub-metrics — see the module docstring for the spec-typo note about the security sign)                                                            |
+| Approval tiers                      | `src/governance/approvals.py` (`SelfUpdateGovernor` → `auto                                                                                                                           | monitored | human`) |
+| Routing admission facts             | `src/integration/agent_registry.py` (`agent_uid`, `tenant_ids`, `scopes` columns via the same idempotent migration; `list_admission_records`, `set_admission_grants`)                 |
+| Delegation grant ledger             | `src/routing/delegation_store.py` (`SqliteDelegationStore`; grants re-validate their canonical SHA-256 on read, so a tampered row cannot load)                                        |
 
 Registry snapshot columns are whitelisted in `_AGENT_SNAPSHOT_COLUMNS`. A new
 `agents` column must be added there **and** to `_AGENT_SNAPSHOT_DEFAULTS` and
@@ -993,7 +996,7 @@ The Express governance boundary exposes authenticated checkpoint create/list/
 inspect/rollback routes. Rollback requires explicit confirmation and restores
 both registry and Hebbian snapshots after SHA-256 verification.
 
-For the *why* and the spec these implement, read `docs/ARCHITECTURE.md`
+For the _why_ and the spec these implement, read `docs/ARCHITECTURE.md`
 and `docs/API_REFERENCE.md`.
 
 ---
@@ -1035,7 +1038,7 @@ modules import. Do not bypass or weaken it. Tests must never mutate the live
 constructors or subprocess entrypoints.
 
 Redirecting the vault root alone is not sufficient: `AGENT_INPUT_DIR` and
-`AGENT_OUTPUT_DIR` are joined *under* that root, so an operator `.env`
+`AGENT_OUTPUT_DIR` are joined _under_ that root, so an operator `.env`
 carrying a path-prefixed value (for example
 `AGENT_OUTPUT_DIR=app/obsidian_vault/Agent_Outputs`) resolves relative to the
 vault and materializes a nested `<vault>/app/obsidian_vault/...` tree. The
@@ -1048,20 +1051,20 @@ never include `OBSIDIAN_VAULT_PATH` in them.
 `./setup_secrets.sh` is the canonical provisioner. It writes four files,
 each picked up by its own consumer:
 
-| File | Read by |
-|---|---|
-| `.env` | Python core, FastAPI dashboard (`make api` loads this) |
-| `app/api/.env` | TS Express API (loaded via `dotenv/config` at the top of `app/api/index.ts`) |
-| `src/.env` | Memory-layer Python |
-| `src/Artemis Agentic Memory Layer/.env` | Standalone MCP server (if present) |
+| File                                    | Read by                                                                      |
+| --------------------------------------- | ---------------------------------------------------------------------------- |
+| `.env`                                  | Python core, FastAPI dashboard (`make api` loads this)                       |
+| `app/api/.env`                          | TS Express API (loaded via `dotenv/config` at the top of `app/api/index.ts`) |
+| `src/.env`                              | Memory-layer Python                                                          |
+| `src/Artemis Agentic Memory Layer/.env` | Standalone MCP server (if present)                                           |
 
 Canonical keys (each appears in only the files marked ✓):
 
-| Key | `.env` | `app/api/.env` | `src/.env` | `…Memory Layer/.env` |
-|---|:-:|:-:|:-:|:-:|
-| `MCP_API_KEY` | ✓ | ✓ | ✓ | ✓ |
-| `FASTAPI_API_KEY` | ✓ | | | |
-| `ARTEMIS_API_KEY_DEFAULT` | ✓ | ✓ | | |
+| Key                       | `.env` | `app/api/.env` | `src/.env` | `…Memory Layer/.env` |
+| ------------------------- | :----: | :------------: | :--------: | :------------------: |
+| `MCP_API_KEY`             |   ✓    |       ✓        |     ✓      |          ✓           |
+| `FASTAPI_API_KEY`         |   ✓    |                |            |                      |
+| `ARTEMIS_API_KEY_DEFAULT` |   ✓    |       ✓        |            |                      |
 
 The script is drift-resistant: on re-run it **discovers** the value
 already in root `.env` and propagates it into every other file that
@@ -1110,26 +1113,26 @@ duplicate `app/web/frontend/.env` required.
 See `README.md` for the long form. The Makefile is the canonical entry
 point.
 
-| Action | Command |
-|---|---|
-| Generate `.env` files | `./setup_secrets.sh` |
-| Install runtime deps | `make install` |
-| Install dev tooling | `make install-dev` |
-| Install API + frontend deps | `make install-web` |
-| Install all dev dependencies | `make install-all` |
-| Run tests | `make test` |
-| Run tests with coverage | `make test-cov` |
-| Lint | `make lint` (read-only) / `make lint-fix` (mutating) |
-| All quality checks | `make check` |
-| Security scans | `make security` |
-| Python CLI | `make cli` |
-| Orchestrator pipeline | `make orchestrator` (`make run` is an alias) |
-| Concept demos | `make demo` |
-| Obsidian REST shell server | `make server` (runs `src/Artemis Agentic Memory Layer/`) |
-| FastAPI dashboard backend (`:8000`) | `make api` |
-| Frontend dev server (`:5173`, proxies `/api` -> `:8000`) | `make frontend` |
-| TypeScript Express API (`:4000`) | `make express-api` |
-| Build wheel | `make build` |
+| Action                                                   | Command                                                  |
+| -------------------------------------------------------- | -------------------------------------------------------- |
+| Generate `.env` files                                    | `./setup_secrets.sh`                                     |
+| Install runtime deps                                     | `make install`                                           |
+| Install dev tooling                                      | `make install-dev`                                       |
+| Install API + frontend deps                              | `make install-web`                                       |
+| Install all dev dependencies                             | `make install-all`                                       |
+| Run tests                                                | `make test`                                              |
+| Run tests with coverage                                  | `make test-cov`                                          |
+| Lint                                                     | `make lint` (read-only) / `make lint-fix` (mutating)     |
+| All quality checks                                       | `make check`                                             |
+| Security scans                                           | `make security`                                          |
+| Python CLI                                               | `make cli`                                               |
+| Orchestrator pipeline                                    | `make orchestrator` (`make run` is an alias)             |
+| Concept demos                                            | `make demo`                                              |
+| Obsidian REST shell server                               | `make server` (runs `src/Artemis Agentic Memory Layer/`) |
+| FastAPI dashboard backend (`:8000`)                      | `make api`                                               |
+| Frontend dev server (`:5173`, proxies `/api` -> `:8000`) | `make frontend`                                          |
+| TypeScript Express API (`:4000`)                         | `make express-api`                                       |
+| Build wheel                                              | `make build`                                             |
 
 `make api` and `make frontend` are paired: the frontend's Vite proxy
 targets `localhost:8000`, so the FastAPI backend must be running there.
@@ -1140,39 +1143,39 @@ uvicorn by hand, keep `--port 8000`.
 
 ## Quick reference — which file owns what
 
-| Concern | File |
-|---|---|
-| Orchestrator entry | `src/mcp/orchestrator.py` |
-| Credential-free authority contracts | `src/auth/` |
-| Canonical ATP validation facade | `src/validation/` |
-| Shared Routing Kernel | `src/routing/kernel.py` |
-| Agent base class | `src/agents/base_agent.py` |
-| Agent registry + scoring + governance | `src/integration/agent_registry.py` |
-| Memory bus (write-through, read hierarchy) | `src/integration/memory_bus.py` |
-| Trust interface (level/decay/permissions) | `src/integration/trust_interface.py` |
-| Sandbox enforcement | `src/integration/sandbox.py` |
-| Vector store (semantic search) | `src/mcp/vector_store.py` |
-| Hebbian weights | `src/mcp/hebbian_weights.py` |
-| Governance monitor (failure streaks) | `src/integration/governance.py` |
-| Checkpoints / rollback | `src/governance/checkpoints.py` |
-| Trust-score engine | `src/governance/trust.py` |
-| Approval tiers | `src/governance/approvals.py` |
-| TS ↔ Python bridge (Python side) | `src/api_bridge.py` |
-| TS ↔ Python bridge (TS side) | `app/api/lib/pythonBridge.ts` |
-| TS API routes | `app/api/v1/*.ts` |
-| FastAPI dashboard | `app/api/main.py` |
-| Hebbian-weighted router (legacy compatibility) | `src/integration/hebbian_router.py` |
-| Shared Routing Kernel | `src/routing/kernel.py` |
-| Routing-port production adapters | `src/routing/adapters.py` |
-| Target-zone / Artemis capability policy | `src/routing/authorization_policy.py` |
-| Delegation grants + budget reservations | `src/routing/delegation_store.py` |
-| Executor page (consumes `/api/cli/execute`) | `app/web/frontend/src/pages/Executor.tsx` |
-| Frontend API client | `app/web/frontend/src/api.ts` |
-| Kernel layer | `app/kernel/kernel.py`, `app/kernel/agents/*.py` |
-| ATP parser / validator | `src/agents/atp/` |
-| Environment loader | `src/utils/environments.py` |
-| Test conftest | `src/tests/conftest.py` |
-| Transport-independent memory domain | `src/memory/{models,ports,service}.py`, `src/memory/backends/` |
-| MCP common package (shared gate/principals, quarantined) | `services/mcp/common/src/artemis_mcp_common/` |
-| ATP validation MCP server | `services/mcp/artemis-validation/` |
-| Memory MCP server | `services/mcp/artemis-memory/` |
+| Concern                                                  | File                                                           |
+| -------------------------------------------------------- | -------------------------------------------------------------- |
+| Orchestrator entry                                       | `src/mcp/orchestrator.py`                                      |
+| Credential-free authority contracts                      | `src/auth/`                                                    |
+| Canonical ATP validation facade                          | `src/validation/`                                              |
+| Shared Routing Kernel                                    | `src/routing/kernel.py`                                        |
+| Agent base class                                         | `src/agents/base_agent.py`                                     |
+| Agent registry + scoring + governance                    | `src/integration/agent_registry.py`                            |
+| Memory bus (write-through, read hierarchy)               | `src/integration/memory_bus.py`                                |
+| Trust interface (level/decay/permissions)                | `src/integration/trust_interface.py`                           |
+| Sandbox enforcement                                      | `src/integration/sandbox.py`                                   |
+| Vector store (semantic search)                           | `src/mcp/vector_store.py`                                      |
+| Hebbian weights                                          | `src/mcp/hebbian_weights.py`                                   |
+| Governance monitor (failure streaks)                     | `src/integration/governance.py`                                |
+| Checkpoints / rollback                                   | `src/governance/checkpoints.py`                                |
+| Trust-score engine                                       | `src/governance/trust.py`                                      |
+| Approval tiers                                           | `src/governance/approvals.py`                                  |
+| TS ↔ Python bridge (Python side)                         | `src/api_bridge.py`                                            |
+| TS ↔ Python bridge (TS side)                             | `app/api/lib/pythonBridge.ts`                                  |
+| TS API routes                                            | `app/api/v1/*.ts`                                              |
+| FastAPI dashboard                                        | `app/api/main.py`                                              |
+| Hebbian-weighted router (legacy compatibility)           | `src/integration/hebbian_router.py`                            |
+| Shared Routing Kernel                                    | `src/routing/kernel.py`                                        |
+| Routing-port production adapters                         | `src/routing/adapters.py`                                      |
+| Target-zone / Artemis capability policy                  | `src/routing/authorization_policy.py`                          |
+| Delegation grants + budget reservations                  | `src/routing/delegation_store.py`                              |
+| Executor page (consumes `/api/cli/execute`)              | `app/web/frontend/src/pages/Executor.tsx`                      |
+| Frontend API client                                      | `app/web/frontend/src/api.ts`                                  |
+| Kernel layer                                             | `app/kernel/kernel.py`, `app/kernel/agents/*.py`               |
+| ATP parser / validator                                   | `src/agents/atp/`                                              |
+| Environment loader                                       | `src/utils/environments.py`                                    |
+| Test conftest                                            | `src/tests/conftest.py`                                        |
+| Transport-independent memory domain                      | `src/memory/{models,ports,service}.py`, `src/memory/backends/` |
+| MCP common package (shared gate/principals, quarantined) | `services/mcp/common/src/artemis_mcp_common/`                  |
+| ATP validation MCP server                                | `services/mcp/artemis-validation/`                             |
+| Memory MCP server                                        | `services/mcp/artemis-memory/`                                 |

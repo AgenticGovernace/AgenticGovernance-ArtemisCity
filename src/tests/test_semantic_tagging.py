@@ -2,8 +2,7 @@
 
 import pytest
 
-from src.agents.artemis.semantic_tagging import (Citation, SemanticTag,
-                                                 SemanticTagger)
+from src.agents.artemis.semantic_tagging import Citation, SemanticTag, SemanticTagger
 
 
 # ---------------------------------------------------------------------------

@@ -12,12 +12,19 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.memory.models import (ClaimDisposition, LedgerState, LedgerWrite,
-                               MemoryIdempotencyConflict,
-                               MemoryLedgerUnavailable, MemoryRecord,
-                               MemoryValidationError, MemoryWriteCommand,
-                               MemoryWriteReceipt, ProjectionState,
-                               WriteDisposition)
+from src.memory.models import (
+    ClaimDisposition,
+    LedgerState,
+    LedgerWrite,
+    MemoryIdempotencyConflict,
+    MemoryLedgerUnavailable,
+    MemoryRecord,
+    MemoryValidationError,
+    MemoryWriteCommand,
+    MemoryWriteReceipt,
+    ProjectionState,
+    WriteDisposition,
+)
 from src.memory.service import MemoryService
 
 

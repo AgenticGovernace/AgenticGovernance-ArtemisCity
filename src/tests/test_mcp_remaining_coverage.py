@@ -11,10 +11,10 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
-import src.mcp as mcp
 import src.mcp.config as mcp_config
 import src.mcp.hebbian_weights as hebbian_module
 import src.mcp.vector_store as vector_module
+from src import mcp
 from src.mcp.hebbian_weights import HebbianWeightManager
 from src.mcp.vector_store import LocalVectorStore
 

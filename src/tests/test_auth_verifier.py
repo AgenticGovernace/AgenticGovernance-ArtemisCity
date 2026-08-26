@@ -16,13 +16,18 @@ from urllib.parse import quote
 
 import pytest
 
-from src.auth.authstructure import (AuthstructureReceiptArtifact,
-                                    AuthstructureVerifier)
-from src.auth.config import (AuthConfigurationError, AuthstructureConfig,
-                             load_auth_verifier)
+from src.auth.authstructure import AuthstructureReceiptArtifact, AuthstructureVerifier
+from src.auth.config import (
+    AuthConfigurationError,
+    AuthstructureConfig,
+    load_auth_verifier,
+)
 from src.auth.contracts import AuthReceiptSourceV1, AuthReceiptV1, PrincipalV1
-from src.auth.verifier import (AuthenticationDenied, AuthenticationRequest,
-                               AuthorityContextFactory)
+from src.auth.verifier import (
+    AuthenticationDenied,
+    AuthenticationRequest,
+    AuthorityContextFactory,
+)
 from src.tests.fakes import FakeAuthVerifier
 
 NOW = datetime(2026, 8, 16, 12, 0, tzinfo=UTC)

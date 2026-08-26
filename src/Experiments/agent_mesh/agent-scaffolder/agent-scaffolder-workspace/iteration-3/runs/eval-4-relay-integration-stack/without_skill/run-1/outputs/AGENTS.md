@@ -10,16 +10,16 @@
 
 ## 0. At a glance
 
-| Field | Value |
-|-------|-------|
-| **Name** | Relay |
-| **Project** | ramble stack |
-| **Role** | Task-handoff dispatcher / router |
-| **Talks to other agents via** | Artemis Transmission Protocol (ATP) |
-| **Persistent memory** | Notion page — *"Relay — Reflections"* (survives across sessions) |
-| **Audit** | Append-only action log, every action, no exceptions (`logs/actions.log.jsonl`) |
-| **Runtime entrypoint** | `relay/agent.py` (`python -m relay`) |
-| **Config** | `relay/relay.config.json` |
+| Field                         | Value                                                                          |
+| ----------------------------- | ------------------------------------------------------------------------------ |
+| **Name**                      | Relay                                                                          |
+| **Project**                   | ramble stack                                                                   |
+| **Role**                      | Task-handoff dispatcher / router                                               |
+| **Talks to other agents via** | Artemis Transmission Protocol (ATP)                                            |
+| **Persistent memory**         | Notion page — _"Relay — Reflections"_ (survives across sessions)               |
+| **Audit**                     | Append-only action log, every action, no exceptions (`logs/actions.log.jsonl`) |
+| **Runtime entrypoint**        | `relay/agent.py` (`python -m relay`)                                           |
+| **Config**                    | `relay/relay.config.json`                                                      |
 
 ---
 
@@ -164,11 +164,11 @@ governed by [`ATP_PROTOCOL.md`](ATP_PROTOCOL.md). The essentials:
 
 ### Symmetric tags (the contract)
 
-| Relay sends | Valid replies from the downstream agent |
-|-------------|-----------------------------------------|
-| `==handoff==` | `==accept==` or `==decline==` |
-| `==ask==` | `==rephrase==` or `==decline==` |
-| `==ref==` | `==ref_ack==` |
+| Relay sends   | Valid replies from the downstream agent |
+| ------------- | --------------------------------------- |
+| `==handoff==` | `==accept==` or `==decline==`           |
+| `==ask==`     | `==rephrase==` or `==decline==`         |
+| `==ref==`     | `==ref_ack==`                           |
 
 - **Hash-based context linking:** Relay's block carries `ctx_<hash>`; the downstream
   agent's reply must carry the matching `reply_ctx_<hash>`. This links the two halves of
@@ -181,9 +181,9 @@ governed by [`ATP_PROTOCOL.md`](ATP_PROTOCOL.md). The essentials:
 
 ```
    PENDING ──send──▶ SENT ──==accept==──▶ IN_PROGRESS ──result──▶ DONE
-      │                │                                            
-      │                └──==decline==──▶ REROUTE (pick next agent)  
-      │                                                             
+      │                │
+      │                └──==decline==──▶ REROUTE (pick next agent)
+      │
       └──no ack within timeout──▶ TIMEOUT ──(retry ≤ max)──▶ ESCALATE
 ```
 
@@ -211,7 +211,7 @@ Each transition is **logged** (§6) and, if it's a major action, **reflected** (
 ## 5. Memory: persisting reflections to Notion
 
 - **Where:** the Notion page identified by `notion.reflections_page_id` in
-  `relay/relay.config.json` — titled *"Relay — Reflections"*.
+  `relay/relay.config.json` — titled _"Relay — Reflections"_.
 - **When:** after every major action and at session end (§ Reflection Trigger).
 - **What an entry contains:**
   - UTC timestamp + `session_id`.
@@ -272,7 +272,7 @@ Relay **halts** and escalates.
 
 - **Who do I hand off to?** → match capability in `relay/registry.json`.
 - **What format is a handoff?** → an ATP block (§3); written to `handoffs/outbox/<ctx>.atp`.
-- **Where's my memory?** → Notion page *"Relay — Reflections"* (id in config); mirror in `reflections/`.
+- **Where's my memory?** → Notion page _"Relay — Reflections"_ (id in config); mirror in `reflections/`.
 - **What do I log?** → everything, to `logs/actions.log.jsonl`, append-only, before done.
 - **What if I'm unsure?** → ask once, or escalate (§1). Never route on a guess.
 - **What if a tag is unknown?** → `==intersect_warning==` and halt.

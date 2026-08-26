@@ -21,19 +21,19 @@ The Artemis Transmission Protocol provides structured headers for communication.
 #### Components
 
 - **`atp_models.py`**: Data models for ATP messages
-    - `ATPMessage`: Core message structure
-    - `ATPMode`: Intent modes (Build, Review, Organize, Capture, Synthesize, Commit, Reflect)
-    - `ATPPriority`: Priority levels (Critical, High, Normal, Low)
-    - `ATPActionType`: Action types (Summarize, Scaffold, Execute, Reflect)
+  - `ATPMessage`: Core message structure
+  - `ATPMode`: Intent modes (Build, Review, Organize, Capture, Synthesize, Commit, Reflect)
+  - `ATPPriority`: Priority levels (Critical, High, Normal, Low)
+  - `ATPActionType`: Action types (Summarize, Scaffold, Execute, Reflect)
 
 - **`atp_parser.py`**: Parser supporting two syntax formats
-    - Hash format: `#Mode: Build #Context: description`
-    - Bracket format: `[[Mode]]: Build [[Context]]: description`
+  - Hash format: `#Mode: Build #Context: description`
+  - Bracket format: `[[Mode]]: Build [[Context]]: description`
 
 - **`atp_validator.py`**: Message validation and quality checks
-    - Completeness validation
-    - Consistency checks between Mode and ActionType
-    - Improvement suggestions
+  - Completeness validation
+  - Consistency checks between Mode and ActionType
+  - Improvement suggestions
 
 #### Usage Example
 
@@ -74,14 +74,14 @@ Cascading instruction loading from multiple scopes with priority-based merging.
 #### Components
 
 - **`instruction_loader.py`**: Hierarchical instruction loading
-    - Auto-detects project root (looks for .git, WARP.md, etc.)
-    - Loads and merges instructions by priority
-    - Returns `InstructionSet` with all scopes
+  - Auto-detects project root (looks for .git, WARP.md, etc.)
+  - Loads and merges instructions by priority
+  - Returns `InstructionSet` with all scopes
 
 - **`instruction_cache.py`**: TTL-based caching
-    - 5-minute default TTL
-    - Per-directory and per-agent caching
-    - Global cache instance available
+  - 5-minute default TTL
+  - Per-directory and per-agent caching
+  - Global cache instance available
 
 #### Usage Example
 
@@ -292,6 +292,7 @@ Create `WARP.md` or `Daemon.md` in project root:
 # Project: My System
 
 Artemis should:
+
 - Focus on system architecture and design patterns
 - Reference the ATP protocol for structured communication
 - Track concepts in the reflection engine
@@ -354,24 +355,24 @@ python -m pytest src/tests/ --cov --cov-report=html --cov-report=term
 ## Future Enhancements
 
 1. **Agent Communication Protocol** (`agents/communication/`)
-    - Message envelopes with context hashing
-    - Symmetric tag acknowledgment (==ref== → ==ref_ack==)
-    - Fault awareness for unknown tags
+   - Message envelopes with context hashing
+   - Symmetric tag acknowledgment (==ref== → ==ref_ack==)
+   - Fault awareness for unknown tags
 
 2. **Memory Integration Bridge** (`memory/integration/`)
-    - Trust score queries before routing
-    - REST client for Memory Layer
-    - Context loading from Obsidian vault
+   - Trust score queries before routing
+   - REST client for Memory Layer
+   - Context loading from Obsidian vault
 
 3. **Enhanced Reflection**
-    - NLP-based concept extraction
-    - Temporal pattern recognition
-    - Cross-session synthesis
+   - NLP-based concept extraction
+   - Temporal pattern recognition
+   - Cross-session synthesis
 
 4. **Advanced Tagging**
-    - Hierarchical tag taxonomy
-    - Tag inference from context
-    - Auto-tagging with ML
+   - Hierarchical tag taxonomy
+   - Tag inference from context
+   - Auto-tagging with ML
 
 ## Troubleshooting
 

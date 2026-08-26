@@ -14,8 +14,13 @@ from pathlib import Path
 import pytest
 
 from src.utils import run_logger as run_logger_module
-from src.utils.run_logger import (RunLogger, get_recent_runs, get_run_events,
-                                  get_run_logger, init_run_logger)
+from src.utils.run_logger import (
+    RunLogger,
+    get_recent_runs,
+    get_run_events,
+    get_run_logger,
+    init_run_logger,
+)
 
 
 @pytest.fixture(autouse=True)

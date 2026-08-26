@@ -1,9 +1,11 @@
 import json
-from typing import Optional
 
 from .base_agent import BaseAgent
-from .fallback_policy import (degraded_metadata, provider_failure_result,
-                              synthetic_fallback_enabled)
+from .fallback_policy import (
+    degraded_metadata,
+    provider_failure_result,
+    synthetic_fallback_enabled,
+)
 from .llm_agent import LLMAgent
 
 
@@ -13,7 +15,7 @@ class SummarizerAgent(BaseAgent):
     def __init__(
         self,
         name: str = "Summarizer Agent",
-        llm_agent: Optional[LLMAgent] = None,
+        llm_agent: LLMAgent | None = None,
     ):
         super().__init__(name, capabilities=["text_summarization"])
         self.llm_agent = llm_agent or LLMAgent()

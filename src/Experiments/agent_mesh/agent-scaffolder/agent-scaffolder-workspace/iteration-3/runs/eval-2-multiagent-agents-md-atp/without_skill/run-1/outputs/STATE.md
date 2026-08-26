@@ -12,10 +12,10 @@
 
 ## Documents
 
-| Document | Status | Owner | Round | Updated by | Note |
-|----------|--------|-------|-------|------------|------|
-| docs/getting-started.md | DRAFT | Writer | 0 | Writer | Seed row — authoring not yet started. |
-| docs/configuration.md | DRAFT | Writer | 0 | Writer | Seed row — authoring not yet started. |
+| Document                | Status | Owner  | Round | Updated by | Note                                  |
+| ----------------------- | ------ | ------ | ----- | ---------- | ------------------------------------- |
+| docs/getting-started.md | DRAFT  | Writer | 0     | Writer     | Seed row — authoring not yet started. |
+| docs/configuration.md   | DRAFT  | Writer | 0     | Writer     | Seed row — authoring not yet started. |
 
 <!--
 HOW TO USE THIS TABLE

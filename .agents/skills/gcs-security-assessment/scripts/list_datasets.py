@@ -21,8 +21,8 @@ using the Storage Insights API.
 from __future__ import annotations
 
 import argparse
-from collections.abc import Mapping, MutableSequence, Sequence
 import json
+from collections.abc import Mapping, MutableSequence, Sequence
 from typing import Any
 
 import cloud_rest_helpers_nodeps

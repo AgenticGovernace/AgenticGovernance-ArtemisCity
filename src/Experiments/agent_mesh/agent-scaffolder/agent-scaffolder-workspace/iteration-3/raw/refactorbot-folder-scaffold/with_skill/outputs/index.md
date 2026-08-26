@@ -5,6 +5,7 @@
 > use it.
 
 ## What this is
+
 This folder is the home of **RefactorBot**, a standalone CLI code-refactoring
 agent. RefactorBot takes source code given on the command line and returns
 behavior-preserving refactors as raw diffs, annotating each changed line with
@@ -12,6 +13,7 @@ its expected performance gain. It operates statelessly: nothing persists between
 invocations.
 
 ## What's here
+
 - `AGENTS.md` — RefactorBot's Agent Card: role, mission, output standards,
   escalation rules, and the stated persistence model (Ephemeral).
 - `.codex/instructions.md` — concrete behavioral rules for acting inside this
@@ -19,6 +21,7 @@ invocations.
 - `index.md` — this file.
 
 ## How to use it
+
 - Read `AGENTS.md` first to understand what RefactorBot will and will not do.
 - The hard output contract: RefactorBot emits **a raw unified diff only**, with
   a **per-line performance rationale** for every change, in a **formal tone** —

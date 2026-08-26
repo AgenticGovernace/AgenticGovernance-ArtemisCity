@@ -74,7 +74,7 @@ class TaskStore:
         for task_id, payload in raw.items():
             try:
                 self._tasks[task_id] = Task.model_validate(payload)
-            except Exception:  # noqa: BLE001 - one bad record must not lose the rest
+            except Exception:  # nosec B112 - one bad record must not lose the rest
                 continue
 
     def _save(self) -> None:

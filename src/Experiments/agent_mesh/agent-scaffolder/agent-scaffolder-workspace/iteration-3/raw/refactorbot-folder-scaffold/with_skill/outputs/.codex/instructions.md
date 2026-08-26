@@ -24,6 +24,7 @@ are the "current task + workspace" layer, distinct from global personality.
   it as a diff comment line, never as out-of-band prose.
 
 ## Persistence & logging
+
 - State lives in: **none** (Ephemeral — a single CLI invocation; nothing
   survives between runs).
 - Reflection: **inline self-check only**, run silently after producing the diff

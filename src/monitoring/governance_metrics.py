@@ -30,7 +30,7 @@ reports metrics as unavailable instead of crashing.
 from __future__ import annotations
 
 import sqlite3
-from typing import Iterable, Optional
+from collections.abc import Iterable
 from urllib.parse import quote
 
 from src.runtime_paths import data_path
@@ -72,8 +72,8 @@ class GovernanceCollector:
 
     def __init__(
         self,
-        registry_db: Optional[str] = None,
-        hebbian_db: Optional[str] = None,
+        registry_db: str | None = None,
+        hebbian_db: str | None = None,
     ):
         self._registry_db_override = registry_db
         self._hebbian_db_override = hebbian_db
@@ -95,7 +95,7 @@ class GovernanceCollector:
             env_var="ARTEMIS_HEBBIAN_DB",
         )
 
-    def collect(self) -> Iterable["GaugeMetricFamily"]:
+    def collect(self) -> Iterable[GaugeMetricFamily]:
         """Yield governance metric families for the current store state."""
         scrape_ok = GaugeMetricFamily(
             "artemis_governance_scrape_ok",
@@ -176,8 +176,8 @@ class GovernanceCollector:
 
 
 def governance_snapshot(
-    registry_db: Optional[str] = None,
-    hebbian_db: Optional[str] = None,
+    registry_db: str | None = None,
+    hebbian_db: str | None = None,
 ) -> dict:
     """JSON-ready governance state for the dashboard monitoring page.
 
@@ -256,10 +256,10 @@ def governance_snapshot(
     }
 
 
-_registered: Optional[GovernanceCollector] = None
+_registered: GovernanceCollector | None = None
 
 
-def register_governance_collector() -> Optional[GovernanceCollector]:
+def register_governance_collector() -> GovernanceCollector | None:
     """Register the collector on the default registry, once per process.
 
     Re-imports (the test suite's ``sys.modules.pop`` pattern) and repeat

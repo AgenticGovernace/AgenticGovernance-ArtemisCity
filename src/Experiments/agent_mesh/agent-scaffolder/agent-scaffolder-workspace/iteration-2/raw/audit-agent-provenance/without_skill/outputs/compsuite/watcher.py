@@ -23,9 +23,8 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
-from .classifier import Classification, FileEvent, Severity, classify_safe
+from .classifier import Classification, FileEvent, classify_safe
 from .escalation import Escalator
 from .provenance import ProvenanceLedger
 from .reflection import ReflectionEngine
@@ -135,7 +134,7 @@ class Watcher:
 
     def _make_event(self, abs_path: str, kind: str) -> FileEvent:
         p = Path(abs_path)
-        size: Optional[int] = None
+        size: int | None = None
         if kind != "deleted":
             try:
                 size = p.stat().st_size
@@ -194,7 +193,7 @@ class Watcher:
         self.ledger.checkpoint({"watched": len(new_snap)})
         return results
 
-    def run_forever(self, *, max_cycles: Optional[int] = None) -> None:
+    def run_forever(self, *, max_cycles: int | None = None) -> None:
         """Run unattended until stopped (or ``max_cycles`` cycles elapse).
 
         ``max_cycles`` is mainly for tests / bounded runs; leave None for a

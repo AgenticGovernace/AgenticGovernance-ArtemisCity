@@ -11,8 +11,9 @@ import logging
 import os
 import sqlite3
 import sys
+from collections.abc import Callable
 from pathlib import Path, PurePosixPath
-from typing import Any, Callable, Dict, List
+from typing import Any
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException
@@ -27,8 +28,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from src.obsidian_integration.parser import ObsidianParser  # noqa: E402
-from src.runtime_paths import data_dir, data_path  # noqa: E402
+from src.obsidian_integration.parser import ObsidianParser
+from src.runtime_paths import data_dir, data_path
 
 _shared_sanitize_for_log: Callable[..., str] | None
 try:
@@ -55,8 +56,7 @@ def _sanitize_for_log(value: Any) -> str:
 import_error: Exception | None = None
 
 try:
-    from src.mcp.config import (AGENT_INPUT_DIR, AGENT_OUTPUT_DIR,
-                                OBSIDIAN_VAULT_PATH)
+    from src.mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
     from src.mcp.orchestrator import Orchestrator
     from src.utils.helpers import logger
 except Exception as e:
@@ -103,7 +103,7 @@ class TaskData(BaseModel):
     context: str | None = None
     keywords: str | None = None
     target: str | None = None
-    subtasks: List[Dict[str, Any]] | None = None
+    subtasks: list[dict[str, Any]] | None = None
 
 
 class AgentResponse(BaseModel):
@@ -115,7 +115,7 @@ class AgentResponse(BaseModel):
     """
 
     name: str
-    capabilities: List[str]
+    capabilities: list[str]
 
 
 class ReportSummary(BaseModel):
@@ -147,7 +147,7 @@ class AgentScore(BaseModel):
     """
 
     name: str
-    capabilities: List[str]
+    capabilities: list[str]
     alignment: float
     accuracy: float
     efficiency: float
@@ -346,7 +346,7 @@ class RoutingCapabilityInfo(BaseModel):
 
     name: str
     kernel_reviewed: bool
-    agents: List[str] = Field(default_factory=list)
+    agents: list[str] = Field(default_factory=list)
 
 
 class RoutingSentinelConfig(BaseModel):
@@ -402,10 +402,10 @@ class RoutingConfigResponse(BaseModel):
     trust_floor: float
     fallback_capability: str | None = None
     atp_strict: bool = False
-    reviewed_capabilities: List[str] = Field(default_factory=list)
-    capabilities: List[RoutingCapabilityInfo] = Field(default_factory=list)
+    reviewed_capabilities: list[str] = Field(default_factory=list)
+    capabilities: list[RoutingCapabilityInfo] = Field(default_factory=list)
     sentinel: RoutingSentinelConfig
-    routing_paths: List[str] = Field(default_factory=list)
+    routing_paths: list[str] = Field(default_factory=list)
 
 
 class ExecuteInstructionRequest(BaseModel):
@@ -451,23 +451,23 @@ class ExecuteInstructionResponse(BaseModel):
     # {agent_name, alpha, beta, trust_floor, fallback_from, capability,
     #  routing_scope, atp_action_type, routing_path,
     #  candidates: [{name, composite, hebbian_weight, hebbian_norm, ...}]}.
-    routing: Dict[str, Any] | None = None
+    routing: dict[str, Any] | None = None
     # Which routing implementation served this task: "kernel" for an
     # authorized Routing Kernel route, "pinned" when the caller named the
     # agent, or one of the legacy_* values when the kernel could not serve it.
     # Mirrors RoutingDecision.routing_path so the UI can label the path even
     # for pinned calls, which carry no decision object.
     routing_path: str | None = None
-    atp: Dict[str, Any] | None = None
+    atp: dict[str, Any] | None = None
     provenance_id: str | None = None
     provider: str | None = None
     fallback_used: bool | None = None
     model: str | None = None
     outcome_class: str | None = None
     learning_eligible: bool | None = None
-    exo_request: Dict[str, Any] | None = None
+    exo_request: dict[str, Any] | None = None
     compressed_context: str | None = None
-    output_compression: Dict[str, Any] | None = None
+    output_compression: dict[str, Any] | None = None
 
 
 # SQLite paths -- align with the rest of the project, which writes to
@@ -792,7 +792,7 @@ def _get_vault_path() -> Path:
     return full_path
 
 
-def _list_markdown_files(folder: Path) -> List[str]:
+def _list_markdown_files(folder: Path) -> list[str]:
     if not folder.is_dir():
         return []
     return sorted(
@@ -878,7 +878,7 @@ def _resolve_task_note_path(relative_path: str) -> str:
     return resolved
 
 
-def _parse_task_note(content: str) -> Dict[str, Any] | None:
+def _parse_task_note(content: str) -> dict[str, Any] | None:
     """Parse task Markdown through the canonical Obsidian parser."""
     return ObsidianParser().parse_task_note(content)
 
@@ -1154,8 +1154,11 @@ async def metrics() -> Response:
     governance state (trust scores, statuses, Sentinel alerts) and
     process metrics only — never secrets or request content.
     """
-    from src.monitoring import (metrics_content_type,
-                                register_governance_collector, render_metrics)
+    from src.monitoring import (
+        metrics_content_type,
+        register_governance_collector,
+        render_metrics,
+    )
 
     register_governance_collector()
     payload = render_metrics()
@@ -1165,7 +1168,7 @@ async def metrics() -> Response:
 
 
 @app.get("/health")
-async def health() -> Dict[str, Any]:
+async def health() -> dict[str, Any]:
     """Container-level liveness probe.
 
     Unauthenticated by design so docker-compose / k8s healthchecks can
@@ -1180,7 +1183,7 @@ async def health() -> Dict[str, Any]:
     }
 
 
-@app.get("/api/agents", response_model=List[AgentResponse])
+@app.get("/api/agents", response_model=list[AgentResponse])
 async def get_agents(_key: None = Depends(_require_api_key)):
     """Return the registered agents exposed by the dashboard API.
 
@@ -1221,7 +1224,7 @@ async def get_agents(_key: None = Depends(_require_api_key)):
             FROM agents
             ORDER BY name ASC
             """).fetchall()
-        agents: List[AgentResponse] = []
+        agents: list[AgentResponse] = []
         for row in rows:
             capabilities = _parse_json(row["capabilities"], [])
             if not isinstance(capabilities, list):
@@ -1396,9 +1399,12 @@ async def get_task_activity(
     for event in events:
         metadata = event["metadata"]
         event_type = event["event_type"]
-        if event_type == "prompt_received" and event["prov_id"]:
-            provenance_id = str(event["prov_id"])
-        elif provenance_id is None and event["prov_id"]:
+        if (
+            event_type == "prompt_received"
+            and event["prov_id"]
+            or provenance_id is None
+            and event["prov_id"]
+        ):
             provenance_id = str(event["prov_id"])
 
         if event_type == "routing_decision":
@@ -1482,7 +1488,7 @@ async def create_task(task_data: TaskData, _key: None = Depends(_require_api_key
         raise HTTPException(status_code=500, detail="Failed to create task.")
 
 
-@app.get("/api/reports", response_model=List[ReportSummary])
+@app.get("/api/reports", response_model=list[ReportSummary])
 async def get_reports(_key: None = Depends(_require_api_key)):
     """Return summary metadata for stored agent reports.
 
@@ -1611,7 +1617,7 @@ async def get_report_content(filename: str, _key: None = Depends(_require_api_ke
 
 @app.post("/api/execute-task")
 async def execute_pending_task(
-    task_path: Dict[str, str], _key: None = Depends(_require_api_key)
+    task_path: dict[str, str], _key: None = Depends(_require_api_key)
 ):
     """Execute a specific pending task note identified by its relative path.
 
@@ -1731,7 +1737,7 @@ async def execute_all_pending_tasks(_key: None = Depends(_require_api_key)):
 # --- Database Viewer Endpoints ---
 
 
-@app.get("/api/db/agents", response_model=List[AgentScore])
+@app.get("/api/db/agents", response_model=list[AgentScore])
 async def get_agent_scores(_key: None = Depends(_require_api_key)):
     """Return score and capability data for all registered agents.
 
@@ -1773,7 +1779,7 @@ async def get_agent_scores(_key: None = Depends(_require_api_key)):
             ORDER BY name ASC
             """).fetchall()
 
-        agents: List[AgentScore] = []
+        agents: list[AgentScore] = []
         for row in rows:
             capabilities = _parse_json(row["capabilities"], [])
             if not isinstance(capabilities, list):
@@ -1871,7 +1877,7 @@ async def get_hebbian_stats(_key: None = Depends(_require_api_key)):
         conn.close()
 
 
-@app.get("/api/db/hebbian/connections", response_model=List[HebbianConnection])
+@app.get("/api/db/hebbian/connections", response_model=list[HebbianConnection])
 async def get_hebbian_connections(
     limit: int = 50, _key: None = Depends(_require_api_key)
 ):
@@ -1999,7 +2005,7 @@ async def get_hebbian_sentinel_status(
     conn = _connect_db(HEBBIAN_DB)
     try:
         clauses = []
-        params: List[Any] = []
+        params: list[Any] = []
         if agent_name:
             clauses.append("agent_name = ?")
             params.append(agent_name)
@@ -2132,7 +2138,7 @@ async def list_vectors(
         conn.close()
 
 
-@app.get("/api/db/runs", response_model=List[RunSummary])
+@app.get("/api/db/runs", response_model=list[RunSummary])
 async def get_runs(limit: int = 20, _key: None = Depends(_require_api_key)):
     """Return recent orchestration runs with summary metadata.
 
@@ -2207,7 +2213,7 @@ async def get_run_events_endpoint(
             FROM event_log
             WHERE run_id = ?
         """
-        params: List[Any] = [run_id]
+        params: list[Any] = [run_id]
         if event_type:
             query += " AND event_type = ?"
             params.append(event_type)
@@ -2244,7 +2250,7 @@ async def get_run_events_endpoint(
 # read-only viewer cannot become a second write path.
 
 
-@app.get("/api/db/trust", response_model=List[TrustScoreRecord])
+@app.get("/api/db/trust", response_model=list[TrustScoreRecord])
 async def get_trust_scores(
     entity_type: str | None = None,
     limit: int = 200,
@@ -2264,7 +2270,7 @@ async def get_trust_scores(
         raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
     conn = _connect_db(TRUST_DB)
     try:
-        params: List[Any] = []
+        params: list[Any] = []
         query = (
             "SELECT entity_type, entity_id, score, level, decay_rate, "
             "reinforcement_events, penalty_events, last_updated FROM trust_scores"
@@ -2297,7 +2303,7 @@ async def get_trust_scores(
         conn.close()
 
 
-@app.get("/api/db/violations", response_model=List[ViolationRecord])
+@app.get("/api/db/violations", response_model=list[ViolationRecord])
 async def get_violations(
     agent_name: str | None = None,
     open_only: bool = False,
@@ -2319,8 +2325,8 @@ async def get_violations(
         raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
     conn = _connect_db(AGENT_REGISTRY_DB)
     try:
-        clauses: List[str] = []
-        params: List[Any] = []
+        clauses: list[str] = []
+        params: list[Any] = []
         if agent_name:
             clauses.append("agent_name = ?")
             params.append(agent_name)
@@ -2356,7 +2362,7 @@ async def get_violations(
         conn.close()
 
 
-@app.get("/api/db/delegation/grants", response_model=List[DelegationGrantSummary])
+@app.get("/api/db/delegation/grants", response_model=list[DelegationGrantSummary])
 async def get_delegation_grants(
     limit: int = 100,
     _key: None = Depends(_require_api_key),
@@ -2397,7 +2403,7 @@ async def get_delegation_grants(
 
 @app.get(
     "/api/db/delegation/reservations",
-    response_model=List[BudgetReservationSummary],
+    response_model=list[BudgetReservationSummary],
 )
 async def get_budget_reservations(
     limit: int = 100,
@@ -2478,7 +2484,7 @@ async def get_routing_config(_key: None = Depends(_require_api_key)):
     try:
         from src.integration.hebbian_router import ROUTING_PATHS
     except Exception:  # pragma: no cover - SQLite-only fallback mode
-        routing_paths: List[str] = []
+        routing_paths: list[str] = []
     else:
         routing_paths = list(ROUTING_PATHS)
 
@@ -2505,13 +2511,13 @@ async def get_routing_config(_key: None = Depends(_require_api_key)):
     try:
         router = orchestrator.hebbian_router
         kernel = getattr(orchestrator, "routing_kernel", None)
-        reviewed: List[str] = []
+        reviewed: list[str] = []
         if kernel is not None:
             reviewed = sorted(kernel.routable_capabilities)
 
         # Advertise only capabilities a loaded agent actually declares, so the
         # executor's dropdown cannot offer a target with no possible candidate.
-        by_capability: Dict[str, List[str]] = {}
+        by_capability: dict[str, list[str]] = {}
         for agent in orchestrator.agent_registry.get_all_agents():
             for capability in getattr(agent, "capabilities", []) or []:
                 by_capability.setdefault(str(capability), []).append(agent.name)
@@ -2595,7 +2601,7 @@ async def execute_instruction(
                 effective_capability = agent_for_dispatch.capabilities[0]
 
         # Build task data
-        task_data: Dict[str, Any] = {
+        task_data: dict[str, Any] = {
             "task_id": task_id,
             "title": task_title,
             "context": request.instruction,
@@ -2784,7 +2790,7 @@ async def execute_instruction_stream(
         if not request.capability and agent_obj.capabilities:
             effective_capability = agent_obj.capabilities[0]
 
-    task_data: Dict[str, Any] = {
+    task_data: dict[str, Any] = {
         "task_id": task_id,
         "title": task_title,
         "context": request.instruction,
@@ -2851,7 +2857,7 @@ async def execute_instruction_stream(
                     # unbounded token backlog once nobody can consume it.
                     if not consumer_closed.is_set():
                         event_queue.put(item)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.error("Streaming executor worker crashed.", exc_info=True)
                 if not consumer_closed.is_set():
                     event_queue.put(
@@ -2950,7 +2956,7 @@ async def execute_instruction_stream(
             # The worker deliberately continues to finalize the governed task
             # even when a browser closes the stream.
             return
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.error("Streaming event encoder crashed.", exc_info=True)
             yield _sse_pack(
                 "error",

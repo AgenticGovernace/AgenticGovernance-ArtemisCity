@@ -15,7 +15,7 @@ import uuid
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.runtime_paths import data_path, log_path
 
@@ -33,9 +33,9 @@ class RunLogger:
 
     def __init__(
         self,
-        log_dir: Optional[str] = None,
-        db_path: Optional[str] = None,
-        run_id: Optional[str] = None,
+        log_dir: str | None = None,
+        db_path: str | None = None,
+        run_id: str | None = None,
     ):
         self.log_dir = Path(log_path(".", log_dir))
         self.db_path = data_path("run_logs.db", db_path, env_var="ARTEMIS_RUN_LOG_DB")
@@ -43,7 +43,7 @@ class RunLogger:
             f"{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}_{uuid.uuid4().hex[:8]}"
         )
         self.run_start_time = time.perf_counter()
-        self._events: List[Dict] = []
+        self._events: list[dict] = []
 
         # Ensure directories exist
         self.log_dir.mkdir(parents=True, exist_ok=True)
@@ -186,11 +186,11 @@ class RunLogger:
         self,
         event_type: str,
         component: str,
-        metadata: Optional[Dict] = None,
-        message: Optional[str] = None,
-        duration_ms: Optional[float] = None,
-        prov_id: Optional[str] = None,
-        parent_prov_id: Optional[str] = None,
+        metadata: dict | None = None,
+        message: str | None = None,
+        duration_ms: float | None = None,
+        prov_id: str | None = None,
+        parent_prov_id: str | None = None,
     ) -> str:
         """Log a general event.
 
@@ -267,9 +267,9 @@ class RunLogger:
         doc_id: str,
         operation: str,
         content: str,
-        embedding: List[float],
-        metadata: Optional[Dict] = None,
-        latency_ms: Optional[float] = None,
+        embedding: list[float],
+        metadata: dict | None = None,
+        latency_ms: float | None = None,
     ):
         """Log a vector store operation.
 
@@ -338,10 +338,10 @@ class RunLogger:
         database: str,
         table_name: str,
         operation: str,
-        record_id: Optional[str] = None,
-        data: Optional[Dict] = None,
+        record_id: str | None = None,
+        data: dict | None = None,
         rows_affected: int = 1,
-        latency_ms: Optional[float] = None,
+        latency_ms: float | None = None,
     ):
         """Log a database write operation.
 
@@ -412,9 +412,9 @@ class RunLogger:
         agent_name: str,
         status: str,
         duration_ms: float,
-        metadata: Optional[Dict] = None,
-        prov_id: Optional[str] = None,
-        parent_prov_id: Optional[str] = None,
+        metadata: dict | None = None,
+        prov_id: str | None = None,
+        parent_prov_id: str | None = None,
     ):
         """Log task execution details.
 
@@ -450,7 +450,7 @@ class RunLogger:
         operation: str,
         old_weight: float,
         new_weight: float,
-        latency_ms: Optional[float] = None,
+        latency_ms: float | None = None,
     ):
         """Log Hebbian weight updates.
 
@@ -494,10 +494,10 @@ class RunLogger:
         operation: str,
         path: str,
         status: str,
-        vector_latency_ms: Optional[float] = None,
-        file_latency_ms: Optional[float] = None,
-        total_latency_ms: Optional[float] = None,
-        metadata: Optional[Dict] = None,
+        vector_latency_ms: float | None = None,
+        file_latency_ms: float | None = None,
+        total_latency_ms: float | None = None,
+        metadata: dict | None = None,
     ):
         """Log memory bus operations.
 
@@ -530,7 +530,7 @@ class RunLogger:
 
     @contextmanager
     def timed_operation(
-        self, event_type: str, component: str, metadata: Optional[Dict] = None
+        self, event_type: str, component: str, metadata: dict | None = None
     ):
         """Context manager for timing operations.
 
@@ -548,7 +548,7 @@ class RunLogger:
             None: This function does not return a value.
         """
         start = time.perf_counter()
-        context: Dict[str, Any] = {"metadata": metadata or {}}
+        context: dict[str, Any] = {"metadata": metadata or {}}
         try:
             yield context
             status = str(context.get("status", "success"))
@@ -571,7 +571,7 @@ class RunLogger:
                 duration_ms,
             )
 
-    def finalize_run(self, status: str = "completed", summary: Optional[Dict] = None):
+    def finalize_run(self, status: str = "completed", summary: dict | None = None):
         """Finalize the run log with summary statistics.
 
         Args:
@@ -650,7 +650,7 @@ class RunLogger:
 
         self._append_md_section(summary_md)
 
-    def get_run_stats(self) -> Dict:
+    def get_run_stats(self) -> dict:
         """Get statistics for the current run.
 
         Returns:
@@ -676,7 +676,7 @@ class RunLogger:
 
 
 # Global run logger instance (initialized on import or explicitly)
-_run_logger: Optional[RunLogger] = None
+_run_logger: RunLogger | None = None
 
 
 def get_run_logger() -> RunLogger:
@@ -692,9 +692,9 @@ def get_run_logger() -> RunLogger:
 
 
 def init_run_logger(
-    log_dir: Optional[str] = None,
-    db_path: Optional[str] = None,
-    run_id: Optional[str] = None,
+    log_dir: str | None = None,
+    db_path: str | None = None,
+    run_id: str | None = None,
 ) -> RunLogger:
     """Initialize a new run logger (resets the global instance).
 
@@ -711,7 +711,7 @@ def init_run_logger(
     return _run_logger
 
 
-def get_recent_runs(db_path: Optional[str] = None, limit: int = 20) -> List[Dict]:
+def get_recent_runs(db_path: str | None = None, limit: int = 20) -> list[dict]:
     """
     Get recent runs with summary statistics.
 
@@ -759,11 +759,11 @@ def get_recent_runs(db_path: Optional[str] = None, limit: int = 20) -> List[Dict
 
 
 def get_run_events(
-    db_path: Optional[str] = None,
-    run_id: Optional[str] = None,
-    event_type: Optional[str] = None,
+    db_path: str | None = None,
+    run_id: str | None = None,
+    event_type: str | None = None,
     limit: int = 100,
-) -> List[Dict]:
+) -> list[dict]:
     """
     Get events for a specific run, optionally filtered by event type.
 

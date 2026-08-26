@@ -12,8 +12,8 @@ import math
 import os
 import sqlite3
 import time
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from utils.helpers import logger
 
@@ -34,7 +34,7 @@ def _get_run_logger():
     return _run_logger
 
 
-def _default_embedding(text: str, dim: int = 16) -> List[float]:
+def _default_embedding(text: str, dim: int = 16) -> list[float]:
     """
     Deterministic, lightweight embedding stub (hash-bucketed character n-grams).
     This is a placeholder for a real embedding model; it keeps tests and local usage self-contained.
@@ -47,7 +47,7 @@ def _default_embedding(text: str, dim: int = 16) -> List[float]:
     return [v / norm for v in buckets]
 
 
-def _cosine_similarity(a: List[float], b: List[float]) -> float:
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
     if not a or not b or len(a) != len(b):
         return 0.0
     dot = sum(x * y for x, y in zip(a, b))
@@ -59,8 +59,8 @@ def _cosine_similarity(a: List[float], b: List[float]) -> float:
 @dataclass
 class VectorRecord:
     doc_id: str
-    embedding: List[float]
-    metadata: Dict
+    embedding: list[float]
+    metadata: dict
     content: str
 
 
@@ -73,7 +73,7 @@ class LocalVectorStore:
     def __init__(
         self,
         db_path: str = "data/vector_store.db",
-        embedding_fn: Optional[Callable[[str], List[float]]] = None,
+        embedding_fn: Callable[[str], list[float]] | None = None,
     ):
         self.db_path = db_path
         self.embedding_fn = embedding_fn or _default_embedding
@@ -100,7 +100,7 @@ class LocalVectorStore:
                 """)
             conn.commit()
 
-    def upsert(self, doc_id: str, content: str, metadata: Optional[Dict] = None):
+    def upsert(self, doc_id: str, content: str, metadata: dict | None = None):
         """Insert or replace a document with its embedding."""
         start_time = time.perf_counter()
 
@@ -147,7 +147,7 @@ class LocalVectorStore:
                 latency_ms=latency_ms,
             )
 
-    def upsert_many(self, records: Iterable[Tuple[str, str, Optional[Dict]]]):
+    def upsert_many(self, records: Iterable[tuple[str, str, dict | None]]):
         """Bulk upsert helper."""
         for doc_id, content, metadata in records:
             self.upsert(doc_id, content, metadata)
@@ -188,7 +188,7 @@ class LocalVectorStore:
 
     def query(
         self, text: str, top_k: int = 5, include_content: bool = False
-    ) -> List[Tuple]:
+    ) -> list[tuple]:
         """
         Return top_k similarity results ordered by cosine similarity.
 
@@ -205,7 +205,7 @@ class LocalVectorStore:
         start_time = time.perf_counter()
 
         query_embedding = self.embedding_fn(text)
-        scored: List[Tuple[str, float, Dict]] = []
+        scored: list[tuple[str, float, dict]] = []
         for record in self.fetch_all():
             score = _cosine_similarity(query_embedding, record.embedding)
             if include_content:

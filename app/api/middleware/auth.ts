@@ -4,8 +4,8 @@
  * Handles API authentication and authorization.
  */
 
-import { Request, Response, NextFunction } from 'express';
-import { sanitizeForLog } from './logger';
+import { Request, Response, NextFunction } from "express";
+import { sanitizeForLog } from "./logger";
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -39,12 +39,14 @@ function loadApiKeys(): Record<string, ApiKeyEntry> {
   const keys: Record<string, ApiKeyEntry> = {};
 
   for (const [envName, envValue] of Object.entries(process.env)) {
-    if (!envName.startsWith('ARTEMIS_API_KEY_') || !envValue) continue;
+    if (!envName.startsWith("ARTEMIS_API_KEY_") || !envValue) continue;
 
-    const userId = envName.replace('ARTEMIS_API_KEY_', '').toLowerCase();
-    const parts = envValue.split(':');
+    const userId = envName.replace("ARTEMIS_API_KEY_", "").toLowerCase();
+    const parts = envValue.split(":");
     if (parts.length < 3) {
-      console.warn(`[AUTH] Malformed key env var ${sanitizeForLog(envName)}: expected key:role:permissions`);
+      console.warn(
+        `[AUTH] Malformed key env var ${sanitizeForLog(envName)}: expected key:role:permissions`,
+      );
       continue;
     }
 
@@ -52,7 +54,7 @@ function loadApiKeys(): Record<string, ApiKeyEntry> {
     keys[apiKey] = {
       userId,
       role,
-      permissions: permsRaw.split(',').map(p => p.trim()),
+      permissions: permsRaw.split(",").map((p) => p.trim()),
     };
   }
 
@@ -60,12 +62,14 @@ function loadApiKeys(): Record<string, ApiKeyEntry> {
     const fallbackKey = process.env.MCP_API_KEY;
     if (fallbackKey) {
       keys[fallbackKey] = {
-        userId: 'default',
-        role: 'admin',
-        permissions: ['read', 'write', 'delete', 'admin'],
+        userId: "default",
+        role: "admin",
+        permissions: ["read", "write", "delete", "admin"],
       };
     } else {
-      console.error('[AUTH] No API keys configured. Set ARTEMIS_API_KEY_* or MCP_API_KEY env vars.');
+      console.error(
+        "[AUTH] No API keys configured. Set ARTEMIS_API_KEY_* or MCP_API_KEY env vars.",
+      );
     }
   }
 
@@ -82,28 +86,40 @@ const API_KEYS = loadApiKeys();
  * @param next - Express callback that passes control to the next middleware.
  * @returns Nothing. The middleware completes its work through side effects on the request/response cycle.
  */
-export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-  if (process.env.NODE_ENV === 'development' && process.env.SKIP_AUTH === 'true') {
-    console.warn('[AUTH] WARNING: Auth bypass active (SKIP_AUTH=true). Do NOT use in production.');
+export const authMiddleware = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+): void => {
+  if (
+    process.env.NODE_ENV === "development" &&
+    process.env.SKIP_AUTH === "true"
+  ) {
+    console.warn(
+      "[AUTH] WARNING: Auth bypass active (SKIP_AUTH=true). Do NOT use in production.",
+    );
     req.user = {
-      id: 'dev-user',
-      role: 'admin',
-      permissions: ['read', 'write', 'delete', 'admin']
+      id: "dev-user",
+      role: "admin",
+      permissions: ["read", "write", "delete", "admin"],
     };
     next();
     return;
   }
 
-  if (process.env.SKIP_AUTH === 'true' && process.env.NODE_ENV !== 'development') {
+  if (
+    process.env.SKIP_AUTH === "true" &&
+    process.env.NODE_ENV !== "development"
+  ) {
     console.error('[AUTH] SKIP_AUTH ignored: NODE_ENV is not "development".');
   }
 
   const authHeader = req.headers.authorization;
-  const apiKey = req.headers['x-api-key'] as string;
+  const apiKey = req.headers["x-api-key"] as string;
 
   let key: string | undefined;
 
-  if (authHeader?.startsWith('Bearer ')) {
+  if (authHeader?.startsWith("Bearer ")) {
     key = authHeader.substring(7);
   } else if (apiKey) {
     key = apiKey;
@@ -112,8 +128,9 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
   if (!key) {
     res.status(401).json({
       success: false,
-      error: 'Authentication required',
-      message: 'Please provide an API key via Authorization header (Bearer token) or X-API-Key header'
+      error: "Authentication required",
+      message:
+        "Please provide an API key via Authorization header (Bearer token) or X-API-Key header",
     });
     return;
   }
@@ -122,8 +139,8 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
   if (!keyData) {
     res.status(401).json({
       success: false,
-      error: 'Invalid API key',
-      message: 'The provided API key is not valid'
+      error: "Invalid API key",
+      message: "The provided API key is not valid",
     });
     return;
   }
@@ -131,7 +148,7 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
   req.user = {
     id: keyData.userId,
     role: keyData.role,
-    permissions: keyData.permissions
+    permissions: keyData.permissions,
   };
   req.apiKey = key;
 
@@ -145,20 +162,27 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
  * @returns Express middleware that rejects callers missing the requested permission.
  */
 export const requirePermission = (permission: string) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+  return (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ): void => {
     if (!req.user) {
       res.status(401).json({
         success: false,
-        error: 'Authentication required'
+        error: "Authentication required",
       });
       return;
     }
 
-    if (!req.user.permissions.includes(permission) && !req.user.permissions.includes('admin')) {
+    if (
+      !req.user.permissions.includes(permission) &&
+      !req.user.permissions.includes("admin")
+    ) {
       res.status(403).json({
         success: false,
-        error: 'Permission denied',
-        message: `This action requires '${permission}' permission`
+        error: "Permission denied",
+        message: `This action requires '${permission}' permission`,
       });
       return;
     }
@@ -174,11 +198,15 @@ export const requirePermission = (permission: string) => {
  * @returns Express middleware that rejects callers outside the allowed role set.
  */
 export const requireRole = (...roles: string[]) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+  return (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ): void => {
     if (!req.user) {
       res.status(401).json({
         success: false,
-        error: 'Authentication required'
+        error: "Authentication required",
       });
       return;
     }
@@ -186,8 +214,8 @@ export const requireRole = (...roles: string[]) => {
     if (!roles.includes(req.user.role)) {
       res.status(403).json({
         success: false,
-        error: 'Role not authorized',
-        message: `This action requires one of these roles: ${roles.join(', ')}`
+        error: "Role not authorized",
+        message: `This action requires one of these roles: ${roles.join(", ")}`,
       });
       return;
     }
@@ -199,7 +227,8 @@ export const requireRole = (...roles: string[]) => {
 /**
  * Rate limiting state.
  */
-const rateLimitStore: Map<string, { count: number; resetTime: number }> = new Map();
+const rateLimitStore: Map<string, { count: number; resetTime: number }> =
+  new Map();
 
 /**
  * Create request-rate-limiting middleware.
@@ -207,18 +236,26 @@ const rateLimitStore: Map<string, { count: number; resetTime: number }> = new Ma
  * @param options - Optional rate-limit settings such as window size and request budget.
  * @returns Express middleware that enforces the configured request budget.
  */
-export const rateLimit = (options: { windowMs?: number; maxRequests?: number } = {}) => {
+export const rateLimit = (
+  options: { windowMs?: number; maxRequests?: number } = {},
+) => {
   const requestedWindow = options.windowMs ?? 60000;
   const requestedMaximum = options.maxRequests ?? 100;
-  const windowMs = Number.isFinite(requestedWindow) && requestedWindow > 0
-    ? Math.floor(requestedWindow)
-    : 60000;
-  const maxRequests = Number.isFinite(requestedMaximum) && requestedMaximum > 0
-    ? Math.floor(requestedMaximum)
-    : 100;
+  const windowMs =
+    Number.isFinite(requestedWindow) && requestedWindow > 0
+      ? Math.floor(requestedWindow)
+      : 60000;
+  const maxRequests =
+    Number.isFinite(requestedMaximum) && requestedMaximum > 0
+      ? Math.floor(requestedMaximum)
+      : 100;
 
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-    const key = req.apiKey || req.ip || 'anonymous';
+  return (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ): void => {
+    const key = req.apiKey || req.ip || "anonymous";
     const now = Date.now();
 
     let record = rateLimitStore.get(key);
@@ -239,18 +276,27 @@ export const rateLimit = (options: { windowMs?: number; maxRequests?: number } =
     record.count++;
     rateLimitStore.set(key, record);
 
-    res.setHeader('X-RateLimit-Limit', maxRequests.toString());
-    res.setHeader('X-RateLimit-Remaining', Math.max(0, maxRequests - record.count).toString());
-    res.setHeader('X-RateLimit-Reset', Math.ceil(record.resetTime / 1000).toString());
+    res.setHeader("X-RateLimit-Limit", maxRequests.toString());
+    res.setHeader(
+      "X-RateLimit-Remaining",
+      Math.max(0, maxRequests - record.count).toString(),
+    );
+    res.setHeader(
+      "X-RateLimit-Reset",
+      Math.ceil(record.resetTime / 1000).toString(),
+    );
 
     if (record.count > maxRequests) {
-      const retryAfterSeconds = Math.max(1, Math.ceil((record.resetTime - now) / 1000));
-      res.setHeader('Retry-After', retryAfterSeconds.toString());
+      const retryAfterSeconds = Math.max(
+        1,
+        Math.ceil((record.resetTime - now) / 1000),
+      );
+      res.setHeader("Retry-After", retryAfterSeconds.toString());
       res.status(429).json({
         success: false,
-        code: 'RATE_LIMITED',
-        error: 'Rate limit exceeded',
-        message: `Too many requests. Please try again after ${retryAfterSeconds} seconds`
+        code: "RATE_LIMITED",
+        error: "Rate limit exceeded",
+        message: `Too many requests. Please try again after ${retryAfterSeconds} seconds`,
       });
       return;
     }

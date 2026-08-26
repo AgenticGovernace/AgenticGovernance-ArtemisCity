@@ -85,15 +85,15 @@ class LLMAgent(base_agent.BaseAgent):
     def __init__(
         self,
         name: str = "LLM Agent",
-        base_url: typing.Optional[str] = None,
-        model_url: typing.Optional[str] = None,
-        model_id: typing.Optional[str] = None,
-        timeout_seconds: typing.Optional[float] = None,
-        connect_timeout_seconds: typing.Optional[float] = None,
-        read_timeout_seconds: typing.Optional[float] = None,
-        max_retries: typing.Optional[int] = None,
-        retry_backoff_seconds: typing.Optional[float] = None,
-        retry_max_delay_seconds: typing.Optional[float] = None,
+        base_url: str | None = None,
+        model_url: str | None = None,
+        model_id: str | None = None,
+        timeout_seconds: float | None = None,
+        connect_timeout_seconds: float | None = None,
+        read_timeout_seconds: float | None = None,
+        max_retries: int | None = None,
+        retry_backoff_seconds: float | None = None,
+        retry_max_delay_seconds: float | None = None,
     ) -> None:
         super().__init__(
             name,
@@ -147,7 +147,7 @@ class LLMAgent(base_agent.BaseAgent):
         )
         self.connect_timeout_seconds = max(0.001, configured_connect)
         # A zero read timeout explicitly means "wait indefinitely for Exo".
-        self.read_timeout_seconds: typing.Optional[float] = (
+        self.read_timeout_seconds: float | None = (
             max(0.001, configured_read) if configured_read > 0 else None
         )
         # Preserve the legacy public attribute for callers that inspect it.
@@ -304,7 +304,7 @@ class LLMAgent(base_agent.BaseAgent):
             return self.model_id
         return self._discover_running_model(model_url) or self.model_id
 
-    def _discover_running_model(self, model_url: str) -> typing.Optional[str]:
+    def _discover_running_model(self, model_url: str) -> str | None:
         """Return the first model currently loaded by Exo, if available."""
         root = self._with_v1_path(model_url)[: -len("/v1")]
         headers = {}
@@ -337,10 +337,10 @@ class LLMAgent(base_agent.BaseAgent):
             return None
         return None
 
-    def _build_messages(self, task_context: dict) -> typing.List[typing.Dict[str, str]]:
+    def _build_messages(self, task_context: dict) -> list[dict[str, str]]:
         raw_messages = task_context.get("messages")
         if isinstance(raw_messages, list) and raw_messages:
-            messages: typing.List[typing.Dict[str, str]] = []
+            messages: list[dict[str, str]] = []
             for item in raw_messages:
                 if not isinstance(item, dict):
                     continue
@@ -370,19 +370,19 @@ class LLMAgent(base_agent.BaseAgent):
 
     def _call_exo(
         self,
-        messages: typing.List[typing.Dict[str, str]],
+        messages: list[dict[str, str]],
         model: str,
         temperature: float,
         max_tokens: int,
         model_url: str,
-    ) -> typing.Dict[str, typing.Any]:
+    ) -> dict[str, typing.Any]:
         request_id = str(uuid.uuid4())
         headers = self._request_headers(request_id=request_id, stream=False)
         started = time.monotonic()
         attempts: list[dict[str, typing.Any]] = []
         errors: list[str] = []
-        last_endpoint: typing.Optional[str] = None
-        last_status: typing.Optional[int] = None
+        last_endpoint: str | None = None
+        last_status: int | None = None
         last_kind = "transport_error"
         last_retryable = False
 
@@ -390,7 +390,7 @@ class LLMAgent(base_agent.BaseAgent):
             messages, model, temperature, max_tokens, model_url, stream=False
         ):
             last_endpoint = endpoint
-            endpoint_error: typing.Optional[Exception] = None
+            endpoint_error: Exception | None = None
             for retry_index in range(self.max_retries + 1):
                 response = None
                 attempt_started = time.monotonic()
@@ -511,11 +511,11 @@ class LLMAgent(base_agent.BaseAgent):
         endpoint: str,
         retry_index: int,
         started: float,
-        status: typing.Optional[int],
+        status: int | None,
         *,
         outcome: str,
-        error: typing.Optional[str] = None,
-        failure_kind: typing.Optional[str] = None,
+        error: str | None = None,
+        failure_kind: str | None = None,
     ) -> dict[str, typing.Any]:
         record: dict[str, typing.Any] = {
             "attempt": retry_index + 1,
@@ -562,8 +562,8 @@ class LLMAgent(base_agent.BaseAgent):
         self,
         *,
         request_id: str,
-        endpoint: typing.Optional[str],
-        status: typing.Optional[int],
+        endpoint: str | None,
+        status: int | None,
         requested_model: str,
         started: float,
         attempts: list[dict[str, typing.Any]],
@@ -604,14 +604,14 @@ class LLMAgent(base_agent.BaseAgent):
             "retry_after_seconds": request_metadata.get("retry_after_seconds"),
         }
 
-    def _response_status(self, response: typing.Any) -> typing.Optional[int]:
+    def _response_status(self, response: typing.Any) -> int | None:
         status = getattr(response, "status_code", None)
         return status if isinstance(status, int) else None
 
-    def _exception_status(self, exc: Exception) -> typing.Optional[int]:
+    def _exception_status(self, exc: Exception) -> int | None:
         return self._response_status(getattr(exc, "response", None))
 
-    def _server_request_id(self, response: typing.Any) -> typing.Optional[str]:
+    def _server_request_id(self, response: typing.Any) -> str | None:
         headers = getattr(response, "headers", None)
         if headers is None or not hasattr(headers, "get"):
             return None
@@ -623,7 +623,7 @@ class LLMAgent(base_agent.BaseAgent):
 
     def _response_identity(
         self, body: dict[str, typing.Any]
-    ) -> tuple[typing.Optional[str], typing.Optional[str]]:
+    ) -> tuple[str | None, str | None]:
         nested = body.get("response")
         nested = nested if isinstance(nested, dict) else {}
         response_id = body.get("id") or nested.get("id")
@@ -633,9 +633,7 @@ class LLMAgent(base_agent.BaseAgent):
             str(response_model) if isinstance(response_model, (str, int)) else None,
         )
 
-    def _classify_failure(
-        self, exc: Exception, status: typing.Optional[int]
-    ) -> tuple[str, bool]:
+    def _classify_failure(self, exc: Exception, status: int | None) -> tuple[str, bool]:
         if isinstance(exc, (ValueError, json.JSONDecodeError)):
             return "invalid_response", False
         name = type(exc).__name__.lower()
@@ -662,7 +660,7 @@ class LLMAgent(base_agent.BaseAgent):
             retry_after = self.retry_backoff_seconds * (2**retry_index)
         return min(max(0.0, retry_after), self.retry_max_delay_seconds)
 
-    def _retry_after_seconds(self, response: typing.Any) -> typing.Optional[float]:
+    def _retry_after_seconds(self, response: typing.Any) -> float | None:
         headers = getattr(response, "headers", None)
         if headers is None or not hasattr(headers, "get"):
             return None
@@ -683,13 +681,13 @@ class LLMAgent(base_agent.BaseAgent):
 
     def _completion_request_candidates(
         self,
-        messages: typing.List[typing.Dict[str, str]],
+        messages: list[dict[str, str]],
         model: str,
         temperature: float,
         max_tokens: int,
         model_url: str,
         stream: bool,
-    ) -> typing.List[tuple[str, typing.Dict[str, typing.Any]]]:
+    ) -> list[tuple[str, dict[str, typing.Any]]]:
         """Return concrete Exo endpoints to try for one completion request."""
         base = self._with_v1_path(model_url)
         chat_payload = {
@@ -739,7 +737,7 @@ class LLMAgent(base_agent.BaseAgent):
             return endpoint[: endpoint.index(marker) + len("/v1")]
         return f"{endpoint}/v1"
 
-    def _extract_message_content(self, body: typing.Dict[str, typing.Any]) -> str:
+    def _extract_message_content(self, body: dict[str, typing.Any]) -> str:
         output_text = body.get("output_text")
         if isinstance(output_text, str) and output_text.strip():
             return output_text.strip()
@@ -810,7 +808,7 @@ class LLMAgent(base_agent.BaseAgent):
         exo_request: dict[str, typing.Any],
         model: str,
         model_url: str,
-    ) -> typing.Optional[dict[str, typing.Any]]:
+    ) -> dict[str, typing.Any] | None:
         """Reject reasoning-only output before it reaches downstream agents."""
         if not isinstance(content, str):
             return None
@@ -842,9 +840,7 @@ class LLMAgent(base_agent.BaseAgent):
 
     supports_streaming = True
 
-    def stream_task(
-        self, task_context: dict
-    ) -> typing.Iterator[typing.Dict[str, typing.Any]]:
+    def stream_task(self, task_context: dict) -> typing.Iterator[dict[str, typing.Any]]:
         """Execute an LLM task as a stream of events.
 
         Yields one event per step::
@@ -881,7 +877,7 @@ class LLMAgent(base_agent.BaseAgent):
             f"Streaming {len(messages)} message(s) to Exo model '{model}'."
         )
 
-        chunks: typing.List[str] = []
+        chunks: list[str] = []
         try:
             stream = self._stream_exo(
                 messages, model, temperature, max_tokens, model_url
@@ -955,7 +951,7 @@ class LLMAgent(base_agent.BaseAgent):
 
     def _stream_exo(
         self,
-        messages: typing.List[typing.Dict[str, str]],
+        messages: list[dict[str, str]],
         model: str,
         temperature: float,
         max_tokens: int,
@@ -974,8 +970,8 @@ class LLMAgent(base_agent.BaseAgent):
         started = time.monotonic()
         attempts: list[dict[str, typing.Any]] = []
         errors: list[str] = []
-        last_endpoint: typing.Optional[str] = None
-        last_status: typing.Optional[int] = None
+        last_endpoint: str | None = None
+        last_status: int | None = None
         last_kind = "transport_error"
         last_retryable = False
 
@@ -983,7 +979,7 @@ class LLMAgent(base_agent.BaseAgent):
             messages, model, temperature, max_tokens, model_url, stream=True
         ):
             last_endpoint = endpoint
-            endpoint_error: typing.Optional[Exception] = None
+            endpoint_error: Exception | None = None
             for retry_index in range(self.max_retries + 1):
                 response = None
                 response_started = False
@@ -1122,7 +1118,7 @@ class LLMAgent(base_agent.BaseAgent):
             "Exo stream failed after trying " + "; ".join(errors), metadata
         )
 
-    def _extract_delta_content(self, chunk: typing.Dict[str, typing.Any]) -> str:
+    def _extract_delta_content(self, chunk: dict[str, typing.Any]) -> str:
         """Pull the incremental content out of one Exo SSE JSON chunk."""
         event_type = chunk.get("type")
         if event_type == "response.output_text.delta":

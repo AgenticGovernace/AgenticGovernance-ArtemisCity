@@ -21,6 +21,7 @@ Entry template (copy, fill, append at the bottom):
 <!-- Example of a full round-trip (delete once real entries begin) -->
 
 ### 2026-06-16T00:00:00Z — ReviewRequest
+
 - Mode: Writer→Reviewer
 - Context: setup-guide.md (rev 1)
 - Priority: Routine
@@ -29,6 +30,7 @@ Entry template (copy, fill, append at the bottom):
 - Special Instructions: First draft, please review for accuracy and audience fit.
 
 ### 2026-06-16T00:05:00Z — Ack
+
 - Mode: Reviewer→Writer
 - Context: setup-guide.md (rev 1)
 - Priority: Routine
@@ -37,6 +39,7 @@ Entry template (copy, fill, append at the bottom):
 - Special Instructions: Received, reviewing now.
 
 ### 2026-06-16T00:20:00Z — ReviewReturned
+
 - Mode: Reviewer→Writer
 - Context: setup-guide.md (rev 1)
 - Priority: Routine

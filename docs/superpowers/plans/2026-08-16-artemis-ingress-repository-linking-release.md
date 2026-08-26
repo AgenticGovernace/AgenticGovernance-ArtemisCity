@@ -11,6 +11,7 @@
 **Spec:** `docs/superpowers/specs/2026-08-16-artemis-routing-kernel-consolidation-design.md`
 
 **Depends on:**
+
 - `docs/superpowers/plans/2026-08-16-artemis-routing-kernel-containment.md`
 - `docs/superpowers/plans/2026-08-16-artemis-routing-kernel-core.md`
 - `docs/superpowers/plans/2026-08-16-artemis-task-ledger-back-orchestration.md`
@@ -36,6 +37,7 @@
 ### Task 1: Add a default-deny workspace-link catalog and local status generator
 
 **Files:**
+
 - Create: `config/workspaces/workspace-links.v1.schema.json`
 - Create: `config/workspaces/workspace-links.v1.yaml`
 - Create: `src/workspaces/__init__.py`
@@ -45,6 +47,7 @@
 - Modify: `.gitignore`
 
 **Interfaces:**
+
 - Consumes: logical repository IDs and operator-supplied checkout locations.
 - Produces: `WorkspaceCatalogV1`, `WorkspaceLinkV1`, `validate_catalog(path)`, and generated `.artemis/workspace-status.v1.json`.
 
@@ -133,10 +136,12 @@
 ### Task 2: Salvage Authstructure receipt-v2 as a reviewed patch
 
 **Files in canonical Oracle repository:**
+
 - Modify the exact 15 paths changed by source commit `17699e2f9b855fcfe9b104691bd4ca6fd7c8ad3f` under `authstructure/`.
 - Create: `authstructure/protocol/migrations/receipt-v2-source.yaml`
 
 **Interfaces:**
+
 - Consumes: valid Authbuild object database at `/Users/pucci/projects/repository/local/Authbuild/the_oracle-private-agentic-mesh`.
 - Produces: a canonical Oracle commit containing receipt-v2 durability with explicit source provenance and no unrelated history merge.
 
@@ -200,6 +205,7 @@
 ### Task 3: Publish the generic Authstructure verification and signed receipt contract
 
 **Files in the Task 2 Oracle worktree:**
+
 - Create: `authstructure/api/schemas/authentication-verification-request.schema.json`
 - Create: `authstructure/api/schemas/authentication-receipt.schema.json`
 - Modify: `authstructure/api/schemas/embed.go`
@@ -216,6 +222,7 @@
 - Modify: `authstructure/protocol/error-registry.json`
 
 **Interfaces:**
+
 - Consumes: existing `ports.RequestVerifier`, identity authority, bound-token verification, request-proof verification, key ring, and receipt appender.
 - Produces: `POST /v1/requests/verify` and version `authstructure.authentication-receipt/1`.
 
@@ -287,6 +294,7 @@
 ### Task 4: Enable the Artemis Authstructure adapter with cross-language fixtures
 
 **Files:**
+
 - Create: `config/workspaces/manifests/authstructure-verifier-v1.sha256`
 - Create: `src/tests/fixtures/authstructure/authenticated-receipt-v1.json`
 - Create: `src/tests/fixtures/authstructure/rejected-receipt-v1.json`
@@ -297,6 +305,7 @@
 - Modify: `src/tests/test_workspace_links.py`
 
 **Interfaces:**
+
 - Consumes: the published Oracle commit and exact schema/fixture hashes from Task 3.
 - Produces: one enabled `contract-package` link and Artemis receipt verification conformance.
 
@@ -345,6 +354,7 @@
 ### Task 5: Collapse CLI, kernel, plan, and Obsidian loop onto the ledger/kernel
 
 **Files:**
+
 - Modify: `src/__init__.py`
 - Modify: `src/launch/main.py`
 - Modify: `src/interface/artemis_cli.py`
@@ -359,6 +369,7 @@
 - Modify: `src/tests/test_orchestrator_coverage.py`
 
 **Interfaces:**
+
 - Consumes: `AuthVerifier`, task ledger, `RoutingKernel.execute/stream`, and task projection worker.
 - Produces: all documented module/Makefile compatibility commands as one-task adapters.
 
@@ -420,6 +431,7 @@
 ### Task 6: Make FastAPI fail closed and remove browser service credentials
 
 **Files:**
+
 - Modify: `app/api/main.py`
 - Modify: `src/tests/test_dashboard_api.py`
 - Modify: `app/web/frontend/vite.config.ts`
@@ -428,6 +440,7 @@
 - Modify: `app/web/frontend/.env.example`
 
 **Interfaces:**
+
 - Consumes: HTTP `AuthenticationRequest`, `AuthorityContextFactory`, and injected Routing Kernel.
 - Produces: public liveness, protected readiness/execution, and session-based browser calls.
 
@@ -486,6 +499,7 @@
 ### Task 7: Collapse Express and the Python bridge onto governed kernel commands
 
 **Files:**
+
 - Modify: `app/api/middleware/auth.ts`
 - Modify: `app/api/lib/pythonBridge.ts`
 - Modify: `app/api/index.ts`
@@ -500,6 +514,7 @@
 - Modify: `src/tests/test_api_bridge_llm.py`
 
 **Interfaces:**
+
 - Consumes: raw transport proof, Authstructure verifier, and `RoutingKernel.execute/stream/preview`.
 - Produces: bridge commands `routing.execute`, `routing.stream`, and `routing.preview`.
 
@@ -562,6 +577,7 @@
 ### Task 8: Record safe Oracle/Prove roles and run the full release proof
 
 **Files:**
+
 - Modify: `config/workspaces/workspace-links.v1.yaml`
 - Create: `docs/audits/2026-08-16-prove-promotion-readiness.md`
 - Create: `docs/audits/2026-08-16-oracle-contract-consumer.md`
@@ -574,6 +590,7 @@
 - Modify together: `AGENTS.md` and `CLAUDE.md`
 
 **Interfaces:**
+
 - Consumes: completed implementation and current external-repository evidence.
 - Produces: disabled-by-default Prove/Oracle promotion records, synchronized docs, and end-to-end release evidence.
 

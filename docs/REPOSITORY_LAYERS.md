@@ -35,13 +35,13 @@ policy, trust, quarantine, or sandbox admission.
 
 ## 1. Ingress and presentation
 
-| Surface | Source | Contract | Notes |
-|---|---|---|---|
-| Canonical CLI | `src/launch/main.py` | `make run`, task and inspection flags | Builds trusted typed input and delegates to the Python core. |
-| FastAPI dashboard | `app/api/main.py` | `/api/*` | Serves the React dashboard and can expose an explicit read-only SQLite fallback when orchestration imports fail. |
-| TypeScript Express API | `app/api/index.ts`, `app/api/v1/` | `/api/v1/*` | Public versioned HTTP boundary. Python-owned behavior crosses only `app/api/lib/pythonBridge.ts`. |
-| React dashboard | `app/web/frontend/src/` | Browser UI, `/api/*` client | Vite proxies to FastAPI on port 8000; it does not call Express implicitly. |
-| JSON bridge | `src/api_bridge.py` | One JSON request and response envelope over stdin/stdout | Keeps Python as the domain source of truth. Stdout belongs exclusively to the protocol. |
+| Surface                | Source                            | Contract                                                 | Notes                                                                                                            |
+| ---------------------- | --------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Canonical CLI          | `src/launch/main.py`              | `make run`, task and inspection flags                    | Builds trusted typed input and delegates to the Python core.                                                     |
+| FastAPI dashboard      | `app/api/main.py`                 | `/api/*`                                                 | Serves the React dashboard and can expose an explicit read-only SQLite fallback when orchestration imports fail. |
+| TypeScript Express API | `app/api/index.ts`, `app/api/v1/` | `/api/v1/*`                                              | Public versioned HTTP boundary. Python-owned behavior crosses only `app/api/lib/pythonBridge.ts`.                |
+| React dashboard        | `app/web/frontend/src/`           | Browser UI, `/api/*` client                              | Vite proxies to FastAPI on port 8000; it does not call Express implicitly.                                       |
+| JSON bridge            | `src/api_bridge.py`               | One JSON request and response envelope over stdin/stdout | Keeps Python as the domain source of truth. Stdout belongs exclusively to the protocol.                          |
 
 Ingress adapters own transport parsing, authentication handoff, and response
 translation. They do not own routing, trust, memory consistency, or provider
@@ -154,13 +154,13 @@ Sources: `src/integration/agent_registry.py`, `src/governance/`,
 `src/integration/sandbox.py`, `src/integration/trust_interface.py`, and
 `src/integration/hebbian_router.py`.
 
-| Concern | Owner | Durable state |
-|---|---|---|
-| Agent inventory and composite scores | Agent registry | `data/agent_registry.db` |
-| Learned agent-to-scope and pair signals | Hebbian layer | `data/hebbian_weights.db` |
-| Trust levels and decay | Trust interface/governance | Registry projections and governance records |
-| Tool/path/operation enforcement | Agent sandbox | Violations and quarantine state |
-| Approval and rollback | Governance modules | Checkpoints and governance events |
+| Concern                                 | Owner                      | Durable state                               |
+| --------------------------------------- | -------------------------- | ------------------------------------------- |
+| Agent inventory and composite scores    | Agent registry             | `data/agent_registry.db`                    |
+| Learned agent-to-scope and pair signals | Hebbian layer              | `data/hebbian_weights.db`                   |
+| Trust levels and decay                  | Trust interface/governance | Registry projections and governance records |
+| Tool/path/operation enforcement         | Agent sandbox              | Violations and quarantine state             |
+| Approval and rollback                   | Governance modules         | Checkpoints and governance events           |
 
 Provider availability, cancellation, and explicitly degraded execution remain
 observable but learning-ineligible. Genuine measured agent failures may update
@@ -206,13 +206,13 @@ Operational commands and environment ownership are documented in
 
 ## Transitional and non-authoritative surfaces
 
-| Path | Status |
-|---|---|
-| `app/kernel/` | Packaged in-process kernel layer that is growing toward orchestrator parity; it does not replace the shared Routing Kernel contract. |
-| `Concept_Demos/` | Supported prototypes, not production sources of truth. |
-| `src/Artemis Agentic Memory Layer/` | Standalone Obsidian REST shell (`make server`). Not registered in the root workspace, and not a Model Context Protocol implementation despite its name. |
-| `services/mcp/` | Real Model Context Protocol servers on the official `mcp[cli]` SDK, adapting `src/` domain services. `artemis-validation` and `artemis-memory` are implemented; `common` is quarantined pending review. |
-| `src/Kernel/`, root `memory/`, and root `tests/` | Compatibility or migration copies; follow `PROJECT_BOUNDARIES.md` before editing. |
+| Path                                             | Status                                                                                                                                                                                                  |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/kernel/`                                    | Packaged in-process kernel layer that is growing toward orchestrator parity; it does not replace the shared Routing Kernel contract.                                                                    |
+| `Concept_Demos/`                                 | Supported prototypes, not production sources of truth.                                                                                                                                                  |
+| `src/Artemis Agentic Memory Layer/`              | Standalone Obsidian REST shell (`make server`). Not registered in the root workspace, and not a Model Context Protocol implementation despite its name.                                                 |
+| `services/mcp/`                                  | Real Model Context Protocol servers on the official `mcp[cli]` SDK, adapting `src/` domain services. `artemis-validation` and `artemis-memory` are implemented; `common` is quarantined pending review. |
+| `src/Kernel/`, root `memory/`, and root `tests/` | Compatibility or migration copies; follow `PROJECT_BOUNDARIES.md` before editing.                                                                                                                       |
 
 ## Documentation and docstrings
 

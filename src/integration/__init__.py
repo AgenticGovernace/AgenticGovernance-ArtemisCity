@@ -11,12 +11,19 @@ from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from .context_loader import ContextEntry, ContextLoader
-    from .memory_client import (MCPOperation, MCPResponse,  # noqa: F401
-                                MemoryClient)
-    from .postal_service import MailPacket, PostOffice, get_post_office
-    from .trust_interface import (TrustInterface, TrustLevel, TrustScore,
-                                  get_trust_interface)
+    from .context_loader import ContextEntry, ContextLoader  # noqa: F401 - re-exported
+    from .memory_client import MCPOperation, MCPResponse, MemoryClient  # noqa: F401
+    from .postal_service import (  # noqa: F401 - re-exported
+        MailPacket,
+        PostOffice,
+        get_post_office,
+    )
+    from .trust_interface import (  # noqa: F401 - re-exported
+        TrustInterface,
+        TrustLevel,
+        TrustScore,
+        get_trust_interface,
+    )
 
 _LAZY_EXPORTS = {
     "MemoryClient": ".memory_client",

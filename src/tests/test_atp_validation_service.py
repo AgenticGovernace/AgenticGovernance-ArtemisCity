@@ -5,12 +5,15 @@ from typing import Any, cast
 
 import pytest
 
-from src.agents.atp.atp_models import (ATPActionType, ATPMessage, ATPMode,
-                                       ATPPriority)
+from src.agents.atp.atp_models import ATPActionType, ATPMessage, ATPMode, ATPPriority
 from src.agents.atp.atp_parser import ATPParser
 from src.agents.atp.atp_validator import ATPValidator, ValidationResult
-from src.validation import (ATPHeaderInput, ATPValidationReport,
-                            ATPValidationService, ParsedATP)
+from src.validation import (
+    ATPHeaderInput,
+    ATPValidationReport,
+    ATPValidationService,
+    ParsedATP,
+)
 
 HASH_MESSAGE = """#Mode: Build
 #Context: Create the validation facade

@@ -31,6 +31,7 @@ All attempts to execute LLM tasks using the `mlx-community/Qwen3-0.6B-4bit` mode
 **Root Cause:**
 
 The Exo model server is not running or misconfigured. The system is configured to use `http://localhost:52415/v1`, but the service is either:
+
 - Not started,
 - Not listening on that port,
 - Or misconfigured (e.g., `EXO_MODEL_ID` not set).
@@ -75,6 +76,7 @@ All attempts to execute LLM tasks using the `mlx-community/Qwen3-0.6B-4bit` mode
 **Root Cause:**
 
 The Exo model server is not running or misconfigured. The system is configured to use `http://localhost:52415/v1`, but the service is either:
+
 - Not started,
 - Not listening on that port,
 - Or misconfigured (e.g., `EXO_MODEL_ID` not set).
@@ -96,15 +98,17 @@ Start the model in Exo or set `EXO_MODEL_ID` to a valid model available in the c
 - **Summary Length**: 1659
 
 ### Main Points Extracted
+
 - LLM-generated concise summary.
 - **Provider**: exo
 - **Fallback Used**: False
 - **Outcome Class**: success
 - **Learning Eligible**: True
 - **Model**: mlx-community/Qwen3-VL-4B-Instruct-4bit
-- **Model Url**: http://localhost:52415/v1
+- **Model Url**: <http://localhost:52415/v1>
 
 ### Usage
+
 - **Prompt_Tokens**: 5845
 - **Completion_Tokens**: 400
 - **Total_Tokens**: 6245
@@ -113,9 +117,10 @@ Start the model in Exo or set `EXO_MODEL_ID` to a valid model available in the c
 - **Response Id**: 13cb4e27-1104-4542-9235-23daa408c323
 
 ### Exo Request
+
 - **Request_Id**: 15193d14-ad8e-476f-9781-fba654ed18a9
 - **Server_Request_Id**: None
-- **Endpoint**: http://localhost:52415/v1/chat/completions
+- **Endpoint**: <http://localhost:52415/v1/chat/completions>
 - **Http_Status**: 200
 - **Latency_Ms**: 55046.945
 - **Requested_Model**: mlx-community/Qwen3-VL-4B-Instruct-4bit

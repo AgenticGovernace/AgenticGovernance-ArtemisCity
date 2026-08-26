@@ -7,7 +7,7 @@ name = "artemis-city"
 version = "1.1.0"
 description = "Governed multi-agent orchestration with trust-aware routing and Obsidian-backed memory."
 readme = "README.md"
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.12,<3.13"
 license = "Apache-2.0"
 authors = [
     { name = "Prinston Palmer", email = "prinstonpalmer879@gmail.com" },
@@ -87,15 +87,6 @@ dependencies = [
     "coverage-badge>=1.0.0",
     "faker>=18.0.0",
     "packaging>=24.0",
-    "pytest>=9.0.3,<9.1",
-    "pytest-asyncio>=0.16.0",
-    "pytest-cases>=3.7.0",
-    "pytest-cov>=3.0.0",
-    "pytest-factoryboy>=2.0.0",
-    "pytest-fixture-config>=1.0.0",
-    "pytest-html>=3.2.0",
-    "pytest-mock>=3.7.0",
-    "pytest-xdist>=3.0.0",
     "responses>=0.22.0",
     "build>=1.0.0",
     "hatchling>=1.21.0",
@@ -106,6 +97,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Aggregate extra so `install-dev` has a single name for "everything a
+# contributor needs"; the Makefile's --all-extras resolves the rest.
+dev = ["artemis-city[docs,lint,test,build]"]
 docs = [
     "mkdocs>=1.5.0",
     "mkdocs-material>=9.0.0",
@@ -155,9 +149,104 @@ package-mode = false
 
 [tool.hatch.build.targets.wheel]
 only-include = ["src", "app"]
+# Belongs to the wheel target, not pytest — `exclude` is not a pytest ini
+# option, and test_hatch_configuration_remains_unchanged asserts it here.
+exclude = ["/app/api/**", "/app/scripts/**", "/app/web/**"]
+
+
+[tool.mypy]
+# mypy previously aborted on a duplicate-module error before checking
+# anything, so it has never actually run over this tree. These overrides
+# freeze the backlog it exposed: every new and untouched module is fully
+# checked, and these are burned down individually. Only remove entries.
+
+[[tool.mypy.overrides]]
+module = [
+    ".agents.skills.gcp-pipeline-orchestration.scripts.trigger.airflow_trigger",
+    ".agents.skills.gcs-security-assessment.scripts.cloud_rest_helpers_nodeps",
+    ".agents.skills.gcs-security-assessment.scripts.evaluate_project_security_posture",
+    ".agents.skills.gcs-security-assessment.scripts.fetch_bucket_telemetry",
+    ".agents.skills.gcs-security-assessment.scripts.fetch_object_telemetry",
+    "app.api.main",
+    "app.benchmarks.bench_memory_ops",
+    "app.examples.governance_demo.run",
+    "app.examples.minimal_deployment.run",
+    "app.examples.multi_agent_workflow.run",
+    "app.kernel.memory_bus",
+    "app.scripts.run_tests_shim",
+    "scripts.environment_config",
+    "services.mcp.artemis-kernel.src.artemis_kernel_mcp.server",
+    "services.mcp.artemis-memory.src.artemis_memory_mcp.wiring",
+    "services.mcp.artemis-validation.src.artemis_validation_mcp.wiring",
+    "src.Experiments.legal_summarization.batch_runner",
+    "src.Kernel.memory_bus",
+    "src.agents.artemis.reflection",
+    "src.agents.artemis_agent",
+    "src.agents.atp.atp_validator",
+    "src.agents.llm_agent",
+    "src.api_bridge",
+    "src.auth.delegation",
+    "src.integration.agent_registry",
+    "src.integration.hebbian_router",
+    "src.integration.hebbian_sync",
+    "src.integration.memory_bus",
+    "src.integration.memory_decay",
+    "src.integration.postal_service",
+    "src.integration.sql_memory_store",
+    "src.main",
+    "src.mcp.hebbian_weights",
+    "src.mcp.orchestrator",
+    "src.mcp.supabase_vector_store",
+    "src.obsidian_integration.parser",
+    "src.parser",
+    "src.run_logger",
+    "src.tests.run_simulation",
+    "src.tests.test_auth_contracts",
+    "src.tests.test_base_agent_compliance",
+    "src.tests.test_cli_entrypoints",
+    "src.tests.test_dashboard_api",
+    "src.tests.test_environments",
+    "src.tests.test_instruction_coverage",
+    "src.tests.test_kernel_memory_bus",
+    "src.tests.test_legal_summarization_coverage",
+    "src.tests.test_llm_agent_coverage",
+    "src.tests.test_memory_bus",
+    "src.tests.test_memory_projections",
+    "src.tests.test_orchestrator_coverage",
+    "src.tests.test_postal_service",
+    "src.tests.test_postgres_memory_ledger",
+    "src.tests.test_release_artifacts",
+    "src.tests.test_repository_boundaries",
+    "src.tests.test_reverse_sync_cleanup",
+    "src.tests.test_root_test_retention",
+    "src.tests.test_routing_authorization",
+    "src.tests.test_routing_contracts",
+    "src.tests.test_routing_eligibility",
+    "src.tests.test_sql_memory_store",
+    "src.utils.run_logger",
+    "src.vector_store",
+    "services.mcp.artemis-memory.src.artemis_memory_mcp.wiring",
+    "services.mcp.artemis-validation.src.artemis_validation_mcp.wiring",
+    "artemis_memory_mcp.wiring",
+]
+ignore_errors = true
+
+[tool.isort]
+# Mirrors the pre-commit hook args (--profile=black --line-length=88) so the
+# hook and a bare `isort .` agree.
+profile = "black"
+line_length = 88
+# This repository contains src/mcp/, which shadows the external `mcp` SDK.
+# Without an explicit classification isort treats the SDK import as first-party
+# from some working directories and third-party from others, so the MCP
+# adapters are rewritten on every run and the hook never converges.
+known_third_party = ["mcp", "posthog"]
+# Honour the magic trailing comma exactly as black and ruff do. Without
+# this isort collapses an exploded import that ruff then re-explodes, and
+# the two hooks rewrite each other on every pre-commit run forever.
+split_on_trailing_comma = true
 
 [tool.pytest.ini_options]
-exclude = ["/app/api/**", "/app/scripts/**", "/app/web/**"]
 testpaths = ["src/tests"]
 python_files = ["test_*.py"]
 addopts = '-ra --ignore="src/tests/integration/test_artemis_persona 2.py"'

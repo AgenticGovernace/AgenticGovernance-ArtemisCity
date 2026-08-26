@@ -6,6 +6,7 @@ place to keep them.** Pick the persistence tier first, then add only the layers 
 can support.
 
 ## Contents
+
 1. Persistence tiers in depth
 2. Reflection patterns
 3. Audit & provenance integration (atp-provenance-logging)
@@ -15,17 +16,17 @@ can support.
 
 ## 1. Persistence tiers in depth
 
-| Tier | State lives in | Memory you can promise | Reflection you can promise | Audit you can promise |
-|------|----------------|------------------------|----------------------------|-----------------------|
-| **Ephemeral** | nowhere (single turn/session) | none | one-line inline self-check after a major output | none |
-| **Session** | the live context window | recall earlier turns this session | a session-end summary | in-session notes only |
-| **File-based** | files the agent reads/writes (logs, `index.md`, `.csv`/`.qmd`) | read prior state/log files on entry | append summaries to a reflection log on a cadence | write per-action log files; escalate via a high-priority log |
-| **External service / DB** | a provenance service or database | query the store | persist reflections as records | full line-item provenance — see §3 |
+| Tier                      | State lives in                                                 | Memory you can promise              | Reflection you can promise                        | Audit you can promise                                        |
+| ------------------------- | -------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------- | ------------------------------------------------------------ |
+| **Ephemeral**             | nowhere (single turn/session)                                  | none                                | one-line inline self-check after a major output   | none                                                         |
+| **Session**               | the live context window                                        | recall earlier turns this session   | a session-end summary                             | in-session notes only                                        |
+| **File-based**            | files the agent reads/writes (logs, `index.md`, `.csv`/`.qmd`) | read prior state/log files on entry | append summaries to a reflection log on a cadence | write per-action log files; escalate via a high-priority log |
+| **External service / DB** | a provenance service or database                               | query the store                     | persist reflections as records                    | full line-item provenance — see §3                           |
 
 Why this matters: the source notes call Memory and Reflection "optional if persistent
 memory exists." The common failure is to keep them anyway — e.g., telling an ephemeral
 agent to "recall previous outputs" or "summarize every 50 actions." The agent can't, so
-it either ignores the rule (eroding trust in the whole card) or *pretends* it did
+it either ignores the rule (eroding trust in the whole card) or _pretends_ it did
 (hallucinated continuity). Always state the tier in `AGENTS.md` so the included layers
 are justified.
 
@@ -40,18 +41,21 @@ provenance service (or a database) is External.
 Define reflection on three axes — trigger, content, destination.
 
 **Trigger**
-- *Always:* after every major output, a one-sentence self-check. This needs no
+
+- _Always:_ after every major output, a one-sentence self-check. This needs no
   persistence and belongs even in ephemeral agents.
-- *Cadence (persistent only):* every N actions (e.g., 50) or every T hours (e.g., 12).
+- _Cadence (persistent only):_ every N actions (e.g., 50) or every T hours (e.g., 12).
   Mirrors a monitoring agent's summary routine.
 
 **Content**
+
 - What was attempted.
 - Whether assumptions were necessary (and which).
 - Whether anything drifted from the mission or boundaries.
 - For audit agents: a rollup of events by severity since the last summary.
 
 **Destination**
+
 - Ephemeral/Session → inline in the response (or a session-end note).
 - File-based → append to a reflection/summary log (e.g., `logs/reflection.md`).
 - External → write a reflection record (and, with provenance, a line item).
@@ -105,7 +109,7 @@ and trace every action."
 - **Boundaries:** observe-and-log only; never modify.
 - **Escalation Policy:** escalate to a human only above `Warning`.
 - **Reflection Routine:** summary every 50 actions or 12 hours → `logs/summary-<date>.md`.
-- **Audit & Provenance:** per-action file logs *plus* a reference to atp-provenance-logging
+- **Audit & Provenance:** per-action file logs _plus_ a reference to atp-provenance-logging
   for parent/child `prov_id`s in `agent_logs`.
 - **Scaffold adds** a `logs/` directory as the destination the card references.
 

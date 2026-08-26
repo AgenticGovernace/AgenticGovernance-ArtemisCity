@@ -13,7 +13,7 @@ Date: 2024
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Literal, NotRequired, TypedDict, Union
+from typing import Any, Literal, NotRequired, TypedDict, Union
 
 # =============================================================================
 # Task-Related Types
@@ -59,8 +59,8 @@ class TaskContext(TypedDict, total=False):
     atp_mode: NotRequired[str]
     query: NotRequired[str]
     request_feedback: NotRequired[bool]
-    memory_context: NotRequired[List[Dict[str, Any]]]
-    source_context: NotRequired[Dict[str, Any]]
+    memory_context: NotRequired[list[dict[str, Any]]]
+    source_context: NotRequired[dict[str, Any]]
     status: NotRequired[str]
 
 
@@ -102,17 +102,17 @@ class TaskResult(TypedDict, total=False):
     summary: str
     error: NotRequired[str]
     narrative: NotRequired[str]
-    semantic_tags: NotRequired[List[str]]
-    concepts: NotRequired[List[str]]
-    persona_context: NotRequired[Dict[str, Any]]
-    recent_context: NotRequired[List[str]]
-    data: NotRequired[Dict[str, Any]]
+    semantic_tags: NotRequired[list[str]]
+    concepts: NotRequired[list[str]]
+    persona_context: NotRequired[dict[str, Any]]
+    recent_context: NotRequired[list[str]]
+    data: NotRequired[dict[str, Any]]
     provider: NotRequired[str]
     model: NotRequired[str]
     raw_output: NotRequired[str]
     compressed_context: NotRequired[str]
-    output_compression: NotRequired[Dict[str, Any]]
-    exo_request: NotRequired[Dict[str, Any]]
+    output_compression: NotRequired[dict[str, Any]]
+    exo_request: NotRequired[dict[str, Any]]
     outcome_class: NotRequired[str]
     learning_eligible: NotRequired[bool]
     failure_kind: NotRequired[str]
@@ -135,7 +135,7 @@ class ExecutionSummary(TypedDict):
     completed: int
     failed: int
     skipped: int
-    details: List[Dict[str, Any]]
+    details: list[dict[str, Any]]
 
 
 # =============================================================================
@@ -172,9 +172,9 @@ class AgentConfig(TypedDict, total=False):
     """
 
     role: str
-    keywords: List[str]
+    keywords: list[str]
     action_description: NotRequired[str]
-    capabilities: NotRequired[List[str]]
+    capabilities: NotRequired[list[str]]
 
 
 class AgentRouterConfig(TypedDict):
@@ -185,7 +185,7 @@ class AgentRouterConfig(TypedDict):
         agents: Mapping of agent names to their configurations.
     """
 
-    agents: Dict[str, AgentConfig]
+    agents: dict[str, AgentConfig]
 
 
 # =============================================================================
@@ -210,8 +210,8 @@ class MemoryEntry(TypedDict, total=False):
 
     content: str
     source: str
-    embedding: NotRequired[List[float]]
-    metadata: NotRequired[Dict[str, Any]]
+    embedding: NotRequired[list[float]]
+    metadata: NotRequired[dict[str, Any]]
     timestamp: NotRequired[float]
     score: NotRequired[float]
 
@@ -234,7 +234,7 @@ class GovernanceEvent(TypedDict, total=False):
     timestamp: float
     message: NotRequired[str]
     failures_in_streak: NotRequired[int]
-    details: NotRequired[Dict[str, Any]]
+    details: NotRequired[dict[str, Any]]
 
 
 # =============================================================================
@@ -285,8 +285,8 @@ class HebbianNetworkSummary(TypedDict):
 # =============================================================================
 
 # Generic JSON-compatible type
-JSONValue = Union[str, int, float, bool, None, Dict[str, Any], List[Any]]
-JSONDict = Dict[str, JSONValue]
+JSONValue = Union[str, int, float, bool, None, dict[str, Any], list[Any]]
+JSONDict = dict[str, JSONValue]
 
 # Path types
 NotePath = str  # Relative path within Obsidian vault

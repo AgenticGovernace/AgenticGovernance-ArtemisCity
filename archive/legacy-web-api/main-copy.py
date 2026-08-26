@@ -1,7 +1,7 @@
 import os
 import re
 import sys
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,12 +31,12 @@ class TaskData(BaseModel):
     context: str | None = None
     keywords: str | None = None
     target: str | None = None
-    subtasks: List[Dict[str, Any]] | None = None
+    subtasks: list[dict[str, Any]] | None = None
 
 
 class AgentResponse(BaseModel):
     name: str
-    capabilities: List[str]
+    capabilities: list[str]
 
 
 class ReportSummary(BaseModel):
@@ -90,7 +90,7 @@ async def startup_event():
 # --- API Endpoints ---
 
 
-@app.get("/api/agents", response_model=List[AgentResponse])
+@app.get("/api/agents", response_model=list[AgentResponse])
 async def get_agents():
     """Lists all registered agents."""
     if not orchestrator:
@@ -146,7 +146,7 @@ async def create_task(task_data: TaskData):
         raise HTTPException(status_code=500, detail="Failed to create task.")
 
 
-@app.get("/api/reports", response_model=List[ReportSummary])
+@app.get("/api/reports", response_model=list[ReportSummary])
 async def get_reports():
     """Lists all generated reports."""
     if not orchestrator:
@@ -202,7 +202,7 @@ async def get_report_content(filename: str):
 
 
 @app.post("/api/execute-task")
-async def execute_pending_task(task_path: Dict[str, str]):
+async def execute_pending_task(task_path: dict[str, str]):
     """
     Executes a specific pending task identified by its relative_path in Obsidian.
     This endpoint is designed to mimic the manual execution from the main.py loop

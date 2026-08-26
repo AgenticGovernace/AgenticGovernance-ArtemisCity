@@ -12,11 +12,9 @@ import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
 
 from src.agents.base_agent import BaseAgent
-from src.governance.trust import (TrustMetrics, compute_trust_score,
-                                  trust_breakdown)
+from src.governance.trust import TrustMetrics, compute_trust_score, trust_breakdown
 from src.runtime_paths import data_path
 from src.utils.helpers import logger
 
@@ -66,7 +64,7 @@ class AgentScore:
 class AgentRegistryStore:
     """Lightweight SQLite-backed store for agent registry metadata and scores."""
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: str | None = None):
         self.db_path = data_path(
             "agent_registry.db", db_path, env_var="ARTEMIS_REGISTRY_DB"
         )
@@ -155,7 +153,7 @@ class AgentRegistryStore:
             if column not in existing:
                 conn.execute(f"ALTER TABLE agents ADD COLUMN {column} {spec}")
 
-    def load_scores(self) -> Dict[str, AgentScore]:
+    def load_scores(self) -> dict[str, AgentScore]:
         """Load persisted scores for all agents.
 
         Returns:
@@ -177,7 +175,7 @@ class AgentRegistryStore:
                 )
             return scores
 
-    def load_governance_states(self) -> Dict[str, dict]:
+    def load_governance_states(self) -> dict[str, dict]:
         """Load governance metadata (tier, status, violations) for all agents.
 
         Returns:
@@ -213,7 +211,7 @@ class AgentRegistryStore:
         ORDER BY name ASC
     """
 
-    def list_admission_records(self) -> List[dict]:
+    def list_admission_records(self) -> list[dict]:
         """Return the persisted admission facts the Routing Kernel gates on.
 
         This is deliberately narrower than :meth:`list_agent_records`: it
@@ -226,7 +224,7 @@ class AgentRegistryStore:
         with sqlite3.connect(self.db_path) as conn:
             rows = conn.execute(self._ADMISSION_RECORDS_SQL).fetchall()
 
-        records: List[dict] = []
+        records: list[dict] = []
         for (
             name,
             capabilities,
@@ -260,9 +258,9 @@ class AgentRegistryStore:
         self,
         agent_name: str,
         *,
-        tenant_ids: Optional[List[str]] = None,
-        scopes: Optional[List[str]] = None,
-        agent_uid: Optional[str] = None,
+        tenant_ids: list[str] | None = None,
+        scopes: list[str] | None = None,
+        agent_uid: str | None = None,
     ) -> None:
         """Persist the tenant, scope, and identity grants used for admission.
 
@@ -272,8 +270,8 @@ class AgentRegistryStore:
             scopes (Optional[List[str]]): Capability scopes granted to the agent.
             agent_uid (Optional[str]): Stable identity distinct from the name.
         """
-        assignments: List[str] = []
-        values: List[object] = []
+        assignments: list[str] = []
+        values: list[object] = []
         for column, value in (
             ("tenant_ids", tenant_ids),
             ("scopes", scopes),
@@ -295,7 +293,7 @@ class AgentRegistryStore:
             conn.commit()
 
     @staticmethod
-    def _decode_json_list(raw: object) -> List[str]:
+    def _decode_json_list(raw: object) -> list[str]:
         """Decode a persisted JSON string list, tolerating legacy NULL rows."""
         if raw is None:
             return []
@@ -501,7 +499,7 @@ class AgentRegistryStore:
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
     """
 
-    def list_agent_records(self) -> List[dict]:
+    def list_agent_records(self) -> list[dict]:
         """Return full persisted records for all agents, ordered by name.
 
         Returns:
@@ -511,7 +509,7 @@ class AgentRegistryStore:
             rows = conn.execute(self._LIST_RECORDS_SQL).fetchall()
         return [self._row_to_record(row) for row in rows]
 
-    def get_agent_record(self, name: str) -> Optional[dict]:
+    def get_agent_record(self, name: str) -> dict | None:
         """Return the full persisted record for one agent, or None.
 
         Args:
@@ -858,7 +856,7 @@ class AgentRegistryStore:
 
     def get_violations(
         self, agent_name: str, include_cleared: bool = False, limit: int = 100
-    ) -> List[dict]:
+    ) -> list[dict]:
         """Return violations for an agent, newest first.
 
         Args:
@@ -899,7 +897,7 @@ class AgentRegistryStore:
         self,
         agent_name: str,
         rationale: str,
-        override_tier: Optional[str] = None,
+        override_tier: str | None = None,
     ) -> int:
         """Mark active violations as cleared and release quarantine.
 
@@ -1005,7 +1003,7 @@ class AgentRegistryStore:
             )
             conn.commit()
 
-    def get_governance_state(self, agent_name: str) -> Optional[dict]:
+    def get_governance_state(self, agent_name: str) -> dict | None:
         """Return all governance metadata for an agent, or None if missing.
 
         Args:
@@ -1125,13 +1123,13 @@ class AgentRegistryStore:
 class AgentRegistry:
     """Coordinate agent registration, routing, and governance state backed by SQLite."""
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: str | None = None):
         self.store = AgentRegistryStore(db_path=db_path)
-        self.agents: Dict[str, BaseAgent] = {}
-        self.scores: Dict[str, AgentScore] = self.store.load_scores()
+        self.agents: dict[str, BaseAgent] = {}
+        self.scores: dict[str, AgentScore] = self.store.load_scores()
         # Governance cache: name -> {trust_tier, status, violation_count, ...}
         # Authoritative for reads; write-through to the store on mutation.
-        self.governance: Dict[str, dict] = self.store.load_governance_states()
+        self.governance: dict[str, dict] = self.store.load_governance_states()
 
     def register_agent(self, agent: BaseAgent):
         """Registers a new agent.
@@ -1154,7 +1152,7 @@ class AgentRegistry:
         # Seed governance cache from the freshly-persisted defaults.
         self.governance[agent.name] = self.store.get_governance_state(agent.name) or {}
 
-    def get_agent(self, agent_name: str) -> Optional[BaseAgent]:
+    def get_agent(self, agent_name: str) -> BaseAgent | None:
         """Return agent, or None if no agent with that name is registered.
 
         Args:
@@ -1211,7 +1209,7 @@ class AgentRegistry:
 
     def get_violations(
         self, agent_name: str, include_cleared: bool = False, limit: int = 100
-    ) -> List[dict]:
+    ) -> list[dict]:
         """Return logged violations for an agent, newest first.
 
         Args:
@@ -1225,7 +1223,7 @@ class AgentRegistry:
         return self.store.get_violations(agent_name, include_cleared, limit)
 
     def clear_violations(
-        self, agent_name: str, rationale: str, override_tier: Optional[str] = None
+        self, agent_name: str, rationale: str, override_tier: str | None = None
     ) -> int:
         """Clear violations and release quarantine; optionally upgrade trust tier.
 
@@ -1268,7 +1266,7 @@ class AgentRegistry:
         self.store.set_trust_score(agent_name, score)
         self.governance[agent_name] = self.store.get_governance_state(agent_name) or {}
 
-    def get_governance_state(self, agent_name: str) -> Optional[dict]:
+    def get_governance_state(self, agent_name: str) -> dict | None:
         """Return cached governance metadata for an agent, or None if unknown.
 
         Args:
@@ -1369,7 +1367,7 @@ class AgentRegistry:
             new_score,
         )
 
-    def get_all_agents(self) -> List[BaseAgent]:
+    def get_all_agents(self) -> list[BaseAgent]:
         """Return all agents.
 
         Returns:
@@ -1377,7 +1375,7 @@ class AgentRegistry:
         """
         return list(self.agents.values())
 
-    def get_agent_names(self) -> List[str]:
+    def get_agent_names(self) -> list[str]:
         """Return agent names.
 
         Returns:
@@ -1385,7 +1383,7 @@ class AgentRegistry:
         """
         return list(self.agents.keys())
 
-    def get_all_agents_with_scores(self) -> List[Dict]:
+    def get_all_agents_with_scores(self) -> list[dict]:
         """Return all agents with their capabilities and performance scores.
 
         Returns:

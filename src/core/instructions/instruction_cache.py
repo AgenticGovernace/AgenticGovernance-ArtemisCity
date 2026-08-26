@@ -12,7 +12,6 @@ repeated file I/O operations.
 
 import os
 import time
-from typing import Dict, Optional, Tuple
 
 from .instruction_loader import InstructionLoader, InstructionSet
 
@@ -31,13 +30,13 @@ class InstructionCache:
             ttl_seconds: Time-to-live for cache entries in seconds (default 5 minutes)
         """
         self.ttl_seconds = ttl_seconds
-        self._cache: Dict[str, Tuple[InstructionSet, float]] = {}
+        self._cache: dict[str, tuple[InstructionSet, float]] = {}
         self._loader = InstructionLoader()
 
     def get(
         self,
-        current_dir: Optional[str] = None,
-        agent_name: Optional[str] = None,
+        current_dir: str | None = None,
+        agent_name: str | None = None,
         force_reload: bool = False,
     ) -> InstructionSet:
         """Get instruction set from cache or load fresh.
@@ -73,7 +72,7 @@ class InstructionCache:
         return instruction_set
 
     def invalidate(
-        self, current_dir: Optional[str] = None, agent_name: Optional[str] = None
+        self, current_dir: str | None = None, agent_name: str | None = None
     ) -> None:
         """Invalidate cache entry for specific directory/agent combination.
 
@@ -97,7 +96,7 @@ class InstructionCache:
         """
         self._cache.clear()
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get cache statistics.
 
         Returns:
@@ -118,7 +117,7 @@ class InstructionCache:
         }
 
     @staticmethod
-    def _make_cache_key(current_dir: str, agent_name: Optional[str]) -> str:
+    def _make_cache_key(current_dir: str, agent_name: str | None) -> str:
         """Create cache key from directory and agent name.
 
         Args:

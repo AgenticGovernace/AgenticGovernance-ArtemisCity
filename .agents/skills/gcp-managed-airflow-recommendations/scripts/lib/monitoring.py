@@ -16,9 +16,9 @@
 import json
 import subprocess
 import sys
-from typing import Any, Dict
 import urllib.parse
 import urllib.request
+from typing import Any
 
 
 def _run_gcloud(*args: str) -> str:
@@ -50,7 +50,7 @@ def get_token() -> str:
     sys.exit(1)
 
 
-def fetch_time_series_promql(project_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+def fetch_time_series_promql(project_id: str, params: dict[str, Any]) -> dict[str, Any]:
     """Fetches time series data from Cloud Monitoring using PromQL API."""
     token = get_token()
     url = f"https://monitoring.googleapis.com/v1/projects/{project_id}/location/global/prometheus/api/v1/query_range"

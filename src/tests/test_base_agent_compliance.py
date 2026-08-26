@@ -22,13 +22,14 @@ Date: 2024
 from __future__ import annotations
 
 import inspect
-from typing import Any, Dict, List, Type
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
 
 import src.agents.llm_agent as llm_module
 from src.agents.artemis_agent import ArtemisAgent
+
 # Import base class and all concrete implementations
 from src.agents.base_agent import BaseAgent
 from src.agents.llm_agent import LLMAgent
@@ -59,7 +60,7 @@ def endpoint_free_exo(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(llm_module.requests, "post", Mock(return_value=completion))
 
 
-def get_all_agent_classes() -> List[Type[BaseAgent]]:
+def get_all_agent_classes() -> list[type[BaseAgent]]:
     """
     Discover all concrete BaseAgent subclasses.
 
@@ -74,7 +75,7 @@ def get_all_agent_classes() -> List[Type[BaseAgent]]:
     ]
 
 
-def get_all_agent_instances() -> List[BaseAgent]:
+def get_all_agent_instances() -> list[BaseAgent]:
     """
     Create instances of all concrete agents for testing.
 
@@ -85,7 +86,7 @@ def get_all_agent_instances() -> List[BaseAgent]:
 
 
 @pytest.fixture(params=get_all_agent_classes())
-def agent_class(request) -> Type[BaseAgent]:
+def agent_class(request) -> type[BaseAgent]:
     """Parametrized fixture providing each agent class.
 
     Args:
@@ -111,7 +112,7 @@ def agent_instance(request) -> BaseAgent:
 
 
 @pytest.fixture
-def minimal_task_context() -> Dict[str, Any]:
+def minimal_task_context() -> dict[str, Any]:
     """Minimal valid task context for testing.
 
     Returns:
@@ -126,7 +127,7 @@ def minimal_task_context() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def empty_task_context() -> Dict[str, Any]:
+def empty_task_context() -> dict[str, Any]:
     """Empty task context for edge case testing.
 
     Returns:
@@ -143,7 +144,7 @@ def empty_task_context() -> Dict[str, Any]:
 class TestInterfaceCompliance:
     """Verify all agents implement the BaseAgent interface."""
 
-    def test_agent_inherits_from_base_agent(self, agent_class: Type[BaseAgent]) -> None:
+    def test_agent_inherits_from_base_agent(self, agent_class: type[BaseAgent]) -> None:
         """All agent classes must inherit from BaseAgent.
 
         Args:
@@ -241,7 +242,7 @@ class TestInterfaceCompliance:
 class TestContractCompliance:
     """Verify method signatures match the base class contract."""
 
-    def test_perform_task_signature(self, agent_class: Type[BaseAgent]) -> None:
+    def test_perform_task_signature(self, agent_class: type[BaseAgent]) -> None:
         """perform_task must accept task_context dict and return dict.
 
         Args:
@@ -259,7 +260,7 @@ class TestContractCompliance:
         ), f"{agent_class.__name__}.perform_task missing parameters"
 
     def test_perform_task_accepts_dict(
-        self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
+        self, agent_instance: BaseAgent, minimal_task_context: dict[str, Any]
     ) -> None:
         """perform_task must accept a dictionary argument.
 
@@ -279,7 +280,7 @@ class TestContractCompliance:
             pytest.fail(f"{agent_instance.name}.perform_task rejected dict input: {e}")
 
     def test_perform_task_returns_dict(
-        self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
+        self, agent_instance: BaseAgent, minimal_task_context: dict[str, Any]
     ) -> None:
         """perform_task must return a dictionary.
 
@@ -307,7 +308,7 @@ class TestBehaviorCompliance:
     """Verify agents produce expected behavior patterns."""
 
     def test_result_has_status_field(
-        self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
+        self, agent_instance: BaseAgent, minimal_task_context: dict[str, Any]
     ) -> None:
         """All task results must include a 'status' field.
 
@@ -325,7 +326,7 @@ class TestBehaviorCompliance:
         ), f"{agent_instance.name} result missing 'status' field"
 
     def test_result_status_is_valid(
-        self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
+        self, agent_instance: BaseAgent, minimal_task_context: dict[str, Any]
     ) -> None:
         """Status field must be 'success' or 'failed'.
 
@@ -344,7 +345,7 @@ class TestBehaviorCompliance:
         ), f"{agent_instance.name} returned invalid status: {result.get('status')}"
 
     def test_result_has_summary_field(
-        self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
+        self, agent_instance: BaseAgent, minimal_task_context: dict[str, Any]
     ) -> None:
         """All task results must include a 'summary' field.
 
@@ -362,7 +363,7 @@ class TestBehaviorCompliance:
         ), f"{agent_instance.name} result missing 'summary' field"
 
     def test_result_summary_is_string(
-        self, agent_instance: BaseAgent, minimal_task_context: Dict[str, Any]
+        self, agent_instance: BaseAgent, minimal_task_context: dict[str, Any]
     ) -> None:
         """Summary field must be a string.
 
@@ -403,7 +404,7 @@ class TestErrorHandling:
     """Verify agents handle edge cases gracefully."""
 
     def test_empty_context_does_not_crash(
-        self, agent_instance: BaseAgent, empty_task_context: Dict[str, Any]
+        self, agent_instance: BaseAgent, empty_task_context: dict[str, Any]
     ) -> None:
         """Agents should handle empty task context without crashing.
 
@@ -482,7 +483,7 @@ class TestLiskovSubstitution:
         assert hasattr(base_ref, "capabilities")
 
     def test_polymorphic_task_execution(
-        self, minimal_task_context: Dict[str, Any]
+        self, minimal_task_context: dict[str, Any]
     ) -> None:
         """All agents should work polymorphically with same task context.
 

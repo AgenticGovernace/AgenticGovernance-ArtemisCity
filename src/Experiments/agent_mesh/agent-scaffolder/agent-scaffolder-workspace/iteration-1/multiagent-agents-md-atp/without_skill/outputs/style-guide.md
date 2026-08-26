@@ -6,7 +6,7 @@
 
 ## Voice & tone
 
-- Write for a competent reader who is new to *this* project, not new to software.
+- Write for a competent reader who is new to _this_ project, not new to software.
 - Be direct and active. "Run the command," not "the command should be run."
 - Prefer short sentences. Cut filler ("simply," "just," "of course").
 

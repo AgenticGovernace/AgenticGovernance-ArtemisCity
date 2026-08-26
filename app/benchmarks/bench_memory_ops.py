@@ -21,13 +21,17 @@ import time
 # ATP benchmark even if they are unavailable; both now ship in src/integration/.
 try:
     from src.integration.memory_decay import MemoryDecayService  # type: ignore
-    from src.integration.memory_decay import MemoryNode
+    from src.integration.memory_decay import (
+        MemoryNode,
+    )
 except ModuleNotFoundError:
     MemoryDecayService = MemoryNode = None  # type: ignore[assignment]
 
 try:
     from src.integration.hebbian_sync import HebbianSyncService  # type: ignore
-    from src.integration.hebbian_sync import WeightUpdate
+    from src.integration.hebbian_sync import (
+        WeightUpdate,
+    )
 except ModuleNotFoundError:
     HebbianSyncService = WeightUpdate = None  # type: ignore[assignment]
 

@@ -13,7 +13,8 @@ const LEVEL_FROM_ENV: Record<string, LogLevel> = {
 };
 
 const currentLogLevel: LogLevel =
-  LEVEL_FROM_ENV[(process.env.MCP_LOG_LEVEL ?? 'info').toLowerCase()] ?? LogLevel.INFO;
+  LEVEL_FROM_ENV[(process.env.MCP_LOG_LEVEL ?? "info").toLowerCase()] ??
+  LogLevel.INFO;
 
 const log = (level: LogLevel, message: string, ...args: unknown[]) => {
   if (level < currentLogLevel) return;
@@ -37,8 +38,12 @@ const log = (level: LogLevel, message: string, ...args: unknown[]) => {
 };
 
 export const logger = {
-  debug: (message: string, ...args: unknown[]) => log(LogLevel.DEBUG, message, ...args),
-  info: (message: string, ...args: unknown[]) => log(LogLevel.INFO, message, ...args),
-  warn: (message: string, ...args: unknown[]) => log(LogLevel.WARN, message, ...args),
-  error: (message: string, ...args: unknown[]) => log(LogLevel.ERROR, message, ...args),
+  debug: (message: string, ...args: unknown[]) =>
+    log(LogLevel.DEBUG, message, ...args),
+  info: (message: string, ...args: unknown[]) =>
+    log(LogLevel.INFO, message, ...args),
+  warn: (message: string, ...args: unknown[]) =>
+    log(LogLevel.WARN, message, ...args),
+  error: (message: string, ...args: unknown[]) =>
+    log(LogLevel.ERROR, message, ...args),
 };

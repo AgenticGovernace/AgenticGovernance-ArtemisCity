@@ -22,7 +22,6 @@ tokens.
 * ``curl`` for HTTPS calls.
 """
 
-from collections.abc import Mapping, Sequence
 import json as json_lib
 import logging
 import os
@@ -31,8 +30,9 @@ import shutil
 import subprocess
 import tempfile
 import time
-from typing import Any
 import urllib.parse
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 _BIGQUERY_API = "https://bigquery.googleapis.com/bigquery/v2/projects"
 _RESOURCE_MANAGER_API = "https://cloudresourcemanager.googleapis.com/v3/projects"
@@ -215,7 +215,7 @@ class Response:
     def __enter__(self) -> "Response":
         return self
 
-    def __exit__(self, *exc: Any) -> bool:
+    def __exit__(self, *exc: object) -> bool:
         return False
 
 
@@ -241,7 +241,7 @@ class AuthorizedSession:
     def __enter__(self) -> "AuthorizedSession":
         return self
 
-    def __exit__(self, *exc: Any) -> bool:
+    def __exit__(self, *exc: object) -> bool:
         return False
 
     def _execute_request(

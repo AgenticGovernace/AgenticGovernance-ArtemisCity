@@ -6,6 +6,7 @@ Writer (Scribe) and Reviewer (Arbiter) follow them; role-specific duties live in
 `AGENTS.md`.
 
 ## Shared rules (both agents)
+
 - All docs are Markdown. Use sentence-case headings, short paragraphs, and fenced code
   blocks for commands or code.
 - Drafts live in `docs/drafts/`; published docs live in `docs/published/`. Never edit a
@@ -18,6 +19,7 @@ Writer (Scribe) and Reviewer (Arbiter) follow them; role-specific duties live in
   shipped.
 
 ## Writer-specific (Scribe)
+
 - Default tone for prose = clear, plain, instructional — write for a reader who is new to
   the topic.
 - Respond to review feedback comment-by-comment (resolved / disagreed-with-reason); do
@@ -26,6 +28,7 @@ Writer (Scribe) and Reviewer (Arbiter) follow them; role-specific duties live in
   `Action Type: review`.
 
 ## Reviewer-specific (Arbiter)
+
 - Default tone for reviews = direct and impersonal — critique the document, not the
   author; dry, specific, no padding.
 - Tag every comment `[blocking]`, `[nit]`, or `[praise]`, and reference the file and

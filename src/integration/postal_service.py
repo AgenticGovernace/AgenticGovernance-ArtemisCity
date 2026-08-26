@@ -10,11 +10,10 @@ from __future__ import annotations
 import datetime
 import random
 import time
-import typing
 
-import src.integration.context_loader as context_loader
 import src.integration.memory_client
 import src.integration.trust_interface
+from src.integration import context_loader
 
 
 class MailPacket:
@@ -72,7 +71,7 @@ class PostOffice:
             src.integration.trust_interface.get_trust_interface()
         )
         self.context_loader = context_loader.ContextLoader(self.memory_client)
-        self.delivery_log: typing.List[typing.Dict] = []
+        self.delivery_log: list[dict] = []
 
         print("\n Artemis City Post Office - OPEN")
         print("=" * 60)
@@ -158,7 +157,7 @@ class PostOffice:
 
     def check_mailbox(
         self, recipient: str, limit: int = 20
-    ) -> typing.List[context_loader.ContextEntry]:
+    ) -> list[context_loader.ContextEntry]:
         """Return mail delivered to an agent's governed postal folder.
 
         Args:
@@ -236,8 +235,8 @@ class PostOffice:
         return response
 
     def request_from_archives(
-        self, requester: str, query: str, section: typing.Optional[str] = None
-    ) -> typing.List[context_loader.ContextEntry]:
+        self, requester: str, query: str, section: str | None = None
+    ) -> list[context_loader.ContextEntry]:
         """Request documents from the City Archives.
 
         Args:
@@ -268,8 +267,8 @@ class PostOffice:
         if section:
             search_query: str = f"#Archives #{section} {query}"
 
-        results: typing.List[context_loader.ContextEntry] = (
-            self.context_loader.search_context(search_query, limit=10)
+        results: list[context_loader.ContextEntry] = self.context_loader.search_context(
+            search_query, limit=10
         )
 
         if results:
@@ -282,7 +281,7 @@ class PostOffice:
         self.trust_office.record_success(requester)
         return results
 
-    def get_postal_report(self) -> typing.Dict:
+    def get_postal_report(self) -> dict:
         """Generate a postal service activity report.
 
         Returns:
@@ -330,7 +329,7 @@ class PostOffice:
             Formatted markdown content
         """
         return f"""
---- 
+---
 from: {packet.sender}
 to: {packet.recipient}
 tracking_id: {packet.tracking_id}
@@ -357,7 +356,7 @@ status: {packet.delivery_status}
 """
 
     def _log_delivery(
-        self, packet: MailPacket, success: bool, reason: typing.Optional[str] = None
+        self, packet: MailPacket, success: bool, reason: str | None = None
     ) -> None:
         """Log a delivery attempt."""
         self.delivery_log.append(

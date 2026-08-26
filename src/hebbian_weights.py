@@ -9,7 +9,6 @@ import os
 import sqlite3
 import time
 from datetime import datetime
-from typing import List, Optional, Tuple
 
 from utils.helpers import logger
 
@@ -228,7 +227,7 @@ class HebbianWeightManager:
             result = cursor.fetchone()
             return result[0] if result else 0.0
 
-    def get_connection_stats(self, origin: str, target: str) -> Optional[dict]:
+    def get_connection_stats(self, origin: str, target: str) -> dict | None:
         """
         Get detailed statistics for a specific connection.
 
@@ -253,7 +252,7 @@ class HebbianWeightManager:
 
     def get_strongest_connections(
         self, node: str, limit: int = 10, direction: str = "outgoing"
-    ) -> List[Tuple[str, float]]:
+    ) -> list[tuple[str, float]]:
         """
         Get strongest connections for a node.
 
@@ -338,7 +337,7 @@ class HebbianWeightManager:
                 return result[0] / result[1]
             return 0.0
 
-    def get_all_connections(self, min_weight: float = 0) -> List[dict]:
+    def get_all_connections(self, min_weight: float = 0) -> list[dict]:
         """
         Get all connections above a minimum weight threshold.
 
@@ -430,7 +429,7 @@ class HebbianWeightManager:
 
             return {}
 
-    def get_connections_list(self, limit: int = 50) -> List[dict]:
+    def get_connections_list(self, limit: int = 50) -> list[dict]:
         """
         Get top connections sorted by weight for web UI display.
 

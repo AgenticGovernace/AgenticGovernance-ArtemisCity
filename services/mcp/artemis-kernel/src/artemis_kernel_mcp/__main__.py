@@ -10,10 +10,9 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from artemis_mcp_common.provenance import ProvenanceSession, ProvenanceUnavailable
+from mcp.server.mcpserver import MCPServer
 from posthog import Posthog
 from posthog.mcp import instrument
-
-from mcp.server.mcpserver import MCPServer
 
 from .server import create_server
 from .wiring import KernelServerConfigurationError, build_task_store
@@ -22,7 +21,7 @@ _PROG = "artemis-kernel-mcp"
 _SERVER_NAME = "artemis-kernel"
 _EXIT_CONFIG = 78
 
-_POSTHOG_TOKEN_VAR = "POSTHOG_PROJECT_TOKEN"
+_POSTHOG_TOKEN_VAR = "POSTHOG_PROJECT_TOKEN"  # nosec B105 - variable name, not a secret
 _POSTHOG_HOST_VAR = "POSTHOG_HOST"
 _DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com"
 
@@ -71,15 +70,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         server = build_stdio_server()
     except KernelServerConfigurationError as error:
         provenance.log(
-            phase="startup_failed", action_type="execute", target="build_stdio_server",
-            status="error", payload_summary=str(error), tags=("startup", "issue"),
+            phase="startup_failed",
+            action_type="execute",
+            target="build_stdio_server",
+            status="error",
+            payload_summary=str(error),
+            tags=("startup", "issue"),
         )
         print(f"{_PROG}: {error}", file=sys.stderr)
         return _EXIT_CONFIG
 
     provenance.log(
-        phase="startup", action_type="execute", target="build_stdio_server",
-        status="ok", payload_summary="kernel server built", tags=("startup", "ok"),
+        phase="startup",
+        action_type="execute",
+        target="build_stdio_server",
+        status="ok",
+        payload_summary="kernel server built",
+        tags=("startup", "ok"),
     )
 
     posthog = _build_posthog()
@@ -98,8 +105,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         server.run("stdio")
     finally:
         provenance.log(
-            phase="atp_response", action_type="respond", target="stdio",
-            status="ok", payload_summary="stdio transport stopped",
+            phase="atp_response",
+            action_type="respond",
+            target="stdio",
+            status="ok",
+            payload_summary="stdio transport stopped",
             tags=("atp", "response"),
         )
         if posthog is not None:

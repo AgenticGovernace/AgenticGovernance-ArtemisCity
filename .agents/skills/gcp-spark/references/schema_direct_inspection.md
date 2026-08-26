@@ -41,4 +41,5 @@ Peek first row of CSV file
 Use `gcloud storage cat gs://bucket/file.csv | head -n 1`
 
 ### For local CSV file
+
 Use `head -n 1 file.csv`

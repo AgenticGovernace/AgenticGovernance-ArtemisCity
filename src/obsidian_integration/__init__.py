@@ -5,7 +5,7 @@ from .manager import ObsidianManager
 from .parser import ObsidianParser
 
 __all__ = [
-    "ObsidianManager",
     "ObsidianGenerator",
+    "ObsidianManager",
     "ObsidianParser",
 ]

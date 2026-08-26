@@ -8,9 +8,10 @@ store, the compatibility path writes vector storage before the local vault.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path, PurePath
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 from uuid import uuid4
 
 from src.obsidian_integration import ObsidianManager
@@ -108,15 +109,15 @@ class MemoryBus:
         self,
         obsidian_manager: ObsidianManager,
         vector_store: LocalVectorStore,
-        search_dirs: Optional[List[str]] = None,
+        search_dirs: list[str] | None = None,
         governance_monitor=None,
-        memory_decay_service: Optional[MemoryDecayService] = None,
+        memory_decay_service: MemoryDecayService | None = None,
         sql_store: SqlMemoryStore | None = None,
     ):
         self.obsidian_manager = obsidian_manager
         self.vector_store = vector_store
         self.search_dirs = search_dirs or []
-        self._vault_path: Optional[Path] = (
+        self._vault_path: Path | None = (
             None
             if sql_store is not None
             else getattr(obsidian_manager, "vault_path", None)
@@ -130,13 +131,13 @@ class MemoryBus:
         self,
         relative_path: str,
         content: str,
-        metadata: Optional[Dict] = None,
+        metadata: dict | None = None,
         embed: bool = True,
         *,
         idempotency_key: str | None = None,
         provenance_id: str | None = None,
         source_agent: str | None = None,
-    ) -> Dict:
+    ) -> dict:
         """
         Persist note content to the vector store (semantic) and Obsidian (explicit).
 
@@ -250,12 +251,12 @@ class MemoryBus:
         relative_path: str,
         content: str,
         *,
-        metadata: Optional[Dict],
+        metadata: dict | None,
         embed: bool,
         idempotency_key: str | None,
         provenance_id: str | None,
         source_agent: str | None,
-    ) -> Dict:
+    ) -> dict:
         """Commit a canonical revision before updating any projection."""
         self._validate_sql_write(relative_path, content)
         if idempotency_key is not None and (
@@ -312,7 +313,7 @@ class MemoryBus:
         write_metadata: dict,
         embed: bool,
         start: float,
-    ) -> Dict:
+    ) -> dict:
         """Project one receipt while its database path fence is held."""
         revision = receipt.revision
         vector_latency_ms = None
@@ -445,7 +446,7 @@ class MemoryBus:
         status: str,
         obsidian_status: str,
         vector_status: str,
-    ) -> Dict:
+    ) -> dict:
         """Return the compatibility receipt augmented with canonical identity."""
         revision = receipt.revision
         if METRICS_ENABLED:
@@ -507,7 +508,7 @@ class MemoryBus:
                 sanitize_for_log(receipt.event_id),
             )
 
-    def read_exact(self, relative_path: str) -> Dict | None:
+    def read_exact(self, relative_path: str) -> dict | None:
         """Return one exact canonical or legacy note without search fallback."""
         exact_start = time.perf_counter()
         revision = (
@@ -538,7 +539,7 @@ class MemoryBus:
 
     def list_current(
         self, relative_path_prefix: str, limit: int | None = None
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """List canonical SQL heads beneath one vault-relative folder prefix."""
         if self.sql_store is None:
             raise RuntimeError("canonical memory listing requires SQL mode")
@@ -569,9 +570,9 @@ class MemoryBus:
     def read(
         self,
         query: str,
-        relative_path: Optional[str] = None,
+        relative_path: str | None = None,
         max_results: int = 3,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Retrieve knowledge via hierarchical lookup.
 
         Order: exact path lookup → keyword scan across configured folders →
@@ -587,7 +588,7 @@ class MemoryBus:
             List[Dict]: List containing the resulting items.
         """
         start = time.perf_counter()
-        results: List[Dict] = []
+        results: list[dict] = []
 
         if relative_path:
             exact = self.read_exact(relative_path)
@@ -761,13 +762,13 @@ class MemoryBus:
             except Exception:  # pragma: no cover - observability is non-authoritative
                 logger.warning("Memory governance success recording is unavailable.")
 
-    def _keyword_scan(self, query: str, limit: int) -> List[Dict]:
+    def _keyword_scan(self, query: str, limit: int) -> list[dict]:
         """Lightweight keyword search across configured folders."""
         if not self._vault_path:
             return []
 
         lowered_query = query.lower()
-        found: List[Dict] = []
+        found: list[dict] = []
 
         for folder in self.search_dirs:
             folder_path = self._vault_path / folder

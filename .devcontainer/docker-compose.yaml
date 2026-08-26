@@ -10,7 +10,6 @@ services:
     depends_on:
       - db
 
-
     # Runs app on the same network as the database container, allows "forwardPorts" in devcontainer.json function.
     networks:
       - devnet

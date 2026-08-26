@@ -1,12 +1,12 @@
-import { manageTags as manageObsidianTags } from '../../services/obsidianRestAPI/methods';
-import { wrapTool } from './wrapTool';
+import { manageTags as manageObsidianTags } from "../../services/obsidianRestAPI/methods";
+import { wrapTool } from "./wrapTool";
 
-export const MANAGE_TAGS_ACTIONS = ['add', 'remove'] as const;
+export const MANAGE_TAGS_ACTIONS = ["add", "remove"] as const;
 export type ManageTagsAction = (typeof MANAGE_TAGS_ACTIONS)[number];
 
 const MANAGE_TAGS_ACTION_PAST_TENSE: Record<ManageTagsAction, string> = {
-  add: 'added',
-  remove: 'removed',
+  add: "added",
+  remove: "removed",
 };
 
 /**
@@ -18,7 +18,7 @@ const MANAGE_TAGS_ACTION_PAST_TENSE: Record<ManageTagsAction, string> = {
  * @returns Wrapped tool result containing the tag update status message.
  */
 export const manageTags = wrapTool(
-  'manageTags',
+  "manageTags",
   async (path: string, tags: string[], action: ManageTagsAction) => {
     await manageObsidianTags(path, tags, action);
     return {

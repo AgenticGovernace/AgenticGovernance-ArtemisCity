@@ -5,12 +5,7 @@
     "executor_model": "<model-name>",
     "analyzer_model": "<model-name>",
     "timestamp": "2026-06-16T15:21:25Z",
-    "evals_run": [
-      0,
-      1,
-      2,
-      3
-    ],
+    "evals_run": [0, 1, 2, 3],
     "runs_per_configuration": 3
   },
   "runs": [

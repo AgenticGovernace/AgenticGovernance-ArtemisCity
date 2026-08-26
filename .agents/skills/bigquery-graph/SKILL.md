@@ -1,6 +1,7 @@
 ---
 name: bigquery-graph
-description: Provides guidelines and best practices for querying and defining property
+description:
+  Provides guidelines and best practices for querying and defining property
   graphs and semantic graphs in BigQuery using GQL (Graph Query Language). Use when
   creating property graphs or querying graph topologies in BigQuery.
 license: Apache-2.0
@@ -21,4 +22,3 @@ BigQuery supports Graph Analytics through property graph queries (using GQL) and
 - **DDL Reference**: [ddl_reference.md](references/graph-schema/ddl_reference.md) - `CREATE PROPERTY GRAPH` DDL syntax.
 - **Feature Parity & Limitations**: [feature_parity.md](references/graph-schema/feature_parity.md) - GQL limitations and feature parity.
 - **Graph Schema Advisor**: [graph_schema_ddl_advisor.md](references/graph-schema/graph_schema_ddl_advisor.md) - Assistant guidelines for designing graph schemas.
-

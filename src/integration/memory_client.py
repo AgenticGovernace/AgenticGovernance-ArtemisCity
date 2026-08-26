@@ -10,7 +10,7 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.error import HTTPError, URLError
 
 # Import for side effects: loads repo-root .env values without overriding real
@@ -61,13 +61,13 @@ class MCPResponse:
     """
 
     success: bool
-    data: Optional[Any] = None
-    message: Optional[str] = None
-    error: Optional[str] = None
+    data: Any | None = None
+    message: str | None = None
+    error: str | None = None
     status_code: int = 200
 
     @classmethod
-    def from_json(cls, json_data: Dict, status_code: int) -> "MCPResponse":
+    def from_json(cls, json_data: dict, status_code: int) -> "MCPResponse":
         """Create MCPResponse from JSON data.
 
         Args:
@@ -102,8 +102,8 @@ class MemoryClient:
 
     def __init__(
         self,
-        base_url: Optional[str] = None,
-        api_key: Optional[str] = None,
+        base_url: str | None = None,
+        api_key: str | None = None,
         timeout: int = DEFAULT_TIMEOUT,
     ):
         """Initialize memory client.
@@ -130,7 +130,7 @@ class MemoryClient:
             )
 
     def _make_request(
-        self, operation: MCPOperation, data: Optional[Dict] = None
+        self, operation: MCPOperation, data: dict | None = None
     ) -> MCPResponse:
         """Make HTTP request to MCP server.
 
@@ -181,11 +181,11 @@ class MemoryClient:
 
         except URLError as e:
             return MCPResponse(
-                success=False, error=f"Connection error: {str(e.reason)}", status_code=0
+                success=False, error=f"Connection error: {e.reason!s}", status_code=0
             )
         except Exception as e:
             return MCPResponse(
-                success=False, error=f"Unexpected error: {str(e)}", status_code=0
+                success=False, error=f"Unexpected error: {e!s}", status_code=0
             )
 
     def get_context(self, path: str) -> MCPResponse:
@@ -268,8 +268,8 @@ class MemoryClient:
         self,
         path: str,
         action: str,
-        key: Optional[str] = None,
-        value: Optional[str] = None,
+        key: str | None = None,
+        value: str | None = None,
     ) -> MCPResponse:
         """Manage YAML frontmatter in note.
 
@@ -291,7 +291,7 @@ class MemoryClient:
         return self._make_request(MCPOperation.MANAGE_FRONTMATTER, data)
 
     def manage_tags(
-        self, path: str, action: str, tags: Optional[List[str]] = None
+        self, path: str, action: str, tags: list[str] | None = None
     ) -> MCPResponse:
         """Manage tags in note.
 
@@ -303,7 +303,7 @@ class MemoryClient:
         Returns:
             MCPResponse with tag data or success status
         """
-        data: Dict[str, Any] = {"path": path, "action": action}
+        data: dict[str, Any] = {"path": path, "action": action}
         if tags:
             data["tags"] = tags
 

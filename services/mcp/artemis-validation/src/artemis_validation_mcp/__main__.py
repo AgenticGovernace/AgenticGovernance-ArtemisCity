@@ -21,14 +21,14 @@ import os
 import signal
 import sys
 import time
-from pathlib import Path
 from collections.abc import Sequence
+from pathlib import Path
 
 from artemis_mcp_common.provenance import ProvenanceSession, ProvenanceUnavailable
+from mcp.server.mcpserver import MCPServer
 from posthog import Posthog
 from posthog.mcp import instrument
 
-from mcp.server.mcpserver import MCPServer
 from src.auth.config import AuthConfigurationError
 from src.auth.verifier import AuthenticationDenied
 from src.routing.authorization import AuthorizationDenied
@@ -36,8 +36,8 @@ from src.routing.authorization import AuthorizationDenied
 from .server import create_server
 from .wiring import (
     ValidationServerConfigurationError,
-    build_authentication_request,
     build_auth_verifier,
+    build_authentication_request,
 )
 
 _PROG = "artemis-validation-mcp"
@@ -47,7 +47,7 @@ _PROG = "artemis-validation-mcp"
 _EXIT_CONFIG = 78
 _EXIT_DENIED = 77
 
-_POSTHOG_TOKEN_VAR = "POSTHOG_PROJECT_TOKEN"
+_POSTHOG_TOKEN_VAR = "POSTHOG_PROJECT_TOKEN"  # nosec B105 - variable name, not a secret
 _POSTHOG_HOST_VAR = "POSTHOG_HOST"
 _DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com"
 

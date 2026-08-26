@@ -1,7 +1,6 @@
 # Artemis City Test Plan
 
 > Purpose: Comprehensive test strategy for the Artemis City codebase, aligned with Python testing best practices using pytest.
->
 
 ---
 
@@ -64,6 +63,7 @@ test_<module>_<function>_<scenario>
 ```
 
 Examples:
+
 - `test_atp_parser_parse_hash_format`
 - `test_trust_score_apply_decay_after_one_day`
 - `test_memory_client_get_context_server_unreachable`

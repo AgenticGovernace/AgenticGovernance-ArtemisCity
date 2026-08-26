@@ -21,8 +21,8 @@ Import tolerance mirrors :mod:`memory_decay`: works whether imported as
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, List, Optional
 
 try:  # repo root on path (tests / app): `src` is a package
     from src.utils.helpers import logger
@@ -54,7 +54,7 @@ class WeightUpdate:
     @classmethod
     def from_weights(
         cls, connection_id: str, old_weight: float, new_weight: float
-    ) -> "WeightUpdate":
+    ) -> WeightUpdate:
         """Build an update, computing ``delta`` from old/new weights.
 
         Args:
@@ -84,7 +84,7 @@ class BatchResult:
 
 
 # A sink receives the whole batch so it can persist it in one operation.
-BatchSink = Callable[[List[WeightUpdate]], None]
+BatchSink = Callable[[list[WeightUpdate]], None]
 
 
 class HebbianSyncService:
@@ -94,7 +94,7 @@ class HebbianSyncService:
         self,
         batch_size: int = 100,
         flush_interval_ms: float = 100.0,
-        sink: Optional[BatchSink] = None,
+        sink: BatchSink | None = None,
         auto_flush: bool = False,
     ) -> None:
         """Initialize the sync service.
@@ -115,7 +115,7 @@ class HebbianSyncService:
         self.sink = sink
         self.auto_flush = auto_flush
 
-        self._buffer: List[WeightUpdate] = []
+        self._buffer: list[WeightUpdate] = []
         self._last_flush = time.perf_counter()
         self.total_flushed = 0
         self.total_batches = 0

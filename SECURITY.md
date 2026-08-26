@@ -8,7 +8,7 @@ topics.
 ## Reporting a vulnerability
 
 Report suspected vulnerabilities privately to the maintainer at
-**prinstonpalmer879@gmail.com**. Do not open a public issue for an unpatched
+**<prinstonpalmer879@gmail.com>**. Do not open a public issue for an unpatched
 security problem. Please include a description, reproduction steps, and the
 affected component (Python core, TS Express API, FastAPI dashboard, or the
 standalone memory-layer MCP server).
@@ -22,15 +22,15 @@ a custom staged-file grep) block accidental commits.
 `./setup_secrets.sh` is the canonical provisioner. Root `.env` is the only
 operator-edited local source. It writes seven outputs:
 
-| File | Read by |
-|---|---|
-| `.env` | Operator source; Python core, FastAPI, and Compose |
-| `app/api/.env` | TypeScript Express API and Python bridge |
-| `app/web/frontend/.env` | Vite browser-facing derived aliases |
-| `src/.env` | Python source runtime |
-| `src/Artemis Agentic Memory Layer/.env` | Obsidian REST shell |
-| `services/mcp/artemis-memory/.env` | Memory MCP server |
-| `services/prove/.env` | Provenance service, proxy, MCP, and UI mesh |
+| File                                    | Read by                                            |
+| --------------------------------------- | -------------------------------------------------- |
+| `.env`                                  | Operator source; Python core, FastAPI, and Compose |
+| `app/api/.env`                          | TypeScript Express API and Python bridge           |
+| `app/web/frontend/.env`                 | Vite browser-facing derived aliases                |
+| `src/.env`                              | Python source runtime                              |
+| `src/Artemis Agentic Memory Layer/.env` | Obsidian REST shell                                |
+| `services/mcp/artemis-memory/.env`      | Memory MCP server                                  |
+| `services/prove/.env`                   | Provenance service, proxy, MCP, and UI mesh        |
 
 `config/environment-contract.yaml` and the declared templates own each view's
 shape. `VITE_FASTAPI_API_KEY`, `VITE_MCP_API_KEY`, and

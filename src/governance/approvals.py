@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import dataclasses
 from enum import Enum
-from typing import List
 
 # Trust thresholds from GOVERNANCE.md tier criteria.
 TRUST_AUTO_MIN = 0.9
@@ -64,7 +63,7 @@ class ApprovalDecision:
     tier: ApprovalTier
     auto_approved: bool
     requires_human: bool
-    reasons: List[str] = dataclasses.field(default_factory=list)
+    reasons: list[str] = dataclasses.field(default_factory=list)
 
     def to_dict(self) -> dict:
         """To dict.
@@ -80,7 +79,7 @@ class ApprovalDecision:
         }
 
 
-def _decision(tier: ApprovalTier, reasons: List[str]) -> ApprovalDecision:
+def _decision(tier: ApprovalTier, reasons: list[str]) -> ApprovalDecision:
     return ApprovalDecision(
         tier=tier,
         auto_approved=(tier == ApprovalTier.AUTO),
@@ -109,7 +108,7 @@ class SelfUpdateGovernor:
         Returns:
             ApprovalDecision: Resulting ApprovalDecision value produced by the operation.
         """
-        reasons: List[str] = []
+        reasons: list[str] = []
 
         # --- Hard escalators: always human review ---
         if proposal.affects_governance:

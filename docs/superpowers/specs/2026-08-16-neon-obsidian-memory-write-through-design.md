@@ -158,16 +158,16 @@ The client-visible receipt adds `memory_id`, `record_id`, `revision`,
 
 ### Outcome rules
 
-| Condition | Result |
-|---|---|
-| Validation fails | Raise; no SQL, vector, or Obsidian side effect. |
-| PostgreSQL transaction fails | Raise retryable storage error; no Obsidian write. |
-| PostgreSQL commits and Obsidian succeeds | `status=success`, `sync_pending=false`. |
-| PostgreSQL commits and Obsidian fails | `status=accepted`, `sync_pending=true`; retain pending event. |
+| Condition                                             | Result                                                                           |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Validation fails                                      | Raise; no SQL, vector, or Obsidian side effect.                                  |
+| PostgreSQL transaction fails                          | Raise retryable storage error; no Obsidian write.                                |
+| PostgreSQL commits and Obsidian succeeds              | `status=success`, `sync_pending=false`.                                          |
+| PostgreSQL commits and Obsidian fails                 | `status=accepted`, `sync_pending=true`; retain pending event.                    |
 | Delivery acknowledgement fails after file replacement | `status=accepted`, `sync_pending=true`; replay the same deterministic overwrite. |
-| Duplicate idempotency key with identical request | Return original revision; do not create another record or event. |
-| Duplicate idempotency key with different content/path | Raise idempotency conflict. |
-| Older event is overtaken by a newer head | Mark it delivered/superseded without overwriting the newer note. |
+| Duplicate idempotency key with identical request      | Return original revision; do not create another record or event.                 |
+| Duplicate idempotency key with different content/path | Raise idempotency conflict.                                                      |
+| Older event is overtaken by a newer head              | Mark it delivered/superseded without overwriting the newer note.                 |
 
 The transaction that installs a newer head also supersedes older actionable
 outbox events for that exact path. This keeps pending work aligned with the

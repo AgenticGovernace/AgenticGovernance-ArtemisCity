@@ -5,12 +5,14 @@ active work, per the Reflection layer in `AGENTS.md`. Inline one-sentence self-c
 each agent's response; this file holds only the periodic rollups.
 
 What a rollup should cover:
+
 - **Writer (Scribe):** what shipped since the last rollup, recurring feedback themes, any drift
   from the style guide.
 - **Reviewer (Critic):** counts of issues by severity, recurring problems across docs, and
   whether the review bar drifted between rounds.
 
 Format:
+
 ```
 ## <ISO-8601 timestamp> — <agent> rollup
 - <summary points>

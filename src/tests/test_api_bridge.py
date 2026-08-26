@@ -14,8 +14,7 @@ from src.agents.base_agent import BaseAgent
 from src.api_bridge import BridgeError, dispatch
 from src.integration.agent_registry import QUARANTINE_THRESHOLD, AgentRegistry
 from src.integration.memory_store_factory import MemoryStoreConfigurationError
-from src.integration.sql_memory_store import (IdempotencyConflictError,
-                                              MemoryStoreError)
+from src.integration.sql_memory_store import IdempotencyConflictError, MemoryStoreError
 from src.mcp.hebbian_weights import HebbianWeightManager
 
 
@@ -843,7 +842,7 @@ def test_sql_memory_stats_supports_exact_file_and_suffix(monkeypatch):
         "status": "success",
         "path": "notes/a.md",
         "note_count": 1,
-        "total_bytes": len("canonical bytes".encode("utf-8")),
+        "total_bytes": len(b"canonical bytes"),
         "vector_count": None,
         "source": "sql",
         "projection_stats": "not_checked",
@@ -874,7 +873,7 @@ def test_sql_memory_stats_treats_unsuffixed_path_as_folder(monkeypatch):
     result = dispatch("memory.stats", {"path": "notes", "suffix": ".md"})
 
     assert result["note_count"] == 1
-    assert result["total_bytes"] == len("alpha".encode("utf-8"))
+    assert result["total_bytes"] == len(b"alpha")
     assert result["source"] == "sql"
     bus.read_exact.assert_not_called()
     bus.list_current.assert_called_once_with("notes")

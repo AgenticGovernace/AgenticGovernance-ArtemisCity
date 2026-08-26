@@ -13,8 +13,11 @@ import pytest
 from src.agents.base_agent import BaseAgent
 from src.integration.agent_registry import AgentRegistryStore, AgentScore
 from src.registry.models import RegistryAgentView
-from src.registry.service import (RegistryReadPort, RegistryReadService,
-                                  RegistryRecordError)
+from src.registry.service import (
+    RegistryReadPort,
+    RegistryReadService,
+    RegistryRecordError,
+)
 
 
 class _FakePort:

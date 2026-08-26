@@ -12,13 +12,13 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT))
 
-from src.agents.summarizer_agent import SummarizerAgent  # noqa: E402
-from src.integration.agent_registry import AgentRegistry  # noqa: E402
-from src.integration.memory_bus import MemoryBus  # noqa: E402
-from src.mcp.vector_store import LocalVectorStore  # noqa: E402
-from src.obsidian_integration import ObsidianManager  # noqa: E402
-from src.runtime_paths import data_dir, data_path  # noqa: E402
-from src.utils.run_logger import init_run_logger  # noqa: E402
+from src.agents.summarizer_agent import SummarizerAgent
+from src.integration.agent_registry import AgentRegistry
+from src.integration.memory_bus import MemoryBus
+from src.mcp.vector_store import LocalVectorStore
+from src.obsidian_integration import ObsidianManager
+from src.runtime_paths import data_dir, data_path
+from src.utils.run_logger import init_run_logger
 
 SAMPLE_TEXT = (
     "Artemis City is a multi-agent operating system that pairs a Python "

@@ -166,7 +166,7 @@ Artemis-City/
 All agents follow a standardized template (`agents/agent_template.md`) with these required fields:
 
 | Field                        | Description                                         |
-|------------------------------|-----------------------------------------------------|
+| ---------------------------- | --------------------------------------------------- |
 | **Agent Name**               | Unique identifier (e.g., "Artemis", "Pack Rat")     |
 | **System Access Scope**      | Boundaries of resource/data access                  |
 | **Semantic Role**            | Primary function and purpose                        |
@@ -250,7 +250,7 @@ Ensures consistent communication across languages and encoding systems:
 Structured communication system with signal tags:
 
 | Tag              | Purpose                                                               |
-|------------------|-----------------------------------------------------------------------|
+| ---------------- | --------------------------------------------------------------------- |
 | `#Mode:`         | Overall intent (Build, Review, Organize, Capture, Synthesize, Commit) |
 | `#Context:`      | Brief mission goal or purpose                                         |
 | `#Priority:`     | Urgency level (Critical, High, Normal, Low)                           |
@@ -319,26 +319,26 @@ Currently, the project uses manual testing:
 ### Python Style Guidelines
 
 1. **Documentation:**
-    - Use Google-style docstrings for all public functions
-    - Include Args, Returns, and Raises sections
-    - Document module-level functionality at the top
+   - Use Google-style docstrings for all public functions
+   - Include Args, Returns, and Raises sections
+   - Document module-level functionality at the top
 
 2. **Code Organization:**
-    - Keep functions focused and single-purpose
-    - Use descriptive variable and function names
-    - Maintain clear separation of concerns
+   - Keep functions focused and single-purpose
+   - Use descriptive variable and function names
+   - Maintain clear separation of concerns
 
 3. **Error Handling:**
-    - Fail gracefully with informative messages
-    - Return empty/default values when appropriate
-    - Log errors for debugging
+   - Fail gracefully with informative messages
+   - Return empty/default values when appropriate
+   - Log errors for debugging
 
 4. **Configuration:**
-    - Use YAML for configuration files
-    - Keep configuration separate from code
-    - Validate configuration on load
+   - Use YAML for configuration files
+   - Keep configuration separate from code
+   - Validate configuration on load
 
-### Example from `Daemon_cli.py`:
+### Example from `Daemon_cli.py`
 
 ```python
 def load_agent_router_config(config_path):
@@ -388,23 +388,23 @@ When creating new agents:
 ### Configuration Files
 
 | File                          | Purpose                    | Format |
-|-------------------------------|----------------------------|--------|
+| ----------------------------- | -------------------------- | ------ |
 | `interface/agent_router.yaml` | Agent keyword routing      | YAML   |
 | `requirements.txt`            | Python dependencies        | Text   |
 | `package.json`                | Project metadata           | JSON   |
-| `../../src/pyproject.toml`              | Python project config      | TOML   |
+| `../../src/pyproject.toml`    | Python project config      | TOML   |
 | `.gitignore`                  | Version control exclusions | Text   |
 
 ### Documentation Files
 
 | File                               | Purpose                                 |
-|------------------------------------|-----------------------------------------|
+| ---------------------------------- | --------------------------------------- |
 | `README.md`                        | User-facing project documentation       |
 | `CLAUDE.md`                        | AI assistant guide (this file)          |
 | `ARTEMIS_FEATURES.md`              | Artemis agent feature documentation     |
 | `MEMORY_INTEGRATION.md`            | Memory integration documentation        |
 | `WARP.md`                          | Warp terminal integration documentation |
-| `Daemon/manifesto.md`               | Core principles and philosophy          |
+| `Daemon/manifesto.md`              | Core principles and philosophy          |
 | `agents/agent_template.md`         | Template for new agents                 |
 | `launch/open_source_covenant.md`   | Open source principles                  |
 | `interface/translator_protocol.md` | Communication standards                 |
@@ -413,8 +413,8 @@ When creating new agents:
 ### Executable Files
 
 | File                                                  | Purpose                                |
-|-------------------------------------------------------|----------------------------------------|
-| `interface/Daemon_cli.py`                              | Main CLI entry point                   |
+| ----------------------------------------------------- | -------------------------------------- |
+| `interface/Daemon_cli.py`                             | Main CLI entry point                   |
 | `demo_artemis.py`                                     | Demo script for Artemis agent features |
 | `demo_memory_integration.py`                          | Demo script for memory integration     |
 | `sandbox_city/networked_scripts/mail_delivery_sim.py` | Mail delivery simulation               |
@@ -422,7 +422,7 @@ When creating new agents:
 ### Python Modules
 
 | Module                | Purpose                                          |
-|-----------------------|--------------------------------------------------|
+| --------------------- | ------------------------------------------------ |
 | `agents/artemis/`     | ArtemisPersona, ReflectionEngine, SemanticTagger |
 | `agents/atp/`         | ATPMessage, ATPParser, ATPValidator              |
 | `core/instructions/`  | InstructionLoader, InstructionCache              |
@@ -435,24 +435,24 @@ When creating new agents:
 ### When Adding New Features
 
 1. **Understand the Philosophy:**
-    - Read `Daemon/manifesto.md` first
-    - Ensure alignment with core tenets
-    - Prioritize "net good over noise"
+   - Read `Daemon/manifesto.md` first
+   - Ensure alignment with core tenets
+   - Prioritize "net good over noise"
 
 2. **Define Scope Clearly:**
-    - Identify which agents are affected
-    - Check system access boundaries
-    - Document expected behavior
+   - Identify which agents are affected
+   - Check system access boundaries
+   - Document expected behavior
 
 3. **Follow Existing Patterns:**
-    - Use existing code as examples
-    - Maintain consistent documentation style
-    - Follow Google-style docstrings
+   - Use existing code as examples
+   - Maintain consistent documentation style
+   - Follow Google-style docstrings
 
 4. **Consider Trust & Security:**
-    - How does this affect trust scores?
-    - What drift countermeasures are needed?
-    - Are access boundaries respected?
+   - How does this affect trust scores?
+   - What drift countermeasures are needed?
+   - Are access boundaries respected?
 
 ### When Creating New Agents
 
@@ -489,29 +489,29 @@ When creating new agents:
 ### For AI Assistants Working with This Codebase
 
 1. **Always Consider Context:**
-    - This is a multi-agent system
-    - Actions have trust implications
-    - Transparency is paramount
+   - This is a multi-agent system
+   - Actions have trust implications
+   - Transparency is paramount
 
 2. **Respect Agent Boundaries:**
-    - Don't suggest features that violate access scopes
-    - Maintain separation of concerns
-    - Follow defined protocols
+   - Don't suggest features that violate access scopes
+   - Maintain separation of concerns
+   - Follow defined protocols
 
 3. **Prioritize Documentation:**
-    - All changes should be documented
-    - Use Google-style docstrings
-    - Update relevant markdown files
+   - All changes should be documented
+   - Use Google-style docstrings
+   - Update relevant markdown files
 
 4. **Think in Terms of Roles:**
-    - Which agent would handle this?
-    - What is the semantic purpose?
-    - How does this align with the manifesto?
+   - Which agent would handle this?
+   - What is the semantic purpose?
+   - How does this align with the manifesto?
 
 5. **Consider Entropy Management:**
-    - How might this drift over time?
-    - What countermeasures are needed?
-    - How is trust maintained?
+   - How might this drift over time?
+   - What countermeasures are needed?
+   - How is trust maintained?
 
 ### When Uncertain
 
@@ -665,9 +665,9 @@ pip list          # Should show PyYAML>=6.0
 
 ### External References
 
-- **MIT License:** https://opensource.org/licenses/MIT
-- **PyYAML Documentation:** https://pyyaml.org/
-- **Google Python Style Guide:** https://google.github.io/styleguide/pyguide.html
+- **MIT License:** <https://opensource.org/licenses/MIT>
+- **PyYAML Documentation:** <https://pyyaml.org/>
+- **Google Python Style Guide:** <https://google.github.io/styleguide/pyguide.html>
 
 ---
 

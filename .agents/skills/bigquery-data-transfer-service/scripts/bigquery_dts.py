@@ -19,13 +19,12 @@ import json
 import os
 import subprocess
 import sys
-from typing import Optional
 import urllib.error
 import urllib.parse
 import urllib.request
 
 
-def _run_gcloud(*args: str) -> Optional[str]:
+def _run_gcloud(*args: str) -> str | None:
     """Executes a gcloud command and returns the stripped stdout, or None."""
     for cmd in ["gcloud", "gcloud.cmd"]:
         try:

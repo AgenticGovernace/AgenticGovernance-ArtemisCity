@@ -4,7 +4,7 @@
   "description": "Legacy npm shim delegating Artemis City feature commands to the launch Makefile.",
   "main": "main.py",
   "scripts": {
-    "start": "make run",
+    "start": "make --no-print-directory run",
     "cli": "make --no-print-directory cli",
     "atp": "make --no-print-directory atp",
     "orchestrator": "make --no-print-directory orchestrator",

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 from src.agents.base_agent import BaseAgent
 from src.agents.llm_agent import LLMAgent
@@ -24,7 +23,7 @@ class LegalSummarizerAgent(BaseAgent):
     def __init__(
         self,
         name: str = "Legal Summarizer Agent",
-        llm_agent: Optional[LLMAgent] = None,
+        llm_agent: LLMAgent | None = None,
     ) -> None:
         super().__init__(
             name,

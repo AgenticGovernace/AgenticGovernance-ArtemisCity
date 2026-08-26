@@ -235,7 +235,6 @@ class TestHebbianSyncService:
 
         async def _fake_flush():
             flushed["called"] += 1
-            return None
 
         monkeypatch.setattr(service, "flush", _fake_flush)
         await service.propagate_weight_update("a", "b", 1.0)

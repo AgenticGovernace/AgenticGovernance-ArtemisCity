@@ -5,7 +5,6 @@ the Obsidian vault via the MCP server.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
 
 from src.integration.memory_client import MemoryClient
 
@@ -24,9 +23,9 @@ class ContextEntry:
 
     path: str
     content: str
-    tags: List[str]
-    frontmatter: Dict
-    relevance_score: Optional[float] = None
+    tags: list[str]
+    frontmatter: dict
+    relevance_score: float | None = None
 
     def get_summary(self, max_length: int = 200) -> str:
         """Get content summary.
@@ -49,7 +48,7 @@ class ContextLoader:
     context from the vault via MCP server.
     """
 
-    def __init__(self, memory_client: Optional[MemoryClient] = None):
+    def __init__(self, memory_client: MemoryClient | None = None):
         """Initialize context loader.
 
         Args:
@@ -57,7 +56,7 @@ class ContextLoader:
         """
         self.client = memory_client or MemoryClient()
 
-    def load_note(self, path: str) -> Optional[ContextEntry]:
+    def load_note(self, path: str) -> ContextEntry | None:
         """Load a single note as context entry.
 
         Args:
@@ -91,7 +90,7 @@ class ContextLoader:
 
     def search_context(
         self, query: str, limit: int = 10, context_length: int = 200
-    ) -> List[ContextEntry]:
+    ) -> list[ContextEntry]:
         """Search vault for relevant context.
 
         Args:
@@ -121,7 +120,7 @@ class ContextLoader:
 
         return entries
 
-    def load_folder_context(self, folder: str) -> List[ContextEntry]:
+    def load_folder_context(self, folder: str) -> list[ContextEntry]:
         """Load all notes in a folder as context.
 
         Args:
@@ -145,7 +144,7 @@ class ContextLoader:
 
         return entries
 
-    def load_tagged_context(self, tag: str, limit: int = 20) -> List[ContextEntry]:
+    def load_tagged_context(self, tag: str, limit: int = 20) -> list[ContextEntry]:
         """Load notes with specific tag.
 
         Args:
@@ -161,7 +160,7 @@ class ContextLoader:
 
     def load_agent_history(
         self, agent_name: str, limit: int = 10
-    ) -> List[ContextEntry]:
+    ) -> list[ContextEntry]:
         """Load historical context for an agent.
 
         Args:
@@ -188,7 +187,7 @@ class ContextLoader:
         return entries
 
     def get_context_summary(
-        self, entries: List[ContextEntry], max_entries: int = 5
+        self, entries: list[ContextEntry], max_entries: int = 5
     ) -> str:
         """Generate summary from context entries.
 
@@ -217,10 +216,10 @@ class ContextLoader:
 
     def filter_by_date_range(
         self,
-        entries: List[ContextEntry],
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-    ) -> List[ContextEntry]:
+        entries: list[ContextEntry],
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> list[ContextEntry]:
         """Filter context entries by date range.
 
         Looks for 'date' or 'created' in frontmatter.
@@ -254,7 +253,7 @@ class ContextLoader:
 
     def get_related_context(
         self, path: str, max_related: int = 5
-    ) -> List[ContextEntry]:
+    ) -> list[ContextEntry]:
         """Get context related to a specific note.
 
         Uses tags and content keywords to find related notes.

@@ -520,7 +520,7 @@ class TestHebbianIntegration:
         monkeypatch.setenv("ARTEMIS_LOG_DIR", str(tmp_path / "logs"))
 
         # Patch both config and orchestrator module constants before instantiation
-        import src.mcp.config as config
+        from src.mcp import config
 
         monkeypatch.setattr(config, "OBSIDIAN_VAULT_PATH", str(temp_vault))
         import src.mcp.orchestrator as orchestrator_module

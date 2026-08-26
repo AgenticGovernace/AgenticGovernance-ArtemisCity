@@ -10,10 +10,15 @@ import pytest
 from src.auth.contracts import AuthorityContextV1
 from src.auth.delegation import DelegationGrantV1
 from src.routing.authorization import ArtemisAuthorizer, AuthorizationDenied
-from src.routing.contracts import (AuthorizedRouteRequestV1, ContinuationV1,
-                                   DelegationContextV1, RequestedConstraintsV1,
-                                   ResolvedIntentV1, TaskEnvelopeV1,
-                                   TaskIntentV1)
+from src.routing.contracts import (
+    AuthorizedRouteRequestV1,
+    ContinuationV1,
+    DelegationContextV1,
+    RequestedConstraintsV1,
+    ResolvedIntentV1,
+    TaskEnvelopeV1,
+    TaskIntentV1,
+)
 
 NOW = datetime(2026, 8, 16, 12, 0, tzinfo=UTC)
 

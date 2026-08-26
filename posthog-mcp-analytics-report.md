@@ -5,7 +5,7 @@
 Instrumented the **artemis-memory** MCP server (`services/mcp/artemis-memory`) with PostHog MCP analytics using Path P1 (Python `posthog.mcp.instrument()`). Every tool call, `tools/list`, and `initialize` handshake the server handles will now emit `$mcp_*` events to PostHog.
 
 The **artemis-validation** server was not instrumented: it has no CLI entry point (`__main__.py` or `[project.scripts]`), and its `server.py` module explicitly bans environment variable reads (enforced by tests). Instrumentation should be added when a standalone entry point is created for that server.
- @todo
+@todo
 
 ---
 
@@ -19,12 +19,12 @@ The server uses `mcp[cli]==2.0.0` (`MCPServer` from `mcp.server.mcpserver`), whi
 
 ## Files Modified or Created
 
-| File | Change |
-|---|---|
-| `services/mcp/artemis-memory/pyproject.toml` | Added `"posthog>=7.21"` to `[project.dependencies]` |
+| File                                                             | Change                                                                                                                                               |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `services/mcp/artemis-memory/pyproject.toml`                     | Added `"posthog>=7.21"` to `[project.dependencies]`                                                                                                  |
 | `services/mcp/artemis-memory/src/artemis_memory_mcp/__main__.py` | Added PostHog client at module scope; `instrument()` call in `main()` after server construction; SIGTERM handler and `shutdown()` on both transports |
-| `services/mcp/artemis-memory/.env.example` | Added `POSTHOG_PROJECT_TOKEN` and `POSTHOG_HOST` placeholder entries |
-| `services/mcp/artemis-memory/.env` | Created with `POSTHOG_PROJECT_TOKEN` and `POSTHOG_HOST` set to the project values (**not committed**) |
+| `services/mcp/artemis-memory/.env.example`                       | Added `POSTHOG_PROJECT_TOKEN` and `POSTHOG_HOST` placeholder entries                                                                                 |
+| `services/mcp/artemis-memory/.env`                               | Created with `POSTHOG_PROJECT_TOKEN` and `POSTHOG_HOST` set to the project values (**not committed**)                                                |
 
 ### Installed package
 
@@ -50,6 +50,7 @@ if _posthog is not None:
 The server is guarded: if `POSTHOG_PROJECT_TOKEN` is unset the server starts normally with no analytics. In a `DEBUG=1` environment it prints a warning to stderr (never stdout, which is the protocol channel for STDIO).
 
 Shutdown is handled via:
+
 - **STDIO**: SIGTERM handler + `posthog.shutdown()` after `server.run()` returns
 - **HTTP**: `posthog.shutdown()` in a `finally` block around `server.run()`
 
@@ -59,12 +60,12 @@ Shutdown is handled via:
 
 Once the server handles its next MCP request:
 
-| Event | When |
-|---|---|
-| `$mcp_initialize` | Client connects |
-| `$mcp_tools_list` | Client calls `tools/list` |
-| `$mcp_tool_call` | Any of `write-memory`, `read-memory`, `search-memory`, `get-memory-status` |
-| `$exception` | Any tool call that raises or returns `isError: true` |
+| Event             | When                                                                       |
+| ----------------- | -------------------------------------------------------------------------- |
+| `$mcp_initialize` | Client connects                                                            |
+| `$mcp_tools_list` | Client calls `tools/list`                                                  |
+| `$mcp_tool_call`  | Any of `write-memory`, `read-memory`, `search-memory`, `get-memory-status` |
+| `$exception`      | Any tool call that raises or returns `isError: true`                       |
 
 ---
 

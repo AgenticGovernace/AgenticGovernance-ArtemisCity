@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from src.integration.anaconda_agent_proxy import (
     ANACONDA_API_KEY_ENV,
@@ -53,15 +51,15 @@ class TestParsePortMap:
 # ---------------------------------------------------------------------------
 
 
-def _sse(*chunks: Dict[str, Any]) -> List[bytes]:
+def _sse(*chunks: dict[str, Any]) -> list[bytes]:
     """Build a list of SSE-formatted bytes lines from chunk dicts.
 
     Mirrors what requests.Response.iter_lines() returns: one byte string
     per line, with blank lines between data: lines stripped out.
     """
-    out: List[bytes] = []
+    out: list[bytes] = []
     for chunk in chunks:
-        out.append(f"data: {json.dumps(chunk)}".encode("utf-8"))
+        out.append(f"data: {json.dumps(chunk)}".encode())
     out.append(b"data: [DONE]")
     return out
 
@@ -74,12 +72,12 @@ def _chunk(
     model="artemis-oracle",
     id_="cmpl-test",
 ):
-    delta: Dict[str, Any] = {}
+    delta: dict[str, Any] = {}
     if content is not None:
         delta["content"] = content
     if reasoning is not None:
         delta["reasoning_content"] = reasoning
-    body: Dict[str, Any] = {
+    body: dict[str, Any] = {
         "id": id_,
         "object": "chat.completion.chunk",
         "model": model,
@@ -465,7 +463,7 @@ class TestDiscoverAnacondaAgents:
 
 class _StubRegistry:
     def __init__(self):
-        self.agents: List[AnacondaAgentProxy] = []
+        self.agents: list[AnacondaAgentProxy] = []
 
     def register_agent(self, agent):
         self.agents.append(agent)

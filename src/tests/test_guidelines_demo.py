@@ -3,8 +3,6 @@ Simple demonstration test for Artemis City guidelines.
 This test demonstrates how to add a new test case and how the ATP parser works.
 """
 
-import pytest
-
 from src.agents.atp import ATPMode, ATPParser, ATPPriority
 
 

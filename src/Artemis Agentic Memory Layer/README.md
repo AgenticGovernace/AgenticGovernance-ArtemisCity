@@ -115,14 +115,14 @@ Ensure Docker Desktop is running on your machine.
 
 1. **Build and run the Docker container:**
 
-    ```bash
-    docker-compose up --build
-    ```
+   ```bash
+   docker-compose up --build
+   ```
 
-    This command will build the Docker image (if it doesn't exist or has changed) and start the MCP server in a container.
+   This command will build the Docker image (if it doesn't exist or has changed) and start the MCP server in a container.
 
 2. **Verify:**
-    The server will be accessible on `http://localhost:3000` from your host machine. Remember to set `OBSIDIAN_BASE_URL` in your `.env` (or `docker-compose.yml` environment section) to `https://host.docker.internal:27124` if Obsidian is running on your host machine (Mac/Windows). For Linux hosts, refer to the `OBSIDIAN_BASE_URL` explanation in the [Configure Environment Variables](#3-configure-environment-variables) section.
+   The server will be accessible on `http://localhost:3000` from your host machine. Remember to set `OBSIDIAN_BASE_URL` in your `.env` (or `docker-compose.yml` environment section) to `https://host.docker.internal:27124` if Obsidian is running on your host machine (Mac/Windows). For Linux hosts, refer to the `OBSIDIAN_BASE_URL` explanation in the [Configure Environment Variables](#3-configure-environment-variables) section.
 
 ## API Endpoints
 

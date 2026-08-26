@@ -1,4 +1,4 @@
-import { obsidianAPI } from './index';
+import { obsidianAPI } from "./index";
 
 interface SearchResult {
   path: string;
@@ -21,7 +21,7 @@ interface NoteJson {
 // Local REST API treats `/` as the path separator inside a vault, so encode each
 // segment but keep slashes intact.
 function encodeVaultPath(path: string): string {
-  return path.split('/').map(encodeURIComponent).join('/');
+  return path.split("/").map(encodeURIComponent).join("/");
 }
 
 /**
@@ -32,11 +32,16 @@ function encodeVaultPath(path: string): string {
  * @returns Markdown content stored at the requested vault path.
  */
 export async function readNote(path: string): Promise<string> {
-  const response = await obsidianAPI.get<string>(`/vault/${encodeVaultPath(path)}`, {
-    headers: { Accept: 'text/markdown' },
-    transformResponse: (data) => data,
-  });
-  return typeof response.data === 'string' ? response.data : String(response.data);
+  const response = await obsidianAPI.get<string>(
+    `/vault/${encodeVaultPath(path)}`,
+    {
+      headers: { Accept: "text/markdown" },
+      transformResponse: (data) => data,
+    },
+  );
+  return typeof response.data === "string"
+    ? response.data
+    : String(response.data);
 }
 
 /**
@@ -54,7 +59,7 @@ export async function updateNote(
   options?: { append?: boolean },
 ): Promise<string> {
   const url = `/vault/${encodeVaultPath(path)}`;
-  const config = { headers: { 'Content-Type': 'text/markdown' } };
+  const config = { headers: { "Content-Type": "text/markdown" } };
   if (options?.append) {
     await obsidianAPI.post(url, content, config);
     return `Content appended to '${path}'.`;
@@ -71,12 +76,16 @@ export async function updateNote(
  * @returns Matching note paths with a short excerpt for the top match in each note.
  */
 export async function searchNotes(query: string): Promise<SearchResult[]> {
-  const response = await obsidianAPI.post<SimpleSearchHit[]>('/search/simple/', null, {
-    params: { query },
-  });
+  const response = await obsidianAPI.post<SimpleSearchHit[]>(
+    "/search/simple/",
+    null,
+    {
+      params: { query },
+    },
+  );
   return (response.data ?? []).map((hit) => ({
     path: hit.filename,
-    excerpt: hit.matches?.[0]?.context ?? '',
+    excerpt: hit.matches?.[0]?.context ?? "",
   }));
 }
 
@@ -88,17 +97,20 @@ export async function searchNotes(query: string): Promise<SearchResult[]> {
  */
 export async function listNotes(): Promise<string[]> {
   const results: string[] = [];
-  const stack: string[] = [''];
+  const stack: string[] = [""];
   while (stack.length) {
     const dir = stack.pop() as string;
-    const normalizedDir = dir.replace(/\/+$/, '');
-    const url = normalizedDir === '' ? '/vault/' : `/vault/${encodeVaultPath(normalizedDir)}/`;
+    const normalizedDir = dir.replace(/\/+$/, "");
+    const url =
+      normalizedDir === ""
+        ? "/vault/"
+        : `/vault/${encodeVaultPath(normalizedDir)}/`;
     const response = await obsidianAPI.get<{ files: string[] }>(url);
     for (const entry of response.data.files ?? []) {
-      const full = dir === '' ? entry : `${dir}${entry}`;
-      if (entry.endsWith('/')) {
+      const full = dir === "" ? entry : `${dir}${entry}`;
+      if (entry.endsWith("/")) {
         stack.push(full);
-      } else if (entry.toLowerCase().endsWith('.md')) {
+      } else if (entry.toLowerCase().endsWith(".md")) {
         results.push(full);
       }
     }
@@ -127,15 +139,23 @@ export async function deleteNote(path: string): Promise<string> {
  * @param value - JSON-serializable value to store under the given key.
  * @returns Status message confirming the frontmatter update.
  */
-export async function manageFrontmatter(path: string, key: string, value: unknown): Promise<string> {
-  await obsidianAPI.patch(`/vault/${encodeVaultPath(path)}`, JSON.stringify(value), {
-    headers: {
-      Operation: 'replace',
-      'Target-Type': 'frontmatter',
-      Target: key,
-      'Content-Type': 'application/json',
+export async function manageFrontmatter(
+  path: string,
+  key: string,
+  value: unknown,
+): Promise<string> {
+  await obsidianAPI.patch(
+    `/vault/${encodeVaultPath(path)}`,
+    JSON.stringify(value),
+    {
+      headers: {
+        Operation: "replace",
+        "Target-Type": "frontmatter",
+        Target: key,
+        "Content-Type": "application/json",
+      },
     },
-  });
+  );
   return `Frontmatter for '${path}' updated.`;
 }
 
@@ -151,15 +171,15 @@ export async function manageFrontmatter(path: string, key: string, value: unknow
 export async function manageTags(
   path: string,
   tags: string[],
-  action: 'add' | 'remove',
+  action: "add" | "remove",
 ): Promise<string> {
   const url = `/vault/${encodeVaultPath(path)}`;
   const current = await obsidianAPI.get<NoteJson>(url, {
-    headers: { Accept: 'application/vnd.olrapi.note+json' },
+    headers: { Accept: "application/vnd.olrapi.note+json" },
   });
   const existing = Array.isArray(current.data.tags) ? current.data.tags : [];
   const set = new Set(existing);
-  if (action === 'add') {
+  if (action === "add") {
     for (const tag of tags) set.add(tag);
   } else {
     for (const tag of tags) set.delete(tag);
@@ -167,13 +187,13 @@ export async function manageTags(
   const next = Array.from(set);
   await obsidianAPI.patch(url, JSON.stringify(next), {
     headers: {
-      Operation: 'replace',
-      'Target-Type': 'frontmatter',
-      Target: 'tags',
-      'Content-Type': 'application/json',
+      Operation: "replace",
+      "Target-Type": "frontmatter",
+      Target: "tags",
+      "Content-Type": "application/json",
     },
   });
-  return `Tags for '${path}' ${action === 'add' ? 'added' : 'removed'} successfully.`;
+  return `Tags for '${path}' ${action === "add" ? "added" : "removed"} successfully.`;
 }
 
 /**
@@ -185,7 +205,11 @@ export async function manageTags(
  * @param replace - Replacement text to write in place of each match.
  * @returns Updated note content after all replacements are applied.
  */
-export async function searchReplace(path: string, search: string, replace: string): Promise<string> {
+export async function searchReplace(
+  path: string,
+  search: string,
+  replace: string,
+): Promise<string> {
   const content = await readNote(path);
   const updated = content.split(search).join(replace);
   await updateNote(path, updated);

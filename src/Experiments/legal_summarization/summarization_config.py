@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Optional
 
 DEFAULT_LEGAL_SUMMARY_TOKENS = 2048
 
@@ -70,10 +69,10 @@ class SummarizationConfig:
     # legal summaries.
     max_summary_tokens: int = DEFAULT_LEGAL_SUMMARY_TOKENS
     temperature: float = 0.7
-    system_prompt_override: Optional[str] = None
-    custom_user_prompt: Optional[str] = None
+    system_prompt_override: str | None = None
+    custom_user_prompt: str | None = None
     split: str = "train"
-    limit: Optional[int] = None
+    limit: int | None = None
     batch_tag: str = "apollo"
 
     # ---- Prompt construction ------------------------------------------------

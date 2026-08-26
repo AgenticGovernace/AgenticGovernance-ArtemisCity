@@ -30,9 +30,8 @@ def _run_as_script() -> None:
 if __name__ == "__main__" and not __package__:
     _run_as_script()
 
-from . import config  # noqa: E402
-from .config import (AGENT_INPUT_DIR, AGENT_OUTPUT_DIR,  # noqa: E402
-                     OBSIDIAN_VAULT_PATH)
+from . import config
+from .config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
 
 _LAZY_EXPORTS = {
     "Orchestrator": (".orchestrator", "Orchestrator"),

@@ -7,10 +7,9 @@ pass/fail verdicts, and actionable review feedback.
 
 from __future__ import annotations
 
-import json
 import re
 from dataclasses import asdict, dataclass
-from typing import Any, Optional
+from typing import Any
 
 from .evaluation import evaluate_summary
 from .summarization_config import AudienceLevel, SummarizationConfig
@@ -19,37 +18,45 @@ _LEGAL_ELEMENT_PATTERNS: dict[str, list[re.Pattern[str]]] = {
     "facts_and_procedural_history": [
         re.compile(
             r"\b(fact|facts|procedural|history|background|appellant|respondent|petitioner)\b",
-            re.I,
+            re.IGNORECASE,
         ),
         re.compile(
-            r"\b(plaintiff|defendant|prosecution|accused|alleged|claim)\b", re.I
+            r"\b(plaintiff|defendant|prosecution|accused|alleged|claim)\b",
+            re.IGNORECASE,
         ),
     ],
     "legal_issues": [
         re.compile(
-            r"\b(issue|question|whether|determined|controversy|dispute|argued)\b", re.I
+            r"\b(issue|question|whether|determined|controversy|dispute|argued)\b",
+            re.IGNORECASE,
         ),
-        re.compile(r"\b(point|law|validity|constitutionality|jurisdiction)\b", re.I),
+        re.compile(
+            r"\b(point|law|validity|constitutionality|jurisdiction)\b", re.IGNORECASE
+        ),
     ],
     "holding_and_ratio": [
         re.compile(
             r"\b(held|holding|ratio|reasoning|court\s+found|observed|concluded|ruled)\b",
-            re.I,
+            re.IGNORECASE,
         ),
-        re.compile(r"\b(opinion|precedent|statute|interpretation|merit)\b", re.I),
+        re.compile(
+            r"\b(opinion|precedent|statute|interpretation|merit)\b", re.IGNORECASE
+        ),
     ],
     "disposition_and_order": [
         re.compile(
             r"\b(disposed|dismissed|allowed|remanded|ordered|held\s+that|decreed|judgment)\b",
-            re.I,
+            re.IGNORECASE,
         ),
-        re.compile(r"\b(conviction|sentence|acquitted|relief|impugned)\b", re.I),
+        re.compile(
+            r"\b(conviction|sentence|acquitted|relief|impugned)\b", re.IGNORECASE
+        ),
     ],
 }
 
 _LEGAL_CITATION_PATTERN = re.compile(
     r"\b(\d+\s+[A-Z]{2,10}\s+\d+|Section\s+\d+|Art(icle)?\.\s*\d+|Act,\s*\d{4}|P\.?L\.?D\.?|S\.?C\.?M\.?R\.?|AIR\s+\d{4})\b",
-    re.I,
+    re.IGNORECASE,
 )
 _NUMERIC_ENTITY_PATTERN = re.compile(r"\b\d+([.,]\d+)?\b")
 
@@ -79,8 +86,8 @@ class LegalEvalHarness:
         self,
         generated_summary: str,
         source_text: str,
-        reference_summary: Optional[str] = None,
-        config: Optional[SummarizationConfig] = None,
+        reference_summary: str | None = None,
+        config: SummarizationConfig | None = None,
     ) -> EvalResult:
         """Perform automatic grading and generate structured review feedback.
 

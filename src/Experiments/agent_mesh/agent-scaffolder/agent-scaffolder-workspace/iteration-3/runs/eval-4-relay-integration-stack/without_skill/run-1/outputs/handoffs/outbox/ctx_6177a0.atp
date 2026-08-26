@@ -6,7 +6,7 @@
 #Context: review the changelog for accuracy
 #Priority: Normal
 #ActionType: Summarize
-#TargetZone: 
+#TargetZone:
 ==handoff==
 ==expect== ==accept==
 ---

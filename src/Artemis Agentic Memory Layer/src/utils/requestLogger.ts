@@ -3,8 +3,8 @@
  *
  * Emits a concise log entry for each inbound HTTP request before passing control to the next middleware.
  */
-import { NextFunction, Request, Response } from 'express';
-import { logger } from './logger';
+import { NextFunction, Request, Response } from "express";
+import { logger } from "./logger";
 /**
  * Log the request method, URL, and remote IP for incoming HTTP traffic.
  *

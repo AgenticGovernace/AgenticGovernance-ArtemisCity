@@ -5,9 +5,10 @@
 > cadence in the Agent Card real (file-based tier). Seed entry shown; real summaries append
 > beneath it.
 
-## Reflection — 2026-06-16T00:00:00Z  (run seed)
+## Reflection — 2026-06-16T00:00:00Z (run seed)
+
 - Attempted: scaffold initialization; no events observed yet.
-- Events since last summary: 0  (Normal: 0 / Warning: 0 / Error: 0)
+- Events since last summary: 0 (Normal: 0 / Warning: 0 / Error: 0)
 - Escalations raised: 0
 - Assumptions: none.
 - Drift check: stayed observe-and-log only — yes (no watched files touched).

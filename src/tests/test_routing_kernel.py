@@ -19,18 +19,24 @@ from src.agents.base_agent import BaseAgent
 from src.auth.delegation import DelegationGrantV1
 from src.integration.agent_registry import AgentRegistry
 from src.mcp.hebbian_weights import HebbianWeightManager
-from src.routing.adapters import (RegistryAdmissionLookup,
-                                  SandboxAdmissionPreflight,
-                                  TrustAdmissionLookup)
-from src.routing.authorization_policy import (AuthorizationPolicyError,
-                                              CapabilityPolicyAdapter,
-                                              ReviewedCapabilityPolicy)
+from src.routing.adapters import (
+    RegistryAdmissionLookup,
+    SandboxAdmissionPreflight,
+    TrustAdmissionLookup,
+)
+from src.routing.authorization_policy import (
+    AuthorizationPolicyError,
+    CapabilityPolicyAdapter,
+    ReviewedCapabilityPolicy,
+)
 from src.routing.contracts import RequestedConstraintsV1
-from src.routing.delegation_store import (DelegationStoreError,
-                                          SqliteDelegationStore)
-from src.routing.kernel import (CAPABILITY_OUTSIDE_REVIEWED_DOMAIN,
-                                RoutingKernel, RoutingKernelDenied,
-                                system_authority)
+from src.routing.delegation_store import DelegationStoreError, SqliteDelegationStore
+from src.routing.kernel import (
+    CAPABILITY_OUTSIDE_REVIEWED_DOMAIN,
+    RoutingKernel,
+    RoutingKernelDenied,
+    system_authority,
+)
 
 ATP_REVIEW_SUMMARIZE = """#Mode: Review
 #Context: Summarize the reviewed notes
@@ -654,10 +660,14 @@ def test_kernel_routes_an_authorized_route_request(kernel):
     This is the shape a delegated child task arrives in: authority, envelope,
     and resolved intent already bound together and verified upstream.
     """
-    from src.routing.contracts import (AuthorizedRouteRequestV1,
-                                       ContinuationV1, DelegationContextV1,
-                                       ResolvedIntentV1, TaskEnvelopeV1,
-                                       TaskIntentV1)
+    from src.routing.contracts import (
+        AuthorizedRouteRequestV1,
+        ContinuationV1,
+        DelegationContextV1,
+        ResolvedIntentV1,
+        TaskEnvelopeV1,
+        TaskIntentV1,
+    )
 
     authority = kernel.system_authority()
     intent = TaskIntentV1(
@@ -743,7 +753,7 @@ def test_registry_admission_skips_agents_declaring_no_capability(registry):
 
 def test_registry_admission_falls_back_to_in_memory_score(registry, monkeypatch):
     """A persisted row without a composite still yields a usable score."""
-    monkeypatch.setattr(registry.store, "list_admission_records", lambda: [])
+    monkeypatch.setattr(registry.store, "list_admission_records", list)
 
     records = RegistryAdmissionLookup(registry).list_admission_records()
     assert records

@@ -9,8 +9,6 @@ or treating a governance-only violation as task-performance evidence.
 
 from __future__ import annotations
 
-from typing import Optional
-
 from src.governance.trust import TrustMetrics, compute_trust_score
 from src.utils.helpers import logger
 
@@ -38,7 +36,7 @@ class LearningGovernanceCoordinator:
     def _agent_exists(self, agent_name: str) -> bool:
         return self.store.get_agent_record(agent_name) is not None
 
-    def _registry_state(self, agent_name: str) -> Optional[dict]:
+    def _registry_state(self, agent_name: str) -> dict | None:
         getter = getattr(self.registry, "get_governance_state", None)
         if callable(getter):
             return getter(agent_name)
@@ -58,7 +56,7 @@ class LearningGovernanceCoordinator:
         agent_name: str,
         score: float,
         *,
-        success: Optional[bool] = None,
+        success: bool | None = None,
         update_registry: bool = False,
     ) -> float:
         """Mirror one authoritative score without applying another adjustment."""
@@ -102,7 +100,7 @@ class LearningGovernanceCoordinator:
         self,
         agent_name: str,
         rationale: str,
-        override_tier: Optional[str] = None,
+        override_tier: str | None = None,
     ) -> int:
         """Clear violations and mirror the recalculated clean-state trust."""
         self.create_checkpoint(f"before_clear_violations:{agent_name}")
@@ -158,7 +156,7 @@ class LearningGovernanceCoordinator:
             self._set_registry_score(entity_id, updated.score)
         return updated
 
-    def apply_trust_decay(self, decay_rate: Optional[float] = None) -> list[dict]:
+    def apply_trust_decay(self, decay_rate: float | None = None) -> list[dict]:
         """Apply trust decay and mirror all registered agent projections."""
         if self.trust_interface is None:
             raise RuntimeError("trust persistence is unavailable")
@@ -174,7 +172,7 @@ class LearningGovernanceCoordinator:
             updated.append(score.to_dict())
         return updated
 
-    def create_checkpoint(self, reason: str) -> Optional[dict]:
+    def create_checkpoint(self, reason: str) -> dict | None:
         """Capture registry and Hebbian state before a consequential mutation."""
         if self.checkpoint_store is None:
             return None
@@ -188,7 +186,7 @@ class LearningGovernanceCoordinator:
             config_snapshot=config_snapshot,
         )
 
-    def reconcile_agent(self, agent_name: str) -> Optional[float]:
+    def reconcile_agent(self, agent_name: str) -> float | None:
         """Repair the trust projection from the registry's authoritative value."""
         state = self._registry_state(agent_name)
         if not state:
@@ -209,8 +207,8 @@ class LearningGovernanceCoordinator:
         return score
 
     def mirror_hebbian_summary(
-        self, agent_name: str, task_type: Optional[str] = None
-    ) -> Optional[dict]:
+        self, agent_name: str, task_type: str | None = None
+    ) -> dict | None:
         """Refresh registry Hebbian fields after an administrative weight edit."""
         if self.hebbian_manager is None or not self._agent_exists(agent_name):
             return None

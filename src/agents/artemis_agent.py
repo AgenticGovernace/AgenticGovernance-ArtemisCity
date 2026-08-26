@@ -1,11 +1,12 @@
 """Artemis persona-backed agent for MCP."""
 
-from typing import Dict, List, Optional
-
 from .artemis import ArtemisPersona, ReflectionEngine, SemanticTagger
 from .base_agent import BaseAgent
-from .fallback_policy import (degraded_metadata, provider_failure_result,
-                              synthetic_fallback_enabled)
+from .fallback_policy import (
+    degraded_metadata,
+    provider_failure_result,
+    synthetic_fallback_enabled,
+)
 from .llm_agent import LLMAgent
 
 
@@ -15,9 +16,9 @@ class ArtemisAgent(BaseAgent):
     def __init__(
         self,
         name: str = "Artemis Agent",
-        persona: Optional[ArtemisPersona] = None,
-        reflection_engine: Optional[ReflectionEngine] = None,
-        semantic_tagger: Optional[SemanticTagger] = None,
+        persona: ArtemisPersona | None = None,
+        reflection_engine: ReflectionEngine | None = None,
+        semantic_tagger: SemanticTagger | None = None,
     ):
         super().__init__(name, capabilities=["system_management", "agent_coordination"])
         self.persona = persona or ArtemisPersona()
@@ -33,7 +34,7 @@ class ArtemisAgent(BaseAgent):
             return []
         return self.llm_agent.get_sandbox_actions(task_context)
 
-    def perform_task(self, task_context: Dict) -> Dict:
+    def perform_task(self, task_context: dict) -> dict:
         """Perform task.
 
         Args:
@@ -49,7 +50,7 @@ class ArtemisAgent(BaseAgent):
         atp_mode = task_context.get("atp_mode", "")
         request_feedback = task_context.get("request_feedback", True)
 
-        content_blocks: List[str] = []
+        content_blocks: list[str] = []
         for key in ("context", "content"):
             value = task_context.get(key)
             if value:
@@ -58,8 +59,8 @@ class ArtemisAgent(BaseAgent):
 
         self.report_status(f"Reviewing task '{title}' with Artemis persona...")
 
-        concept_names: List[str] = []
-        tags: List[str] = []
+        concept_names: list[str] = []
+        tags: list[str] = []
         narrative = "No conversations to synthesize yet."
 
         if content:

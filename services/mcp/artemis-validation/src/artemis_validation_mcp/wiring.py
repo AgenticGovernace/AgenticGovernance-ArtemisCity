@@ -16,13 +16,14 @@ from __future__ import annotations
 import os
 import uuid
 from collections.abc import Sequence
+from typing import Final, Literal
 
 from src.auth.config import load_auth_verifier
 from src.auth.verifier import AuthenticationRequest, AuthVerifier
 
 # Admission is a startup handshake over stdio. ``_admit_stdio_authority``
 # rejects any other transport outright, so these are fixed rather than tunable.
-_TRANSPORT = "stdio"
+_TRANSPORT: Final[Literal["stdio"]] = "stdio"
 _AUTHORITY = "artemis-validation"
 _RAW_TARGET = b"mcp://stdio/artemis-validation"
 _ADMISSION_METHOD = "initialize"

@@ -81,8 +81,12 @@ class ProvenanceSession:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
+        if not self.service_url.startswith(("http://", "https://")):
+            return None
         try:
-            with urllib.request.urlopen(request, timeout=_TIMEOUT_SECONDS) as response:
+            with urllib.request.urlopen(  # nosec B310 - scheme checked above
+                request, timeout=_TIMEOUT_SECONDS
+            ) as response:
                 return json.loads(response.read())
         except (
             urllib.error.URLError,
@@ -93,7 +97,9 @@ class ProvenanceSession:
         ):
             return None
 
-    def _bind(self, layer: str, body: dict[str, Any], parent_ref: str | None) -> str | None:
+    def _bind(
+        self, layer: str, body: dict[str, Any], parent_ref: str | None
+    ) -> str | None:
         payload: dict[str, Any] = {
             "layer": layer,
             "manifest_binding_id": self.binding_id,

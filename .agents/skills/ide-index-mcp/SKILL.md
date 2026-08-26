@@ -22,11 +22,11 @@ The IDE Index MCP server exposes JetBrains IDE indexing and refactoring capabili
 
 If both `mcp__intellij-index__*` (this plugin) and `mcp__intellij__*` (JetBrains built-in) are available, they are **not interchangeable**:
 
-| Need | Use |
-|------|-----|
-| Code navigation, search, diagnostics, rename, move, run/list tests | `mcp__intellij-index__*` |
-| Build | `ide_build_project` (this plugin, disabled by default — returns structured errors/warnings); `mcp__intellij__*` only when it is not enabled |
-| Terminal, run non-test processes, formatting beyond code style | `mcp__intellij__*` only |
+| Need                                                               | Use                                                                                                                                         |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Code navigation, search, diagnostics, rename, move, run/list tests | `mcp__intellij-index__*`                                                                                                                    |
+| Build                                                              | `ide_build_project` (this plugin, disabled by default — returns structured errors/warnings); `mcp__intellij__*` only when it is not enabled |
+| Terminal, run non-test processes, formatting beyond code style     | `mcp__intellij__*` only                                                                                                                     |
 
 **Always use `mcp__intellij-index__` for code intelligence. At least one project must be open in IntelliJ. If your target project is not open but another one is, call `ide_open_project` with the working directory path — note it is disabled by default and must be enabled in Settings > Tools > Index MCP Server, and it requires at least one project to already be open (as the JSON-RPC context). IntelliJ does NOT require `.idea` to exist — it opens any directory and creates its own project configuration. Only ask the user to open a project manually when zero projects are open or `ide_open_project` is disabled.** Do not fall back to bash for semantic operations — IDE tools understand types, references, and inheritance; grep does not.
 
@@ -36,24 +36,24 @@ If both `mcp__intellij-index__*` (this plugin) and `mcp__intellij__*` (JetBrains
 
 ## When to Use IDE Tools vs Built-In Tools
 
-| Task | Use IDE Tool | Use Built-In Tool |
-|------|-------------|-------------------|
-| Find all usages of a method/class/variable | `ide_find_references` | Never - grep misses renamed imports, aliases, overrides |
-| Go to a symbol's definition | `ide_find_definition` | Never - grep can't resolve through imports/generics |
-| Check a symbol's resolved signature or docs | `ide_symbol_info` | Never - source text does not resolve short type names, and carries no doc comment |
-| Find a class by name | `ide_find_class` | Only if IDE unavailable |
-| Find a file by name | `ide_find_file` | `Glob` is fine for simple patterns |
-| Search for text in code | `ide_search_text` | `Grep` is fine when IDE context filtering is unnecessary |
-| Rename a symbol across project | `ide_refactor_rename` | Never - sed/replace breaks code |
-| Move a file to another directory | `ide_move_file` | Never - mv/git mv bypasses IDE move semantics |
-| Check for errors in a file | `ide_diagnostics` | Never - no equivalent |
-| Understand class hierarchy | `ide_type_hierarchy` | Never - no equivalent |
-| Find who calls a method | `ide_call_hierarchy` | Never - grep misses indirect calls |
-| Find interface implementations | `ide_find_implementations` | Never - grep can't resolve type relationships |
-| Delete a symbol safely | `ide_refactor_safe_delete` | Never - manual deletion misses usages |
-| Find what a method overrides | `ide_find_super_methods` | Never - no equivalent |
-| Read file content | Built-in Read tool | `ide_read_file` only for library/jar sources |
-| Find text with regex | `ide_search_text` | Use `Grep` when you do not need IDE context filtering |
+| Task                                        | Use IDE Tool               | Use Built-In Tool                                                                 |
+| ------------------------------------------- | -------------------------- | --------------------------------------------------------------------------------- |
+| Find all usages of a method/class/variable  | `ide_find_references`      | Never - grep misses renamed imports, aliases, overrides                           |
+| Go to a symbol's definition                 | `ide_find_definition`      | Never - grep can't resolve through imports/generics                               |
+| Check a symbol's resolved signature or docs | `ide_symbol_info`          | Never - source text does not resolve short type names, and carries no doc comment |
+| Find a class by name                        | `ide_find_class`           | Only if IDE unavailable                                                           |
+| Find a file by name                         | `ide_find_file`            | `Glob` is fine for simple patterns                                                |
+| Search for text in code                     | `ide_search_text`          | `Grep` is fine when IDE context filtering is unnecessary                          |
+| Rename a symbol across project              | `ide_refactor_rename`      | Never - sed/replace breaks code                                                   |
+| Move a file to another directory            | `ide_move_file`            | Never - mv/git mv bypasses IDE move semantics                                     |
+| Check for errors in a file                  | `ide_diagnostics`          | Never - no equivalent                                                             |
+| Understand class hierarchy                  | `ide_type_hierarchy`       | Never - no equivalent                                                             |
+| Find who calls a method                     | `ide_call_hierarchy`       | Never - grep misses indirect calls                                                |
+| Find interface implementations              | `ide_find_implementations` | Never - grep can't resolve type relationships                                     |
+| Delete a symbol safely                      | `ide_refactor_safe_delete` | Never - manual deletion misses usages                                             |
+| Find what a method overrides                | `ide_find_super_methods`   | Never - no equivalent                                                             |
+| Read file content                           | Built-in Read tool         | `ide_read_file` only for library/jar sources                                      |
+| Find text with regex                        | `ide_search_text`          | Use `Grep` when you do not need IDE context filtering                             |
 
 ## Pre-Flight Check
 
@@ -108,34 +108,41 @@ When working in a git worktree (e.g., `/project/.Codex/worktrees/agent-xyz` or a
 ## Tool Selection by Task
 
 ### "I need to understand how X is used"
+
 1. `ide_find_references` - all call sites, field accesses, imports
 2. `ide_call_hierarchy` with `direction: "callers"` - full call chain upward
 
 ### "I need to understand what X is"
+
 1. `ide_symbol_info` - resolved signature + doc comment without reading the file (disabled by default)
 2. `ide_find_definition` - jump to source
 3. `ide_type_hierarchy` - inheritance chain
 4. `ide_find_super_methods` - what interface/base method it implements
 
 ### "I need to find a class/file/symbol"
+
 1. `ide_find_class` - classes by name (CamelCase: `USvc` finds `UserService`)
 2. `ide_find_file` - files by name
 3. `ide_search_text` - substring text search across project (regex via `"regex": true`)
 
 ### "I need to refactor"
+
 1. `ide_refactor_rename` - rename symbol + all references atomically
 2. `ide_move_file` - move file and let the IDE apply semantic updates when that language/backend supports them
 3. `ide_refactor_safe_delete` - delete with usage checking (Java/Kotlin only)
 4. `ide_replace_text_in_file`, `ide_reformat_code` - apply project code style (disabled by default)
 
 ### "I need to check for problems"
+
 1. `ide_diagnostics` - compiler errors, warnings, quick fixes for one file (plus build/test results)
 2. `ide_project_diagnostics` - batch/project scope including unopened files, with fail-closed coverage metadata (`complete` flag, per-file states); long analyses return an `analysisId` to poll (disabled by default)
 
 ### "I need to find implementations of an interface"
+
 1. `ide_find_implementations` - cursor on interface/abstract class/method
 
 ### "I need to trace call chains"
+
 1. `ide_call_hierarchy` with `direction: "callers"` - who calls this?
 2. `ide_call_hierarchy` with `direction: "callees"` - what does this call?
 
