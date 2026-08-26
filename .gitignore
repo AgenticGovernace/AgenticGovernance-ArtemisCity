@@ -604,3 +604,8 @@ ide-index-mcp.skill
 /agents
 /Agent Outputs
 .aiignore
+
+.env*
+.flaskenv*
+!.env.project
+!.env.vault

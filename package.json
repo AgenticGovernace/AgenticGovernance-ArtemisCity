@@ -1,34 +1,19 @@
-{
-  "name": "artemis-city-workspace",
+{ 
+  "pnpm":,
+  "name": "artemis_city",
   "version": "1.1.0",
   "private": true,
   "description": "Workspace coordinator for Artemis City JavaScript projects.",
+  "license": "Apache-2.0",
+  "author": "Prinston Palmer",
+  "type":  "commonjs",
   "keywords": [
     "ATP",
     "Artemis",
     "Agentic OS"
-  ],
-  "homepage": "https://github.com/AgenticGovernace/Artemis_City",
-  "bugs": {
-    "url": "https://github.com/AgenticGovernace/Artemis_City/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "AgenticGovernace/Artemis_City.git"
-  },
-  "license": "Apache-2.0",
-  "author": "Prinston Palmer",
-  "type": "commonjs",
-  "directories": {
-    "doc": "docs",
-    "example": "examples",
-    "app": "app",
-    "test": "src/tests"
-  },
-  "workspaces": [
-    "app/api",
-    "app/web/frontend"
-  ],
+  
+  ]
+   
   "scripts": {
     "api:build": "npm --workspace app/api run build",
     "api:start": "npm --workspace app/api run start",
@@ -52,3 +37,11 @@
     "esbuild@0.28.2": true
   }
 }
+],
+  "homepage": "https://github.com/AgenticGovernace/Artemis_City",
+  "bugs": {
+    "url": "https://github.com/AgenticGovernace/Artemis_City/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "AgenticGovernace/Artemis_City.git"

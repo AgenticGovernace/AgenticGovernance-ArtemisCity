@@ -1,5 +1,5 @@
 {
-  "name": "Artemis City Dev",
+  "name": "Artemis_City",
   "dockerComposeFile": "docker-compose.yaml",
   "service": "container",
   "workspaceFolder": "./",
@@ -12,8 +12,8 @@
     },
     "ghcr.io/devcontainers/features/git:1.3.8": {},
     "ghcr.io/devcontainers/features/git-lfs:1": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers/features/docker-in-docker:4.0.0": {},
+    "ghcr.io/devcontainers/features/github-cli:1.1.1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:4.1.0": {},
     "ghcr.io/devcontainers/features/common-utils:2": {},
     "ghcr.io/jsburckhardt/devcontainer-features/gitleaks:1": {},
     "ghcr.io/codeman99/features/circleci-cli:1": {}
@@ -47,7 +47,8 @@
         "docker.docker",
         "VisualStudioExptTeam.intellicode-api-usage-examples",
         "ms-vscode.vscode-typescript-tslint-plugin",
-        "cweijan.dbclient-jdbc"
+        "cweijan.dbclient-jdbc",
+        "ms-kubernetes-tools.vscode-kubernetes-tools"
       ],
       "settings": {
         "python.defaultInterpreterPath": "./.venv/bin/python",

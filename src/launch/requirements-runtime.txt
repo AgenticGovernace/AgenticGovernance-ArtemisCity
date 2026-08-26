@@ -1,0 +1,30 @@
+# Generated from pyproject.toml [project.dependencies] for the kernel container.
+# Two entries are deliberately omitted as they appear unintentional:
+#   django>=5.2.15  -- no Django code in repo (FastAPI-only)
+#   vite>=1.5.2     -- Vite is a Node tool; PyPI 'vite' is unrelated
+# If either is needed, re-add here AND fix the install (e.g. correct PyPI name).
+
+click>=8.1.0
+datasets>=2.18.0
+# django>=5.2.15  -- omitted; see header
+docker>=7.1.0
+entrypoints>=0.4.0
+fastapi>=0.109.1
+fastmcp>=3.4.0
+httpx>=0.23.0
+mcp>=1.29.0
+numpy>=1.24.0
+pandas>=1.5.0
+prometheus-client>=0.14.0
+prompt-toolkit>=3.0.0
+psycopg2-binary>=2.9.0
+pyarrow>=23.0.1
+pydantic>=2.4.0
+python-dotenv>=1.2.2
+python-multipart==0.0.31
+pyyaml>=6.0.1,<7.0.0
+redis>=4.0.0
+requests>=2.33.0
+rich>=13.7.0
+sqlalchemy>=1.4.0
+uvicorn[standard]>=0.15.0

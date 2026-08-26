@@ -1,8 +1,10 @@
 {
     "recommendations": [
         "ms-toolsai.jupyter",
-        "docker.docker",
         "dbaeumer.vscode-eslint",
-        "cweijan.vscode-database-client2"
+        "cweijan.vscode-database-client2",
+        "pkief.material-icon-theme",
+        "ms-vscode.cpp-devtools",
+        "docker.docker"
     ]
 }
