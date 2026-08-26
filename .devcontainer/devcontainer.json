@@ -48,7 +48,8 @@
         "VisualStudioExptTeam.intellicode-api-usage-examples",
         "ms-vscode.vscode-typescript-tslint-plugin",
         "cweijan.dbclient-jdbc",
-        "ms-kubernetes-tools.vscode-kubernetes-tools"
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "ms-python.vscode-python-envs"
       ],
       "settings": {
         "python.defaultInterpreterPath": "./.venv/bin/python",

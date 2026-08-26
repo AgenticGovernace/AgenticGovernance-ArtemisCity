@@ -1,3 +1,4 @@
+#!
 """
 Run Logger for Artemis City MCP
 

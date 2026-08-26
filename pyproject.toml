@@ -1,9 +1,13 @@
-[workspace]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
 name = "artemis-city"
-version = "1.0.0"
+version = "1.1.0"
 description = "Governed multi-agent orchestration with trust-aware routing and Obsidian-backed memory."
 readme = "README.md"
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.10,<3.13"
 license = "Apache-2.0"
 authors = [
     { name = "Prinston Palmer", email = "prinstonpalmer879@gmail.com" },
@@ -19,7 +23,6 @@ keywords = [
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
@@ -31,15 +34,15 @@ dependencies = [
     "alembic>=1.7.0",
     "anthropic>=0.1.0",
     "click>=8.1.0",
-    "coverage==7.15.4",
+    "coverage>=7.0.0",
     "datasets>=5.0.1",
-    "docker>=7.2.0",
+    "docker>=7.1.0",
     "email-validator==2.3.0",
     "fastapi>=0.109.1",
-    "fastmcp==4.0.0b2",
+    "fastmcp>=0.1.0",
     "httpx>=0.23.0",
     "huggingface-hub>=1.26.1",
-    "mcp[cli]==2.0.0",
+    "mcp[cli]>=1.29.0",
     "numpy>=1.24.0",
     "openai>=0.1.0",
     "pandas>=1.5.0",
@@ -50,6 +53,7 @@ dependencies = [
     "py-key-value-shared==0.3.0",
     "pyarrow>=25.0.0",
     "pydantic>=2.4.0",
+    "pydantic-settings>=2.0.0",
     "pydocket==0.23.1",
     "python-dotenv>=1.2.2",
     "python-multipart>=0.0.27",
@@ -61,15 +65,47 @@ dependencies = [
     "tensor>=0.0.0",
     "torch>=1.0.0",
     "uvicorn[standard]>=0.15.0",
-]
-
-[project.optional-dependencies]
-dev = [
     "ipdb>=0.13.13",
     "ipython>=8.18.0",
     "pdbpp>=0.10.3",
     "pre-commit>=3.5.0",
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.0.0",
+    "mkdocs-mermaid2-plugin>=0.7.0",
+    "mkdocstrings[python]>=0.24.0",
+    "autopep8>=1.5.0",
+    "bandit>=1.7.0",
+    "black>=24.0.0",
+    "flake8>=6.0.0",
+    "flake8-docstrings>=1.7.0",
+    "isort>=5.12.0",
+    "mypy>=1.5.0",
+    "pylint>=3.0.0",
+    "ruff>=0.8.0",
+    "safety>=2.3.0",
+    "types-pyyaml>=6.0.0",
+    "coverage-badge>=1.0.0",
+    "faker>=18.0.0",
+    "packaging>=24.0",
+    "pytest>=9.0.3,<9.1",
+    "pytest-asyncio>=0.16.0",
+    "pytest-cases>=3.7.0",
+    "pytest-cov>=3.0.0",
+    "pytest-factoryboy>=2.0.0",
+    "pytest-fixture-config>=1.0.0",
+    "pytest-html>=3.2.0",
+    "pytest-mock>=3.7.0",
+    "pytest-xdist>=3.0.0",
+    "responses>=0.22.0",
+    "build>=1.0.0",
+    "hatchling>=1.21.0",
+    "twine>=3.0.0",
+    "wheel>=0.38.1",
+    "entrypoints>=0.4.0",
+    "posthog>=7.44.0",
 ]
+
+[project.optional-dependencies]
 docs = [
     "mkdocs>=1.5.0",
     "mkdocs-material>=9.0.0",
@@ -102,12 +138,8 @@ test = [
     "pytest-fixture-config>=1.0.0",
     "pytest-html>=3.2.0",
     "pytest-mock>=3.7.0",
-]
     "pytest-xdist>=3.0.0",
     "responses>=0.22.0",
-    # Required by the Hebbian learning-dynamics tests
-    # (test_hebbian_scoped_vs_coldstart, test_hebbian_marketplace_vs_inference).
-    # Without these declared, both modules importorskip out of every run.
     "matplotlib>=3.8.0",
     "scikit-learn>=1.5.0",
 ]
@@ -132,7 +164,7 @@ addopts = '-ra --ignore="src/tests/integration/test_artemis_persona 2.py"'
 
 [tool.bandit]
 # Scope: the runtime attack surface. Every excluded path has a reason:
- src/tests: pytest assert idiom and fixtures, not runtime code.
+ #src/tests: pytest assert idiom and fixtures, not runtime code.
 #  - services/mcp/*/tests: same pytest assert idiom, for the MCP server
 #    paths, so a mid-path wildcard without it matches nothing and silently
 #    scans the tests anyway.
@@ -147,7 +179,7 @@ addopts = '-ra --ignore="src/tests/integration/test_artemis_persona 2.py"'
 #  - Local virtual environments, package trees, and the archived app/web/api
 #    checkout are not reviewed first-party runtime source. Bandit walks the
 #    filesystem rather than honoring .gitignore, so these exclusions are
- - src/Experiments: archived experiment material and captured eval run
+ # src/Experiments: archived experiment material and captured eval run
 #    required even though none of those paths can be committed accidentally.
 exclude_dirs = [
     "src/tests",
@@ -166,9 +198,30 @@ exclude_dirs = [
 # app/kernel/memory_bus.py:149, which is byte-locked to the audit-held
 # src/Kernel mirror and cannot take an inline annotation without breaking
 # the quarantine byte-identity contract. Re-enable once the hold is released.
-skips = ["B112"]
+skips = [""]
 
-[dependency-groups]
 test = [
     "pytest==9.0.3",
+    "coverage>=7.0.0",
+    "coverage-badge>=1.0.0",
+    "faker>=18.0.0",
+    "packaging>=24.0",
+    "pytest>=9.0.3,<9.1",
+    "pytest-asyncio>=0.16.0",
+    "pytest-cases>=3.7.0",
+    "pytest-cov>=3.0.0",
+    "pytest-factoryboy>=2.0.0",
+    "pytest-fixture-config>=1.0.0",
+    "pytest-mock>=3.7.0",
+    "pytest-html>=3.2.0",
+    "pytest-xdist>=3.0.0",
+    "responses>=0.22.0",
+    "matplotlib>=3.8.0",
+    "scikit-learn>=1.5.0"
 ]
+
+[dependency-groups]
+dev = [
+    "docker>=7.2.0",
+]
+

@@ -5,20 +5,10 @@ symbols here preserves the documented import path while keeping one source of
 truth for memory integration behavior.
 """
 
-from src.integration import (
-    ContextEntry,
-    ContextLoader,
-    MailPacket,
-    MCPOperation,
-    MCPResponse,
-    MemoryClient,
-    PostOffice,
-    TrustInterface,
-    TrustLevel,
-    TrustScore,
-    get_post_office,
-    get_trust_interface,
-)
+from src.integration import (ContextEntry, ContextLoader, MailPacket,
+                             MCPOperation, MCPResponse, MemoryClient,
+                             PostOffice, TrustInterface, TrustLevel,
+                             TrustScore, get_post_office, get_trust_interface)
 
 __all__ = [
     "ContextEntry",

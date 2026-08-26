@@ -122,9 +122,9 @@ class TestDockerCompose:
         services = docker_compose_config["services"]
 
         assert "healthcheck" in services["kernel"], "Kernel missing healthcheck"
-        assert "healthcheck" in services["express-api"], (
-            "Express API missing healthcheck"
-        )
+        assert (
+            "healthcheck" in services["express-api"]
+        ), "Express API missing healthcheck"
 
         # Validate healthcheck structure
         kernel_hc = services["kernel"]["healthcheck"]

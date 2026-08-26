@@ -22,22 +22,13 @@ def _run_as_script() -> None:
 if __name__ == "__main__" and not __package__:
     _run_as_script()
 
-from .models import (  # noqa: E402
-    ClaimDisposition,
-    LedgerState,
-    LedgerWrite,
-    MemoryError,
-    MemoryIdempotencyConflict,
-    MemoryLedgerUnavailable,
-    MemoryNamespaceConflict,
-    MemoryRecord,
-    MemoryValidationError,
-    MemoryWriteCommand,
-    MemoryWriteReceipt,
-    ProjectionState,
-    WriteDisposition,
-)
-from .ports import MemoryLedger, MemoryProjection, ProjectionClaim  # noqa: E402
+from .models import (ClaimDisposition, LedgerState, LedgerWrite,  # noqa: E402
+                     MemoryError, MemoryIdempotencyConflict,
+                     MemoryLedgerUnavailable, MemoryNamespaceConflict,
+                     MemoryRecord, MemoryValidationError, MemoryWriteCommand,
+                     MemoryWriteReceipt, ProjectionState, WriteDisposition)
+from .ports import (MemoryLedger, MemoryProjection,  # noqa: E402
+                    ProjectionClaim)
 from .service import MemoryService  # noqa: E402
 
 __all__ = [

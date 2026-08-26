@@ -607,5 +607,8 @@ ide-index-mcp.skill
 
 .env*
 .flaskenv*
-!.env.project
-!.env.vault
+.env.project
+.env.vault
+-/*
+.claude/
+.env.example

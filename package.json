@@ -1,32 +1,34 @@
-{ 
-  "pnpm":,
+{
   "name": "artemis_city",
   "version": "1.1.0",
   "private": true,
   "description": "Workspace coordinator for Artemis City JavaScript projects.",
   "license": "Apache-2.0",
   "author": "Prinston Palmer",
-  "type":  "commonjs",
+  "type": "commonjs",
   "keywords": [
     "ATP",
     "Artemis",
     "Agentic OS"
-  
-  ]
-   
+  ],
+  "workspaces": [
+    "app/api",
+    "app/web/frontend"
+  ],
   "scripts": {
-    "api:build": "npm --workspace app/api run build",
-    "api:start": "npm --workspace app/api run start",
-    "api:dev": "npm --workspace app/api run dev",
-    "api:typecheck": "npm --workspace app/api run typecheck",
-    "frontend:build": "npm --workspace app/web/frontend run build",
-    "frontend:dev": "npm --workspace app/web/frontend run dev",
-    "frontend:typecheck": "npm --workspace app/web/frontend run typecheck",
+    "api:build": "npm run build --workspace app/api",
+    "api:start": "npm run start --workspace app/api",
+    "api:dev": "npm run dev --workspace app/api",
+    "api:typecheck": "npm run typecheck --workspace app/api",
+    "api:test": "npm run test --workspace app/api",
+    "frontend:build": "npm run build --workspace app/web/frontend",
+    "frontend:dev": "npm run dev --workspace app/web/frontend",
+    "frontend:typecheck": "npm run typecheck --workspace app/web/frontend",
     "build": "npm run api:build && npm run frontend:build",
     "dev": "npm run api:dev",
     "lint": "eslint .",
     "typecheck": "npm run api:typecheck && npm run frontend:typecheck",
-    "test": "npm --workspace app/api run test"
+    "test": "npm run api:test"
   },
   "engines": {
     "node": ">=24"
@@ -35,9 +37,7 @@
     "fsevents@2.3.3": true,
     "unrs-resolver@1.12.2": true,
     "esbuild@0.28.2": true
-  }
-}
-],
+  },
   "homepage": "https://github.com/AgenticGovernace/Artemis_City",
   "bugs": {
     "url": "https://github.com/AgenticGovernace/Artemis_City/issues"
@@ -45,3 +45,8 @@
   "repository": {
     "type": "git",
     "url": "AgenticGovernace/Artemis_City.git"
+  },
+  "dependencies": {
+    "posthog-node": "^5.51.2"
+  }
+}

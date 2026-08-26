@@ -32,25 +32,23 @@ development:
                          ▲
                          │
 ┌─────────────────────────────────────────────────────────────┐
-│                    SRC/LAUNCH/                              │
+│                   Concept_Demos/                             │
 │  • Maintained runnable walkthroughs                         │
 │  • CLI demos backed by src.* imports                        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-`Concept_Demos/` remains for static browser prototypes and old command shims
-only. Do not add new agent classes, integration modules, or frontend workspaces
-there.
+
 
 ### Runtime Locations
 
-| Purpose | Location |
-|--------|----------|
-| Agent classes | `src/agents/` |
-| Orchestrator registration | `src/mcp/orchestrator.py` |
-| Registry, trust, governance, memory integration | `src/integration/` |
-| Maintained walkthrough scripts | `src/launch/` |
-| Static browser prototypes | `Concept_Demos/` |
+| Purpose                                         | Location                  |
+| ----------------------------------------------- | ------------------------- |
+| Agent classes                                   | `src/agents/`             |
+| Orchestrator registration                       | `src/mcp/orchestrator.py` |
+| Registry, trust, governance, memory integration | `src/integration/`        |
+| Maintained walkthrough scripts                  | `src/launch/`             |
+| Static browser prototypes                       | `Concept_Demos/`          |
 
 ---
 
