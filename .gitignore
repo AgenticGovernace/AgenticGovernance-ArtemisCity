@@ -611,3 +611,9 @@ ide-index-mcp.skill
 .flaskenv*
 !.env.project
 !.env.vault
+
+# Stray partial virtualenv skeletons (bin/ + lib/ pip fragments) that were once
+# accidentally staged. The real package is src/artemis_city (underscore); these
+# hyphenated paths are never legitimate tracked content.
+/artemis-city/
+/src/artemis-city/
