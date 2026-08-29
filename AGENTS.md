@@ -673,22 +673,24 @@ file as-is.
 The repo ships several runtime layers. The table below tells you what is
 authoritative, what is in transition, and what is deliberately frozen.
 
-| Surface                    | Path                                                              | Role                                                                                    | Editing posture                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| -------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Python core                | `src/`                                                            | Orchestrator, agents, integration, governance, tests                                    | **Authoritative**. Most work happens here.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Bridge                     | `src/api_bridge.py`                                               | JSON stdin/stdout dispatch for the TS API                                               | Extend by adding to `COMMANDS`. See "Bridge behavior" below.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| FastAPI dashboard          | `app/api/main.py`                                                 | `/api/*` dashboard backend, SQLite-only fallback                                        | Edit for dashboard endpoints. Falls back to read-only SQLite if orchestrator imports fail.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| TS Express API             | `app/api/index.ts`, `app/api/v1/*.ts`, `app/api/controllers/*.ts` | `/api/v1/*` public HTTP boundary                                                        | Boundary for new registry / governance / ATP endpoints. Spawns the bridge — do **not** reimplement Python logic in TS.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| Kernel layer               | `app/kernel/`                                                     | In-process router with concrete `DaemonAgent`, `PlannerAgent`                           | Newer layer; growing toward orchestrator parity. Used by `app/kernel/cli.py` for local probing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Obsidian REST shell        | `src/Artemis Agentic Memory Layer/`                               | Standalone Express/TS service fronting the Obsidian Local REST API                      | **Populated, not registered**: has a working `package.json`, `Dockerfile`, and `middleware/auth.ts`. `make server` runs it. It is branding-only — plain REST, no `@modelcontextprotocol/sdk` dependency — and is not the Model Context Protocol implementation; see `services/mcp/` below for that. Register it in the root workspace before treating it as a production dependency. Two byte-identical, broken duplicates (`src/mcp-server/`, `src/memory/mcp-server/`) were removed; this is the sole canonical copy.                                                                                                                       |
-| MCP servers (official SDK) | `services/mcp/`                                                   | Python servers built on the real `mcp[cli]==2.0.0` SDK, adapting `src/` domain services | Per the accepted design (`docs/superpowers/specs/2026-08-16-artemis-mcp-backend-servers-design.md`), `src/` remains the sole domain-logic owner; server packages are thin transport adapters (stdio default, authenticated Streamable HTTP at `/mcp`). `artemis-validation` (read-only ATP tools) and `artemis-memory` (write/read/search/status-memory tools over `MemoryService`) are implemented. `common` is explicitly quarantined — not for production wiring until its governed-core replacement is reviewed. Five more servers (`artemis-provenance`, `-task`, `-registry`, `-governance`, `-routing`) are planned but not yet built. |
-| Frontend (mixed)           | `app/web/frontend/`                                               | React/Vite client; also carries leftover TS controllers/middleware                      | **In transition**. Treat as a mixed client/server workspace per README §"Dashboard and web-facing code".                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Concept demos              | `Concept_Demos/`                                                  | Prototype ground for agents and flows                                                   | Older but supported. Per the Agent Implementation Guide, work prototyped here graduates to `src/`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Surface                    | Path                                                              | Role                                                                                    | Editing posture                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| -------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Python core                | `src/`                                                            | Orchestrator, agents, integration, governance, tests                                    | **Authoritative**. Most work happens here.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Bridge                     | `src/api_bridge.py`                                               | JSON stdin/stdout dispatch for the TS API                                               | Extend by adding to `COMMANDS`. See "Bridge behavior" below.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| FastAPI dashboard          | `app/api/main.py`                                                 | `/api/*` dashboard backend, SQLite-only fallback                                        | Edit for dashboard endpoints. Falls back to read-only SQLite if orchestrator imports fail.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| TS Express API             | `app/api/index.ts`, `app/api/v1/*.ts`, `app/api/controllers/*.ts` | `/api/v1/*` public HTTP boundary                                                        | Boundary for new registry / governance / ATP endpoints. Spawns the bridge — do **not** reimplement Python logic in TS.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Kernel layer               | `app/kernel/`                                                     | In-process router with concrete `DaemonAgent`, `PlannerAgent`                           | Newer layer; growing toward orchestrator parity. Used by `app/kernel/cli.py` for local probing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Obsidian REST shell        | `app/Artemis Agentic Memory Layer/`                               | Standalone Express/TS service fronting the Obsidian Local REST API                      | **Populated, not registered**: has a working `package.json`, `Dockerfile`, and `middleware/auth.ts`. `make server` runs it; `make memory-server-test` runs its suite. It is branding-only — plain REST, no `@modelcontextprotocol/sdk` dependency — and is not the Model Context Protocol implementation; see `services/mcp/` below for that. Register it in the root workspace before treating it as a production dependency. It lives under `app/` with the rest of the TypeScript code, **not** under `src/`, which is the Python package root the wheel ships. A byte-identical `src/` copy was removed; this is the sole canonical copy. Enforces mutual TLS when `ARTEMIS_MTLS_ENABLED=1` — see "Mutual TLS" below. |
+| MCP servers (official SDK) | `services/mcp/`                                                   | Python servers built on the real `mcp[cli]==2.0.0` SDK, adapting `src/` domain services | Per the accepted design (`docs/superpowers/specs/2026-08-16-artemis-mcp-backend-servers-design.md`), `src/` remains the sole domain-logic owner; server packages are thin transport adapters (stdio default, authenticated Streamable HTTP at `/mcp`). `artemis-validation` (read-only ATP tools) and `artemis-memory` (write/read/search/status-memory tools over `MemoryService`) are implemented. `common` is explicitly quarantined — not for production wiring until its governed-core replacement is reviewed. Five more servers (`artemis-provenance`, `-task`, `-registry`, `-governance`, `-routing`) are planned but not yet built.                                                                             |
+| Frontend (mixed)           | `app/web/frontend/`                                               | React/Vite client; also carries leftover TS controllers/middleware                      | **In transition**. Treat as a mixed client/server workspace per README §"Dashboard and web-facing code".                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Concept demos              | `Concept_Demos/`                                                  | Prototype ground for agents and flows                                                   | Older but supported. Per the Agent Implementation Guide, work prototyped here graduates to `src/`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 The Hatch wheel ships **only `src/` and `app/kernel/`** (see
-root `pyproject.toml` — `app/api`, `app/web`, `app/scripts` are explicitly
-excluded so the wheel does not pull `fastapi`/`express` into consumers that
-do not declare them).
+root `pyproject.toml` — `app/api`, `app/web`, `app/scripts`, and
+`app/Artemis Agentic Memory Layer` are explicitly excluded so the wheel does
+not pull `fastapi`/`express`, or a Node service, into consumers that do not
+declare them). `src/tests/test_makefile_contract.py` asserts that exclude list
+exactly, so it and `pyproject.toml` must be edited together.
 
 ---
 
@@ -1001,6 +1003,106 @@ and `docs/API_REFERENCE.md`.
 
 ---
 
+## Mutual TLS
+
+Two services enforce caller identity at the socket rather than trusting a
+header: the Obsidian memory server (`app/Artemis Agentic Memory Layer/`, Node)
+and the ATP provenance service (`services/prove/`, Python). A shared bearer
+token proves only that a caller could read `.env`; any local process can do
+that. A client certificate proves possession of a private key that never
+leaves the machine it was issued on.
+
+Both are **off by default** and refuse to start rather than downgrade when
+switched on with unusable key material.
+
+### One CA, one registry, two enforcers
+
+`services/prove/` is an independent, gitignored repository, so the two services
+share a **data contract**, not code. Each implements the reader in its own
+language against the same files:
+
+```
+.agent/clients/<agent-id>.yaml        pinned certificate + route allow-list
+.agent/logs/handshakes-YYYY-MM.yaml   append-only decision ledger
+```
+
+`.agent/README.md` is the authoritative description of that format. Note the
+directory is `.agent/` (singular, certificate identity), distinct from
+`.agents/` (plural, agent skills).
+
+Private keys live outside the repository — `~/.artemis/mtls` by default — so a
+stray `git add -A` cannot publish them. Only public certificates and the YAML
+manifests are meant to be committed.
+
+| Concern                                            | File                                                                 |
+| -------------------------------------------------- | -------------------------------------------------------------------- |
+| CA + certificate lifecycle (issue, rotate, revoke) | `scripts/mtls/artemis-mtls.sh`                                       |
+| Registry format and operating notes                | `.agent/README.md`                                                   |
+| Memory server TLS config                           | `app/Artemis Agentic Memory Layer/src/config/tls.ts`                 |
+| Memory server registry + ledger                    | `app/Artemis Agentic Memory Layer/src/security/`                     |
+| Memory server enforcement middleware               | `app/Artemis Agentic Memory Layer/src/mcp-server/middleware/mtls.ts` |
+| Provenance service gate (all of the above, Python) | `services/prove/mtls_gate.py`                                        |
+| Dashboard read-model                               | `app/api/main.py` (`/api/mtls/*`)                                    |
+| Dashboard Security page                            | `app/web/frontend/src/pages/Security.tsx`                            |
+
+### Enforcement order
+
+The TLS layer runs first and is not negotiable: `requestCert` +
+`rejectUnauthorized` (Node) and `CERT_REQUIRED` (Python) drop any peer whose
+certificate does not chain to the local CA **before** a byte of HTTP is parsed.
+Application code therefore only ever sees CA-signed peers. The second gate,
+which is where the operational weight sits, then checks in this order:
+
+```
+fingerprint pinned? -> revoked? -> not yet valid? -> expired? -> route allowed?
+```
+
+Revocation deliberately outranks the validity window: an operator saying "this
+key is compromised" is never second-guessed by a date.
+
+### Invariants worth not breaking
+
+- **Fail closed on config.** Enabling mTLS without cert, key, and CA is a
+  startup failure, not a downgrade to plaintext. A silent downgrade would make
+  the entire feature worthless.
+- **Fail closed on data.** A manifest that will not parse, one missing
+  `revoked: false`, or two manifests claiming one fingerprint, all deny. The
+  registry never guesses.
+- **Revocation is immediate.** Both readers invalidate on file mtime/size, not
+  a TTL — the staleness window of a TTL cache is exactly the window a holder of
+  a just-revoked certificate wants. No restart is required.
+- **Quote `*` in `allowed_routes`.** Unquoted, it is YAML alias syntax and the
+  manifest will not parse.
+- **The ledger is evidence.** Request-derived fields are YAML-escaped, not
+  interpolated, and writes are serialised so concurrent requests cannot
+  interleave a forged record.
+- **The dashboard is read-only.** Issuing and revoking live in
+  `artemis-mtls.sh` next to the private keys. A revoke button in the UI would
+  fork the source of truth for exactly the state that must have only one.
+
+### Browsers cannot present client certificates
+
+This is the one real ergonomic cost. When the provenance service enforces mTLS,
+point its browser dashboard at `services/prove/provenance_proxy.py`: the proxy
+holds the agent certificate and presents it upstream, while the browser talks
+plain HTTP to loopback. Set `PROXY_UPSTREAM=https://…` plus `PROXY_MTLS_CA`,
+`PROXY_MTLS_CERT`, and `PROXY_MTLS_KEY`.
+
+The Artemis City dashboard is unaffected — it reads the registry through
+FastAPI, and never connects to either mTLS listener.
+
+### Tests
+
+Neither suite mocks TLS; both mint a real CA and drive real handshakes, because
+a mocked socket would pass against a server that checks nothing.
+
+| Suite                         | Command                                                                                                    |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Memory server (21 tests)      | `make memory-server-test`                                                                                  |
+| Provenance service (24 tests) | `cd services/prove && PYTHONPATH=$PWD python3 -m unittest discover -s test -t test -p "test_mtls_gate.py"` |
+
+---
+
 ## Conventions
 
 ### Adding a Python agent
@@ -1056,7 +1158,7 @@ each picked up by its own consumer:
 | `.env`                                  | Python core, FastAPI dashboard (`make api` loads this)                       |
 | `app/api/.env`                          | TS Express API (loaded via `dotenv/config` at the top of `app/api/index.ts`) |
 | `src/.env`                              | Memory-layer Python                                                          |
-| `src/Artemis Agentic Memory Layer/.env` | Standalone MCP server (if present)                                           |
+| `app/Artemis Agentic Memory Layer/.env` | Obsidian memory server (mTLS settings live here)                             |
 
 Canonical keys (each appears in only the files marked ✓):
 
@@ -1128,7 +1230,12 @@ point.
 | Python CLI                                               | `make cli`                                               |
 | Orchestrator pipeline                                    | `make orchestrator` (`make run` is an alias)             |
 | Concept demos                                            | `make demo`                                              |
-| Obsidian REST shell server                               | `make server` (runs `src/Artemis Agentic Memory Layer/`) |
+| Obsidian REST shell server                               | `make server` (runs `app/Artemis Agentic Memory Layer/`) |
+| Memory server test suite                                 | `make memory-server-test`                                |
+| Create the local mTLS CA + server cert                   | `make mtls-init`                                         |
+| Issue an agent certificate                               | `make mtls-issue AGENT=codex ROUTES=/api/getContext`     |
+| Revoke an agent certificate                              | `make mtls-revoke AGENT=codex`                           |
+| Show the certificate registry                            | `make mtls-status`                                       |
 | FastAPI dashboard backend (`:8000`)                      | `make api`                                               |
 | Frontend dev server (`:5173`, proxies `/api` -> `:8000`) | `make frontend`                                          |
 | TypeScript Express API (`:4000`)                         | `make express-api`                                       |

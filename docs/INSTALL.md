@@ -35,7 +35,7 @@ cd Artemis-City
 
 The script treats root `.env` as the sole operator source and generates views at
 `app/api/.env`, `app/web/frontend/.env`, `src/.env`,
-`src/Artemis Agentic Memory Layer/.env`,
+`app/Artemis Agentic Memory Layer/.env`,
 `services/mcp/artemis-memory/.env`, and `services/prove/.env`. The manifest at
 `config/environment-contract.yaml` owns this list. Do not edit a generated view
 directly.

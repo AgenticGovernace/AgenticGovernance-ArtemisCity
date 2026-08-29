@@ -37,7 +37,7 @@
 
 ## Files Verified
 
-✅ **.dockerignore** — Includes proper path references; `src/Artemis Agentic Memory Layer/` directory exists  
+✅ **.dockerignore** — Includes proper path references; `app/Artemis Agentic Memory Layer/` directory exists  
 ✅ **Dockerfile-python** — Well-structured multi-stage, non-root user, healthcheck present  
 ✅ **docker-compose.yaml** — Proper networking, depends_on, environment variables, secrets handling
 

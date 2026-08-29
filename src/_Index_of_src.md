@@ -2,7 +2,7 @@
 📄 [[Artemis-City/src/Pop.ipynb]]
 📄 [[Artemis-City/src/pyproject.toml]]
 🗂️ [[Artemis-City/src/agents/_Index_of_agents.md]]
-🗂️ [[Artemis-City/src/Artemis Agentic Memory Layer/_Index_of_Artemis Agentic Memory Layer.md]]
+🗂️ [[Artemis-City/app/Artemis Agentic Memory Layer/_Index_of_Artemis Agentic Memory Layer.md]]
 🗂️ [[Artemis-City/src/artemis-cli/_Index_of_codex.md]]
 🗂️ [[Artemis-City/src/integration/_Index_of_integration.md]]
 🗂️ [[Artemis-City/src/interface/_Index_of_interface.md]]

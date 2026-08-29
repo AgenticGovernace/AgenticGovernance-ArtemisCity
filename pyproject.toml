@@ -31,8 +31,8 @@ classifiers = [
 dependencies = [
     "aiohappyeyeballs==2.7.1",
     "aiohttp==3.14.3",
-    "alembic>=1.7.0",
-    "anthropic>=0.1.0",
+    "alembic==1.19.1",
+    "anthropic==1.0.0",
     "click>=8.1.0",
     "coverage>=7.0.0",
     "datasets>=5.0.1",
@@ -41,8 +41,8 @@ dependencies = [
     "fastapi>=0.109.1",
     "fastmcp>=0.1.0",
     "httpx>=0.23.0",
-    "huggingface-hub>=1.26.1",
-    "mcp[cli]>=1.29.0",
+    "huggingface-hub==1.28.0",
+    "mcp[cli]==2.1.0",
     "numpy>=1.24.0",
     "openai>=0.1.0",
     "pandas>=1.5.0",
@@ -54,17 +54,27 @@ dependencies = [
     "pyarrow>=25.0.0",
     "pydantic>=2.4.0",
     "pydantic-settings>=2.0.0",
-    "pydocket==0.23.1",
-    "python-dotenv>=1.2.2",
+    "pydocket==0.24.1",
+    "python-dotenv==1.2.3",
     "python-multipart>=0.0.27",
     "pyyaml>=6.0.1",
+    "react-router-routes>=0.4.2",
     "redis>=4.0.0",
+    "request-curl>=0.0.3",
+    "request-params>=0.0.3",
+    "requesto-py>=1.2.0.1",
     "requests>=2.33.0",
+    "requests-async>=0.2.4",
+    "requests-auth>=8.0.0",
+    "requests-oauth>=0.4.1",
+    "requests-sse>=0.5.3",
+    "requests-tools>=1.0.9",
+    "requestscore>=0.0.0",
     "rich>=13.7.0",
-    "sqlalchemy>=1.4.0",
+    "sqlalchemy==2.1.0b3",
     "tensor>=0.0.0",
     "torch>=1.0.0",
-    "uvicorn[standard]>=0.15.0",
+    "uvicorn[standard]==0.52.4",
     "ipdb>=0.13.13",
     "ipython>=8.18.0",
     "pdbpp>=0.10.3",
@@ -134,6 +144,9 @@ test = [
     "pytest-mock>=3.7.0",
     "pytest-xdist>=3.0.0",
     "responses>=0.22.0",
+    # Required by the Hebbian learning-dynamics tests
+    # (test_hebbian_scoped_vs_coldstart, test_hebbian_marketplace_vs_inference).
+    # Without these declared, both modules importorskip out of every run.
     "matplotlib>=3.8.0",
     "scikit-learn>=1.5.0",
 ]
@@ -151,7 +164,15 @@ package-mode = false
 only-include = ["src", "app"]
 # Belongs to the wheel target, not pytest — `exclude` is not a pytest ini
 # option, and test_hatch_configuration_remains_unchanged asserts it here.
-exclude = ["/app/api/**", "/app/scripts/**", "/app/web/**"]
+exclude = [
+    "/app/api/**",
+    "/app/scripts/**",
+    "/app/web/**",
+    # The Obsidian memory layer is a Node/TypeScript service. It lives
+    # under app/ with the rest of the TS code and must never be shipped
+    # to Python consumers of the wheel.
+    "/app/Artemis Agentic Memory Layer/**",
+]
 
 
 [tool.mypy]
@@ -253,26 +274,35 @@ addopts = '-ra --ignore="src/tests/integration/test_artemis_persona 2.py"'
 
 [tool.bandit]
 # Scope: the runtime attack surface. Every excluded path has a reason:
- #src/tests: pytest assert idiom and fixtures, not runtime code.
-#  - services/mcp/*/tests: same pytest assert idiom, for the MCP server
-#    paths, so a mid-path wildcard without it matches nothing and silently
-#    scans the tests anyway.
-#    packages. The glob needs the trailing "/*" — bandit fnmatches file
+#  - src/tests: pytest assert idiom and fixtures, not runtime code.
+#  - services/mcp/*/tests and src/mcp/*/tests: same pytest assert idiom, for
+#    the MCP server packages. The glob needs the trailing "/*" — bandit
+#    fnmatches file paths, so a mid-path wildcard without it matches nothing
+#    and silently scans the tests anyway.
 #  - src/Kernel: quarantined legacy mirror, frozen by the reverse-sync
 #    removal hold (docs/audits/2026-08-16-reverse-sync-72cf776-removal-hold.yaml);
 #    byte-locked to app/kernel by test_repository_boundaries.
+#  - src/Experiments: archived experiment material and captured eval run
 #    outputs, not shipped runtime behavior.
 #  - The two " 2.py" files are held evidence paths (classification
 #    REMOVE_REVERSE_SYNC); the hold forbids content rewrite, so they cannot
 #    carry inline annotations.
-#  - Local virtual environments, package trees, and the archived app/web/api
-#    checkout are not reviewed first-party runtime source. Bandit walks the
-#    filesystem rather than honoring .gitignore, so these exclusions are
- # src/Experiments: archived experiment material and captured eval run
-#    required even though none of those paths can be committed accidentally.
+#  - The vendored-dependency globs are a backstop, not a scope definition.
+#    bandit resolves exclusions by fnmatch against the full path (where "*"
+#    crosses "/", unlike shell globbing), so the leading "*/" is REQUIRED —
+#    a bare ".venv/*" anchors at the start of the path and matches nothing.
+#    Without these, src/.venv alone contributes 402 findings from installed
+#    third-party packages. .pixi and site-packages have no match inside the
+#    current roots; they are listed so a future env landing in scope fails
+#    quiet instead of loud.
 exclude_dirs = [
     "src/tests",
     "services/mcp/*/tests/*",
+    "src/mcp/*/tests/*",
+    # Stale duplicate of app/api: CLAUDE.md marks the `web/api/` path dead and
+    # scripts/environment_config.py already skips it by name. Scoped out here
+    # for the same reason, not because its findings were reviewed away.
+    "app/web/api/*",
     "src/Kernel",
     "src/Experiments",
     "src/agents/artemis/persona 2.py",
@@ -281,15 +311,20 @@ exclude_dirs = [
     "*/node_modules/*",
     "*/.pixi/*",
     "*/site-packages/*",
-    "app/web/api/*",
 ]
 # B112 (try/except/continue): the only remaining site is
 # app/kernel/memory_bus.py:149, which is byte-locked to the audit-held
 # src/Kernel mirror and cannot take an inline annotation without breaking
 # the quarantine byte-identity contract. Re-enable once the hold is released.
-skips = [""]
+skips = ["B112"]
 
+[dependency-groups]
+lint = [
+    "ruff==0.16.4",
+    "safety==3.8.1",
+]
 test = [
+    "faker==40.37.0",
     "pytest==9.0.3",
     "coverage>=7.0.0",
     "coverage-badge>=1.0.0",
@@ -308,8 +343,6 @@ test = [
     "matplotlib>=3.8.0",
     "scikit-learn>=1.5.0"
 ]
-
-[dependency-groups]
 dev = [
     "docker>=7.2.0",
 ]

@@ -341,6 +341,7 @@ def test_hatch_configuration_remains_unchanged_while_release_hold_is_active() ->
         "/app/api/**",
         "/app/scripts/**",
         "/app/web/**",
+        "/app/Artemis Agentic Memory Layer/**",
     }
     assert "sdist" not in targets
 

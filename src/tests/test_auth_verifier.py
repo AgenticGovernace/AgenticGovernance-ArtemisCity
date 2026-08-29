@@ -15,7 +15,6 @@ from typing import Literal, cast
 from urllib.parse import quote
 
 import pytest
-
 from src.auth.authstructure import AuthstructureReceiptArtifact, AuthstructureVerifier
 from src.auth.config import (
     AuthConfigurationError,
@@ -1784,7 +1783,7 @@ _SETUP_FIXTURE_ASSETS = (
     "app/api/.env.example",
     "app/web/frontend/.env.example",
     "src/.env.example",
-    "src/Artemis Agentic Memory Layer/.env.example",
+    "app/Artemis Agentic Memory Layer/.env.example",
     "services/mcp/artemis-memory/.env.example",
     "config/service-env/provenance.env.example",
 )
@@ -1795,8 +1794,8 @@ _SETUP_TARGET_PAIRS = (
     ("app/web/frontend/.env.example", "app/web/frontend/.env"),
     ("src/.env.example", "src/.env"),
     (
-        "src/Artemis Agentic Memory Layer/.env.example",
-        "src/Artemis Agentic Memory Layer/.env",
+        "app/Artemis Agentic Memory Layer/.env.example",
+        "app/Artemis Agentic Memory Layer/.env",
     ),
     (
         "services/mcp/artemis-memory/.env.example",

@@ -12,10 +12,12 @@ import os
 import sqlite3
 import sys
 from collections.abc import Callable
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 import httpx
+import yaml
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
@@ -2975,3 +2977,396 @@ async def execute_instruction_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Mutual-TLS agent registry (read-only)
+#
+# The memory server (app/Artemis Agentic Memory Layer) enforces client-
+# certificate identity against `<agent_dir>/clients/*.yaml` and appends every
+# decision to `<agent_dir>/logs/handshakes-YYYY-MM.yaml`. The dashboard reads
+# those same files rather than keeping a parallel copy, so what an operator
+# sees on the Security page is literally what the server enforces. There is no
+# write path here on purpose: issuing and revoking certificates belongs to
+# `scripts/mtls/artemis-mtls.sh`, where the private key material lives.
+# ---------------------------------------------------------------------------
+
+_MTLS_STATUS_ACTIVE = "active"
+_MTLS_STATUS_REVOKED = "revoked"
+_MTLS_STATUS_EXPIRED = "expired"
+_MTLS_STATUS_PENDING = "not_yet_valid"
+_MTLS_STATUS_INVALID = "invalid"
+
+# A certificate inside this window is still valid but wants rotating.
+_MTLS_EXPIRY_WARNING_DAYS = int(os.getenv("ARTEMIS_MTLS_EXPIRY_WARNING_DAYS", "14"))
+
+
+class MtlsClient(BaseModel):
+    """One agent's entry in the mutual-TLS client registry.
+
+    Mirrors the fields of a `.agent/clients/*.yaml` manifest, plus the derived
+    `status` and `days_remaining` the dashboard renders.
+    """
+
+    agent_id: str
+    display_name: str
+    fingerprint_sha256: str
+    issued_by: str = ""
+    valid_from: str | None = None
+    valid_to: str | None = None
+    allowed_routes: list[str] = Field(default_factory=list)
+    revoked: bool = True
+    notes: str = ""
+    status: str = _MTLS_STATUS_INVALID
+    days_remaining: int | None = None
+    manifest_file: str = ""
+
+
+class MtlsProblem(BaseModel):
+    """A manifest the server refuses to load, and why."""
+
+    file: str
+    error: str
+
+
+class MtlsStatus(BaseModel):
+    """Roll-up of the registry's health for the Security page header."""
+
+    enabled: bool
+    agent_dir: str
+    clients_dir: str
+    logs_dir: str
+    client_count: int
+    active_count: int
+    revoked_count: int
+    expiring_soon_count: int
+    problems: list[MtlsProblem] = Field(default_factory=list)
+
+
+class MtlsHandshake(BaseModel):
+    """One appended line of the handshake ledger."""
+
+    ts: str = ""
+    server_cn: str = ""
+    client_cn: str = ""
+    agent_id: str = ""
+    client_fingerprint_sha256: str = ""
+    result: str = ""
+    method: str = ""
+    route: str = ""
+    remote: str = ""
+    reason: str | None = None
+
+
+def _mtls_agent_dir() -> Path:
+    """Resolve the agent registry root the memory server is configured to use.
+
+    Returns:
+        Path: `$ARTEMIS_AGENT_DIR` when set, otherwise `<repo root>/.agent`.
+    """
+    configured = os.getenv("ARTEMIS_AGENT_DIR", "").strip()
+    if configured:
+        return Path(configured).expanduser().resolve()
+    return (_REPO_ROOT / ".agent").resolve()
+
+
+def _mtls_enabled() -> bool:
+    """Report whether the memory server is configured to enforce mutual TLS."""
+    return os.getenv("ARTEMIS_MTLS_ENABLED", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _normalize_fingerprint(raw: Any) -> str:
+    """Normalize a SHA-256 fingerprint to Node's `fingerprint256` shape.
+
+    Accepts the forms operators paste in practice — with or without openssl's
+    ``SHA256 Fingerprint=`` prefix, colon-separated or bare, any case.
+
+    Args:
+        raw: Fingerprint text from a manifest or ledger entry.
+
+    Returns:
+        str: Uppercase hex pairs joined by ':', or '' when unparseable.
+    """
+    if not isinstance(raw, str):
+        return ""
+    hex_only = "".join(c for c in raw if c in "0123456789abcdefABCDEF").upper()
+    if len(hex_only) != 64:
+        return ""
+    return ":".join(hex_only[i : i + 2] for i in range(0, 64, 2))
+
+
+def _parse_manifest_datetime(raw: Any) -> datetime | None:
+    """Parse an ISO-8601 manifest timestamp into an aware UTC datetime."""
+    if isinstance(raw, datetime):
+        parsed = raw
+    elif isinstance(raw, date):
+        parsed = datetime(raw.year, raw.month, raw.day)
+    elif isinstance(raw, str) and raw.strip():
+        try:
+            parsed = datetime.fromisoformat(raw.strip().replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    else:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def _mtls_client_from_manifest(path: Path, doc: dict[str, Any]) -> MtlsClient:
+    """Build a dashboard client record from one parsed manifest.
+
+    Status precedence deliberately matches `AgentRegistry.authorize` in the
+    memory server: revocation outranks the validity window, so a revoked
+    certificate never displays as merely expired.
+
+    Args:
+        path: Manifest location, echoed back so the UI can name the file to edit.
+        doc: Parsed YAML mapping.
+
+    Returns:
+        MtlsClient: Normalized record with derived status.
+
+    Raises:
+        ValueError: When required identity fields are missing or malformed.
+    """
+    agent_id = str(doc.get("agent_id") or "").strip()
+    if not agent_id:
+        raise ValueError("missing required field 'agent_id'")
+
+    fingerprint = _normalize_fingerprint(doc.get("cert_fingerprint_sha256"))
+    if not fingerprint:
+        raise ValueError(
+            "missing or malformed 'cert_fingerprint_sha256' "
+            "(expected 64 hex characters)"
+        )
+
+    routes_raw = doc.get("allowed_routes")
+    routes = (
+        [str(r).strip() for r in routes_raw if str(r).strip()]
+        if isinstance(routes_raw, list)
+        else []
+    )
+
+    valid_from = _parse_manifest_datetime(doc.get("valid_from"))
+    valid_to = _parse_manifest_datetime(doc.get("valid_to"))
+    now = datetime.now(timezone.utc)
+
+    # Anything other than an explicit `false` counts as revoked, matching the
+    # server. A manifest whose revoked field is missing must not grant access.
+    revoked = doc.get("revoked") is not False
+
+    if revoked:
+        status = _MTLS_STATUS_REVOKED
+    elif valid_from and now < valid_from:
+        status = _MTLS_STATUS_PENDING
+    elif valid_to and now > valid_to:
+        status = _MTLS_STATUS_EXPIRED
+    else:
+        status = _MTLS_STATUS_ACTIVE
+
+    days_remaining = (valid_to - now).days if valid_to else None
+
+    display_name = str(doc.get("display_name") or "").strip() or agent_id
+    return MtlsClient(
+        agent_id=agent_id,
+        display_name=display_name,
+        fingerprint_sha256=fingerprint,
+        issued_by=str(doc.get("issued_by") or "").strip(),
+        valid_from=valid_from.isoformat() if valid_from else None,
+        valid_to=valid_to.isoformat() if valid_to else None,
+        allowed_routes=routes,
+        revoked=revoked,
+        notes=str(doc.get("notes") or ""),
+        status=status,
+        days_remaining=days_remaining,
+        manifest_file=path.name,
+    )
+
+
+def _load_mtls_registry() -> tuple[list[MtlsClient], list[MtlsProblem]]:
+    """Read every client manifest under the configured agent directory.
+
+    Returns:
+        tuple: Parsed clients (sorted by agent id) and any manifest problems.
+            Duplicate fingerprints disable every entry claiming them, matching
+            the memory server's refusal to guess which manifest wins.
+    """
+    clients_dir = _mtls_agent_dir() / "clients"
+    clients: list[MtlsClient] = []
+    problems: list[MtlsProblem] = []
+
+    try:
+        manifest_paths = sorted(
+            p
+            for p in clients_dir.iterdir()
+            if p.is_file() and p.suffix in {".yaml", ".yml"}
+        )
+    except FileNotFoundError:
+        return [], []
+    except OSError as exc:
+        problems.append(
+            MtlsProblem(file=str(clients_dir), error=f"directory unreadable: {exc}")
+        )
+        return [], problems
+
+    for path in manifest_paths:
+        try:
+            doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except (OSError, yaml.YAMLError) as exc:
+            problems.append(MtlsProblem(file=path.name, error=str(exc)))
+            continue
+        if not isinstance(doc, dict):
+            problems.append(
+                MtlsProblem(file=path.name, error="manifest is not a YAML mapping")
+            )
+            continue
+        try:
+            clients.append(_mtls_client_from_manifest(path, doc))
+        except ValueError as exc:
+            problems.append(MtlsProblem(file=path.name, error=str(exc)))
+
+    seen: dict[str, MtlsClient] = {}
+    duplicated: set[str] = set()
+    for client in clients:
+        if client.fingerprint_sha256 in seen:
+            duplicated.add(client.fingerprint_sha256)
+            problems.append(
+                MtlsProblem(
+                    file=client.manifest_file,
+                    error=(
+                        "duplicate fingerprint also claimed by "
+                        f"{seen[client.fingerprint_sha256].manifest_file}; "
+                        "both entries are disabled"
+                    ),
+                )
+            )
+        else:
+            seen[client.fingerprint_sha256] = client
+
+    for client in clients:
+        if client.fingerprint_sha256 in duplicated:
+            client.status = _MTLS_STATUS_INVALID
+
+    clients.sort(key=lambda c: c.agent_id)
+    return clients, problems
+
+
+@app.get("/api/mtls/status", response_model=MtlsStatus)
+async def get_mtls_status(_key: None = Depends(_require_api_key)):
+    """Summarize the mutual-TLS client registry for the Security page."""
+    clients, problems = await run_in_threadpool(_load_mtls_registry)
+    agent_dir = _mtls_agent_dir()
+    expiring = sum(
+        1
+        for c in clients
+        if c.status == _MTLS_STATUS_ACTIVE
+        and c.days_remaining is not None
+        and c.days_remaining <= _MTLS_EXPIRY_WARNING_DAYS
+    )
+    return MtlsStatus(
+        enabled=_mtls_enabled(),
+        agent_dir=str(agent_dir),
+        clients_dir=str(agent_dir / "clients"),
+        logs_dir=str(agent_dir / "logs"),
+        client_count=len(clients),
+        active_count=sum(1 for c in clients if c.status == _MTLS_STATUS_ACTIVE),
+        revoked_count=sum(1 for c in clients if c.status == _MTLS_STATUS_REVOKED),
+        expiring_soon_count=expiring,
+        problems=problems,
+    )
+
+
+@app.get("/api/mtls/clients", response_model=list[MtlsClient])
+async def get_mtls_clients(_key: None = Depends(_require_api_key)):
+    """List every agent registered to reach the memory server over mutual TLS."""
+    clients, _ = await run_in_threadpool(_load_mtls_registry)
+    return clients
+
+
+def _load_mtls_handshakes(limit: int, result: str | None) -> list[MtlsHandshake]:
+    """Read the current and previous month's handshake ledgers, newest first.
+
+    Only two files are read so the endpoint's cost stays bounded as the
+    append-only ledger grows.
+
+    Args:
+        limit: Maximum records to return.
+        result: Optional filter, ``accepted`` or ``rejected``.
+
+    Returns:
+        list[MtlsHandshake]: Matching records, newest first.
+    """
+    logs_dir = _mtls_agent_dir() / "logs"
+    now = datetime.now(timezone.utc)
+    previous_month = (now.replace(day=1) - timedelta(days=1)).replace(day=1)
+    names = [
+        f"handshakes-{stamp.year:04d}-{stamp.month:02d}.yaml"
+        for stamp in (now, previous_month)
+    ]
+
+    records: list[MtlsHandshake] = []
+    for name in dict.fromkeys(names):
+        path = logs_dir / name
+        try:
+            entries = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            continue
+        except (OSError, yaml.YAMLError):
+            logger.warning(
+                "Handshake ledger %s is unreadable.", _sanitize_for_log(name)
+            )
+            continue
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            records.append(
+                MtlsHandshake(
+                    ts=str(entry.get("ts") or ""),
+                    server_cn=str(entry.get("server_cn") or ""),
+                    client_cn=str(entry.get("client_cn") or ""),
+                    agent_id=str(entry.get("agent_id") or ""),
+                    client_fingerprint_sha256=str(
+                        entry.get("client_fingerprint_sha256") or ""
+                    ),
+                    result=str(entry.get("result") or ""),
+                    method=str(entry.get("method") or ""),
+                    route=str(entry.get("route") or ""),
+                    remote=str(entry.get("remote") or ""),
+                    reason=(
+                        str(entry["reason"])
+                        if entry.get("reason") is not None
+                        else None
+                    ),
+                )
+            )
+
+    if result:
+        records = [r for r in records if r.result == result]
+    records.sort(key=lambda r: r.ts, reverse=True)
+    return records[:limit]
+
+
+@app.get("/api/mtls/handshakes", response_model=list[MtlsHandshake])
+async def get_mtls_handshakes(
+    limit: int = 100,
+    result: str | None = None,
+    _key: None = Depends(_require_api_key),
+):
+    """Return recent mutual-TLS handshake decisions, newest first.
+
+    Args:
+        limit: Maximum records to return (1-1000).
+        result: Optional filter, ``accepted`` or ``rejected``.
+    """
+    bounded = max(1, min(int(limit), 1000))
+    if result is not None and result not in {"accepted", "rejected"}:
+        raise HTTPException(
+            status_code=400, detail="result must be 'accepted' or 'rejected'."
+        )
+    return await run_in_threadpool(_load_mtls_handshakes, bounded, result)

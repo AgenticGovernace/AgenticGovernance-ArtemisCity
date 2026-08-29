@@ -205,7 +205,7 @@ export OBSIDIAN_API_KEY="your_obsidian_plugin_api_key"
 The standalone service is present in this checkout and runnable via
 `make server` (see the root Makefile's `server` target). It is not yet
 registered in the root npm workspace — install its dependencies from inside
-`src/Artemis Agentic Memory Layer/` directly (`npm install`) until that
+`app/Artemis Agentic Memory Layer/` directly (`npm install`) until that
 registration lands.
 
 ### Verifying Connection

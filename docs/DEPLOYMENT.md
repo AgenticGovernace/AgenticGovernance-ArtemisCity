@@ -293,7 +293,7 @@ Runtime template locations are:
 | TypeScript Express API and bridge        | `app/api/.env.example`                          |
 | React/Vite dashboard                     | `app/web/frontend/.env.example`                 |
 | Python source runtime                    | `src/.env.example`                              |
-| Obsidian REST shell                      | `src/Artemis Agentic Memory Layer/.env.example` |
+| Obsidian REST shell                      | `app/Artemis Agentic Memory Layer/.env.example` |
 | Memory MCP server                        | `services/mcp/artemis-memory/.env.example`      |
 | Nested provenance mesh                   | `config/service-env/provenance.env.example`     |
 

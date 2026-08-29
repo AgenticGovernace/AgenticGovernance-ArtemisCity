@@ -209,7 +209,8 @@ class SupabaseVectorStore:
         start_time = time.perf_counter()
         # table validated against [a-z0-9_] in __init__; values parameterized
         self._execute(
-            f"DELETE FROM {self.table} WHERE doc_id = %s", (doc_id,)  # nosec B608
+            f"DELETE FROM {self.table} WHERE doc_id = %s",  # nosec B608
+            (doc_id,),
         )
         latency_ms = (time.perf_counter() - start_time) * 1000
         logger.debug(
