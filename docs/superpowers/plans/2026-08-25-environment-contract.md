@@ -64,7 +64,7 @@
 - Modify: `.env.example`
 - Modify: `app/api/.env.example`
 - Modify: `src/.env.example`
-- Modify: `src/Artemis Agentic Memory Layer/.env.example`
+- Modify: `app/Artemis Agentic Memory Layer/.env.example`
 - Create: `services/mcp/artemis-memory/.env.example`
 - Create: `config/service-env/provenance.env.example` (tracked template for the ignored nested provenance checkout)
 
