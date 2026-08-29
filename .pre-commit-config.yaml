@@ -358,14 +358,23 @@ repos:
         always_run: true
         stages: [pre-push]
 
-      # Custom secret check
+      # Custom secret check: staged ADDED lines only, assignments-with-values
+      # rather than bare keyword mentions. The previous inline grep piped
+      # unquoted filenames through xargs (splitting paths with spaces into
+      # `grep: ...: No such file` noise), scanned working-tree content instead
+      # of the staged diff, and could never pass once README.md or Makefile —
+      # which legitimately document API_KEY / PASSWORD variable names — were
+      # staged. Contract: src/tests/test_check_staged_secrets.py. Escape hatch
+      # for genuine placeholders: `# pragma: allowlist secret` on the line.
+      # Commit-stage only: at push time the staged index is not what is being
+      # pushed, so scanning it there judged unrelated content.
       - id: check-secrets-custom
-        name: Check for secrets (custom patterns)
-        entry: >
-          bash -c 'files=$(git diff --cached --name-only | grep -v "^\.pre-commit-config\.yaml$" || true); [ -z "$files" ] && exit 0; if printf "%s\n" "$files" | xargs -r grep -lE "API_KEY|SECRET|PASSWORD" 2>/dev/null | grep -q .; then echo "WARNING: Potential secrets detected!"; exit 1; fi'
+        name: Check for secrets (staged assignments)
+        entry: .venv/bin/python scripts/check_staged_secrets.py
         language: system
         pass_filenames: false
         always_run: true
+        stages: [pre-commit]
 
       # Ensure .env files are not committed
       - id: prevent-env-commit
