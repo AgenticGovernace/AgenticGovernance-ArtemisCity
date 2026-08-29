@@ -16,7 +16,12 @@ import path from "path";
 export interface TlsConfig {
   /** Whether the listener should terminate TLS and demand a client cert. */
   enabled: boolean;
-  /** Interface to bind. Defaults to loopback — this is a local trust domain. */
+  /**
+   * Interface to bind. Defaults to loopback — this is a local trust domain,
+   * and a plaintext bearer-token listener should not sit on every interface.
+   * Containers must override it (docker-compose.yml sets 0.0.0.0), because
+   * loopback inside a container is unreachable from a published port.
+   */
   host: string;
   /** PEM bytes for the server certificate, key, and issuing CA. */
   cert?: Buffer;

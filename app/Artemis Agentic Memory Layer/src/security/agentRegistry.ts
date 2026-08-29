@@ -247,7 +247,20 @@ export class AgentRegistry {
     }
 
     const byFingerprint = new Map<string, ClientManifest>();
+    // A fingerprint that was ever claimed twice stays disabled for the rest of
+    // the pass. Deleting the map entry alone is not enough: with three or more
+    // manifests, the third sees no existing entry and would be inserted,
+    // re-authorising the very certificate the duplicate check exists to refuse.
+    const contested = new Set<string>();
     for (const client of clients) {
+      if (contested.has(client.fingerprint)) {
+        problems.push({
+          file: client.sourceFile,
+          error:
+            "duplicate fingerprint already claimed by another manifest; entry disabled",
+        });
+        continue;
+      }
       const existing = byFingerprint.get(client.fingerprint);
       if (existing) {
         // Two manifests claiming one certificate makes authorisation
@@ -257,6 +270,7 @@ export class AgentRegistry {
           error: `duplicate fingerprint also claimed by ${path.basename(existing.sourceFile)}; both entries disabled`,
         });
         byFingerprint.delete(client.fingerprint);
+        contested.add(client.fingerprint);
         continue;
       }
       byFingerprint.set(client.fingerprint, client);

@@ -312,6 +312,29 @@ describe("registry manifest handling", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
+  it("keeps a duplicated fingerprint denied past the second claimant", () => {
+    // Regression: deleting the map entry on the second claim let a THIRD
+    // manifest re-insert the same fingerprint and be authorised.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "artemis-reg-"));
+    fs.mkdirSync(path.join(dir, "clients"), { recursive: true });
+    const fp = normalizeFingerprint("AB".repeat(32));
+    for (const name of ["one", "two", "three"]) {
+      fs.writeFileSync(
+        path.join(dir, "clients", `${name}.yaml`),
+        `agent_id: ${name}\ncert_fingerprint_sha256: "${fp}"\nrevoked: false\nallowed_routes:\n  - "*"\n`,
+      );
+    }
+    const registry = new AgentRegistry(dir);
+    const decision = registry.authorize(fp, "/api/whoami");
+    assert.equal(decision.allowed, false);
+    assert.equal(
+      decision.allowed === false && decision.reason,
+      "unknown_fingerprint",
+    );
+    assert.equal(registry.load().problems.length, 2);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
   it("denies an expired certificate even though it is not revoked", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "artemis-reg-"));
     fs.mkdirSync(path.join(dir, "clients"), { recursive: true });

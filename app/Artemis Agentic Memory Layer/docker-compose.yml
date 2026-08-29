@@ -7,6 +7,11 @@ services:
       - "${PORT:-8000}:3000"
     environment:
       PORT: 3000
+      # The server binds ARTEMIS_MTLS_HOST, which defaults to loopback so a
+      # direct local run is not exposed on every interface. Inside a container
+      # loopback is unreachable from the published port above, so bind all
+      # interfaces here; the container boundary provides the isolation instead.
+      ARTEMIS_MTLS_HOST: ${ARTEMIS_MTLS_HOST:-0.0.0.0}
       # Default to production; override via .env for local dev work.
       NODE_ENV: ${NODE_ENV:-production}
       # Fail fast if these secrets are not provided (matches the pattern
