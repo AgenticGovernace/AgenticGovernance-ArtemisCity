@@ -102,6 +102,13 @@ const GovernanceIcon = () => (
     <polyline points="9 12 11 14 15 10" />
   </IconWrap>
 );
+const SecurityIcon = () => (
+  <IconWrap>
+    <rect x="4" y="10" width="16" height="10" rx="2" />
+    <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+    <circle cx="12" cy="15" r="1.2" />
+  </IconWrap>
+);
 
 /* -------------------------------------------------------------------------- */
 /* NavItem + NavGroup                                                         */
@@ -287,6 +294,7 @@ const SidebarContent = ({ onClickItem }: { onClickItem?: () => void }) => (
       items={[
         { to: routePaths.agents, label: 'Agents', icon: <AgentsIcon /> },
         { to: routePaths.governance, label: 'Governance', icon: <GovernanceIcon /> },
+        { to: routePaths.security, label: 'Security', icon: <SecurityIcon /> },
         { to: routePaths.database, label: 'Database Viewer', icon: <DatabaseIcon /> },
         { to: routePaths.monitoring, label: 'Monitoring', icon: <MonitoringIcon /> },
       ]}

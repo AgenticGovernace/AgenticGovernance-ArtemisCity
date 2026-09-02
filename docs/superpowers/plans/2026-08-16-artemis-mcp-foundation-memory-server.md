@@ -29,9 +29,11 @@
 ### Task 1: Lock the corrected routing blend contract
 
 **Files:**
+
 - Modify: `src/tests/test_hebbian_router.py`
 
 **Interfaces:**
+
 - Consumes: `HebbianRouter.route(task) -> RoutingDecision`.
 - Produces: a literal regression check proving the alpha-only blend is convex.
 
@@ -80,12 +82,14 @@
 ### Task 2: Add the independently buildable common MCP package
 
 **Files:**
+
 - Create: `services/mcp/common/pyproject.toml`
 - Create: `services/mcp/common/src/artemis_mcp_common/__init__.py`
 - Create: `services/mcp/common/src/artemis_mcp_common/models.py`
 - Create: `services/mcp/common/tests/test_models.py`
 
 **Interfaces:**
+
 - Consumes: Pydantic 2 and Artemis City's Python 3.12 runtime.
 - Produces: `StrictInput`, `AtpEnvelope`, `ServicePrincipal`, and `GovernedContext`.
 
@@ -204,6 +208,7 @@
 ### Task 3: Implement fail-closed principals and the ATP capability gate
 
 **Files:**
+
 - Create: `services/mcp/common/src/artemis_mcp_common/principals.py`
 - Create: `services/mcp/common/src/artemis_mcp_common/gate.py`
 - Create: `services/mcp/common/tests/test_gate.py`
@@ -212,6 +217,7 @@
 - Modify: `src/tests/test_atp_validator.py`
 
 **Interfaces:**
+
 - Consumes: `AtpEnvelope`, `ServicePrincipal`, canonical `ATPMessage`, and `ATPValidator(strict=True)`.
 - Produces: `LocalPrincipalProvider.current()`, `BearerPrincipalProvider.current()`, `StaticBearerTokenVerifier.verify_token()`, and `GovernedGate.authorize()`.
 
@@ -329,6 +335,7 @@
 ### Task 4: Define the canonical memory domain and write service
 
 **Files:**
+
 - Create: `src/memory/models.py`
 - Create: `src/memory/ports.py`
 - Create: `src/memory/service.py`
@@ -336,6 +343,7 @@
 - Modify: `src/memory/__init__.py`
 
 **Interfaces:**
+
 - Consumes: a `MemoryLedger` and zero or more `MemoryProjection` ports.
 - Produces: `MemoryWriteCommand`, `MemoryRecord`, `LedgerState`, `ProjectionState`,
   `ClaimDisposition`, `LedgerWrite`, `ProjectionClaim`, `MemoryWriteReceipt`,
@@ -508,6 +516,7 @@
 ### Task 5: Evolve the existing PostgreSQL/Neon ledger safely
 
 **Files:**
+
 - Add preserved prerequisite: `db/migrations/0001_memory_write_through.sql`
 - Create: `src/memory/backends/__init__.py`
 - Create: `src/memory/backends/postgres.py`
@@ -517,6 +526,7 @@
 - Create: `src/tests/test_postgres_memory_ledger.py`
 
 **Interfaces:**
+
 - Consumes: the existing provider-neutral `0001_memory_write_through.sql`,
   `PostgresMemoryStore`, a psycopg2 connection factory, and
   `MemoryWriteCommand`.
@@ -691,6 +701,7 @@ unchanged in this task's explicit commit so `0002` is never published alone.
 ### Task 6: Add Obsidian and vector projection adapters
 
 **Files:**
+
 - Add preserved prerequisite: `src/obsidian_integration/manager.py`
 - Add preserved prerequisite: `src/tests/test_obsidian_projection.py`
 - Create: `src/memory/backends/obsidian.py`
@@ -698,6 +709,7 @@ unchanged in this task's explicit commit so `0002` is never published alone.
 - Create: `src/tests/test_memory_projections.py`
 
 **Interfaces:**
+
 - Consumes: `ObsidianManager`, vector store `upsert`, and `MemoryRecord`.
 - Produces: `ObsidianMemoryProjection` and `VectorMemoryProjection`.
 
@@ -779,6 +791,7 @@ without the durable replacement behavior it relies on.
 ### Task 7: Build the `artemis-memory` MCP server package
 
 **Files:**
+
 - Modify: `services/mcp/common/src/artemis_mcp_common/models.py`
 - Modify: `services/mcp/common/src/artemis_mcp_common/gate.py`
 - Modify: `services/mcp/common/tests/test_gate.py`
@@ -791,6 +804,7 @@ without the durable replacement behavior it relies on.
 - Create: `services/mcp/artemis-memory/tests/test_server_contract.py`
 
 **Interfaces:**
+
 - Consumes: `MemoryService`, `GovernedGate`, a transport-specific principal provider, and MCP SDK 2.0.
 - Produces: `create_memory_server(..., auth=None, token_verifier=None) -> MCPServer`
   and the `artemis-memory-mcp` console command. The optional auth arguments are
@@ -891,7 +905,7 @@ without the durable replacement behavior it relies on.
 - [ ] **Step 7: Register four annotated tools**
 
   Construct `MCPServer("artemis-memory", version="0.1.0", auth=auth,
-  token_verifier=token_verifier)`. Require both auth arguments together and
+token_verifier=token_verifier)`. Require both auth arguments together and
   reject a partial pair. Register each tool with `structured_output=True` so an
   invalid result schema fails at registration rather than silently degrading.
   The write tool is
@@ -934,6 +948,7 @@ without the durable replacement behavior it relies on.
 ### Task 8: Wire stdio and authenticated Streamable HTTP
 
 **Files:**
+
 - Modify: `services/mcp/artemis-memory/src/artemis_memory_mcp/wiring.py`
 - Modify: `services/mcp/artemis-memory/src/artemis_memory_mcp/__main__.py`
 - Create: `services/mcp/artemis-memory/tests/test_cli.py`
@@ -941,6 +956,7 @@ without the durable replacement behavior it relies on.
 - Create: `services/mcp/artemis-memory/README.md`
 
 **Interfaces:**
+
 - Consumes: environment configuration and `create_memory_server()`.
 - Produces: stdio default and authenticated Streamable HTTP `/mcp`.
 
@@ -1043,6 +1059,7 @@ without the durable replacement behavior it relies on.
 ### Task 9: Introduce the compatibility adapter and run release proof
 
 **Files:**
+
 - Create: `src/memory/compat.py`
 - Modify: `src/integration/memory_bus.py`
 - Modify: `src/mcp/vector_store.py`
@@ -1055,6 +1072,7 @@ without the durable replacement behavior it relies on.
 - Modify: `docs/superpowers/specs/2026-08-16-neon-obsidian-memory-write-through-design.md`
 
 **Interfaces:**
+
 - Consumes: `MemoryService` and a `MemoryCompatibilityContextProvider` behind
   optional constructor arguments.
 - Produces: existing `MemoryBus.write_note_with_embedding()` behavior through the canonical service when configured, with a reversible legacy path during migration.

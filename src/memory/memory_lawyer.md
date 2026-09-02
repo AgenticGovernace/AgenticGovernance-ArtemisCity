@@ -4,14 +4,14 @@
 
 This protocol outlines the rules and procedures for managing, accessing, and disputing memory within the Agentic Daemon. It acts as the "judicial review" for memory-related concerns.
 
-## Principles:
+## Principles
 
-* **Attribution**: All memory entries must be attributable to an agent or system event.
-* **Integrity**: Memories must be protected from unauthorized alteration.
-* **Contextual Retention**: Memories are retained based on their relevance and the Trust Decay Model.
-* **Ephemeral vs. Retained**: Clear distinction and rules for temporary vs. persistent memory.
+- **Attribution**: All memory entries must be attributable to an agent or system event.
+- **Integrity**: Memories must be protected from unauthorized alteration.
+- **Contextual Retention**: Memories are retained based on their relevance and the Trust Decay Model.
+- **Ephemeral vs. Retained**: Clear distinction and rules for temporary vs. persistent memory.
 
-## Key Functions:
+## Key Functions
 
 1. **Memory Access Control**: Defines which agents can read, write, or delete specific memory segments.
 2. **Dispute Resolution**: Provides a human-readable log and a process for agents (or humans) to challenge the accuracy or validity of a memory entry.

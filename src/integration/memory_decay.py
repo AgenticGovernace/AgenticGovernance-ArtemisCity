@@ -35,10 +35,10 @@ standard-logging fallback so the module never fails to import.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
 
 try:  # repo root on path (tests / app): `src` is a package
     from src.runtime_paths import log_path as resolve_log_path
@@ -99,7 +99,7 @@ class DecayCycleResult:
     decayed: int = 0
     archived: int = 0
     deleted: int = 0
-    events: List[dict] = field(default_factory=list)
+    events: list[dict] = field(default_factory=list)
 
 
 class MemoryDecayService:
@@ -112,9 +112,9 @@ class MemoryDecayService:
         delete_threshold_weight: float = 0.01,
         decay_interval_days: int = 30,
         restore_boost: float = 0.10,
-        log_dir: Optional[str] = None,
+        log_dir: str | None = None,
         enable_provenance: bool = True,
-        sink: Optional[WeightChangeSink] = None,
+        sink: WeightChangeSink | None = None,
     ) -> None:
         """Initialize the decay service.
 
@@ -147,7 +147,7 @@ class MemoryDecayService:
         )
         self.enable_provenance = enable_provenance
         self.sink = sink
-        self.nodes: Dict[str, MemoryNode] = {}
+        self.nodes: dict[str, MemoryNode] = {}
 
     # ------------------------------------------------------------------
     # Registration / access
@@ -180,17 +180,17 @@ class MemoryDecayService:
             count += 1
         return count
 
-    def get_node(self, node_id: str) -> Optional[MemoryNode]:
+    def get_node(self, node_id: str) -> MemoryNode | None:
         """Return a registered node by id, or None."""
         return self.nodes.get(node_id)
 
-    def all_nodes(self) -> List[MemoryNode]:
+    def all_nodes(self) -> list[MemoryNode]:
         """Return all currently registered nodes."""
         return list(self.nodes.values())
 
     def record_access(
-        self, node_id: str, now: Optional[datetime] = None
-    ) -> Optional[MemoryNode]:
+        self, node_id: str, now: datetime | None = None
+    ) -> MemoryNode | None:
         """Mark a node as accessed (resets its decay clock).
 
         Args:
@@ -207,8 +207,8 @@ class MemoryDecayService:
         return node
 
     def restore_node(
-        self, node_id: str, now: Optional[datetime] = None
-    ) -> Optional[MemoryNode]:
+        self, node_id: str, now: datetime | None = None
+    ) -> MemoryNode | None:
         """Un-archive a node and apply the restoration weight boost.
 
         Args:
@@ -236,7 +236,7 @@ class MemoryDecayService:
     # Decay cycle
     # ------------------------------------------------------------------
 
-    def run_decay_cycle(self, now: Optional[datetime] = None) -> DecayCycleResult:
+    def run_decay_cycle(self, now: datetime | None = None) -> DecayCycleResult:
         """Run one decay/archival/deletion pass over all registered nodes.
 
         Args:
@@ -248,7 +248,7 @@ class MemoryDecayService:
         """
         now = now or _now()
         result = DecayCycleResult()
-        to_delete: List[str] = []
+        to_delete: list[str] = []
 
         for node in list(self.nodes.values()):
             result.scanned += 1
@@ -369,13 +369,12 @@ class MemoryDecayService:
         except Exception:  # pragma: no cover - defensive
             logger.exception("Memory decay sink failed for node %s", node.node_id)
 
-    def _write_provenance(self, events: List[dict], now: datetime) -> None:
+    def _write_provenance(self, events: list[dict], now: datetime) -> None:
         """Append events to ``log_dir/<date>.jsonl`` (best-effort)."""
         try:
             self.log_dir.mkdir(parents=True, exist_ok=True)
             log_path = self.log_dir / f"{now.date().isoformat()}.jsonl"
             with open(log_path, "a", encoding="utf-8") as fh:
-                for event in events:
-                    fh.write(json.dumps(event) + "\n")
+                fh.writelines(json.dumps(event) + "\n" for event in events)
         except OSError:  # pragma: no cover - provenance is non-critical
             logger.warning("Could not write memory decay provenance log", exc_info=True)

@@ -111,13 +111,13 @@ label_replace(
             elif stat == "processorTimeouts":
                 output[timestamp_sec]["processorTimeouts"] = int(value_float)
             elif stat == "avgTotalParseTime":
-                output[timestamp_sec]["avgTotalParseTime"] = (
-                    f"{int(round(value_float))}s"
-                )
+                output[timestamp_sec][
+                    "avgTotalParseTime"
+                ] = f"{int(round(value_float))}s"
             elif stat == "maxTotalParseTime":
-                output[timestamp_sec]["maxTotalParseTime"] = (
-                    f"{int(round(value_float))}s"
-                )
+                output[timestamp_sec][
+                    "maxTotalParseTime"
+                ] = f"{int(round(value_float))}s"
 
     sorted_points = [output[ts] for ts in sorted(output.keys())]
     print(json.dumps({"dag_parsing_stats": sorted_points}, indent=2))

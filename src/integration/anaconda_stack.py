@@ -24,13 +24,14 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Dict, List, Optional
 
-from src.integration.anaconda_agent_proxy import (ANACONDA_API_KEY_ENV,
-                                                  DEFAULT_ANACONDA_API_KEY,
-                                                  AnacondaAgentProxy,
-                                                  discover_anaconda_agents,
-                                                  parse_port_map)
+from src.integration.anaconda_agent_proxy import (
+    ANACONDA_API_KEY_ENV,
+    DEFAULT_ANACONDA_API_KEY,
+    AnacondaAgentProxy,
+    discover_anaconda_agents,
+    parse_port_map,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ logger = logging.getLogger(__name__)
 # under ~/Source/artemis-agent-stack/: Oracle routes, Compsuite audits,
 # Packrat archives, Compressor distills, Loki writes.  Callers can override
 # any subset via the capability_overrides argument.
-DEFAULT_CAPABILITIES: Dict[str, List[str]] = {
+DEFAULT_CAPABILITIES: dict[str, list[str]] = {
     "artemis-oracle": ["orchestration", "atp_routing", "reflective_synthesis"],
     "artemis-compsuite": ["audit", "atp_validation", "provenance_review"],
     "artemis-packrat": ["archive", "tag", "search"],
@@ -51,11 +52,11 @@ DEFAULT_CAPABILITIES: Dict[str, List[str]] = {
 def register_anaconda_stack(
     registry,
     *,
-    capability_overrides: Optional[Dict[str, List[str]]] = None,
+    capability_overrides: dict[str, list[str]] | None = None,
     port_map_env: str = "ANACONDA_AGENT_PORTS",
     skip_discovery: bool = False,
-    api_key: Optional[str] = None,
-) -> List[str]:
+    api_key: str | None = None,
+) -> list[str]:
     """Discover running Anaconda agents and register them with ``registry``.
 
     Args:
@@ -104,7 +105,7 @@ def register_anaconda_stack(
             )
             return []
 
-    registered: List[str] = []
+    registered: list[str] = []
     for name, port in port_map.items():
         if name not in running:
             logger.warning(
@@ -129,6 +130,6 @@ def register_anaconda_stack(
                 port,
                 proxy.capabilities,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.exception("Failed to register %r: %s", name, exc)
     return registered

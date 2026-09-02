@@ -24,14 +24,14 @@ Command:
 
 Observed findings:
 
-| Category | Location | Baseline result |
-|---|---|---|
-| Complexity | `app/api/main.py:get_task_activity` | 22 |
-| Complexity | `app/api/main.py:execute_instruction_stream` | 31 |
-| Complexity | `src/Experiments/legal_summarization/main.py:main` | 24 |
-| Complexity | `src/mcp/orchestrator.py:stream_route_and_execute` | 21 |
-| Parse | `src/agents/artemis/semantic_tagging 2.py` | Invalid indentation / incomplete dedent |
-| Parse | `src/core/instructions/instruction_loader.py` | Duplicated function declaration leaves an empty body |
+| Category   | Location                                           | Baseline result                                      |
+| ---------- | -------------------------------------------------- | ---------------------------------------------------- |
+| Complexity | `app/api/main.py:get_task_activity`                | 22                                                   |
+| Complexity | `app/api/main.py:execute_instruction_stream`       | 31                                                   |
+| Complexity | `src/Experiments/legal_summarization/main.py:main` | 24                                                   |
+| Complexity | `src/mcp/orchestrator.py:stream_route_and_execute` | 21                                                   |
+| Parse      | `src/agents/artemis/semantic_tagging 2.py`         | Invalid indentation / incomplete dedent              |
+| Parse      | `src/core/instructions/instruction_loader.py`      | Duplicated function declaration leaves an empty body |
 
 ## Enforcement decision
 
@@ -50,11 +50,11 @@ Observed findings:
 
 The existing operator-facing checks are not green at the starting commit:
 
-| Check | Starting result |
-|---|---|
-| `make lint` | Fails on the two parse-error files recorded above |
-| `black --check src app` | 70 files would be reformatted; two files cannot be parsed |
-| `isort --check-only src app` | 16 files report import-order drift |
+| Check                        | Starting result                                           |
+| ---------------------------- | --------------------------------------------------------- |
+| `make lint`                  | Fails on the two parse-error files recorded above         |
+| `black --check src app`      | 70 files would be reformatted; two files cannot be parsed |
+| `isort --check-only src app` | 16 files report import-order drift                        |
 
 These results predate this adoption change. They must not trigger a mass-format
 commit. Repairs proceed in focused slices: parse correctness first, then configure

@@ -15,8 +15,7 @@ import argparse
 import json
 import random
 import textwrap
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from dataclasses import dataclass
 
 
 def clamp(value: float, minimum: float = 0.0, maximum: float = 1.0) -> float:
@@ -61,7 +60,7 @@ class ZoneState:
         self.load = clamp(self.load + load)
         self.risk = clamp(self.risk + risk)
 
-    def as_dict(self) -> Dict[str, float]:
+    def as_dict(self) -> dict[str, float]:
         """As dict.
 
         Returns:
@@ -102,7 +101,7 @@ class Resident:
         self.energy = clamp(self.energy + energy)
         self.trust = clamp(self.trust + trust)
 
-    def as_dict(self) -> Dict[str, float]:
+    def as_dict(self) -> dict[str, float]:
         """As dict.
 
         Returns:
@@ -152,21 +151,21 @@ class ActionResult:
 
     actor: str
     action: str
-    zone: Optional[str]
+    zone: str | None
     summary: str
 
 
 class CitySimulation:
     """Lightweight narrative simulation loop."""
 
-    def __init__(self, seed: Optional[int] = None) -> None:
+    def __init__(self, seed: int | None = None) -> None:
         self.random = random.Random(seed)
         self.tick: int = 0
-        self.zones: Dict[str, ZoneState] = self._default_zones()
-        self.residents: List[Resident] = self._default_residents()
-        self.history: List[
-            Dict[str, object]
-        ] = []  # Snapshots per tick for offline analysis
+        self.zones: dict[str, ZoneState] = self._default_zones()
+        self.residents: list[Resident] = self._default_residents()
+        self.history: list[dict[str, object]] = (
+            []
+        )  # Snapshots per tick for offline analysis
 
     # ---- Public API -----------------------------------------------------
 
@@ -175,8 +174,8 @@ class CitySimulation:
         ticks: int = 12,
         verbose: bool = True,
         summary_every: int = 1,
-        json_out: Optional[str] = None,
-    ) -> Dict[str, object]:
+        json_out: str | None = None,
+    ) -> dict[str, object]:
         """Advance the simulation for `ticks` steps.
 
         Args:
@@ -208,9 +207,9 @@ class CitySimulation:
 
     # ---- Simulation internals ------------------------------------------
 
-    def _spawn_events(self) -> List[CityEvent]:
+    def _spawn_events(self) -> list[CityEvent]:
         """Probabilistically create city events."""
-        events: List[CityEvent] = []
+        events: list[CityEvent] = []
         if self.random.random() < 0.35:
             events.append(self.random.choice(self._event_catalog()))
         # Rare chance for a second concurrent event
@@ -235,7 +234,7 @@ class CitySimulation:
                             )
         return events
 
-    def _take_action(self, resident: Resident, events: List[CityEvent]) -> ActionResult:
+    def _take_action(self, resident: Resident, events: list[CityEvent]) -> ActionResult:
         """Decide and apply a resident's action for the current tick."""
         # Priority 1: recover if exhausted
         if resident.energy < 0.28:
@@ -367,8 +366,8 @@ class CitySimulation:
     # ---- Snapshot + catalog helpers ------------------------------------
 
     def _snapshot(
-        self, events: List[CityEvent], actions: List[ActionResult]
-    ) -> Dict[str, object]:
+        self, events: list[CityEvent], actions: list[ActionResult]
+    ) -> dict[str, object]:
         scores = self._city_scores()
         return {
             "tick": self.tick,
@@ -390,7 +389,7 @@ class CitySimulation:
             "scores": scores,
         }
 
-    def _city_scores(self) -> Dict[str, float]:
+    def _city_scores(self) -> dict[str, float]:
         stability = sum(zone.stability for zone in self.zones.values()) / len(
             self.zones
         )
@@ -413,7 +412,7 @@ class CitySimulation:
             "energy": round(energy, 3),
         }
 
-    def _event_catalog(self) -> List[CityEvent]:
+    def _event_catalog(self) -> list[CityEvent]:
         return [
             CityEvent(
                 "Policy backlog",
@@ -468,7 +467,7 @@ class CitySimulation:
         ]
 
     @staticmethod
-    def _default_zones() -> Dict[str, ZoneState]:
+    def _default_zones() -> dict[str, ZoneState]:
         return {
             "Town Hall": ZoneState(
                 "Town Hall",
@@ -521,7 +520,7 @@ class CitySimulation:
         }
 
     @staticmethod
-    def _default_residents() -> List[Resident]:
+    def _default_residents() -> list[Resident]:
         return [
             Resident(
                 name="Artemis (Governor)",
@@ -563,7 +562,7 @@ class CitySimulation:
 
     # ---- Presentation helpers ------------------------------------------
 
-    def _print_tick(self, snapshot: Dict[str, object]) -> None:
+    def _print_tick(self, snapshot: dict[str, object]) -> None:
         events = snapshot["events"]
         actions = snapshot["actions"]
         scores = snapshot["scores"]
@@ -582,12 +581,10 @@ class CitySimulation:
             location = f" @ {action['zone']}" if action["zone"] else ""
             print(f"• {action['actor']} {action['summary']}{location}")
 
-        print(
-            textwrap.dedent(f"""
+        print(textwrap.dedent(f"""
                 Scores: service_health={scores["service_health"]:.3f} | stability={scores["stability"]:.2f} | load={scores["load"]:.2f} | risk={scores["risk"]:.2f}
                         morale={scores["morale"]:.2f} | trust={scores["trust"]:.2f} | energy={scores["energy"]:.2f}
-                """).strip()
-        )
+                """).strip())
 
 
 def _parse_args() -> argparse.Namespace:

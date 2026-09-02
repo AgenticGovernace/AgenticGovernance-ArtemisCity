@@ -717,9 +717,7 @@
   "containers.containerClient": "com.microsoft.visualstudio.containers.docker",
   "containers.contexts.showInStatusBar": true,
   "containers.orchestratorClient": "com.microsoft.visualstudio.orchestrators.dockercompose",
-  "cSpell.words": [
-    "venv"
-  ],
+  "cSpell.words": ["venv"],
   "editor.wordWrap": "bounded",
   "files.exclude": {
     "**/.svn": false
@@ -736,17 +734,14 @@
   "python.testing.unittestArgs": [
     "-v",
     "-s",
-    "./test_group_yaml_schema"
+    "./test_group_yaml_schema",
     "./src",
     "-p",
     "test_*.py"
   ],
   "python.testing.pytestEnabled": true,
   "python.testing.unittestEnabled": true,
-  "python.testing.pytestArgs": [
-    "src/test",
-    "tests"
-  ],
+  "python.testing.pytestArgs": ["src/test", "tests"],
   "files.autoSave": "onFocusChange",
   "python.analysis.excludeLibraryDiagnostics": false,
   "python.analysis.usePerProjectEnvironments": true,
@@ -761,7 +756,5 @@
     "**/dist/**": false,
     "**/build/**": false
   },
-  "C_Cpp.codeAnalysis.exclude": {
-
-  }
+  "C_Cpp.codeAnalysis.exclude": {}
 }

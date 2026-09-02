@@ -9,7 +9,6 @@ global → project root → current directory → agent-specific
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -42,9 +41,9 @@ class InstructionSet:
         metadata: Additional contextual information
     """
 
-    scopes: List[InstructionScope] = field(default_factory=list)
+    scopes: list[InstructionScope] = field(default_factory=list)
     merged_content: str = ""
-    metadata: Dict = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
 
     def add_scope(self, scope: InstructionScope) -> None:
         """Add an instruction scope and re-sort by priority.
@@ -103,7 +102,7 @@ class InstructionLoader:
 
     LOCAL_FILES = ["instructions.md", ".instructions.md"]
 
-    def __init__(self, project_root: Optional[str] = None):
+    def __init__(self, project_root: str | None = None):
         """Initialize instruction loader.
 
         Args:
@@ -112,7 +111,7 @@ class InstructionLoader:
         self.project_root = self._find_project_root(project_root)
 
     def load(
-        self, current_dir: Optional[str] = None, agent_name: Optional[str] = None
+        self, current_dir: str | None = None, agent_name: str | None = None
     ) -> InstructionSet:
         """Load instructions from all applicable scopes.
 
@@ -159,7 +158,7 @@ class InstructionLoader:
 
         return instruction_set
 
-    def _load_global_instructions(self) -> Optional[InstructionScope]:
+    def _load_global_instructions(self) -> InstructionScope | None:
         """Load global-level instructions from home directory."""
         for file_pattern in self.GLOBAL_FILES:
             file_path = os.path.expanduser(file_pattern)
@@ -170,7 +169,7 @@ class InstructionLoader:
                 )
         return None
 
-    def _load_project_instructions(self) -> Optional[InstructionScope]:
+    def _load_project_instructions(self) -> InstructionScope | None:
         """Load project root-level instructions."""
         if not self.project_root:
             return None
@@ -184,7 +183,7 @@ class InstructionLoader:
                 )
         return None
 
-    def _load_local_instructions(self, current_dir: str) -> Optional[InstructionScope]:
+    def _load_local_instructions(self, current_dir: str) -> InstructionScope | None:
         """Load current directory-level instructions."""
         # Skip if current_dir is same as project_root
         if self.project_root and os.path.samefile(current_dir, self.project_root):
@@ -199,7 +198,7 @@ class InstructionLoader:
                 )
         return None
 
-    def _load_agent_instructions(self, agent_name: str) -> Optional[InstructionScope]:
+    def _load_agent_instructions(self, agent_name: str) -> InstructionScope | None:
         """Load agent-specific instructions."""
         if not self.project_root:
             return None
@@ -219,7 +218,7 @@ class InstructionLoader:
         return None
 
     @staticmethod
-    def _read_file(file_path: str) -> Optional[str]:
+    def _read_file(file_path: str) -> str | None:
         """Read file content, returning None if file doesn't exist.
 
         Args:
@@ -232,12 +231,12 @@ class InstructionLoader:
             if os.path.exists(file_path) and os.path.isfile(file_path):
                 with open(file_path, "r", encoding="utf-8") as f:
                     return f.read()
-        except (IOError, OSError):
+        except OSError:
             pass
         return None
 
     @staticmethod
-    def _find_project_root(explicit_root: Optional[str] = None) -> Optional[str]:
+    def _find_project_root(explicit_root: str | None = None) -> str | None:
         """Find project root by looking for marker files.
 
         Args:
@@ -270,7 +269,7 @@ class InstructionLoader:
 
         return None
 
-    def get_active_scopes(self, current_dir: Optional[str] = None) -> List[str]:
+    def get_active_scopes(self, current_dir: str | None = None) -> list[str]:
         """Get list of active instruction file paths.
 
         Args:

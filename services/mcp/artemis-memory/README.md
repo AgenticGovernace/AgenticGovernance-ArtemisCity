@@ -17,22 +17,22 @@ PostgreSQL/Neon is the canonical ledger; Obsidian and the vector index are
 best-effort projections. Nothing is opened at import time — configuration is
 validated and connections are built lazily per operation.
 
-| Variable | Required by | Purpose |
-|---|---|---|
-| `ARTEMIS_MEMORY_DATABASE_URL` | stdio and HTTP | PostgreSQL/Neon connection string for the canonical ledger. **Operator-supplied secret.** |
-| `ARTEMIS_MEMORY_DB_CONNECT_TIMEOUT_SECONDS` | optional | Connection timeout in seconds (default `10`). |
-| `ARTEMIS_MEMORY_DB_STATEMENT_TIMEOUT_MS` | optional | Per-statement timeout in milliseconds (default `5000`). |
-| `OBSIDIAN_VAULT_PATH` | stdio and HTTP | Vault root for the Obsidian projection (see `src/mcp/config.py`). |
-| `ARTEMIS_VECTOR_BACKEND` | optional | `sqlite` (default, always available) or `supabase`. An explicit `supabase` selection that cannot be constructed fails setup rather than silently falling back to SQLite. |
-| `ARTEMIS_SUPABASE_DB_URL` | when `ARTEMIS_VECTOR_BACKEND=supabase` | Postgres connection string for the vector backend. **Operator-supplied secret.** |
-| `ARTEMIS_MCP_PRINCIPAL_ID` | stdio only | The local service principal's identity. |
-| `ARTEMIS_MCP_CAPABILITIES` | stdio only | Comma-separated capability/scope grants, e.g. `memory:write,memory:read,memory:namespace:*`. |
-| `ARTEMIS_MCP_BEARER_TOKEN` | `--http` only | The single accepted bearer token. **Operator-supplied secret.** |
-| `ARTEMIS_MCP_HTTP_CLIENT_ID` | `--http` only | Client ID reported for a verified bearer token. |
-| `ARTEMIS_MCP_HTTP_SUBJECT` | `--http` only | Principal subject reported for a verified bearer token. |
-| `ARTEMIS_MCP_HTTP_SCOPES` | `--http` only | Comma-separated capability/scope grants for the bearer token, same vocabulary as `ARTEMIS_MCP_CAPABILITIES`. Must include the transport-wide `artemis:memory` scope. |
-| `ARTEMIS_MCP_AUTH_ISSUER_URL` | `--http` only | OAuth issuer URL advertised to clients. |
-| `ARTEMIS_MCP_RESOURCE_SERVER_URL` | `--http` only | This server's own resource URL, e.g. `https://memory.example.com`. |
+| Variable                                    | Required by                            | Purpose                                                                                                                                                                  |
+| ------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ARTEMIS_MEMORY_DATABASE_URL`               | stdio and HTTP                         | PostgreSQL/Neon connection string for the canonical ledger. **Operator-supplied secret.**                                                                                |
+| `ARTEMIS_MEMORY_DB_CONNECT_TIMEOUT_SECONDS` | optional                               | Connection timeout in seconds (default `10`).                                                                                                                            |
+| `ARTEMIS_MEMORY_DB_STATEMENT_TIMEOUT_MS`    | optional                               | Per-statement timeout in milliseconds (default `5000`).                                                                                                                  |
+| `OBSIDIAN_VAULT_PATH`                       | stdio and HTTP                         | Vault root for the Obsidian projection (see `src/mcp/config.py`).                                                                                                        |
+| `ARTEMIS_VECTOR_BACKEND`                    | optional                               | `sqlite` (default, always available) or `supabase`. An explicit `supabase` selection that cannot be constructed fails setup rather than silently falling back to SQLite. |
+| `ARTEMIS_SUPABASE_DB_URL`                   | when `ARTEMIS_VECTOR_BACKEND=supabase` | Postgres connection string for the vector backend. **Operator-supplied secret.**                                                                                         |
+| `ARTEMIS_MCP_PRINCIPAL_ID`                  | stdio only                             | The local service principal's identity.                                                                                                                                  |
+| `ARTEMIS_MCP_CAPABILITIES`                  | stdio only                             | Comma-separated capability/scope grants, e.g. `memory:write,memory:read,memory:namespace:*`.                                                                             |
+| `ARTEMIS_MCP_BEARER_TOKEN`                  | `--http` only                          | The single accepted bearer token. **Operator-supplied secret.**                                                                                                          |
+| `ARTEMIS_MCP_HTTP_CLIENT_ID`                | `--http` only                          | Client ID reported for a verified bearer token.                                                                                                                          |
+| `ARTEMIS_MCP_HTTP_SUBJECT`                  | `--http` only                          | Principal subject reported for a verified bearer token.                                                                                                                  |
+| `ARTEMIS_MCP_HTTP_SCOPES`                   | `--http` only                          | Comma-separated capability/scope grants for the bearer token, same vocabulary as `ARTEMIS_MCP_CAPABILITIES`. Must include the transport-wide `artemis:memory` scope.     |
+| `ARTEMIS_MCP_AUTH_ISSUER_URL`               | `--http` only                          | OAuth issuer URL advertised to clients.                                                                                                                                  |
+| `ARTEMIS_MCP_RESOURCE_SERVER_URL`           | `--http` only                          | This server's own resource URL, e.g. `https://memory.example.com`.                                                                                                       |
 
 Namespace grants use `memory:namespace:{namespace}` for one namespace, or the
 server-recognized `memory:namespace:*` wildcard for all namespaces. A grant

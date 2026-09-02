@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.routing.contracts import (RequestedConstraintsV1, ResolvedIntentV1,
-                                   TaskIntentV1)
+from src.routing.contracts import RequestedConstraintsV1, ResolvedIntentV1, TaskIntentV1
 from src.routing.policy import IntentPolicy
 
 

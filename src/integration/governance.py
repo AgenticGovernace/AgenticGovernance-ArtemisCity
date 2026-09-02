@@ -7,7 +7,6 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from src.runtime_paths import data_path
 from src.utils.helpers import logger
@@ -16,7 +15,7 @@ from src.utils.helpers import logger
 class GovernanceMonitor:
     """Tracks failures and emits alerts/rollback signals after thresholds are crossed."""
 
-    def __init__(self, alert_threshold: int = 3, log_path: Optional[str] = None):
+    def __init__(self, alert_threshold: int = 3, log_path: str | None = None):
         self.alert_threshold = alert_threshold
         configured_path = (
             log_path
@@ -25,11 +24,11 @@ class GovernanceMonitor:
         )
         self.log_path = Path(data_path("governance_events.jsonl", configured_path))
         self._failure_streak = 0
-        self._events: List[Dict] = []
+        self._events: list[dict] = []
         if self.log_path.parent:
             self.log_path.parent.mkdir(parents=True, exist_ok=True)
 
-    def record_failure(self, event: Dict) -> bool:
+    def record_failure(self, event: dict) -> bool:
         """Record a failed sync/divergence event.
 
         Returns:
@@ -68,7 +67,7 @@ class GovernanceMonitor:
             logger.info("Memory bus recovered; resetting failure streak.")
         self._failure_streak = 0
 
-    def _persist_event(self, event: Dict):
+    def _persist_event(self, event: dict):
         """Append event to governance log as JSONL."""
         try:
             with self.log_path.open("a", encoding="utf-8") as fh:
@@ -84,7 +83,7 @@ class GovernanceMonitor:
         """
         return self._failure_streak
 
-    def get_recent_events(self, limit: int = 50) -> List[Dict]:
+    def get_recent_events(self, limit: int = 50) -> list[dict]:
         """Return recent governance events from in-memory history.
 
         Args:

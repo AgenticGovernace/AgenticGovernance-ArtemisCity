@@ -4,6 +4,7 @@ import sys
 
 sys.modules.pop("exceptions", None)
 import pytest
+
 from exceptions import (
     AgentCapabilityError,
     AgentError,

@@ -114,16 +114,16 @@ dependency gates run through `make security` and the CI promotion workflow.
 
 ## Runtime surfaces
 
-| Surface | Path | Role | Run command |
-|---|---|---|---|
-| Python orchestration core | `src/` | Agents, routing, auth, ATP validation, governance, memory, tests | `make run` |
-| In-process kernel | `app/kernel/` | Packaged local router and concrete kernel agents | `make kernel` |
-| FastAPI dashboard | `app/api/main.py` | Dashboard-oriented `/api/*` backend | `make api` |
-| TypeScript Express API | `app/api/**/*.ts` | External `/api/v1/*` boundary | `make express-api` |
-| JSON bridge | `src/api_bridge.py` | Express-to-Python stdin/stdout protocol | Spawned by Express |
-| React dashboard | `app/web/frontend/` | Operator UI; Vite proxies `/api/*` to FastAPI | `make frontend` |
-| Launch demos | `src/launch/` | Maintained CLI demonstrations | `make demo` |
-| Concept demos | `Concept_Demos/` | Static prototypes and compatibility examples | `python3 -m http.server` |
+| Surface                   | Path                | Role                                                             | Run command              |
+| ------------------------- | ------------------- | ---------------------------------------------------------------- | ------------------------ |
+| Python orchestration core | `src/`              | Agents, routing, auth, ATP validation, governance, memory, tests | `make run`               |
+| In-process kernel         | `app/kernel/`       | Packaged local router and concrete kernel agents                 | `make kernel`            |
+| FastAPI dashboard         | `app/api/main.py`   | Dashboard-oriented `/api/*` backend                              | `make api`               |
+| TypeScript Express API    | `app/api/**/*.ts`   | External `/api/v1/*` boundary                                    | `make express-api`       |
+| JSON bridge               | `src/api_bridge.py` | Express-to-Python stdin/stdout protocol                          | Spawned by Express       |
+| React dashboard           | `app/web/frontend/` | Operator UI; Vite proxies `/api/*` to FastAPI                    | `make frontend`          |
+| Launch demos              | `src/launch/`       | Maintained CLI demonstrations                                    | `make demo`              |
+| Concept demos             | `Concept_Demos/`    | Static prototypes and compatibility examples                     | `python3 -m http.server` |
 
 `src/Artemis Agentic Memory Layer/` is a working Express/TS service (`make server`)
 that fronts the Obsidian Local REST API. It is not registered in the root npm

@@ -12,7 +12,7 @@ shares one source of truth with the ramble-on skill.
 - Structure on/under that page:
   - **Reflections** — dated write-ups appended over time (the Reflection layer's destination).
   - **Memory / Context** — durable state the agent reads on start (what it knows / decided).
-  - **Audit** *(optional)* — action log, if not using a separate provenance store.
+  - **Audit** _(optional)_ — action log, if not using a separate provenance store.
 - "Reference through that structure" = the agent loads its page (and linked pages) for
   memory before acting, then writes its reflection back after.
 
@@ -20,11 +20,11 @@ shares one source of truth with the ramble-on skill.
 
 Mirror the ramble-on stack so the two share one build. Prefer tier 1; fall back as needed.
 
-| Tier | Condition | Read memory | Write the reflection |
-|------|-----------|-------------|----------------------|
-| 1. Ramble server (app running) | `GET http://127.0.0.1:3748/health` ok | `ramble.kb_search` / `ramble.get_voice_model` | `ramble.kb_write` |
-| 2. Notion MCP (no app) | Notion MCP connected | `notion-search` → `notion-fetch` | `notion-update-page` (insert_content) / `notion-create-pages` |
-| 3. Files (neither) | fallback | read local log/state files | append to a local reflection log |
+| Tier                           | Condition                             | Read memory                                   | Write the reflection                                          |
+| ------------------------------ | ------------------------------------- | --------------------------------------------- | ------------------------------------------------------------- |
+| 1. Ramble server (app running) | `GET http://127.0.0.1:3748/health` ok | `ramble.kb_search` / `ramble.get_voice_model` | `ramble.kb_write`                                             |
+| 2. Notion MCP (no app)         | Notion MCP connected                  | `notion-search` → `notion-fetch`              | `notion-update-page` (insert_content) / `notion-create-pages` |
+| 3. Files (neither)             | fallback                              | read local log/state files                    | append to a local reflection log                              |
 
 This is graceful degradation, not a hard dependency — the same three tiers ramble-on
 defines.
@@ -32,20 +32,24 @@ defines.
 ## Exact Notion MCP calls (tier 2)
 
 **Locate the agent's page**
+
 - `notion-search` `{ "query": "<AgentName> agent reflection", "query_type": "internal", "page_size": 5 }`
   → take the page `id`. Once known, record the `page_id` in the agent's `AGENTS.md` so
   future runs skip the search.
 
 **Load memory (read)**
+
 - `notion-fetch` `{ "id": "<page_id_or_url>" }` → returns the page as Notion-flavored
   Markdown (Memory/Context + recent Reflections). Use it as the agent's startup context.
 
 **Append a reflection write-up (write)**
+
 - `notion-update-page` `{ "page_id": "<page_id>", "command": "insert_content", "position": {"type":"end"}, "content": "<write-up in Notion Markdown>" }`
 - For a separate dated entry instead of inline append, use `notion-create-pages` with
   `parent {"type":"page_id","page_id":"<agent_or_Reflections_page>"}` and a titled page.
 
 **Scaffold the agent's page once (first run)**
+
 - `notion-create-pages` under the Agents root, with Memory / Reflections / Audit sections.
 
 When composing `content`, follow Notion-flavored Markdown. Per the Notion MCP tool docs,

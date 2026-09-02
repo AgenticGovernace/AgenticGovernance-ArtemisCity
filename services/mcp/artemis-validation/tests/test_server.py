@@ -22,11 +22,11 @@ from artemis_validation_mcp.models import (
     ValidateATPInput,
 )
 from artemis_validation_mcp.server import create_server
+from mcp import Client
 from mcp.server.mcpserver import MCPServer
 from mcp.shared.exceptions import MCPError
 from mcp.types import INTERNAL_ERROR, INVALID_PARAMS, INVALID_REQUEST
 
-from mcp import Client
 from src.auth.contracts import (
     AuthReceiptSourceV1,
     AuthReceiptV1,

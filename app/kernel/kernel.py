@@ -12,7 +12,7 @@ main entry point for processing user requests through its agent network.
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from src.runtime_paths import data_path
 
@@ -47,8 +47,8 @@ class Kernel:
 
     def __init__(
         self,
-        state_file: Optional[str] = None,
-        memory_path: Optional[str] = None,
+        state_file: str | None = None,
+        memory_path: str | None = None,
     ):
         """Initialize the Kernel and boot all subsystems.
 
@@ -57,7 +57,7 @@ class Kernel:
         disk if available, or initialized with defaults.
         """
         self.booted = False
-        self.state: Dict[str, Any] = {}
+        self.state: dict[str, Any] = {}
         self.state_file = data_path(
             "state_kernel.json",
             state_file,

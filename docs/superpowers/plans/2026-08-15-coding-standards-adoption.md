@@ -25,10 +25,12 @@
 ### Task 1: Establish the canonical standard
 
 **Files:**
+
 - Create: `docs/CODING_STANDARDS.md`
 - Create: `docs/superpowers/plans/2026-08-15-coding-standards-adoption.md`
 
 **Interfaces:**
+
 - Consumes: `/Users/pucci/Documents/CODING_STANDARDS.md` as proposal/reference material.
 - Produces: the repository-owned policy referenced by project guidance and quality gates.
 
@@ -59,11 +61,13 @@
 ### Task 2: Connect the project guidance
 
 **Files:**
+
 - Modify: `AGENTS.md`
 - Modify: `CLAUDE.md`
 - Modify: `.github/instructions/instructions.md`
 
 **Interfaces:**
+
 - Consumes: `docs/CODING_STANDARDS.md`.
 - Produces: one discoverable coding-policy pointer in every active guidance surface.
 
@@ -94,10 +98,12 @@
 ### Task 3: Remove dead complexity enforcement and record the baseline
 
 **Files:**
+
 - Modify: `.pre-commit-config.yaml`
 - Create: `docs/CODING_STANDARDS_BASELINE.md`
 
 **Interfaces:**
+
 - Consumes: current production paths `src/` and `app/api/main.py`.
 - Produces: an explicit Ruff baseline and removal of Radon hooks that silently checked nothing because Radon is not installed.
 
@@ -133,12 +139,14 @@
 ### Task 4: Establish the consolidation baseline
 
 **Files:**
+
 - Inspect: `Makefile`
 - Inspect: `.pre-commit-config.yaml`
 - Inspect: `pyproject.toml`
 - Inspect: `eslint.config.js`
 
 **Interfaces:**
+
 - Consumes: existing Black, isort, Flake8, Ruff, mypy, ESLint, pytest, and Bandit configuration.
 - Produces: evidence for a later tool-consolidation change; no tool is removed without equivalent coverage.
 

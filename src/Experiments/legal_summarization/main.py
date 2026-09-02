@@ -107,15 +107,19 @@ except ImportError:  # pragma: no cover - dependency is optional for direct use
 else:
     load_dotenv(_repo_root / ".env", override=False)
 
-from src.Experiments.legal_summarization.batch_runner import \
-    BatchRunner  # noqa: E402
-from src.Experiments.legal_summarization.dataset_loader import (  # noqa: E402
-    LegalDatasetLoader, huggingface_runtime_status)
-from src.Experiments.legal_summarization.run_store import \
-    RunStore  # noqa: E402
-from src.Experiments.legal_summarization.summarization_config import (  # noqa: E402
-    DEFAULT_LEGAL_SUMMARY_TOKENS, AggregationLevel, AudienceLevel,
-    SummarizationConfig, SummarizationMode)
+from src.Experiments.legal_summarization.batch_runner import BatchRunner
+from src.Experiments.legal_summarization.dataset_loader import (
+    LegalDatasetLoader,
+    huggingface_runtime_status,
+)
+from src.Experiments.legal_summarization.run_store import RunStore
+from src.Experiments.legal_summarization.summarization_config import (
+    DEFAULT_LEGAL_SUMMARY_TOKENS,
+    AggregationLevel,
+    AudienceLevel,
+    SummarizationConfig,
+    SummarizationMode,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -388,8 +392,7 @@ def main(argv: list[str] | None = None) -> None:
             print(f"No results found for run '{args.grade_run}'.")
             return
 
-        from src.Experiments.legal_summarization.eval_harness import \
-            LegalEvalHarness
+        from src.Experiments.legal_summarization.eval_harness import LegalEvalHarness
 
         harness = LegalEvalHarness()
         eval_reports = []

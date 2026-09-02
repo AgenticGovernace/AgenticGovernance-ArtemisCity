@@ -11,6 +11,7 @@ The Artemis City governance system ensures safe, auditable self-updates and runt
 All updates are classified into three tiers based on risk assessment:
 
 **Tier 1: Auto-Approved**
+
 - Criteria:
   - Code change < 1% of codebase
   - Fully backwards-compatible (no API changes)
@@ -25,6 +26,7 @@ All updates are classified into three tiers based on risk assessment:
 - Rollback: Available for 30 days
 
 **Tier 2: Monitored**
+
 - Criteria:
   - Code change 1-10% of codebase
   - Backwards-compatible API (additive only)
@@ -41,6 +43,7 @@ All updates are classified into three tiers based on risk assessment:
 - Rollback: Available for 90 days, auto-rollback on anomalies
 
 **Tier 3: Human**
+
 - Criteria:
   - Code change > 10% of codebase
   - Breaking API changes
@@ -78,6 +81,7 @@ UptimePercentage = 1 - (DowntimeHours / TotalHours) over 30 days
 ```
 
 **Score Decay:**
+
 - Recent actions weighted 2x vs. historical
 - Sliding 90-day window for updates
 - Violations impact decreases exponentially (half-life: 30 days)
@@ -224,24 +228,28 @@ Each agent has an approved tool list:
 ### Permission Checks
 
 **File Access:**
+
 - Path must match whitelist pattern
 - Operation (read/write/delete) must be approved
 - File size limits enforced (default: 100MB)
 - Audit log: timestamp, agent_id, path, operation, result
 
 **Network Access:**
+
 - Domain must be in allowlist or match regex pattern
 - Port whitelist (default: 443, 80)
 - Rate limiting per domain (default: 10 req/min)
 - Audit log: timestamp, agent_id, domain, port, status
 
 **Capability Requirements:**
+
 - Agent must have capability tag for tool usage
 - Example: tool "code-execution" requires capability "code-runner"
 
 ### Violation Handling
 
 **Violation Detection:**
+
 - Unauthorized tool invocation
 - Path outside whitelist
 - Rate limit exceeded
@@ -249,6 +257,7 @@ Each agent has an approved tool list:
 - Unsafe network destination
 
 **Per-Violation Response:**
+
 ```
 Violation 1: Log incident, allow operation (with warning)
 Violation 2: Log incident, allow operation (with warning)
@@ -260,6 +269,7 @@ Violation 3: QUARANTINE agent immediately
 ```
 
 **Violation Log Schema:**
+
 ```json
 {
   "violation_id": "uuid",
@@ -281,6 +291,7 @@ Violation 3: QUARANTINE agent immediately
 ### Quarantine Management
 
 **Manual Override:**
+
 ```json
 {
   "override_id": "uuid",
@@ -295,6 +306,7 @@ Violation 3: QUARANTINE agent immediately
 ```
 
 **Quarantine Recovery:**
+
 - Automatic after 7 days if no new violations
 - Manual after review by senior engineer
 - Requires trust score > 0.7 for auto-approval
@@ -304,12 +316,14 @@ Violation 3: QUARANTINE agent immediately
 ### Checkpoint Strategy
 
 Checkpoints created at safe points:
+
 - Successful deployment completion
 - Before each major configuration change
 - On-demand by administrator
 - Automatically at scheduled intervals (daily)
 
 **Checkpoint Structure:**
+
 ```json
 {
   "checkpoint_id": "uuid",
@@ -337,6 +351,7 @@ Checkpoints created at safe points:
 ### Rollback Execution
 
 **Tier 1/2 Rollback (Automated):**
+
 ```
 1. Validate rollback point integrity
 2. Stop affected agents gracefully
@@ -348,6 +363,7 @@ Checkpoints created at safe points:
 ```
 
 **Tier 3 Rollback (Manual + Staged):**
+
 ```
 1. Senior engineer initiates rollback
 2. Automated validation
@@ -360,6 +376,7 @@ Checkpoints created at safe points:
 ```
 
 **Rollback Request:**
+
 ```json
 {
   "rollback_id": "uuid",
@@ -398,6 +415,7 @@ When sandbox policies are updated:
 ### Capability Management
 
 **Capability Addition:**
+
 ```json
 {
   "operation": "add_capability",
@@ -415,6 +433,7 @@ When sandbox policies are updated:
 ```
 
 **Capability Removal:**
+
 - Immediate on violation threshold
 - Gradual deprecation for planned removals (30-day notice)
 - Audit trail of all capability changes
@@ -446,13 +465,13 @@ artemis_trust_score (gauge)
 
 ### Alert Thresholds
 
-| Alert | Threshold | Action |
-|-------|-----------|--------|
-| High violation rate | >2 violations/hour/agent | Page oncall |
-| Tier 3 stuck | No approval >96h | Escalate to manager |
-| Rollback frequency | >2 rollbacks/week | Performance review |
-| Trust score drop | >0.2 in 24h | Alert security team |
-| Sandbox escape attempt | Any detected | Page security |
+| Alert                  | Threshold                | Action              |
+| ---------------------- | ------------------------ | ------------------- |
+| High violation rate    | >2 violations/hour/agent | Page oncall         |
+| Tier 3 stuck           | No approval >96h         | Escalate to manager |
+| Rollback frequency     | >2 rollbacks/week        | Performance review  |
+| Trust score drop       | >0.2 in 24h              | Alert security team |
+| Sandbox escape attempt | Any detected             | Page security       |
 
 ## Configuration
 
@@ -479,4 +498,3 @@ ARTEMIS_TRUST_SCORE_UPDATE_INTERVAL_MINUTES=15
 5. **Rotate approval authorities** quarterly
 6. **Maintain policy documentation** in version control
 7. **Run post-mortems** on all rollbacks and Tier 3 rejections
-

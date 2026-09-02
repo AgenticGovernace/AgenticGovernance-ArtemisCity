@@ -25,24 +25,38 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
-from src.auth.contracts import (AuthorityContextV1, AuthReceiptSourceV1,
-                                AuthReceiptV1, PrincipalCapabilityV1,
-                                PrincipalIdentityV1, PrincipalV1,
-                                VerifiedPartyV1)
-from src.integration.hebbian_router import (DEFAULT_ALPHA, DEFAULT_BETA,
-                                            DEFAULT_TRUST_FLOOR, NEUTRAL_PRIOR,
-                                            HebbianRanker, RoutingDecision)
-from src.routing.adapters import (DEFAULT_TENANT_ID, RegistryAdmissionLookup,
-                                  SandboxAdmissionPreflight,
-                                  TrustAdmissionLookup)
-from src.routing.authorization import (ArtemisAuthorizer,
-                                       AuthorizationDecision,
-                                       AuthorizationDenied)
+from src.auth.contracts import (
+    AuthorityContextV1,
+    AuthReceiptSourceV1,
+    AuthReceiptV1,
+    PrincipalCapabilityV1,
+    PrincipalIdentityV1,
+    PrincipalV1,
+    VerifiedPartyV1,
+)
+from src.integration.hebbian_router import (
+    DEFAULT_ALPHA,
+    DEFAULT_BETA,
+    DEFAULT_TRUST_FLOOR,
+    NEUTRAL_PRIOR,
+    HebbianRanker,
+    RoutingDecision,
+)
+from src.routing.adapters import (
+    DEFAULT_TENANT_ID,
+    RegistryAdmissionLookup,
+    SandboxAdmissionPreflight,
+    TrustAdmissionLookup,
+)
+from src.routing.authorization import (
+    ArtemisAuthorizer,
+    AuthorizationDecision,
+    AuthorizationDenied,
+)
 from src.routing.authorization_policy import CapabilityPolicyAdapter
-from src.routing.contracts import (RequestedConstraintsV1, ResolvedIntentV1,
-                                   TaskIntentV1)
+from src.routing.contracts import RequestedConstraintsV1, ResolvedIntentV1, TaskIntentV1
 from src.routing.delegation_store import SqliteDelegationStore
 from src.routing.eligibility import EligibilityDenied, EligibilityFilter
 from src.routing.intent import IntentDenied, IntentResolver
@@ -214,8 +228,8 @@ class RoutingKernel:
         *,
         content: str,
         authority: AuthorityContextV1,
-        typed_intent: Optional[TaskIntentV1] = None,
-        requested: Optional[RequestedConstraintsV1] = None,
+        typed_intent: TaskIntentV1 | None = None,
+        requested: RequestedConstraintsV1 | None = None,
         route_request: Any = None,
     ) -> KernelRoute:
         """Resolve, authorize, filter, and rank one task in the required order.
@@ -329,8 +343,8 @@ class RoutingKernel:
         self,
         task: dict[str, Any],
         *,
-        authority: Optional[AuthorityContextV1] = None,
-        fallback_capability: Optional[str] = None,
+        authority: AuthorityContextV1 | None = None,
+        fallback_capability: str | None = None,
     ) -> KernelRoute:
         """Route one orchestrator task dict through the full kernel.
 
@@ -357,7 +371,7 @@ class RoutingKernel:
 
         resolved_authority = authority or self.system_authority()
 
-        def attempt(selected_capability: Optional[str]) -> KernelRoute:
+        def attempt(selected_capability: str | None) -> KernelRoute:
             constraints = RequestedConstraintsV1(
                 capability=selected_capability or None,
                 agent=str(pinned_agent) if pinned_agent else None,

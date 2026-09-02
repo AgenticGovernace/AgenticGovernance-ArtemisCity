@@ -9,18 +9,18 @@ session templates, and inspecting outputs.
 Dataproc is Google Cloud's managed service for running Hadoop and Spark
 workloads. The two basic flavors are:
 
--   **Clusters** aka **Dataproc on GCE**: users create a cluster, then submit
-    one or more Spark or other jobs. Users have control over the underlying VM
-    resources.
--   **Serverless Spark** aka **Dataproc Serverless**, where users do not control
-    the underlying VM resources:
-    -   Users may submit **batches**, which provision the underlying resources,
-        launch a job, and tear down the resources, all in a single operation.
-    -   Users may also create persistent **interactive sessions**. These are
-        generally created through a Jupyter interface rather than gcloud, but
-        existing sessions may be inspected with gcloud.
-    -   Users can create **session templates** as a way to create multiple
-        sessions using the same configuration.
+- **Clusters** aka **Dataproc on GCE**: users create a cluster, then submit
+  one or more Spark or other jobs. Users have control over the underlying VM
+  resources.
+- **Serverless Spark** aka **Dataproc Serverless**, where users do not control
+  the underlying VM resources:
+  - Users may submit **batches**, which provision the underlying resources,
+    launch a job, and tear down the resources, all in a single operation.
+  - Users may also create persistent **interactive sessions**. These are
+    generally created through a Jupyter interface rather than gcloud, but
+    existing sessions may be inspected with gcloud.
+  - Users can create **session templates** as a way to create multiple
+    sessions using the same configuration.
 
 Users may not always know the technically correct terminology for Clusters vs.
 Serverless, for example they may ask for "jobs" or "spark jobs" but mean
@@ -86,10 +86,10 @@ status)" \
 
 Tips:
 
--   **Important:** Always include a limit; the default is no limit, which may
-    produce too much output to process.
--   Add a `--filter` to limit results, e.g. `status.state = ACTIVE AND
-    clusterName = mycluster AND labels.env = staging AND labels.starred = *`
+- **Important:** Always include a limit; the default is no limit, which may
+  produce too much output to process.
+- Add a `--filter` to limit results, e.g. `status.state = ACTIVE AND
+clusterName = mycluster AND labels.env = staging AND labels.starred = *`
 
 ### Listing jobs
 
@@ -109,18 +109,18 @@ status.stateStartTime)" \
 
 Tips:
 
--   **Important:** Always include a limit; the default is no limit, which may
-    produce too much output to process.
--   Add a `--filter` to limit results, e.g. `status.state = ACTIVE AND
-    labels.env = staging AND labels.starred = *`
+- **Important:** Always include a limit; the default is no limit, which may
+  produce too much output to process.
+- Add a `--filter` to limit results, e.g. `status.state = ACTIVE AND
+labels.env = staging AND labels.starred = *`
 
 ## Dataproc Serverless
 
 Use this section if the user requests:
 
--   batches, serverless batches, spark batches, serverless jobs
--   spark sessions, serverless spark sessions, spark interactive sessions,
-    serverless interactive sessions, spark notebooks, spark kernels
+- batches, serverless batches, spark batches, serverless jobs
+- spark sessions, serverless spark sessions, spark interactive sessions,
+  serverless interactive sessions, spark notebooks, spark kernels
 
 **Do not** use this section if the user requests spark jobs, cluster jobs, or
 just jobs, **unless** you have confirmed with the user that they are using
@@ -139,10 +139,10 @@ gcloud dataproc batches list \
 
 Tips:
 
--   **Important:** Always include a limit; the default is no limit, which may
-    produce too much output to process.
--   Add a `--filter` to limit results, e.g. `(state = RUNNING and create_time <
-    "2023-01-01T00:00:00Z") or labels.environment=production`
+- **Important:** Always include a limit; the default is no limit, which may
+  produce too much output to process.
+- Add a `--filter` to limit results, e.g. `(state = RUNNING and create_time <
+"2023-01-01T00:00:00Z") or labels.environment=production`
 
 ### Launching batches
 
@@ -181,24 +181,24 @@ You MUST set the `--deps-bucket` to a GCS path to upload workload dependencies.
 
 #### Spanner
 
--   **Dependency**: `--jars=gs://spark-lib/spanner/spark-3.5-spanner-1.4.0.jar`
--   **Notes**: Pass `.option("projectId", ...)` in PySpark
+- **Dependency**: `--jars=gs://spark-lib/spanner/spark-3.5-spanner-1.4.0.jar`
+- **Notes**: Pass `.option("projectId", ...)` in PySpark
 
 #### PostgreSQL
 
--   **Dependency**: `spark.jars.packages=org.postgresql:postgresql:42.6.0`
--   **Notes**: Pass `--subnet=...` for private IP
+- **Dependency**: `spark.jars.packages=org.postgresql:postgresql:42.6.0`
+- **Notes**: Pass `--subnet=...` for private IP
 
 #### Iceberg REST
 
--   **Dependency**:
-    `spark.jars.packages=org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.0`
--   **Notes**: In code use `<CATALOG>.<DATASET>.<TABLE>` (not project ID)
+- **Dependency**:
+  `spark.jars.packages=org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.0`
+- **Notes**: In code use `<CATALOG>.<DATASET>.<TABLE>` (not project ID)
 
 #### Pub/Sub
 
--   **Dependency**: `from google.cloud import pubsub_v1`
--   **Notes**: Pre-installed in runtime
+- **Dependency**: `from google.cloud import pubsub_v1`
+- **Notes**: Pre-installed in runtime
 
 #### XGBoost
 
@@ -214,8 +214,8 @@ properties:
 **Do not** create sessions using gcloud for use in notebooks. Instead, direct
 the user to associate the notebook with a kernel using the Kernel Selector:
 
-1.  Click "Remote Spark Kernels"
-2.  Choose a kernel name ending in "on Serverless Spark"
+1. Click "Remote Spark Kernels"
+2. Choose a kernel name ending in "on Serverless Spark"
 
 It is expected for Serverless kernel creation to take approximately 2 minutes or
 more.
@@ -233,7 +233,7 @@ gcloud beta dataproc sessions list \
 
 Tips:
 
--   **Important:** Always include a limit; the default is no limit, which may
-    produce too much output to process.
--   Add a `--filter` to limit results, e.g. `state = ACTIVE AND labels.env =
-    staging AND create_time >= "2023-01-01T00:00:00Z"`
+- **Important:** Always include a limit; the default is no limit, which may
+  produce too much output to process.
+- Add a `--filter` to limit results, e.g. `state = ACTIVE AND labels.env =
+staging AND create_time >= "2023-01-01T00:00:00Z"`

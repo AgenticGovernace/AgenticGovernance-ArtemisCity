@@ -6,6 +6,7 @@ date: "2025-11-23"
 version: "1.0.0"
 status: "Production Ready"
 ---
+
 # Memory Layer Integration
 
 This document describes the integration between **Artemis City** core and the **Artemis Agentic Memory Layer** (MCP Server), enabling agents to interact with Obsidian vault as a persistent knowledge base.
@@ -15,11 +16,12 @@ This document describes the integration between **Artemis City** core and the **
 The memory integration bridge connects the Python-based Artemis City agent system with the Node.js MCP server, allowing:
 
 - **Persistent Context Storage**: Agents can store and retrieve context across sessions
-- **Trust-Based Access Control**: Memory operations filtered by agent trust scores  
+- **Trust-Based Access Control**: Memory operations filtered by agent trust scores
 - **Structured Knowledge Base**: Obsidian vault acts as versioned source of truth
 - **Agent-Vault Interaction**: Search, tag, and organize knowledge programmatically
 
 ## Architecture
+
 ```ascii
 ┌──────────────────────────────────────────────────────┐
 │ Artemis City Core │
@@ -41,15 +43,15 @@ The memory integration bridge connects the Python-based Artemis City agent syste
 │ REST API (Bearer Token)
 ▼
 ┌──────────────────────────────────────────────────────┐
-│ Artemis Agentic Memory Layer (MCP Server)        
-│ ┌──────────┐    ┌──────────┐   ┌──────────┐   ┌──────────┐ 
-│ │ Express  │──► │ Auth     │──►│ Router   │──►│ Tools    │ 
-│ │ Server   │    │Middleware│   │ (8 ops)  │   │ Layer    │ 
+│ Artemis Agentic Memory Layer (MCP Server)
+│ ┌──────────┐    ┌──────────┐   ┌──────────┐   ┌──────────┐
+│ │ Express  │──► │ Auth     │──►│ Router   │──►│ Tools    │
+│ │ Server   │    │Middleware│   │ (8 ops)  │   │ Layer    │
 │ └──────────┘    └──────────┘   └──────────┘   └────┬─────┘
-│         ▼ 
-│ ┌─────────────────┐                                            
-│ │ Obsidian REST   │                                │   
-│ │ API Service     │ │                                  
+│         ▼
+│ ┌─────────────────┐
+│ │ Obsidian REST   │                                │
+│ │ API Service     │ │
 │ └────────┬────────┘                                 │
 └───────────────────────────────────────────┼─────────┘
 │
@@ -60,7 +62,6 @@ The memory integration bridge connects the Python-based Artemis City agent syste
 └─────────────────┘
 ```
 
-
 ## Components
 
 ### 1. Memory Client (`src/integration/memory_client.py`)
@@ -68,12 +69,14 @@ The memory integration bridge connects the Python-based Artemis City agent syste
 Python REST client for the MCP server with full coverage of 8 MCP operations.
 
 **Features:**
+
 - Bearer token authentication
 - Standardized response format (MCPResponse)
 - Automatic error handling
 - Built-in HTTP client (no external dependencies)
 
 **Operations:**
+
 - `get_context(path)` - Read note content
 - `append_context(path, content)` - Append to note
 - `update_note(path, content)` - Replace note content
@@ -85,6 +88,7 @@ Python REST client for the MCP server with full coverage of 8 MCP operations.
 - `search_replace(path, search, replace)` - Find and replace
 
 **Example:**
+
 ```python
 from memory.integration import MemoryClient
 
@@ -114,7 +118,7 @@ Trust-based access control for memory operations with decay model.
 **Trust Levels & Permissions:**
 
 | Level     | Score Range | Allowed Operations                       |
-|-----------|-------------|------------------------------------------|
+| --------- | ----------- | ---------------------------------------- |
 | FULL      | 0.9-1.0     | read, write, delete, search, tag, update |
 | HIGH      | 0.7-0.9     | read, write, search, tag, update         |
 | MEDIUM    | 0.5-0.7     | read, write, search, tag                 |
@@ -201,7 +205,7 @@ export OBSIDIAN_API_KEY="your_obsidian_plugin_api_key"
 The standalone service is present in this checkout and runnable via
 `make server` (see the root Makefile's `server` target). It is not yet
 registered in the root npm workspace — install its dependencies from inside
-`src/Artemis Agentic Memory Layer/` directly (`npm install`) until that
+`app/Artemis Agentic Memory Layer/` directly (`npm install`) until that
 registration lands.
 
 ### Verifying Connection
@@ -512,24 +516,24 @@ trust.record_failure("agent_name", amount=0.05)  # -5%
 Planned improvements aligned with the plan:
 
 1. **Enhanced CLI Integration**
-    - Automatic context loading on startup
-    - Persistent conversation history
-    - Cross-session memory
+   - Automatic context loading on startup
+   - Persistent conversation history
+   - Cross-session memory
 
 2. **MCP Configuration Helper**
-    - Auto-discovery of MCP server
-    - Configuration validation
-    - Health monitoring
+   - Auto-discovery of MCP server
+   - Configuration validation
+   - Health monitoring
 
 3. **Agent Communication**
-    - Message protocol with context hashing
-    - Shared workspace in vault
-    - Cross-agent knowledge graphs
+   - Message protocol with context hashing
+   - Shared workspace in vault
+   - Cross-agent knowledge graphs
 
 4. **Advanced Search**
-    - Semantic search with embeddings
-    - Relevance ranking algorithms
-    - Context-aware suggestions
+   - Semantic search with embeddings
+   - Relevance ranking algorithms
+   - Context-aware suggestions
 
 ## References
 
@@ -544,5 +548,7 @@ Planned improvements aligned with the plan:
 **Author**: Prinston Palmer  
 **Last Updated**: November 23, 2025  
 **Status**: Production Ready
+
+```
 
 ```

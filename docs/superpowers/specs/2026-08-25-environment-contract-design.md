@@ -57,11 +57,11 @@ owned by GitHub Environment settings.
 
 Canonical policy values are:
 
-| Profile | Log level | Debug | Reload | Trust |
-|---|---:|---:|---:|---:|
-| `dev` | `TRACE` | true | true | 2 |
-| `staging` | `INFO` | false | false | 1 |
-| `prod` | `WARN` | false | false | 1 |
+| Profile   | Log level | Debug | Reload | Trust |
+| --------- | --------: | ----: | -----: | ----: |
+| `dev`     |   `TRACE` |  true |   true |     2 |
+| `staging` |    `INFO` | false |  false |     1 |
+| `prod`    |    `WARN` | false |  false |     1 |
 
 ## Commands and behavior
 

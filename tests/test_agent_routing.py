@@ -3,9 +3,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-import src.mcp.config as config  # Import config to patch OBSIDIAN_VAULT_PATH
 from src.agents.base_agent import BaseAgent
 from src.integration.agent_registry import AgentRegistry, AgentScore
+from src.mcp import config  # Import config to patch OBSIDIAN_VAULT_PATH
 from src.mcp.orchestrator import Orchestrator
 
 

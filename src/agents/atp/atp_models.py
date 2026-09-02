@@ -13,7 +13,7 @@ structured communication between agents and users with clear intent signals.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class ATPMode(Enum):
@@ -67,15 +67,15 @@ class ATPMessage:
     """
 
     mode: ATPMode = ATPMode.UNKNOWN
-    context: Optional[str] = None
+    context: str | None = None
     priority: ATPPriority = ATPPriority.NORMAL
     action_type: ATPActionType = ATPActionType.UNKNOWN
-    target_zone: Optional[str] = None
-    special_notes: Optional[str] = None
+    target_zone: str | None = None
+    special_notes: str | None = None
     content: str = ""
     raw_input: str = ""
     timestamp: datetime = field(default_factory=datetime.now)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def has_atp_headers(self) -> bool:
@@ -104,7 +104,7 @@ class ATPMessage:
             and self.action_type != ATPActionType.UNKNOWN
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert ATP message to dictionary format.
 
         Returns:

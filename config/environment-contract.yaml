@@ -16,8 +16,8 @@ targets:
     template: src/.env.example
     output: src/.env
   - name: obsidian_memory_layer
-    template: src/Artemis Agentic Memory Layer/.env.example
-    output: src/Artemis Agentic Memory Layer/.env
+    template: app/Artemis Agentic Memory Layer/.env.example
+    output: app/Artemis Agentic Memory Layer/.env
   - name: memory_mcp
     template: services/mcp/artemis-memory/.env.example
     output: services/mcp/artemis-memory/.env
@@ -56,8 +56,8 @@ source_globs:
   - app/web/frontend/**/*.ts
   - app/web/frontend/**/*.tsx
   - src/**/*.py
-  - src/Artemis Agentic Memory Layer/src/**/*.ts
-  - src/Artemis Agentic Memory Layer/docker-compose.yml
+  - app/Artemis Agentic Memory Layer/src/**/*.ts
+  - app/Artemis Agentic Memory Layer/docker-compose.yml
   - services/mcp/artemis-memory/src/**/*.py
   - services/mcp/artemis-validation/src/**/*.py
   - services/mcp/common/src/**/*.py
@@ -68,6 +68,16 @@ source_globs:
   - docker-compose.yaml
 
 source_excludes:
+  # Vendored virtualenvs. `source_globs` uses src/**/*.py, which otherwise
+  # sweeps ~22k installed third-party files and reports every os.environ.get
+  # in them as an undeclared project variable (ZSH_VERSION, XDG_*, ANDROID_ROOT).
+  # _discover_runtime_templates already skips these via RUNTIME_TEMPLATE_SKIP_DIRS;
+  # _iter_source_paths has no equivalent guard, so they are listed explicitly.
+  - src/myenv
+  - src/artemis-city
+  - services/mcp/artemis-validation/.venv
+  - services/mcp/common/.venv
+  - app/Artemis Agentic Memory Layer/src/__tests__
   - app/api/__tests__
   - app/api/test
   - src/tests

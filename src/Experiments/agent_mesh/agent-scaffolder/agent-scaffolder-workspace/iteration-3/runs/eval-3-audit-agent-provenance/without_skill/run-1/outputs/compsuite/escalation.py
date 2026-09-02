@@ -16,10 +16,10 @@ from __future__ import annotations
 
 import shlex
 import subprocess
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable
 
 from .classifier import Severity
 from .provenance import ProvenanceLedger
@@ -121,7 +121,7 @@ class Escalator:
         threshold_label: str = "Warning",
         sinks: Iterable[str] = ("log",),
         command: str = "",
-    ) -> "Escalator":
+    ) -> Escalator:
         return cls(
             ledger=ledger,
             log_dir=Path(log_dir),

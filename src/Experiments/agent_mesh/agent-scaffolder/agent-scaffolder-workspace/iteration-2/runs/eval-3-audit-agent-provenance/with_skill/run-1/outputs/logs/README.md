@@ -4,6 +4,7 @@ This directory is the file-based persistence destination referenced by the CompS
 Agent Card (`../AGENTS.md`). CompSuite writes here; it never modifies anything outside it.
 
 ## Files CompSuite maintains here
+
 - `audit-<YYYY-MM-DD>.md` — the daily activity log. One file per day. Every observed
   file event and its classification (`Normal` / `Warning` / `Error`) is appended here
   with input, output, and status.
@@ -14,6 +15,7 @@ Agent Card (`../AGENTS.md`). CompSuite writes here; it never modifies anything o
   threshold) are appended here and surfaced to a human operator.
 
 ## Note on provenance
+
 These files are the human-readable mirror. The authoritative, line-item action history
 lives in the external provenance store (`agent_logs`, via `$PROVENANCE_SERVICE_URL`) per
 the atp-provenance-logging skill.

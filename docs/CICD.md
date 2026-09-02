@@ -72,7 +72,6 @@ The only remaining GitHub Actions workflow — the promotion cascade. See
 This repository currently proves branch promotion only. Deployment automation
 must be verified separately in the environment that owns it.
 
-
 ## Pipeline Stages
 
 ### Stage 1: Code Quality (Fast Feedback)
@@ -150,7 +149,7 @@ specific patch version so the project stays on Python 3.12 while still receiving
 3.12.x patch updates from the CI images/actions:
 
 ```yaml
-python-version: '3.12'
+python-version: "3.12"
 ```
 
 ### Caching
@@ -164,7 +163,7 @@ Dependency caching uses uv:
 
 - uses: actions/setup-node@v4
   with:
-    cache: 'npm'
+    cache: "npm"
 ```
 
 ## Secrets Management
@@ -218,9 +217,13 @@ version = "1.0.0"
 
 ```markdown
 ## [1.0.0] - 2025-11-23
+
 ### Added
+
 - New feature X
+
 ### Fixed
+
 - Bug Y
 ```
 
@@ -265,6 +268,7 @@ Pre-release versions:
 **If release fails:**
 
 1. Delete the tag:
+
    ```bash
    git tag -d v1.0.0
    git push origin :refs/tags/v1.0.0
@@ -273,6 +277,7 @@ Pre-release versions:
 2. Fix issues locally
 
 3. Re-create tag:
+
    ```bash
    git tag v1.0.0
    git push origin v1.0.0
@@ -396,6 +401,7 @@ gh run download <run-id>
 ### For Developers
 
 1. **Run checks locally before pushing:**
+
    ```bash
    make env-check
    make env-live-check
@@ -405,41 +411,41 @@ gh run download <run-id>
    ```
 
 2. **Keep CI fast:**
-    - Use caching
-    - Parallelize jobs
-    - Fail fast on critical errors
+   - Use caching
+   - Parallelize jobs
+   - Fail fast on critical errors
 
 3. **Write deterministic tests:**
-    - No time-dependent behavior
-    - No network dependencies (use mocks)
-    - No file system dependencies
+   - No time-dependent behavior
+   - No network dependencies (use mocks)
+   - No file system dependencies
 
 4. **Update workflows regularly:**
-    - Keep actions up to date
-    - Review security advisories
-    - Test new Python/Node versions
+   - Keep actions up to date
+   - Review security advisories
+   - Test new Python/Node versions
 
 ### For Maintainers
 
 1. **Monitor workflow runs:**
-    - Set up notifications
-    - Review failed runs promptly
-    - Update on breaking changes
+   - Set up notifications
+   - Review failed runs promptly
+   - Update on breaking changes
 
 2. **Manage secrets securely:**
-    - Rotate regularly
-    - Use least privilege
-    - Document usage
+   - Rotate regularly
+   - Use least privilege
+   - Document usage
 
 3. **Review dependency updates:**
-    - Check weekly reports
-    - Test updates locally
-    - Update gradually
+   - Check weekly reports
+   - Test updates locally
+   - Update gradually
 
 4. **Maintain documentation:**
-    - Update on workflow changes
-    - Document new secrets
-    - Keep examples current
+   - Update on workflow changes
+   - Document new secrets
+   - Keep examples current
 
 ## Additional Resources
 
@@ -457,10 +463,10 @@ For CI/CD issues:
 2. Review this documentation
 3. Search existing issues
 4. Open new issue with:
-    - Workflow run URL
-    - Error messages
-    - Steps to reproduce
-    - Local environment details
+   - Workflow run URL
+   - Error messages
+   - Steps to reproduce
+   - Local environment details
 
 ---
 

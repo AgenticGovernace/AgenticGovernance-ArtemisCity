@@ -22,12 +22,13 @@ partial assessment with surfaced gaps.
 from __future__ import annotations
 
 import argparse
-from collections.abc import Mapping
 import json
 import sys
+from collections.abc import Mapping
 from typing import Any
 
 import cloud_rest_helpers_nodeps
+
 import validation
 
 _BIGQUERY_API = "https://bigquery.googleapis.com/bigquery/v2/projects"

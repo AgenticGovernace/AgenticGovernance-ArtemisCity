@@ -4,14 +4,19 @@ exports.manageFrontmatter = manageFrontmatter;
 const methods_1 = require("../../services/obsidianRestAPI/methods");
 const logger_1 = require("../../utils/logger");
 async function manageFrontmatter(path, key, value) {
-    try {
-        logger_1.logger.debug(`Managing frontmatter for note: ${path}, key: ${key}, value: ${value}`);
-        await (0, methods_1.manageFrontmatter)(path, key, value);
-        logger_1.logger.info(`Successfully updated frontmatter for note '${path}': key '${key}' set to '${value}'.`);
-        return { success: true, message: `Frontmatter for '${path}' updated.` };
-    }
-    catch (error) {
-        logger_1.logger.error(`Error managing frontmatter for note '${path}': ${error.message}`);
-        return { success: false, error: error.message };
-    }
+  try {
+    logger_1.logger.debug(
+      `Managing frontmatter for note: ${path}, key: ${key}, value: ${value}`,
+    );
+    await (0, methods_1.manageFrontmatter)(path, key, value);
+    logger_1.logger.info(
+      `Successfully updated frontmatter for note '${path}': key '${key}' set to '${value}'.`,
+    );
+    return { success: true, message: `Frontmatter for '${path}' updated.` };
+  } catch (error) {
+    logger_1.logger.error(
+      `Error managing frontmatter for note '${path}': ${error.message}`,
+    );
+    return { success: false, error: error.message };
+  }
 }

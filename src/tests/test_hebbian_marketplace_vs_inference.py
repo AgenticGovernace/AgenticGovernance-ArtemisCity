@@ -43,9 +43,9 @@ import pytest
 pytest.importorskip("numpy")
 pytest.importorskip("sklearn")
 
-import numpy as np  # noqa: E402
-from sklearn.metrics import pairwise_distances  # noqa: E402
-from sklearn.neural_network import MLPRegressor  # noqa: E402
+import numpy as np
+from sklearn.metrics import pairwise_distances
+from sklearn.neural_network import MLPRegressor
 
 pytestmark = pytest.mark.slow
 

@@ -26,6 +26,7 @@
 ### Task 1: Typed policy profiles and deterministic source validation
 
 **Files:**
+
 - Create: `src/tests/test_environments.py`
 - Create: `src/tests/test_environment_config.py`
 - Create: `config/environment-contract.yaml`
@@ -37,6 +38,7 @@
 - Preserve unchanged: `.github/environments/dev.yaml`, `.github/environments/staging.yaml`, `.github/environments/prod.yaml`
 
 **Interfaces:**
+
 - `normalize_environment_name(name: str) -> str`
 - `validate_environment_profile(data: Mapping[str, Any], expected_name: str) -> dict[str, Any]`
 - `load_environment(name: str | None = None) -> dict[str, Any]`
@@ -55,17 +57,19 @@
 ### Task 2: Full root provisioning and generated service views
 
 **Files:**
+
 - Modify: `src/tests/test_setup_secrets.py`
 - Modify: `scripts/environment_config.py`
 - Modify: `setup_secrets.sh`
 - Modify: `.env.example`
 - Modify: `app/api/.env.example`
 - Modify: `src/.env.example`
-- Modify: `src/Artemis Agentic Memory Layer/.env.example`
+- Modify: `app/Artemis Agentic Memory Layer/.env.example`
 - Create: `services/mcp/artemis-memory/.env.example`
 - Create: `config/service-env/provenance.env.example` (tracked template for the ignored nested provenance checkout)
 
 **Interfaces:**
+
 - CLI `setup`, `setup --check`, and `setup --regenerate` preserve the wrapper's exit-code contract.
 - Root `.env` is reconciled first; every service target is a minimal view sourced from root values for matching keys.
 - Contract ownership lists generated secrets and derived mappings; every other
@@ -81,6 +85,7 @@
 ### Task 3: Live validation, hooks, Compose, and protected promotion gates
 
 **Files:**
+
 - Modify: `src/tests/test_environment_config.py`
 - Modify: `src/tests/test_docker_compose.py`
 - Modify: `scripts/environment_config.py`
@@ -90,6 +95,7 @@
 - Modify: `.github/workflows/promote.yml`
 
 **Interfaces:**
+
 - CLI `live --env <name> --env-file <path>` and Make target `env-live-check`.
 - HTTP probe results are `service`, `status`, and redacted `reason`; database probe runs `SELECT 1` and never echoes its DSN.
 - Pre-commit stage runs `make env-fix`; pre-push stage runs `make env-live-check`.
@@ -106,6 +112,7 @@
 ### Task 4: Documentation, verification, and independent review
 
 **Files:**
+
 - Modify: `docs/ENVIRONMENTS.md`
 - Modify: `.env.example` comments as needed
 

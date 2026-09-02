@@ -1502,7 +1502,7 @@ def test_kernel_validation_handles_empty_and_malformed_agents(
 
 
 def test_run_logger_loader_caches_success_and_swallows_failure(monkeypatch):
-    import src.utils as utils
+    from src import utils
 
     sentinel = object()
     loader = Mock(return_value=sentinel)
@@ -1519,7 +1519,7 @@ def test_run_logger_loader_caches_success_and_swallows_failure(monkeypatch):
 
 
 def test_optional_anaconda_registration_is_non_blocking(orchestrator, monkeypatch):
-    import src.integration.anaconda_stack as anaconda_stack
+    from src.integration import anaconda_stack
 
     for constructor_name in (
         "ArtemisAgent",

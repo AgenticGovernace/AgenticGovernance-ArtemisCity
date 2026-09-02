@@ -15,10 +15,10 @@ const index_1 = require("./index");
  * @returns The content of the note.
  */
 async function readNote(path) {
-    const response = await index_1.obsidianAPI.get(`/vault/read`, {
-        params: { path },
-    });
-    return response.data.content;
+  const response = await index_1.obsidianAPI.get(`/vault/read`, {
+    params: { path },
+  });
+  return response.data.content;
 }
 /**
  * Updates an existing note or creates a new one. Can append content.
@@ -28,12 +28,12 @@ async function readNote(path) {
  * @returns A success message.
  */
 async function updateNote(path, content, options) {
-    const response = await index_1.obsidianAPI.post(`/vault/write`, {
-        path,
-        content,
-        cursor: options?.append ? { line: -1, ch: -1 } : undefined, // Append to end if 'append' is true
-    });
-    return response.data.message || 'Note updated successfully.';
+  const response = await index_1.obsidianAPI.post(`/vault/write`, {
+    path,
+    content,
+    cursor: options?.append ? { line: -1, ch: -1 } : undefined, // Append to end if 'append' is true
+  });
+  return response.data.message || "Note updated successfully.";
 }
 /**
  * Searches for notes within the Obsidian vault.
@@ -41,18 +41,18 @@ async function updateNote(path, content, options) {
  * @returns An array of search results.
  */
 async function searchNotes(query) {
-    const response = await index_1.obsidianAPI.get(`/vault/search`, {
-        params: { query },
-    });
-    return response.data;
+  const response = await index_1.obsidianAPI.get(`/vault/search`, {
+    params: { query },
+  });
+  return response.data;
 }
 /**
  * Lists all notes in the Obsidian vault.
  * @returns An array of note paths.
  */
 async function listNotes() {
-    const response = await index_1.obsidianAPI.get(`/vault/list`);
-    return response.data.files;
+  const response = await index_1.obsidianAPI.get(`/vault/list`);
+  return response.data.files;
 }
 /**
  * Deletes a note from the Obsidian vault.
@@ -60,10 +60,10 @@ async function listNotes() {
  * @returns A success message.
  */
 async function deleteNote(path) {
-    const response = await index_1.obsidianAPI.delete(`/vault/delete`, {
-        params: { path },
-    });
-    return response.data.message || 'Note deleted successfully.';
+  const response = await index_1.obsidianAPI.delete(`/vault/delete`, {
+    params: { path },
+  });
+  return response.data.message || "Note deleted successfully.";
 }
 /**
  * Manages frontmatter for a note.
@@ -76,12 +76,12 @@ async function deleteNote(path) {
  * @returns A success message.
  */
 async function manageFrontmatter(path, key, value) {
-    const response = await index_1.obsidianAPI.post(`/vault/frontmatter`, {
-        path,
-        key,
-        value,
-    });
-    return response.data.message || 'Frontmatter updated successfully.';
+  const response = await index_1.obsidianAPI.post(`/vault/frontmatter`, {
+    path,
+    key,
+    value,
+  });
+  return response.data.message || "Frontmatter updated successfully.";
 }
 /**
  * Manages tags for a note (add or remove).
@@ -94,12 +94,12 @@ async function manageFrontmatter(path, key, value) {
  * @returns A success message.
  */
 async function manageTags(path, tags, action) {
-    const response = await index_1.obsidianAPI.post(`/vault/tags`, {
-        path,
-        tags,
-        action,
-    });
-    return response.data.message || 'Tags updated successfully.';
+  const response = await index_1.obsidianAPI.post(`/vault/tags`, {
+    path,
+    tags,
+    action,
+  });
+  return response.data.message || "Tags updated successfully.";
 }
 /**
  * Performs a search and replace operation within a note.
@@ -112,10 +112,10 @@ async function manageTags(path, tags, action) {
  * @returns The updated content of the note.
  */
 async function searchReplace(path, search, replace) {
-    const response = await index_1.obsidianAPI.post(`/vault/search-replace`, {
-        path,
-        search,
-        replace,
-    });
-    return response.data.content;
+  const response = await index_1.obsidianAPI.post(`/vault/search-replace`, {
+    path,
+    search,
+    replace,
+  });
+  return response.data.content;
 }

@@ -125,18 +125,18 @@ physical monorepo with generic CI examples. The implementation keeps the useful
 control-flow concepts while translating them into the governed architecture in
 this document.
 
-| Historical concept | Disposition | Canonical replacement |
-|---|---|---|
-| CLI -> kernel -> router -> agent/model -> memory -> user | Retain the topology | Ingress -> auth -> strict ATP -> authorization -> eligibility/ranking -> dispatch -> durable outcome/provenance -> ledger/learning/projection |
-| Installed CLI and Makefile as userland bridges | Retain as adapters | Existing Artemis entry points delegate once to the Routing Kernel; no `codex` executable or prompt is created |
-| `agent_router.py` keyword and priority matching | Replace | Typed ATP intent, capability registry, governance/trust eligibility, then Hebbian ranking |
-| Named Codex/Daemon fallback agents | Remove as routing identity | Governed `llm_chat` capability fallback inside the authorized domain |
-| `state_kernel.json` as execution authority | Remove | Transactional task ledger plus OutcomeV1 and linked provenance |
-| Memory backend chosen by the text router | Replace | Canonical Memory Bus policy chooses stores/projections after authorization; routing cannot select a weaker persistence path |
-| Planner -> worker -> memory pipelines | Retain with controls | Ledger-backed typed child tasks, bounded delegation, parent/child provenance, deterministic fan-out/fan-in |
-| Obsidian task notes as queue state | Retain only as readable projection | Atomic ledger claims and an outbox project state to Obsidian |
-| Immediate `honmbase/` moves, submodules/subtrees, package-manager conversion, and generic CI YAML | Supersede for this phase | Separate repositories linked by the versioned workspace catalog, immutable refs, reviewed transfers, and repository-specific gates |
-| Core/App/Support/Shared logical layers | Retain as catalog metadata | Ownership domains and links describe the layers without copying repositories into one tree |
+| Historical concept                                                                                | Disposition                        | Canonical replacement                                                                                                                         |
+| ------------------------------------------------------------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| CLI -> kernel -> router -> agent/model -> memory -> user                                          | Retain the topology                | Ingress -> auth -> strict ATP -> authorization -> eligibility/ranking -> dispatch -> durable outcome/provenance -> ledger/learning/projection |
+| Installed CLI and Makefile as userland bridges                                                    | Retain as adapters                 | Existing Artemis entry points delegate once to the Routing Kernel; no `codex` executable or prompt is created                                 |
+| `agent_router.py` keyword and priority matching                                                   | Replace                            | Typed ATP intent, capability registry, governance/trust eligibility, then Hebbian ranking                                                     |
+| Named Codex/Daemon fallback agents                                                                | Remove as routing identity         | Governed `llm_chat` capability fallback inside the authorized domain                                                                          |
+| `state_kernel.json` as execution authority                                                        | Remove                             | Transactional task ledger plus OutcomeV1 and linked provenance                                                                                |
+| Memory backend chosen by the text router                                                          | Replace                            | Canonical Memory Bus policy chooses stores/projections after authorization; routing cannot select a weaker persistence path                   |
+| Planner -> worker -> memory pipelines                                                             | Retain with controls               | Ledger-backed typed child tasks, bounded delegation, parent/child provenance, deterministic fan-out/fan-in                                    |
+| Obsidian task notes as queue state                                                                | Retain only as readable projection | Atomic ledger claims and an outbox project state to Obsidian                                                                                  |
+| Immediate `honmbase/` moves, submodules/subtrees, package-manager conversion, and generic CI YAML | Supersede for this phase           | Separate repositories linked by the versioned workspace catalog, immutable refs, reviewed transfers, and repository-specific gates            |
+| Core/App/Support/Shared logical layers                                                            | Retain as catalog metadata         | Ownership domains and links describe the layers without copying repositories into one tree                                                    |
 
 The export's file names, commands, dependency versions, branch names, action
 versions, project counts, and proposed directory moves are historical claims.
@@ -651,16 +651,16 @@ Artemis owns two catalog artifacts:
 
 Initial authority map:
 
-| Domain | Authority | External role |
-|---|---|---|
-| Routing Kernel | Artemis City | Oracle and MCP are clients |
-| Hebbian engine | Artemis City | notebooks provide evidence only |
-| Memory orchestration | Artemis City | Oracle supplies adapters/UX |
-| Auth identity and request proof | Authstructure | Artemis authorizes operations |
-| Auth receipts and signing semantics | Authstructure | Artemis verifies the versioned projection |
-| Execution provenance contract and persistence port | Artemis City | Prove supplies migration models and conformance tests |
-| Task ledger | Artemis City | historical scaffold supplies lifecycle evidence |
-| Desktop experience | The Oracle | consumes versioned Artemis contracts |
+| Domain                                             | Authority     | External role                                         |
+| -------------------------------------------------- | ------------- | ----------------------------------------------------- |
+| Routing Kernel                                     | Artemis City  | Oracle and MCP are clients                            |
+| Hebbian engine                                     | Artemis City  | notebooks provide evidence only                       |
+| Memory orchestration                               | Artemis City  | Oracle supplies adapters/UX                           |
+| Auth identity and request proof                    | Authstructure | Artemis authorizes operations                         |
+| Auth receipts and signing semantics                | Authstructure | Artemis verifies the versioned projection             |
+| Execution provenance contract and persistence port | Artemis City  | Prove supplies migration models and conformance tests |
+| Task ledger                                        | Artemis City  | historical scaffold supplies lifecycle evidence       |
+| Desktop experience                                 | The Oracle    | consumes versioned Artemis contracts                  |
 
 Every enabled link is default-deny and records source repository, immutable
 commit, source paths, destination, contract version, SHA-256 manifest, tests,
@@ -740,22 +740,22 @@ Artemis agent, CLI, package, route, prompt, or provider owner.
 
 The core returns typed, stable failure classes:
 
-| Class | Ledger result | Retry | Learning |
-|---|---|---:|---:|
-| Pre-auth rejection | not admitted | no | no |
-| Authentication verifier unavailable | not admitted | deployment recovery | no |
-| Invalid/inconsistent ATP | `blocked` | explicit correction | no |
-| Unauthorized scope/agent/path | `blocked` | explicit correction | no |
-| Invalid/expired/non-narrowing delegation | `blocked` | new authorized graph | no |
-| Invalid/cyclic/over-budget child graph | `blocked` | new authorized graph | no |
-| No eligible capability/agent | `blocked` | after registry/policy change | no |
-| Governance denial | `blocked` | explicit review | no |
-| Retryable provider failure | `retry_wait` | bounded | no penalty |
-| Non-retryable agent failure | `failed` | explicit requeue | eligible only when classified |
-| Outcome/finalizing commit failure | `running`, then reconcile or block | storage recovery | no |
-| Result-provenance commit failure | `finalizing` | finalization only | no |
-| Projection failure | durable outcome plus pending outbox | projection only | unchanged |
-| Learning persistence failure | terminal outcome plus learning error | governed learning retry | never twice |
+| Class                                    | Ledger result                        |                        Retry |                      Learning |
+| ---------------------------------------- | ------------------------------------ | ---------------------------: | ----------------------------: |
+| Pre-auth rejection                       | not admitted                         |                           no |                            no |
+| Authentication verifier unavailable      | not admitted                         |          deployment recovery |                            no |
+| Invalid/inconsistent ATP                 | `blocked`                            |          explicit correction |                            no |
+| Unauthorized scope/agent/path            | `blocked`                            |          explicit correction |                            no |
+| Invalid/expired/non-narrowing delegation | `blocked`                            |         new authorized graph |                            no |
+| Invalid/cyclic/over-budget child graph   | `blocked`                            |         new authorized graph |                            no |
+| No eligible capability/agent             | `blocked`                            | after registry/policy change |                            no |
+| Governance denial                        | `blocked`                            |              explicit review |                            no |
+| Retryable provider failure               | `retry_wait`                         |                      bounded |                    no penalty |
+| Non-retryable agent failure              | `failed`                             |             explicit requeue | eligible only when classified |
+| Outcome/finalizing commit failure        | `running`, then reconcile or block   |             storage recovery |                            no |
+| Result-provenance commit failure         | `finalizing`                         |            finalization only |                            no |
+| Projection failure                       | durable outcome plus pending outbox  |              projection only |                     unchanged |
+| Learning persistence failure             | terminal outcome plus learning error |      governed learning retry |                   never twice |
 
 Errors expose safe codes and references, not credentials, raw claims, untrusted
 paths, provider secrets, or unsanitized agent content.
@@ -859,7 +859,7 @@ Completion requires evidence for all of the following:
     produces the required parent outcome and linked decision provenance.
 13. Projection failure does not rerun a completed agent.
 14. Wheel and sdist contain only approved tracked runtime files and no Codex
-   runtime identity or local artifacts.
+    runtime identity or local artifacts.
 15. `src.Kernel` resolves only to the compatibility facade and cannot load a
     second router, Memory Bus, or Kernel class.
 16. Canonical Python, TypeScript auth/adapter, package, and live contract tests

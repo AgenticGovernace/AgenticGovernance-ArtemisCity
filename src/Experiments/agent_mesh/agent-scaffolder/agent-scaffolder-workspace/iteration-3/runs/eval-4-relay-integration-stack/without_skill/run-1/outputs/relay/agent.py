@@ -21,7 +21,6 @@ import os
 import secrets
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
 
 from . import atp
 from .audit import AuditHaltError, AuditLog
@@ -53,11 +52,11 @@ class Task:
     target_zone: str = ""
     special_notes: str = ""
     # Optional explicit hints; otherwise Relay infers from capability keywords.
-    wanted_capabilities: Optional[List[str]] = None
+    wanted_capabilities: list[str] | None = None
 
 
 class Relay:
-    def __init__(self, root: Optional[str] = None):
+    def __init__(self, root: str | None = None):
         self.root = root or _repo_root()
         self.config = _load_json(os.path.join(self.root, "relay", "relay.config.json"))
         self.registry = _load_json(os.path.join(self.root, "relay", "registry.json"))
@@ -83,7 +82,7 @@ class Relay:
 
     # ---- session lifecycle -------------------------------------------------
 
-    def start_session(self) -> List[str]:
+    def start_session(self) -> list[str]:
         self.audit.log("session_start", detail=f"session={self.session_id}")
         prior = self.memory.load_reflections()
         self.audit.log(
@@ -98,7 +97,7 @@ class Relay:
 
     # ---- routing -----------------------------------------------------------
 
-    def route(self, task: Task) -> Optional[dict]:
+    def route(self, task: Task) -> dict | None:
         """Pick the best downstream agent. Returns the agent dict or None (escalate)."""
         wanted = set(task.wanted_capabilities or self._infer_capabilities(task))
         candidates = []
@@ -133,7 +132,7 @@ class Relay:
         return chosen
 
     @staticmethod
-    def _infer_capabilities(task: Task) -> List[str]:
+    def _infer_capabilities(task: Task) -> list[str]:
         text = (task.summary + " " + task.payload).lower()
         vocab = [
             "draft",
@@ -242,7 +241,7 @@ class Relay:
 
     # ---- memory + escalation ----------------------------------------------
 
-    def _reflect(self, text: str, ctx: Optional[str] = None) -> None:
+    def _reflect(self, text: str, ctx: str | None = None) -> None:
         sink, ok = self.memory.add_reflection(text, self.session_id, ctx=ctx)
         self.audit.log(
             "reflection",
@@ -263,7 +262,7 @@ class Relay:
         self._reflect(f"Escalated to human: {reason}")
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """Demo run: start a session, hand off one sample task, end the session."""
     relay = Relay()
     try:

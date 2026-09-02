@@ -11,10 +11,13 @@ import logging
 import os
 import sqlite3
 import sys
+from collections.abc import Callable
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
-from typing import Any, Callable, Dict, List
+from typing import Any
 
 import httpx
+import yaml
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
@@ -27,8 +30,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from src.obsidian_integration.parser import ObsidianParser  # noqa: E402
-from src.runtime_paths import data_dir, data_path  # noqa: E402
+from src.obsidian_integration.parser import ObsidianParser
+from src.runtime_paths import data_dir, data_path
 
 _shared_sanitize_for_log: Callable[..., str] | None
 try:
@@ -55,8 +58,7 @@ def _sanitize_for_log(value: Any) -> str:
 import_error: Exception | None = None
 
 try:
-    from src.mcp.config import (AGENT_INPUT_DIR, AGENT_OUTPUT_DIR,
-                                OBSIDIAN_VAULT_PATH)
+    from src.mcp.config import AGENT_INPUT_DIR, AGENT_OUTPUT_DIR, OBSIDIAN_VAULT_PATH
     from src.mcp.orchestrator import Orchestrator
     from src.utils.helpers import logger
 except Exception as e:
@@ -103,7 +105,7 @@ class TaskData(BaseModel):
     context: str | None = None
     keywords: str | None = None
     target: str | None = None
-    subtasks: List[Dict[str, Any]] | None = None
+    subtasks: list[dict[str, Any]] | None = None
 
 
 class AgentResponse(BaseModel):
@@ -115,7 +117,7 @@ class AgentResponse(BaseModel):
     """
 
     name: str
-    capabilities: List[str]
+    capabilities: list[str]
 
 
 class ReportSummary(BaseModel):
@@ -147,7 +149,7 @@ class AgentScore(BaseModel):
     """
 
     name: str
-    capabilities: List[str]
+    capabilities: list[str]
     alignment: float
     accuracy: float
     efficiency: float
@@ -346,7 +348,7 @@ class RoutingCapabilityInfo(BaseModel):
 
     name: str
     kernel_reviewed: bool
-    agents: List[str] = Field(default_factory=list)
+    agents: list[str] = Field(default_factory=list)
 
 
 class RoutingSentinelConfig(BaseModel):
@@ -402,10 +404,10 @@ class RoutingConfigResponse(BaseModel):
     trust_floor: float
     fallback_capability: str | None = None
     atp_strict: bool = False
-    reviewed_capabilities: List[str] = Field(default_factory=list)
-    capabilities: List[RoutingCapabilityInfo] = Field(default_factory=list)
+    reviewed_capabilities: list[str] = Field(default_factory=list)
+    capabilities: list[RoutingCapabilityInfo] = Field(default_factory=list)
     sentinel: RoutingSentinelConfig
-    routing_paths: List[str] = Field(default_factory=list)
+    routing_paths: list[str] = Field(default_factory=list)
 
 
 class ExecuteInstructionRequest(BaseModel):
@@ -451,23 +453,23 @@ class ExecuteInstructionResponse(BaseModel):
     # {agent_name, alpha, beta, trust_floor, fallback_from, capability,
     #  routing_scope, atp_action_type, routing_path,
     #  candidates: [{name, composite, hebbian_weight, hebbian_norm, ...}]}.
-    routing: Dict[str, Any] | None = None
+    routing: dict[str, Any] | None = None
     # Which routing implementation served this task: "kernel" for an
     # authorized Routing Kernel route, "pinned" when the caller named the
     # agent, or one of the legacy_* values when the kernel could not serve it.
     # Mirrors RoutingDecision.routing_path so the UI can label the path even
     # for pinned calls, which carry no decision object.
     routing_path: str | None = None
-    atp: Dict[str, Any] | None = None
+    atp: dict[str, Any] | None = None
     provenance_id: str | None = None
     provider: str | None = None
     fallback_used: bool | None = None
     model: str | None = None
     outcome_class: str | None = None
     learning_eligible: bool | None = None
-    exo_request: Dict[str, Any] | None = None
+    exo_request: dict[str, Any] | None = None
     compressed_context: str | None = None
-    output_compression: Dict[str, Any] | None = None
+    output_compression: dict[str, Any] | None = None
 
 
 # SQLite paths -- align with the rest of the project, which writes to
@@ -792,7 +794,7 @@ def _get_vault_path() -> Path:
     return full_path
 
 
-def _list_markdown_files(folder: Path) -> List[str]:
+def _list_markdown_files(folder: Path) -> list[str]:
     if not folder.is_dir():
         return []
     return sorted(
@@ -878,7 +880,7 @@ def _resolve_task_note_path(relative_path: str) -> str:
     return resolved
 
 
-def _parse_task_note(content: str) -> Dict[str, Any] | None:
+def _parse_task_note(content: str) -> dict[str, Any] | None:
     """Parse task Markdown through the canonical Obsidian parser."""
     return ObsidianParser().parse_task_note(content)
 
@@ -1154,8 +1156,11 @@ async def metrics() -> Response:
     governance state (trust scores, statuses, Sentinel alerts) and
     process metrics only — never secrets or request content.
     """
-    from src.monitoring import (metrics_content_type,
-                                register_governance_collector, render_metrics)
+    from src.monitoring import (
+        metrics_content_type,
+        register_governance_collector,
+        render_metrics,
+    )
 
     register_governance_collector()
     payload = render_metrics()
@@ -1165,7 +1170,7 @@ async def metrics() -> Response:
 
 
 @app.get("/health")
-async def health() -> Dict[str, Any]:
+async def health() -> dict[str, Any]:
     """Container-level liveness probe.
 
     Unauthenticated by design so docker-compose / k8s healthchecks can
@@ -1180,7 +1185,7 @@ async def health() -> Dict[str, Any]:
     }
 
 
-@app.get("/api/agents", response_model=List[AgentResponse])
+@app.get("/api/agents", response_model=list[AgentResponse])
 async def get_agents(_key: None = Depends(_require_api_key)):
     """Return the registered agents exposed by the dashboard API.
 
@@ -1221,7 +1226,7 @@ async def get_agents(_key: None = Depends(_require_api_key)):
             FROM agents
             ORDER BY name ASC
             """).fetchall()
-        agents: List[AgentResponse] = []
+        agents: list[AgentResponse] = []
         for row in rows:
             capabilities = _parse_json(row["capabilities"], [])
             if not isinstance(capabilities, list):
@@ -1396,9 +1401,12 @@ async def get_task_activity(
     for event in events:
         metadata = event["metadata"]
         event_type = event["event_type"]
-        if event_type == "prompt_received" and event["prov_id"]:
-            provenance_id = str(event["prov_id"])
-        elif provenance_id is None and event["prov_id"]:
+        if (
+            event_type == "prompt_received"
+            and event["prov_id"]
+            or provenance_id is None
+            and event["prov_id"]
+        ):
             provenance_id = str(event["prov_id"])
 
         if event_type == "routing_decision":
@@ -1482,7 +1490,7 @@ async def create_task(task_data: TaskData, _key: None = Depends(_require_api_key
         raise HTTPException(status_code=500, detail="Failed to create task.")
 
 
-@app.get("/api/reports", response_model=List[ReportSummary])
+@app.get("/api/reports", response_model=list[ReportSummary])
 async def get_reports(_key: None = Depends(_require_api_key)):
     """Return summary metadata for stored agent reports.
 
@@ -1611,7 +1619,7 @@ async def get_report_content(filename: str, _key: None = Depends(_require_api_ke
 
 @app.post("/api/execute-task")
 async def execute_pending_task(
-    task_path: Dict[str, str], _key: None = Depends(_require_api_key)
+    task_path: dict[str, str], _key: None = Depends(_require_api_key)
 ):
     """Execute a specific pending task note identified by its relative path.
 
@@ -1731,7 +1739,7 @@ async def execute_all_pending_tasks(_key: None = Depends(_require_api_key)):
 # --- Database Viewer Endpoints ---
 
 
-@app.get("/api/db/agents", response_model=List[AgentScore])
+@app.get("/api/db/agents", response_model=list[AgentScore])
 async def get_agent_scores(_key: None = Depends(_require_api_key)):
     """Return score and capability data for all registered agents.
 
@@ -1773,7 +1781,7 @@ async def get_agent_scores(_key: None = Depends(_require_api_key)):
             ORDER BY name ASC
             """).fetchall()
 
-        agents: List[AgentScore] = []
+        agents: list[AgentScore] = []
         for row in rows:
             capabilities = _parse_json(row["capabilities"], [])
             if not isinstance(capabilities, list):
@@ -1871,7 +1879,7 @@ async def get_hebbian_stats(_key: None = Depends(_require_api_key)):
         conn.close()
 
 
-@app.get("/api/db/hebbian/connections", response_model=List[HebbianConnection])
+@app.get("/api/db/hebbian/connections", response_model=list[HebbianConnection])
 async def get_hebbian_connections(
     limit: int = 50, _key: None = Depends(_require_api_key)
 ):
@@ -1999,7 +2007,7 @@ async def get_hebbian_sentinel_status(
     conn = _connect_db(HEBBIAN_DB)
     try:
         clauses = []
-        params: List[Any] = []
+        params: list[Any] = []
         if agent_name:
             clauses.append("agent_name = ?")
             params.append(agent_name)
@@ -2132,7 +2140,7 @@ async def list_vectors(
         conn.close()
 
 
-@app.get("/api/db/runs", response_model=List[RunSummary])
+@app.get("/api/db/runs", response_model=list[RunSummary])
 async def get_runs(limit: int = 20, _key: None = Depends(_require_api_key)):
     """Return recent orchestration runs with summary metadata.
 
@@ -2207,7 +2215,7 @@ async def get_run_events_endpoint(
             FROM event_log
             WHERE run_id = ?
         """
-        params: List[Any] = [run_id]
+        params: list[Any] = [run_id]
         if event_type:
             query += " AND event_type = ?"
             params.append(event_type)
@@ -2244,7 +2252,7 @@ async def get_run_events_endpoint(
 # read-only viewer cannot become a second write path.
 
 
-@app.get("/api/db/trust", response_model=List[TrustScoreRecord])
+@app.get("/api/db/trust", response_model=list[TrustScoreRecord])
 async def get_trust_scores(
     entity_type: str | None = None,
     limit: int = 200,
@@ -2264,7 +2272,7 @@ async def get_trust_scores(
         raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
     conn = _connect_db(TRUST_DB)
     try:
-        params: List[Any] = []
+        params: list[Any] = []
         query = (
             "SELECT entity_type, entity_id, score, level, decay_rate, "
             "reinforcement_events, penalty_events, last_updated FROM trust_scores"
@@ -2297,7 +2305,7 @@ async def get_trust_scores(
         conn.close()
 
 
-@app.get("/api/db/violations", response_model=List[ViolationRecord])
+@app.get("/api/db/violations", response_model=list[ViolationRecord])
 async def get_violations(
     agent_name: str | None = None,
     open_only: bool = False,
@@ -2319,8 +2327,8 @@ async def get_violations(
         raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
     conn = _connect_db(AGENT_REGISTRY_DB)
     try:
-        clauses: List[str] = []
-        params: List[Any] = []
+        clauses: list[str] = []
+        params: list[Any] = []
         if agent_name:
             clauses.append("agent_name = ?")
             params.append(agent_name)
@@ -2356,7 +2364,7 @@ async def get_violations(
         conn.close()
 
 
-@app.get("/api/db/delegation/grants", response_model=List[DelegationGrantSummary])
+@app.get("/api/db/delegation/grants", response_model=list[DelegationGrantSummary])
 async def get_delegation_grants(
     limit: int = 100,
     _key: None = Depends(_require_api_key),
@@ -2397,7 +2405,7 @@ async def get_delegation_grants(
 
 @app.get(
     "/api/db/delegation/reservations",
-    response_model=List[BudgetReservationSummary],
+    response_model=list[BudgetReservationSummary],
 )
 async def get_budget_reservations(
     limit: int = 100,
@@ -2478,7 +2486,7 @@ async def get_routing_config(_key: None = Depends(_require_api_key)):
     try:
         from src.integration.hebbian_router import ROUTING_PATHS
     except Exception:  # pragma: no cover - SQLite-only fallback mode
-        routing_paths: List[str] = []
+        routing_paths: list[str] = []
     else:
         routing_paths = list(ROUTING_PATHS)
 
@@ -2505,13 +2513,13 @@ async def get_routing_config(_key: None = Depends(_require_api_key)):
     try:
         router = orchestrator.hebbian_router
         kernel = getattr(orchestrator, "routing_kernel", None)
-        reviewed: List[str] = []
+        reviewed: list[str] = []
         if kernel is not None:
             reviewed = sorted(kernel.routable_capabilities)
 
         # Advertise only capabilities a loaded agent actually declares, so the
         # executor's dropdown cannot offer a target with no possible candidate.
-        by_capability: Dict[str, List[str]] = {}
+        by_capability: dict[str, list[str]] = {}
         for agent in orchestrator.agent_registry.get_all_agents():
             for capability in getattr(agent, "capabilities", []) or []:
                 by_capability.setdefault(str(capability), []).append(agent.name)
@@ -2595,7 +2603,7 @@ async def execute_instruction(
                 effective_capability = agent_for_dispatch.capabilities[0]
 
         # Build task data
-        task_data: Dict[str, Any] = {
+        task_data: dict[str, Any] = {
             "task_id": task_id,
             "title": task_title,
             "context": request.instruction,
@@ -2784,7 +2792,7 @@ async def execute_instruction_stream(
         if not request.capability and agent_obj.capabilities:
             effective_capability = agent_obj.capabilities[0]
 
-    task_data: Dict[str, Any] = {
+    task_data: dict[str, Any] = {
         "task_id": task_id,
         "title": task_title,
         "context": request.instruction,
@@ -2851,7 +2859,7 @@ async def execute_instruction_stream(
                     # unbounded token backlog once nobody can consume it.
                     if not consumer_closed.is_set():
                         event_queue.put(item)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.error("Streaming executor worker crashed.", exc_info=True)
                 if not consumer_closed.is_set():
                     event_queue.put(
@@ -2950,7 +2958,7 @@ async def execute_instruction_stream(
             # The worker deliberately continues to finalize the governed task
             # even when a browser closes the stream.
             return
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.error("Streaming event encoder crashed.", exc_info=True)
             yield _sse_pack(
                 "error",
@@ -2969,3 +2977,396 @@ async def execute_instruction_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Mutual-TLS agent registry (read-only)
+#
+# The memory server (app/Artemis Agentic Memory Layer) enforces client-
+# certificate identity against `<agent_dir>/clients/*.yaml` and appends every
+# decision to `<agent_dir>/logs/handshakes-YYYY-MM.yaml`. The dashboard reads
+# those same files rather than keeping a parallel copy, so what an operator
+# sees on the Security page is literally what the server enforces. There is no
+# write path here on purpose: issuing and revoking certificates belongs to
+# `scripts/mtls/artemis-mtls.sh`, where the private key material lives.
+# ---------------------------------------------------------------------------
+
+_MTLS_STATUS_ACTIVE = "active"
+_MTLS_STATUS_REVOKED = "revoked"
+_MTLS_STATUS_EXPIRED = "expired"
+_MTLS_STATUS_PENDING = "not_yet_valid"
+_MTLS_STATUS_INVALID = "invalid"
+
+# A certificate inside this window is still valid but wants rotating.
+_MTLS_EXPIRY_WARNING_DAYS = int(os.getenv("ARTEMIS_MTLS_EXPIRY_WARNING_DAYS", "14"))
+
+
+class MtlsClient(BaseModel):
+    """One agent's entry in the mutual-TLS client registry.
+
+    Mirrors the fields of a `.agent/clients/*.yaml` manifest, plus the derived
+    `status` and `days_remaining` the dashboard renders.
+    """
+
+    agent_id: str
+    display_name: str
+    fingerprint_sha256: str
+    issued_by: str = ""
+    valid_from: str | None = None
+    valid_to: str | None = None
+    allowed_routes: list[str] = Field(default_factory=list)
+    revoked: bool = True
+    notes: str = ""
+    status: str = _MTLS_STATUS_INVALID
+    days_remaining: int | None = None
+    manifest_file: str = ""
+
+
+class MtlsProblem(BaseModel):
+    """A manifest the server refuses to load, and why."""
+
+    file: str
+    error: str
+
+
+class MtlsStatus(BaseModel):
+    """Roll-up of the registry's health for the Security page header."""
+
+    enabled: bool
+    agent_dir: str
+    clients_dir: str
+    logs_dir: str
+    client_count: int
+    active_count: int
+    revoked_count: int
+    expiring_soon_count: int
+    problems: list[MtlsProblem] = Field(default_factory=list)
+
+
+class MtlsHandshake(BaseModel):
+    """One appended line of the handshake ledger."""
+
+    ts: str = ""
+    server_cn: str = ""
+    client_cn: str = ""
+    agent_id: str = ""
+    client_fingerprint_sha256: str = ""
+    result: str = ""
+    method: str = ""
+    route: str = ""
+    remote: str = ""
+    reason: str | None = None
+
+
+def _mtls_agent_dir() -> Path:
+    """Resolve the agent registry root the memory server is configured to use.
+
+    Returns:
+        Path: `$ARTEMIS_AGENT_DIR` when set, otherwise `<repo root>/.agent`.
+    """
+    configured = os.getenv("ARTEMIS_AGENT_DIR", "").strip()
+    if configured:
+        return Path(configured).expanduser().resolve()
+    return (_REPO_ROOT / ".agent").resolve()
+
+
+def _mtls_enabled() -> bool:
+    """Report whether the memory server is configured to enforce mutual TLS."""
+    return os.getenv("ARTEMIS_MTLS_ENABLED", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _normalize_fingerprint(raw: Any) -> str:
+    """Normalize a SHA-256 fingerprint to Node's `fingerprint256` shape.
+
+    Accepts the forms operators paste in practice — with or without openssl's
+    ``SHA256 Fingerprint=`` prefix, colon-separated or bare, any case.
+
+    Args:
+        raw: Fingerprint text from a manifest or ledger entry.
+
+    Returns:
+        str: Uppercase hex pairs joined by ':', or '' when unparseable.
+    """
+    if not isinstance(raw, str):
+        return ""
+    hex_only = "".join(c for c in raw if c in "0123456789abcdefABCDEF").upper()
+    if len(hex_only) != 64:
+        return ""
+    return ":".join(hex_only[i : i + 2] for i in range(0, 64, 2))
+
+
+def _parse_manifest_datetime(raw: Any) -> datetime | None:
+    """Parse an ISO-8601 manifest timestamp into an aware UTC datetime."""
+    if isinstance(raw, datetime):
+        parsed = raw
+    elif isinstance(raw, date):
+        parsed = datetime(raw.year, raw.month, raw.day)
+    elif isinstance(raw, str) and raw.strip():
+        try:
+            parsed = datetime.fromisoformat(raw.strip().replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    else:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def _mtls_client_from_manifest(path: Path, doc: dict[str, Any]) -> MtlsClient:
+    """Build a dashboard client record from one parsed manifest.
+
+    Status precedence deliberately matches `AgentRegistry.authorize` in the
+    memory server: revocation outranks the validity window, so a revoked
+    certificate never displays as merely expired.
+
+    Args:
+        path: Manifest location, echoed back so the UI can name the file to edit.
+        doc: Parsed YAML mapping.
+
+    Returns:
+        MtlsClient: Normalized record with derived status.
+
+    Raises:
+        ValueError: When required identity fields are missing or malformed.
+    """
+    agent_id = str(doc.get("agent_id") or "").strip()
+    if not agent_id:
+        raise ValueError("missing required field 'agent_id'")
+
+    fingerprint = _normalize_fingerprint(doc.get("cert_fingerprint_sha256"))
+    if not fingerprint:
+        raise ValueError(
+            "missing or malformed 'cert_fingerprint_sha256' "
+            "(expected 64 hex characters)"
+        )
+
+    routes_raw = doc.get("allowed_routes")
+    routes = (
+        [str(r).strip() for r in routes_raw if str(r).strip()]
+        if isinstance(routes_raw, list)
+        else []
+    )
+
+    valid_from = _parse_manifest_datetime(doc.get("valid_from"))
+    valid_to = _parse_manifest_datetime(doc.get("valid_to"))
+    now = datetime.now(timezone.utc)
+
+    # Anything other than an explicit `false` counts as revoked, matching the
+    # server. A manifest whose revoked field is missing must not grant access.
+    revoked = doc.get("revoked") is not False
+
+    if revoked:
+        status = _MTLS_STATUS_REVOKED
+    elif valid_from and now < valid_from:
+        status = _MTLS_STATUS_PENDING
+    elif valid_to and now > valid_to:
+        status = _MTLS_STATUS_EXPIRED
+    else:
+        status = _MTLS_STATUS_ACTIVE
+
+    days_remaining = (valid_to - now).days if valid_to else None
+
+    display_name = str(doc.get("display_name") or "").strip() or agent_id
+    return MtlsClient(
+        agent_id=agent_id,
+        display_name=display_name,
+        fingerprint_sha256=fingerprint,
+        issued_by=str(doc.get("issued_by") or "").strip(),
+        valid_from=valid_from.isoformat() if valid_from else None,
+        valid_to=valid_to.isoformat() if valid_to else None,
+        allowed_routes=routes,
+        revoked=revoked,
+        notes=str(doc.get("notes") or ""),
+        status=status,
+        days_remaining=days_remaining,
+        manifest_file=path.name,
+    )
+
+
+def _load_mtls_registry() -> tuple[list[MtlsClient], list[MtlsProblem]]:
+    """Read every client manifest under the configured agent directory.
+
+    Returns:
+        tuple: Parsed clients (sorted by agent id) and any manifest problems.
+            Duplicate fingerprints disable every entry claiming them, matching
+            the memory server's refusal to guess which manifest wins.
+    """
+    clients_dir = _mtls_agent_dir() / "clients"
+    clients: list[MtlsClient] = []
+    problems: list[MtlsProblem] = []
+
+    try:
+        manifest_paths = sorted(
+            p
+            for p in clients_dir.iterdir()
+            if p.is_file() and p.suffix in {".yaml", ".yml"}
+        )
+    except FileNotFoundError:
+        return [], []
+    except OSError as exc:
+        problems.append(
+            MtlsProblem(file=str(clients_dir), error=f"directory unreadable: {exc}")
+        )
+        return [], problems
+
+    for path in manifest_paths:
+        try:
+            doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except (OSError, yaml.YAMLError) as exc:
+            problems.append(MtlsProblem(file=path.name, error=str(exc)))
+            continue
+        if not isinstance(doc, dict):
+            problems.append(
+                MtlsProblem(file=path.name, error="manifest is not a YAML mapping")
+            )
+            continue
+        try:
+            clients.append(_mtls_client_from_manifest(path, doc))
+        except ValueError as exc:
+            problems.append(MtlsProblem(file=path.name, error=str(exc)))
+
+    seen: dict[str, MtlsClient] = {}
+    duplicated: set[str] = set()
+    for client in clients:
+        if client.fingerprint_sha256 in seen:
+            duplicated.add(client.fingerprint_sha256)
+            problems.append(
+                MtlsProblem(
+                    file=client.manifest_file,
+                    error=(
+                        "duplicate fingerprint also claimed by "
+                        f"{seen[client.fingerprint_sha256].manifest_file}; "
+                        "both entries are disabled"
+                    ),
+                )
+            )
+        else:
+            seen[client.fingerprint_sha256] = client
+
+    for client in clients:
+        if client.fingerprint_sha256 in duplicated:
+            client.status = _MTLS_STATUS_INVALID
+
+    clients.sort(key=lambda c: c.agent_id)
+    return clients, problems
+
+
+@app.get("/api/mtls/status", response_model=MtlsStatus)
+async def get_mtls_status(_key: None = Depends(_require_api_key)):
+    """Summarize the mutual-TLS client registry for the Security page."""
+    clients, problems = await run_in_threadpool(_load_mtls_registry)
+    agent_dir = _mtls_agent_dir()
+    expiring = sum(
+        1
+        for c in clients
+        if c.status == _MTLS_STATUS_ACTIVE
+        and c.days_remaining is not None
+        and c.days_remaining <= _MTLS_EXPIRY_WARNING_DAYS
+    )
+    return MtlsStatus(
+        enabled=_mtls_enabled(),
+        agent_dir=str(agent_dir),
+        clients_dir=str(agent_dir / "clients"),
+        logs_dir=str(agent_dir / "logs"),
+        client_count=len(clients),
+        active_count=sum(1 for c in clients if c.status == _MTLS_STATUS_ACTIVE),
+        revoked_count=sum(1 for c in clients if c.status == _MTLS_STATUS_REVOKED),
+        expiring_soon_count=expiring,
+        problems=problems,
+    )
+
+
+@app.get("/api/mtls/clients", response_model=list[MtlsClient])
+async def get_mtls_clients(_key: None = Depends(_require_api_key)):
+    """List every agent registered to reach the memory server over mutual TLS."""
+    clients, _ = await run_in_threadpool(_load_mtls_registry)
+    return clients
+
+
+def _load_mtls_handshakes(limit: int, result: str | None) -> list[MtlsHandshake]:
+    """Read the current and previous month's handshake ledgers, newest first.
+
+    Only two files are read so the endpoint's cost stays bounded as the
+    append-only ledger grows.
+
+    Args:
+        limit: Maximum records to return.
+        result: Optional filter, ``accepted`` or ``rejected``.
+
+    Returns:
+        list[MtlsHandshake]: Matching records, newest first.
+    """
+    logs_dir = _mtls_agent_dir() / "logs"
+    now = datetime.now(timezone.utc)
+    previous_month = (now.replace(day=1) - timedelta(days=1)).replace(day=1)
+    names = [
+        f"handshakes-{stamp.year:04d}-{stamp.month:02d}.yaml"
+        for stamp in (now, previous_month)
+    ]
+
+    records: list[MtlsHandshake] = []
+    for name in dict.fromkeys(names):
+        path = logs_dir / name
+        try:
+            entries = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            continue
+        except (OSError, yaml.YAMLError):
+            logger.warning(
+                "Handshake ledger %s is unreadable.", _sanitize_for_log(name)
+            )
+            continue
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            records.append(
+                MtlsHandshake(
+                    ts=str(entry.get("ts") or ""),
+                    server_cn=str(entry.get("server_cn") or ""),
+                    client_cn=str(entry.get("client_cn") or ""),
+                    agent_id=str(entry.get("agent_id") or ""),
+                    client_fingerprint_sha256=str(
+                        entry.get("client_fingerprint_sha256") or ""
+                    ),
+                    result=str(entry.get("result") or ""),
+                    method=str(entry.get("method") or ""),
+                    route=str(entry.get("route") or ""),
+                    remote=str(entry.get("remote") or ""),
+                    reason=(
+                        str(entry["reason"])
+                        if entry.get("reason") is not None
+                        else None
+                    ),
+                )
+            )
+
+    if result:
+        records = [r for r in records if r.result == result]
+    records.sort(key=lambda r: r.ts, reverse=True)
+    return records[:limit]
+
+
+@app.get("/api/mtls/handshakes", response_model=list[MtlsHandshake])
+async def get_mtls_handshakes(
+    limit: int = 100,
+    result: str | None = None,
+    _key: None = Depends(_require_api_key),
+):
+    """Return recent mutual-TLS handshake decisions, newest first.
+
+    Args:
+        limit: Maximum records to return (1-1000).
+        result: Optional filter, ``accepted`` or ``rejected``.
+    """
+    bounded = max(1, min(int(limit), 1000))
+    if result is not None and result not in {"accepted", "rejected"}:
+        raise HTTPException(
+            status_code=400, detail="result must be 'accepted' or 'rejected'."
+        )
+    return await run_in_threadpool(_load_mtls_handshakes, bounded, result)

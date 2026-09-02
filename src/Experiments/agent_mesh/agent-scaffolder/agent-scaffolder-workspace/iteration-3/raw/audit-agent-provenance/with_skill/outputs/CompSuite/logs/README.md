@@ -11,7 +11,7 @@ those promises are empty ceremony.
   status, and the `prov_id` of the matching provenance entry. Example file:
   `daily-2026-06-16.md`.
 - **`escalations-<date>.md`** — high-priority log. **Warning** events are recorded here for
-  review; **Error** events (above the escalation threshold) are recorded here *and* trigger a
+  review; **Error** events (above the escalation threshold) are recorded here _and_ trigger a
   human alert. Normal events never appear here.
 - **`reflection.md`** — append-only reflection log. CompSuite writes a summary **every 50
   actions or every 12 hours, whichever comes first**: event count since last summary, rollup
@@ -23,6 +23,7 @@ those promises are empty ceremony.
   halt-on-failure trigger; this mirror keeps the trace inspectable on disk.
 
 ## Conventions
+
 - Dates are ISO `YYYY-MM-DD`.
 - CompSuite only ever **appends** to these files. It never modifies watched directories.
 - Provenance entries log paths and metadata only — never secrets or file contents.

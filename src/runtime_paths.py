@@ -12,7 +12,7 @@ from __future__ import annotations
 import os
 from os import PathLike
 from pathlib import Path
-from typing import Optional, Union
+from typing import Union
 
 PathValue = Union[str, PathLike[str]]
 
@@ -48,8 +48,8 @@ def logs_dir() -> Path:
 
 def _runtime_path(
     *,
-    value: Optional[PathValue],
-    env_var: Optional[str],
+    value: PathValue | None,
+    env_var: str | None,
     base_dir: Path,
     default_relative: str,
     canonical_prefix: str,
@@ -61,7 +61,7 @@ def _runtime_path(
     as ``data/custom.db`` and ``custom.db`` both resolve underneath the
     configured data directory.
     """
-    selected: Optional[PathValue] = value
+    selected: PathValue | None = value
     if selected in (None, "") and env_var:
         selected = os.environ.get(env_var)
     if selected in (None, ""):
@@ -86,9 +86,9 @@ def _runtime_path(
 
 def data_path(
     default_relative: str,
-    value: Optional[PathValue] = None,
+    value: PathValue | None = None,
     *,
-    env_var: Optional[str] = None,
+    env_var: str | None = None,
 ) -> str:
     """Resolve a persistent data file or subdirectory."""
     return _runtime_path(
@@ -102,9 +102,9 @@ def data_path(
 
 def log_path(
     default_relative: str,
-    value: Optional[PathValue] = None,
+    value: PathValue | None = None,
     *,
-    env_var: Optional[str] = None,
+    env_var: str | None = None,
 ) -> str:
     """Resolve a log file or subdirectory."""
     return _runtime_path(
@@ -116,4 +116,4 @@ def log_path(
     )
 
 
-__all__ = ["REPO_ROOT", "data_dir", "data_path", "logs_dir", "log_path"]
+__all__ = ["REPO_ROOT", "data_dir", "data_path", "log_path", "logs_dir"]

@@ -1,18 +1,18 @@
 import argparse
 import os
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 from fastmcp.tools.function_tool import tool
 
 # Type alias for agent router configuration (JSF AV Rule 209)
-AgentRouterConfig = Dict[str, Any]
+AgentRouterConfig = dict[str, Any]
 
 
 @tool
 def normalize_agent_router_config(
-    config: Optional[AgentRouterConfig],
+    config: AgentRouterConfig | None,
 ) -> AgentRouterConfig:
     """Normalize the agent router configuration for consistent processing.
 
@@ -96,7 +96,7 @@ def load_agent_router_config(config_path: str) -> AgentRouterConfig:
     return normalize_agent_router_config(validated_config)
 
 
-def matches_command(command_lower: str, keywords: List[str]) -> bool:
+def matches_command(command_lower: str, keywords: list[str]) -> bool:
     """Check if any keyword matches as a whole word/phrase in the command.
 
     Uses word boundary regex matching to avoid false positives from

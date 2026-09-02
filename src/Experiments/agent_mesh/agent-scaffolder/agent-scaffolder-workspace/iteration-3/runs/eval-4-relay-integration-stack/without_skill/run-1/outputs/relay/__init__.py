@@ -13,13 +13,13 @@ from .audit import AuditHaltError, AuditLog
 from .memory import ReflectionStore
 
 __all__ = [
+    "ATP_VERSION",
+    "ATPFault",
+    "AuditHaltError",
+    "AuditLog",
+    "ReflectionStore",
     "Relay",
+    "Reply",
     "Task",
     "Transmission",
-    "Reply",
-    "ATPFault",
-    "ATP_VERSION",
-    "ReflectionStore",
-    "AuditLog",
-    "AuditHaltError",
 ]

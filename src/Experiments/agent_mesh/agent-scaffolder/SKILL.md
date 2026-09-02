@@ -15,7 +15,7 @@ into two concrete things:
 2. **A folder scaffold** — the files that give an agent durable, location-aware
    context: `index.md`, `AGENTS.md`, and `.codex/instructions.md`.
 
-It also decides, *explicitly*, how much the agent can **remember, reflect on, and
+It also decides, _explicitly_, how much the agent can **remember, reflect on, and
 audit** — and gates those layers on what the runtime actually persists. The premise:
 consistent behavior comes from scoped, file-based instructions next to the work, not
 from global memory; and memory, reflection, and audit only mean anything if there is
@@ -63,7 +63,7 @@ defaults and state them.
 - **Mission** — the task set it owns, plus explicit non-goals / boundaries.
 - **Output standards** — default format and verbosity.
 - **Escalation** — what to do when ambiguous, out of scope, or above a severity threshold.
-- **Persistence model** — *where, if anywhere, does this agent's state live?* (See step 2.)
+- **Persistence model** — _where, if anywhere, does this agent's state live?_ (See step 2.)
 - **Location** — which folder or repo this agent governs.
 
 ### 2. Set the persistence model — this gates Memory, Reflection logging, and Audit
@@ -71,16 +71,16 @@ defaults and state them.
 Before filling the optional layers, decide where state lives. This is the single most
 important call, because it determines which layers are real and which would be theater.
 
-| Persistence model | What it means | Memory layer | Reflection | Audit / Provenance |
-|---|---|---|---|---|
-| **Ephemeral** (default) | one turn/session; nothing survives | omit | inline one-line self-check only | omit |
-| **Session** | state held for the live session only | recall within the session | summarize at session end | optional, in-session notes |
-| **File-based** | reads/writes files (logs, `index.md`, `.csv`/`.qmd`) | read prior log/state files | append summaries to a reflection log on a cadence | write action log files; escalate via a high-priority log |
-| **External service / DB** | a provenance service or database | backed by the store | logged as entries | use **atp-provenance-logging** (parent + child `prov_id`s) |
+| Persistence model         | What it means                                        | Memory layer               | Reflection                                        | Audit / Provenance                                         |
+| ------------------------- | ---------------------------------------------------- | -------------------------- | ------------------------------------------------- | ---------------------------------------------------------- |
+| **Ephemeral** (default)   | one turn/session; nothing survives                   | omit                       | inline one-line self-check only                   | omit                                                       |
+| **Session**               | state held for the live session only                 | recall within the session  | summarize at session end                          | optional, in-session notes                                 |
+| **File-based**            | reads/writes files (logs, `index.md`, `.csv`/`.qmd`) | read prior log/state files | append summaries to a reflection log on a cadence | write action log files; escalate via a high-priority log   |
+| **External service / DB** | a provenance service or database                     | backed by the store        | logged as entries                                 | use **atp-provenance-logging** (parent + child `prov_id`s) |
 
 **Key principle:** never write a Memory, Reflection-cadence, or Audit instruction the
 runtime can't honor. An "every 50 actions, summarize and recall prior state" rule on an
-agent with no persistence trains it to *narrate* continuity it doesn't have — the
+agent with no persistence trains it to _narrate_ continuity it doesn't have — the
 "hallucinated persistence" failure. Match the layer to the tier, and say which tier you
 chose and why.
 
@@ -94,19 +94,19 @@ and the exact tool calls.
 
 ### 3. Generate the Agent Card
 
-Fill the layers below. Layers marked *gated* are included only when step 2's tier
+Fill the layers below. Layers marked _gated_ are included only when step 2's tier
 supports them — otherwise omit them rather than leave empty ceremony.
 
-| Layer | Purpose | Persistence-gated? |
-|-------|---------|--------------------|
-| Role | Who the agent is + attitude | no |
-| Mission | Tasks it owns + prohibited tasks/boundaries | no |
-| Output Standards | Format, verbosity, assumptions | no |
-| Escalation Rules | Ambiguity / out-of-scope / severity threshold | no |
-| Memory / Context | What to recall, and from where | **yes** — needs session/file/service |
-| Reflection | Self-check + cadence summaries | **partly** — inline always; cadence needs persistence |
-| Audit / Provenance *(opt)* | Log actions for trace and review | **yes** — needs a log destination |
-| Version *(meta)* | Track changes over time (v1.0, v1.1…) | no |
+| Layer                      | Purpose                                       | Persistence-gated?                                    |
+| -------------------------- | --------------------------------------------- | ----------------------------------------------------- |
+| Role                       | Who the agent is + attitude                   | no                                                    |
+| Mission                    | Tasks it owns + prohibited tasks/boundaries   | no                                                    |
+| Output Standards           | Format, verbosity, assumptions                | no                                                    |
+| Escalation Rules           | Ambiguity / out-of-scope / severity threshold | no                                                    |
+| Memory / Context           | What to recall, and from where                | **yes** — needs session/file/service                  |
+| Reflection                 | Self-check + cadence summaries                | **partly** — inline always; cadence needs persistence |
+| Audit / Provenance _(opt)_ | Log actions for trace and review              | **yes** — needs a log destination                     |
+| Version _(meta)_           | Track changes over time (v1.0, v1.1…)         | no                                                    |
 
 Two card shapes:
 
@@ -119,8 +119,8 @@ Two card shapes:
 
 Reflection is a self-check, not decoration. Define it on three axes:
 
-- **Trigger** — *after every major output* (always, even for ephemeral agents: a
-  one-sentence self-check). For persistent agents, *also* on a cadence: every N actions
+- **Trigger** — _after every major output_ (always, even for ephemeral agents: a
+  one-sentence self-check). For persistent agents, _also_ on a cadence: every N actions
   (e.g., 50) or every T hours (e.g., 12), mirroring an audit agent's summary routine.
 - **Content** — what was attempted, whether assumptions were necessary, and whether
   anything drifted from the mission or boundaries. For audit agents, a rollup of events
@@ -147,7 +147,7 @@ unattended or long, or coordinates with other agents.
 - **Rigorous line-item provenance:** when the user wants every action traceable with a
   parent prompt ID and linked child IDs, follow the **atp-provenance-logging** skill and
   reference it from `AGENTS.md`. Note it expects a reachable provenance service and
-  *halts the agent if a log write fails* — only wire it in when that strictness is wanted.
+  _halts the agent if a log write fails_ — only wire it in when that strictness is wanted.
 
 For the full playbook (persistence tiers in depth, reflection patterns, the provenance
 hand-off, and a worked audit-agent example), read
@@ -157,11 +157,11 @@ hand-off, and a worked audit-agent example), read
 
 Create these in the target folder using the templates in `assets/`:
 
-- **`index.md`** — a README *for the agent*: what this location is, what lives here, how
+- **`index.md`** — a README _for the agent_: what this location is, what lives here, how
   to use it.
 - **`AGENTS.md`** — the Agent Card, plus pointers to the ATP comms layer and/or the
   provenance skill when the project needs them.
-- **`.codex/instructions.md`** — concrete behavioral rules for acting *inside this folder*.
+- **`.codex/instructions.md`** — concrete behavioral rules for acting _inside this folder_.
 - When the persistence model is file-based, also create the **log destination** the card
   references (e.g., a `logs/` directory).
 
@@ -174,7 +174,7 @@ overridden by project-wide rules, which are overridden by the local folder's fil
 global defaults  <  project-wide rules  <  this folder's index.md / instructions.md
 ```
 
-Treat global memory as the *personality* layer and the folder files as the *current-task*
+Treat global memory as the _personality_ layer and the folder files as the _current-task_
 layer. Whether a tool auto-loads these files varies by runtime — verify rather than assume.
 
 ## Output

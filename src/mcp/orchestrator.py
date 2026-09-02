@@ -12,7 +12,7 @@ import uuid
 from copy import deepcopy
 from datetime import datetime
 from pathlib import PurePosixPath
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from src.agents import SummarizerAgent
 from src.agents.artemis_agent import ArtemisAgent
@@ -20,8 +20,7 @@ from src.agents.atp.atp_context import resolve_task_context
 from src.agents.llm_agent import LLMAgent
 from src.agents.research_agent import ResearchAgent
 from src.governance.checkpoints import CheckpointStore
-from src.obsidian_integration import (ObsidianGenerator, ObsidianManager,
-                                      ObsidianParser)
+from src.obsidian_integration import ObsidianGenerator, ObsidianManager, ObsidianParser
 from src.utils.helpers import logger, sanitize_for_log
 
 from ..integration.agent_registry import AgentRegistry
@@ -378,9 +377,7 @@ class Orchestrator:
             else:
                 logger.debug("✓ %s validated", _sanitize_for_log(agent_obj.name))
 
-    def _resolve_required_capability(
-        self, task_context: Dict[str, Any]
-    ) -> Optional[str]:
+    def _resolve_required_capability(self, task_context: dict[str, Any]) -> str | None:
         """
         Resolve the required capability for a task.
 
@@ -413,7 +410,7 @@ class Orchestrator:
 
         return None
 
-    def route_task(self, task_context: Dict[str, Any]):
+    def route_task(self, task_context: dict[str, Any]):
         """Route one task through the shared Routing Kernel.
 
         This is the single routing entry point for every in-process ingress.
@@ -436,8 +433,10 @@ class Orchestrator:
         if self.routing_kernel is None:
             return self._legacy_route(task_context, "legacy_kernel_unavailable")
 
-        from ..routing.kernel import (CAPABILITY_OUTSIDE_REVIEWED_DOMAIN,
-                                      RoutingKernelDenied)
+        from ..routing.kernel import (
+            CAPABILITY_OUTSIDE_REVIEWED_DOMAIN,
+            RoutingKernelDenied,
+        )
 
         try:
             route = self.routing_kernel.route_task_context(
@@ -468,7 +467,7 @@ class Orchestrator:
             ) from denied
         return route.decision
 
-    def _legacy_route(self, task_context: Dict[str, Any], reason: str):
+    def _legacy_route(self, task_context: dict[str, Any], reason: str):
         """Route through the legacy router, labelled with why the kernel did not.
 
         The kernel is the authoritative path, so every legacy route is a
@@ -487,7 +486,7 @@ class Orchestrator:
         decision.routing_path = reason
         return decision
 
-    def prepare_task_context(self, task_context: Dict[str, Any]) -> Dict[str, Any]:
+    def prepare_task_context(self, task_context: dict[str, Any]) -> dict[str, Any]:
         """Attach canonical ATP routing context when headers are present."""
         if task_context.get("_skip_atp_resolution") is True:
             return dict(task_context)
@@ -505,16 +504,16 @@ class Orchestrator:
         )
 
     @staticmethod
-    def _strict_provenance(task_context: Dict[str, Any]) -> bool:
+    def _strict_provenance(task_context: dict[str, Any]) -> bool:
         """ATP prompts fail closed when their provenance sink is unavailable."""
         return bool(task_context.get("atp"))
 
     def ensure_task_provenance(
         self,
-        task_context: Dict[str, Any],
+        task_context: dict[str, Any],
         *,
         source: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create the parent provenance event for one prompt/task."""
         if task_context.get("provenance_id"):
             return task_context
@@ -547,13 +546,13 @@ class Orchestrator:
 
     def _log_provenance_action(
         self,
-        task_context: Dict[str, Any],
+        task_context: dict[str, Any],
         event_type: str,
         component: str,
-        metadata: Optional[Dict[str, Any]] = None,
-        message: Optional[str] = None,
-        duration_ms: Optional[float] = None,
-    ) -> Optional[str]:
+        metadata: dict[str, Any] | None = None,
+        message: str | None = None,
+        duration_ms: float | None = None,
+    ) -> str | None:
         """Write one child action linked to the task's parent provenance."""
         parent_id = task_context.get("provenance_id")
         if not parent_id:
@@ -575,9 +574,9 @@ class Orchestrator:
 
     def route_and_execute_task(
         self,
-        task_context: Dict[str, Any],
-        original_task_note_path: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        task_context: dict[str, Any],
+        original_task_note_path: str | None = None,
+    ) -> dict[str, Any]:
         """
         Route a task to the best agent and execute it.
 
@@ -665,9 +664,9 @@ class Orchestrator:
     def assign_and_execute_task(
         self,
         agent_name: str,
-        task_context: Dict[str, Any],
-        original_task_note_path: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        task_context: dict[str, Any],
+        original_task_note_path: str | None = None,
+    ) -> dict[str, Any]:
         """
         Assign a task to a specific agent and execute it.
 
@@ -770,7 +769,7 @@ class Orchestrator:
             f"Starting task {task_id} with {agent_name}",
         )
 
-        results: Dict[str, Any]
+        results: dict[str, Any]
         execution_context = self._attach_source_context(
             self._enrich_task_with_memory(task_context)
         )
@@ -786,7 +785,7 @@ class Orchestrator:
             # Determine if task was successful
             task_success = results.get("status") != "failed"
 
-        except Exception as e:
+        except Exception:
             logger.error(
                 "Agent %s failed on task %s.",
                 _sanitize_for_log(agent_name),
@@ -880,12 +879,12 @@ class Orchestrator:
         self,
         agent_name: str,
         task_id: str,
-        task_context: Dict[str, Any],
-        results: Dict[str, Any],
+        task_context: dict[str, Any],
+        results: dict[str, Any],
         *,
         task_success: bool,
         duration_ms: float,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """Apply learning only when an outcome measures agent performance."""
         outcome_class = (
             str(
@@ -956,7 +955,7 @@ class Orchestrator:
         return normalized or "unknown"
 
     @staticmethod
-    def _memory_receipt_state(receipt: object) -> Dict[str, Any]:
+    def _memory_receipt_state(receipt: object) -> dict[str, Any]:
         """Normalize compatibility and SQL-mode memory write outcomes."""
         if not isinstance(receipt, dict):
             return {
@@ -981,7 +980,7 @@ class Orchestrator:
         }
 
     def _remember_memory_projection_receipt(
-        self, relative_path: str, receipt_state: Dict[str, Any]
+        self, relative_path: str, receipt_state: dict[str, Any]
     ) -> None:
         """Retain the latest replay handle for one internally generated write."""
         receipts = getattr(self, "_memory_projection_receipts", None)
@@ -992,7 +991,7 @@ class Orchestrator:
 
     def get_memory_projection_receipt(
         self, relative_path: str
-    ) -> Dict[str, Any] | None:
+    ) -> dict[str, Any] | None:
         """Return a copy of the latest write receipt retained for a memory path."""
         receipts = getattr(self, "_memory_projection_receipts", None)
         if not isinstance(receipts, dict):
@@ -1008,8 +1007,8 @@ class Orchestrator:
         self,
         agent_name: str,
         task_id: str,
-        task_context: Dict[str, Any],
-        results: Dict[str, Any],
+        task_context: dict[str, Any],
+        results: dict[str, Any],
     ) -> bool:
         """Persist the consumer-facing report and return whether it succeeded."""
         report_results = dict(results)
@@ -1070,10 +1069,10 @@ class Orchestrator:
 
     def _compress_long_exo_output(
         self,
-        task_context: Dict[str, Any],
-        execution_context: Dict[str, Any],
-        results: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        task_context: dict[str, Any],
+        execution_context: dict[str, Any],
+        results: dict[str, Any],
+    ) -> dict[str, Any]:
         """Archive and summarize a long successful Exo result via governed routing."""
         threshold = int(
             getattr(
@@ -1145,7 +1144,7 @@ class Orchestrator:
             )
 
         child_task_id = f"{task_id}:context-compression"
-        child_context: Dict[str, Any] = {
+        child_context: dict[str, Any] = {
             "task_id": child_task_id,
             "title": f"Compress Exo output for {task_id}",
             "required_capability": "text_summarization",
@@ -1252,7 +1251,7 @@ class Orchestrator:
 
     @staticmethod
     def _remove_preserved_raw_output(
-        results: Dict[str, Any], *, report_persisted: bool
+        results: dict[str, Any], *, report_persisted: bool
     ) -> None:
         """Drop raw text only after at least one durable copy was written."""
         compression = results.get("output_compression")
@@ -1268,8 +1267,8 @@ class Orchestrator:
 
     def stream_route_and_execute(
         self,
-        task_context: Dict[str, Any],
-        original_task_note_path: Optional[str] = None,
+        task_context: dict[str, Any],
+        original_task_note_path: str | None = None,
     ):
         """Stream a routing + execution flow as a sequence of events.
 
@@ -1397,7 +1396,7 @@ class Orchestrator:
             return
 
         task_success = False
-        results: Dict[str, Any] = {}
+        results: dict[str, Any] = {}
         task_start_time = time.perf_counter()
         self._log_provenance_action(
             task_context,
@@ -1456,7 +1455,7 @@ class Orchestrator:
                 "summary": "Task failed; see server logs for details.",
             }
         task_duration_ms = (time.perf_counter() - task_start_time) * 1000
-        hebbian_error: Optional[str] = None
+        hebbian_error: str | None = None
         try:
             self._record_execution_learning(
                 agent_name,
@@ -1562,9 +1561,9 @@ class Orchestrator:
         agent_name: str,
         task_id: str,
         success: bool,
-        task_type: Optional[str] = None,
-        results: Optional[Dict[str, Any]] = None,
-        duration_ms: Optional[float] = None,
+        task_type: str | None = None,
+        results: dict[str, Any] | None = None,
+        duration_ms: float | None = None,
     ) -> dict:
         """
         Update Hebbian connection weights based on task outcome.
@@ -1614,7 +1613,7 @@ class Orchestrator:
             )
         return {**learning, **registry_metrics}
 
-    def _check_dispatch(self, agent, task_context: Dict[str, Any]):
+    def _check_dispatch(self, agent, task_context: dict[str, Any]):
         """Run the production sandbox preflight for one agent dispatch."""
         capability = task_context.get("required_capability")
         declared = list(getattr(agent, "capabilities", []) or [])
@@ -1657,7 +1656,7 @@ class Orchestrator:
 
     def log_routing_decision(
         self,
-        task_context: Dict[str, Any],
+        task_context: dict[str, Any],
         agent_name: str,
         *,
         decision=None,
@@ -1681,7 +1680,7 @@ class Orchestrator:
         )
 
     @staticmethod
-    def _outcome_performance(results: Dict[str, Any], success: bool) -> float:
+    def _outcome_performance(results: dict[str, Any], success: bool) -> float:
         """Resolve a normalized target activation from an agent result."""
         if not success:
             return 0.0
@@ -1708,7 +1707,7 @@ class Orchestrator:
                 return max(0.0, min(1.0, numeric))
         return 1.0
 
-    def check_for_new_tasks_from_obsidian(self) -> List[Tuple[str, Dict[str, Any]]]:
+    def check_for_new_tasks_from_obsidian(self) -> list[tuple[str, dict[str, Any]]]:
         """
         Scan the Obsidian input directory for new pending tasks.
 
@@ -1785,10 +1784,10 @@ class Orchestrator:
         self,
         relative_note_path: str,
         new_status: str,
-        task_id: Optional[str] = None,
+        task_id: str | None = None,
         *,
         idempotency_key: str | None = None,
-    ) -> Dict[str, Any] | None:
+    ) -> dict[str, Any] | None:
         """Updates the status of a specific task note in Obsidian.
 
         Args:
@@ -1812,7 +1811,7 @@ class Orchestrator:
                 original_content, new_status, task_id
             )
             try:
-                write_kwargs: Dict[str, Any] = {
+                write_kwargs: dict[str, Any] = {
                     "metadata": {"task_id": task_id, "status": new_status},
                     "provenance_id": exact.get("provenance_id"),
                     "source_agent": "Artemis Orchestrator",
@@ -1897,7 +1896,7 @@ class Orchestrator:
         relative_path = os.path.join(AGENT_INPUT_DIR, filename)
         markdown_content = self.obs_generator.generate_task_note(task_data)
         try:
-            write_kwargs: Dict[str, Any] = {
+            write_kwargs: dict[str, Any] = {
                 "metadata": {
                     "task_id": task_data.get("task_id"),
                     "created_by": "orchestrator",
@@ -2007,7 +2006,7 @@ class Orchestrator:
                             or "Task returned a failed status",
                         }
                     )
-            except Exception as exc:
+            except Exception:
                 logger.error(
                     "Failed to execute task %s from %s.",
                     _sanitize_for_log(task_id),
@@ -2064,7 +2063,7 @@ class Orchestrator:
         return enriched
 
     @staticmethod
-    def _attach_source_context(task_context: Dict[str, Any]) -> Dict[str, Any]:
+    def _attach_source_context(task_context: dict[str, Any]) -> dict[str, Any]:
         """Attach an immutable-by-convention snapshot shared across a hand-off.
 
         Primary executions snapshot their fully enriched context. Internal child

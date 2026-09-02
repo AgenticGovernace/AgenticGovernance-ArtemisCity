@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import signal
 import sys
 from collections.abc import Sequence
 
@@ -15,9 +16,31 @@ from artemis_mcp_common.principals import (
 )
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.mcpserver import MCPServer
+from posthog import Posthog
+from posthog.mcp import instrument as _mcp_instrument
 
 from .server import create_memory_server
 from .wiring import MemoryServerConfigurationError, build_memory_service
+
+# Module-scope PostHog client (optional — server runs normally without it).
+_POSTHOG_TOKEN = os.environ.get("POSTHOG_PROJECT_TOKEN", "")
+_POSTHOG_HOST = os.environ.get("POSTHOG_HOST", "https://us.i.posthog.com")
+
+if _POSTHOG_TOKEN:
+    _posthog: Posthog | None = Posthog(
+        _POSTHOG_TOKEN,
+        host=_POSTHOG_HOST,
+        enable_exception_autocapture=True,
+    )
+else:
+    _posthog = None
+    if os.environ.get("DEBUG"):
+        print(
+            "POSTHOG_PROJECT_TOKEN variable required by PostHog is missing or "
+            "un-configured, this causes events to be silently missed. "
+            "This error stops appearing once POSTHOG_PROJECT_TOKEN is configured",
+            file=sys.stderr,
+        )
 
 _TRANSPORT_SCOPE = "artemis:memory"
 
@@ -99,21 +122,38 @@ def main(argv: Sequence[str] | None = None) -> None:
     args = _parse_args(argv)
     if args.http:
         server = build_http_server()
+        if _posthog is not None:
+            _mcp_instrument(server, _posthog)
         print(
             f"artemis-memory-mcp: starting streamable-http on "
             f"{args.host}:{args.port}/mcp",
             file=sys.stderr,
         )
-        server.run(
-            "streamable-http",
-            host=args.host,
-            port=args.port,
-            streamable_http_path="/mcp",
-        )
+        try:
+            server.run(
+                "streamable-http",
+                host=args.host,
+                port=args.port,
+                streamable_http_path="/mcp",
+            )
+        finally:
+            if _posthog is not None:
+                _posthog.shutdown()
     else:
         server = build_stdio_server()
+        if _posthog is not None:
+            _mcp_instrument(server, _posthog)
+
+            def _on_sigterm(signum: int, frame: object) -> None:
+                _posthog.shutdown()
+                sys.exit(0)
+
+            signal.signal(signal.SIGTERM, _on_sigterm)
+
         print("artemis-memory-mcp: starting stdio transport", file=sys.stderr)
         server.run("stdio")
+        if _posthog is not None:
+            _posthog.shutdown()
 
 
 if __name__ == "__main__":

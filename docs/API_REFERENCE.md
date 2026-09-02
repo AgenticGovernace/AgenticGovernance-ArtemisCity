@@ -1,7 +1,9 @@
 <p><a target="_blank" href="https://app.eraser.io/workspace/olHJAnjmyPJ03fNBzDOT" id="edit-in-eraser-github-link"><img alt="Edit in Eraser" src="https://firebasestorage.googleapis.com/v0/b/second-petal-295822.appspot.com/o/images%2Fgithub%2FOpen%20in%20Eraser.svg?alt=media&amp;token=968381c8-a7e7-472a-8ed6-4a6626da5501"></a></p>
 
 # API Reference
+
 ## Overview
+
 Artemis City currently exposes two HTTP surfaces:
 
 1. **FastAPI dashboard API** (`app/api/main.py`): dashboard-oriented `/api/*` endpoints used by the Vite frontend.
@@ -31,62 +33,62 @@ Rendered signatures and docstrings are in
 
 All routes below require the Express API authentication middleware except health endpoints.
 
-| Endpoint | Status | Python bridge command |
-|---|---|---|
-| `GET /api/v1/agents` | Implemented | `registry.list_agents` |
-| `GET /api/v1/agents/:id` | Implemented | `registry.get_agent` |
-| `GET /api/v1/agents/:id/card` | Implemented | `registry.get_agent` |
-| `POST /api/v1/agents` | Implemented | `registry.register_agent` |
-| `PUT /api/v1/agents/:id` | Implemented | `registry.update_agent` |
-| `DELETE /api/v1/agents/:id` | Implemented | `registry.delete_agent` |
-| `POST /api/v1/agents/:id/suspend` | Implemented | `registry.set_agent_status` |
-| `POST /api/v1/agents/:id/activate` | Implemented | `registry.set_agent_status` |
-| `GET /api/v1/registry/agents` | Implemented | `registry.list_agents` |
-| `GET /api/v1/registry/agents/:agentId` | Implemented | `registry.get_agent` |
-| `GET /api/v1/registry/agents/:agentId/violations` | Implemented | `registry.get_violations` |
-| `POST /api/v1/registry/agents/:agentId/clear-violations` | Implemented | `registry.clear_violations` |
-| `PATCH /api/v1/registry/agents/:agentId/trust-tier` | Implemented | `registry.set_trust_tier` |
-| `POST /api/v1/governance/agents/:agentId/trust` | Implemented | `governance.compute_trust` |
-| `POST /api/v1/governance/updates` | Implemented | `governance.evaluate_update` |
-| `GET /api/v1/governance/checkpoints` | Implemented | `governance.checkpoints.list` |
-| `GET /api/v1/governance/checkpoints/:checkpointId` | Implemented | `governance.checkpoints.get` |
-| `POST /api/v1/governance/checkpoints` | Implemented | `governance.checkpoints.create` |
-| `POST /api/v1/governance/checkpoints/:checkpointId/rollback` | Implemented | `governance.checkpoints.rollback` |
-| `POST /api/v1/memory/read` | Implemented | `memory.read` |
-| `POST /api/v1/memory/write` | Implemented | `memory.write` |
-| `POST /api/v1/memory/search` | Implemented | `memory.search` |
-| `POST /api/v1/memory/list` | Implemented | `memory.list` |
-| `GET /api/v1/memory/stats` | Implemented | `memory.stats` |
-| `POST /api/v1/memory/delete` | Implemented | `memory.delete` |
-| `POST /api/v1/atp/parse` | Implemented | `atp.parse` |
-| `POST /api/v1/atp/validate` | Implemented | `atp.validate` |
-| `POST /api/v1/atp/send` | Implemented | `atp.send` |
-| `POST /api/v1/atp/route` | Implemented | `atp.route` |
-| `GET /api/v1/atp/modes` | Implemented | `atp.modes` |
-| `GET /api/v1/atp/priorities` | Implemented | `atp.priorities` |
-| `GET /api/v1/atp/action-types` | Implemented | `atp.action_types` |
-| `GET /api/v1/atp/template` | Implemented | `atp.template` |
-| `POST /api/v1/atp/format` | Implemented | `atp.format` |
-| `GET /api/v1/atp/message/:id` | Implemented | `atp.get_message` |
-| `GET /api/v1/atp/response/:id` | Implemented | `atp.get_response` |
-| `GET /api/v1/atp/queue` | Implemented | `atp.queue` |
-| `GET /api/v1/trust/:entityId` | Implemented | `trust.get_score` |
-| `POST /api/v1/trust/:entityId/failure` | Implemented | `trust.record_failure` |
-| `GET /api/v1/trust/hebbian/weights` | Implemented | `hebbian.weights` |
-| `PUT /api/v1/trust/hebbian/weights` | Implemented | `hebbian.update` |
-| `GET /api/v1/trust/hebbian/sentinel` | Implemented | `hebbian.sentinel_status` |
-| `GET /api/v1/trust/hebbian/sentinel/alerts` | Implemented | `hebbian.sentinel_alerts` |
-| `GET /api/v1/trust/levels` | Implemented | `trust.levels` |
-| `GET /api/v1/trust/report` | Implemented | `trust.report` |
-| `PUT /api/v1/trust/:entityId` | Implemented | `trust.set_score` |
-| `POST /api/v1/trust/:entityId/success` | Implemented | `trust.record_success` |
-| `GET /api/v1/trust/:entityId/permissions` | Implemented | `trust.permissions` |
-| `POST /api/v1/trust/:entityId/can-perform` | Implemented | `trust.can_perform` |
-| `POST /api/v1/llm/chat` | Implemented | `llm.chat` |
-| `POST /api/v1/llm/complete` | Implemented | `llm.complete` |
-| `GET /api/v1/llm/models` | Implemented (configured state) | `llm.config` |
-| `GET /api/v1/llm/providers` | Implemented (redacted environment state) | `llm.config` |
-| `POST /api/v1/llm/embed`, `/stream`, `/provider`, `/atp`; `GET /usage` | Explicit `501` | None; no simulated fallback |
+| Endpoint                                                               | Status                                   | Python bridge command             |
+| ---------------------------------------------------------------------- | ---------------------------------------- | --------------------------------- |
+| `GET /api/v1/agents`                                                   | Implemented                              | `registry.list_agents`            |
+| `GET /api/v1/agents/:id`                                               | Implemented                              | `registry.get_agent`              |
+| `GET /api/v1/agents/:id/card`                                          | Implemented                              | `registry.get_agent`              |
+| `POST /api/v1/agents`                                                  | Implemented                              | `registry.register_agent`         |
+| `PUT /api/v1/agents/:id`                                               | Implemented                              | `registry.update_agent`           |
+| `DELETE /api/v1/agents/:id`                                            | Implemented                              | `registry.delete_agent`           |
+| `POST /api/v1/agents/:id/suspend`                                      | Implemented                              | `registry.set_agent_status`       |
+| `POST /api/v1/agents/:id/activate`                                     | Implemented                              | `registry.set_agent_status`       |
+| `GET /api/v1/registry/agents`                                          | Implemented                              | `registry.list_agents`            |
+| `GET /api/v1/registry/agents/:agentId`                                 | Implemented                              | `registry.get_agent`              |
+| `GET /api/v1/registry/agents/:agentId/violations`                      | Implemented                              | `registry.get_violations`         |
+| `POST /api/v1/registry/agents/:agentId/clear-violations`               | Implemented                              | `registry.clear_violations`       |
+| `PATCH /api/v1/registry/agents/:agentId/trust-tier`                    | Implemented                              | `registry.set_trust_tier`         |
+| `POST /api/v1/governance/agents/:agentId/trust`                        | Implemented                              | `governance.compute_trust`        |
+| `POST /api/v1/governance/updates`                                      | Implemented                              | `governance.evaluate_update`      |
+| `GET /api/v1/governance/checkpoints`                                   | Implemented                              | `governance.checkpoints.list`     |
+| `GET /api/v1/governance/checkpoints/:checkpointId`                     | Implemented                              | `governance.checkpoints.get`      |
+| `POST /api/v1/governance/checkpoints`                                  | Implemented                              | `governance.checkpoints.create`   |
+| `POST /api/v1/governance/checkpoints/:checkpointId/rollback`           | Implemented                              | `governance.checkpoints.rollback` |
+| `POST /api/v1/memory/read`                                             | Implemented                              | `memory.read`                     |
+| `POST /api/v1/memory/write`                                            | Implemented                              | `memory.write`                    |
+| `POST /api/v1/memory/search`                                           | Implemented                              | `memory.search`                   |
+| `POST /api/v1/memory/list`                                             | Implemented                              | `memory.list`                     |
+| `GET /api/v1/memory/stats`                                             | Implemented                              | `memory.stats`                    |
+| `POST /api/v1/memory/delete`                                           | Implemented                              | `memory.delete`                   |
+| `POST /api/v1/atp/parse`                                               | Implemented                              | `atp.parse`                       |
+| `POST /api/v1/atp/validate`                                            | Implemented                              | `atp.validate`                    |
+| `POST /api/v1/atp/send`                                                | Implemented                              | `atp.send`                        |
+| `POST /api/v1/atp/route`                                               | Implemented                              | `atp.route`                       |
+| `GET /api/v1/atp/modes`                                                | Implemented                              | `atp.modes`                       |
+| `GET /api/v1/atp/priorities`                                           | Implemented                              | `atp.priorities`                  |
+| `GET /api/v1/atp/action-types`                                         | Implemented                              | `atp.action_types`                |
+| `GET /api/v1/atp/template`                                             | Implemented                              | `atp.template`                    |
+| `POST /api/v1/atp/format`                                              | Implemented                              | `atp.format`                      |
+| `GET /api/v1/atp/message/:id`                                          | Implemented                              | `atp.get_message`                 |
+| `GET /api/v1/atp/response/:id`                                         | Implemented                              | `atp.get_response`                |
+| `GET /api/v1/atp/queue`                                                | Implemented                              | `atp.queue`                       |
+| `GET /api/v1/trust/:entityId`                                          | Implemented                              | `trust.get_score`                 |
+| `POST /api/v1/trust/:entityId/failure`                                 | Implemented                              | `trust.record_failure`            |
+| `GET /api/v1/trust/hebbian/weights`                                    | Implemented                              | `hebbian.weights`                 |
+| `PUT /api/v1/trust/hebbian/weights`                                    | Implemented                              | `hebbian.update`                  |
+| `GET /api/v1/trust/hebbian/sentinel`                                   | Implemented                              | `hebbian.sentinel_status`         |
+| `GET /api/v1/trust/hebbian/sentinel/alerts`                            | Implemented                              | `hebbian.sentinel_alerts`         |
+| `GET /api/v1/trust/levels`                                             | Implemented                              | `trust.levels`                    |
+| `GET /api/v1/trust/report`                                             | Implemented                              | `trust.report`                    |
+| `PUT /api/v1/trust/:entityId`                                          | Implemented                              | `trust.set_score`                 |
+| `POST /api/v1/trust/:entityId/success`                                 | Implemented                              | `trust.record_success`            |
+| `GET /api/v1/trust/:entityId/permissions`                              | Implemented                              | `trust.permissions`               |
+| `POST /api/v1/trust/:entityId/can-perform`                             | Implemented                              | `trust.can_perform`               |
+| `POST /api/v1/llm/chat`                                                | Implemented                              | `llm.chat`                        |
+| `POST /api/v1/llm/complete`                                            | Implemented                              | `llm.complete`                    |
+| `GET /api/v1/llm/models`                                               | Implemented (configured state)           | `llm.config`                      |
+| `GET /api/v1/llm/providers`                                            | Implemented (redacted environment state) | `llm.config`                      |
+| `POST /api/v1/llm/embed`, `/stream`, `/provider`, `/atp`; `GET /usage` | Explicit `501`                           | None; no simulated fallback       |
 
 Trust mutations are write-through for agent entities: the bridge synchronizes
 the authoritative registry projection and `data/trust_scores.db`. Governance
@@ -110,21 +112,23 @@ projection.
 
 ### Bridge Error Mapping
 
-| Bridge code | HTTP status |
-|---|---:|
-| `NOT_FOUND` | 404 |
-| `INVALID_REQUEST`, `INVALID_JSON` | 400 |
-| `FORBIDDEN` | 403 |
-| `RATE_LIMITED` | 429 |
-| `PROVIDER_ERROR` | 502 |
-| `SERVICE_UNAVAILABLE` | 503 |
-| `TIMEOUT` | 504 |
-| `UNKNOWN_COMMAND`, `BRIDGE_ERROR`, `INTERNAL_ERROR`, `BRIDGE_UNAVAILABLE` | 500 |
+| Bridge code                                                               | HTTP status |
+| ------------------------------------------------------------------------- | ----------: |
+| `NOT_FOUND`                                                               |         404 |
+| `INVALID_REQUEST`, `INVALID_JSON`                                         |         400 |
+| `FORBIDDEN`                                                               |         403 |
+| `RATE_LIMITED`                                                            |         429 |
+| `PROVIDER_ERROR`                                                          |         502 |
+| `SERVICE_UNAVAILABLE`                                                     |         503 |
+| `TIMEOUT`                                                                 |         504 |
+| `UNKNOWN_COMMAND`, `BRIDGE_ERROR`, `INTERNAL_ERROR`, `BRIDGE_UNAVAILABLE` |         500 |
 
 ## Agent Transmission Protocol (ATP)
+
 ATP is the structured message format for agent-to-agent communication and kernel-to-agent direction.
 
 ### ATP Message Format
+
 ```
 #Mode: Build
 #Context: Brief mission goal
@@ -135,15 +139,17 @@ ATP is the structured message format for agent-to-agent communication and kernel
 
 <message_body>
 ```
+
 ### ATP Tags Specification
-| Tag | Values | Required | Example | Purpose |
-| ----- | ----- | ----- | ----- | ----- |
-| `#Mode:` | `Build`, `Review`, `Organize`, `Capture`, `Synthesize`, `Commit`, `Reflect` | Recommended | `#Mode: Build` | Overall intent |
-| `#Context:` | Free-form text | Recommended | `#Context: Add bridge tests` | Mission goal |
-| `#Priority:` | `Critical`, `High`, `Normal`, `Low` | Optional | `#Priority: Normal` | Urgency |
-| `#ActionType:` or `#Action:` | `Summarize`, `Scaffold`, `Execute`, `Reflect` | Recommended | `#ActionType: Execute` | Expected response |
-| `#TargetZone:` | Path or project area | Optional | `#TargetZone: src/api_bridge.py` | Affected area |
-| `#SpecialNotes:` | Free-form text | Optional | `#SpecialNotes: Keep API stable` | Warnings or context |
+
+| Tag                          | Values                                                                      | Required    | Example                          | Purpose             |
+| ---------------------------- | --------------------------------------------------------------------------- | ----------- | -------------------------------- | ------------------- |
+| `#Mode:`                     | `Build`, `Review`, `Organize`, `Capture`, `Synthesize`, `Commit`, `Reflect` | Recommended | `#Mode: Build`                   | Overall intent      |
+| `#Context:`                  | Free-form text                                                              | Recommended | `#Context: Add bridge tests`     | Mission goal        |
+| `#Priority:`                 | `Critical`, `High`, `Normal`, `Low`                                         | Optional    | `#Priority: Normal`              | Urgency             |
+| `#ActionType:` or `#Action:` | `Summarize`, `Scaffold`, `Execute`, `Reflect`                               | Recommended | `#ActionType: Execute`           | Expected response   |
+| `#TargetZone:`               | Path or project area                                                        | Optional    | `#TargetZone: src/api_bridge.py` | Affected area       |
+| `#SpecialNotes:`             | Free-form text                                                              | Optional    | `#SpecialNotes: Keep API stable` | Warnings or context |
 
 Canonical parsing and validation are implemented in
 `src/agents/atp/atp_models.py`, `src/agents/atp/atp_parser.py`, and
@@ -169,17 +175,17 @@ while preserving compatibility.
 
 ## Current FastAPI Dashboard Additions
 
-| Endpoint | Purpose |
-|---|---|
-| `POST /api/cli/execute` | Executes plain or ATP instructions and returns routing/provenance plus verified `provider`, `fallback_used`, `model`, `outcome_class`, `learning_eligible`, `exo_request`, and optional `output_compression` evidence. Also returns `routing_path`. |
-| `POST /api/cli/execute/stream` | SSE equivalent; emits heartbeats during long inference and returns the same provider/compression evidence in `complete`. The `routing` and `complete` frames both carry `routing_path`. |
-| `GET /api/db/hebbian/sentinel` | Current stability state, filterable by `agent_name` and `task_type`. |
-| `GET /api/db/hebbian/sentinel/alerts` | Persisted open/resolved alert transitions; `open_only=true` filters active alerts. |
-| `GET /api/routing/config` | Live routing configuration used to label decisions in the UI: kernel/Hebbian toggles, blend weights, trust floor, fallback capability, Sentinel settings, the reviewed-domain capability list, and the advertised capabilities labelled by `kernel_reviewed`. |
-| `GET /api/db/trust` | Persisted trust scores from `data/trust_scores.db`; `entity_type` filters the entity family. Read-only. |
-| `GET /api/db/violations` | Sandbox and governance violations; `agent_name` and `open_only` filter. Read-only — clearing a violation stays a governance action. |
-| `GET /api/db/delegation/grants` | Delegation-grant ledger metadata. The signed `payload` and its `grant_hash` are deliberately never served. |
-| `GET /api/db/delegation/reservations` | Budget reservations backing delegated routing. |
+| Endpoint                              | Purpose                                                                                                                                                                                                                                                       |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/cli/execute`               | Executes plain or ATP instructions and returns routing/provenance plus verified `provider`, `fallback_used`, `model`, `outcome_class`, `learning_eligible`, `exo_request`, and optional `output_compression` evidence. Also returns `routing_path`.           |
+| `POST /api/cli/execute/stream`        | SSE equivalent; emits heartbeats during long inference and returns the same provider/compression evidence in `complete`. The `routing` and `complete` frames both carry `routing_path`.                                                                       |
+| `GET /api/db/hebbian/sentinel`        | Current stability state, filterable by `agent_name` and `task_type`.                                                                                                                                                                                          |
+| `GET /api/db/hebbian/sentinel/alerts` | Persisted open/resolved alert transitions; `open_only=true` filters active alerts.                                                                                                                                                                            |
+| `GET /api/routing/config`             | Live routing configuration used to label decisions in the UI: kernel/Hebbian toggles, blend weights, trust floor, fallback capability, Sentinel settings, the reviewed-domain capability list, and the advertised capabilities labelled by `kernel_reviewed`. |
+| `GET /api/db/trust`                   | Persisted trust scores from `data/trust_scores.db`; `entity_type` filters the entity family. Read-only.                                                                                                                                                       |
+| `GET /api/db/violations`              | Sandbox and governance violations; `agent_name` and `open_only` filter. Read-only — clearing a violation stays a governance action.                                                                                                                           |
+| `GET /api/db/delegation/grants`       | Delegation-grant ledger metadata. The signed `payload` and its `grant_hash` are deliberately never served.                                                                                                                                                    |
+| `GET /api/db/delegation/reservations` | Budget reservations backing delegated routing.                                                                                                                                                                                                                |
 
 ### Routing path labelling
 
@@ -188,14 +194,14 @@ authorized kernel route stays distinguishable from a compatibility route
 without reading server logs. The vocabulary is `ROUTING_PATHS` in
 `src/integration/hebbian_router.py`:
 
-| `routing_path` | Meaning |
-|---|---|
-| `kernel` | Served by the shared Routing Kernel: intent → authorization → eligibility → Hebbian ranking. Stamped by the kernel itself, so it holds for every ingress. |
-| `hebbian_router` | Produced by the legacy router with no kernel involved. |
-| `legacy_unreviewed_capability` | The capability has no reviewed ATP execution domain, so the kernel declined and the legacy path served the task without kernel authorization. |
-| `legacy_kernel_unavailable` | The kernel was disabled or failed to build at boot. |
-| `pinned` | No routing ran: the caller named the agent. Ingress-level label; the response carries no decision object. |
-| `registry_composite` | Hebbian routing is disabled; the registry ranked on composite score alone. Ingress-level label. |
+| `routing_path`                 | Meaning                                                                                                                                                   |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `kernel`                       | Served by the shared Routing Kernel: intent → authorization → eligibility → Hebbian ranking. Stamped by the kernel itself, so it holds for every ingress. |
+| `hebbian_router`               | Produced by the legacy router with no kernel involved.                                                                                                    |
+| `legacy_unreviewed_capability` | The capability has no reviewed ATP execution domain, so the kernel declined and the legacy path served the task without kernel authorization.             |
+| `legacy_kernel_unavailable`    | The kernel was disabled or failed to build at boot.                                                                                                       |
+| `pinned`                       | No routing ran: the caller named the agent. Ingress-level label; the response carries no decision object.                                                 |
+| `registry_composite`           | Hebbian routing is disabled; the registry ranked on composite score alone. Ingress-level label.                                                           |
 
 `RoutingDecision.to_dict()` carries the field for routed calls, and
 `ExecuteInstructionResponse.routing_path` mirrors it so pinned and
@@ -227,7 +233,9 @@ compresses context for follow-on agents. `compressed_context` and the terminal
 deltas before that terminal compression step.
 
 ### ATP Message Examples
+
 #### Example 1: Query Task from Memory Bus
+
 ```
 #Mode: Synthesize
 #Context: Find tasks related to data processing
@@ -246,7 +254,9 @@ deltas before that terminal compression step.
   }
 }
 ```
+
 #### Example 2: Submit Task for Execution (Kernel)
+
 ```
 #Mode: Build
 #Context: Submit a task for execution
@@ -265,7 +275,9 @@ deltas before that terminal compression step.
   }
 }
 ```
+
 #### Example 3: Batch Agent Communication
+
 ```
 #Mode: Organize
 #Context: Batch registry synchronization
@@ -288,7 +300,9 @@ deltas before that terminal compression step.
   ]
 }
 ```
+
 #### Example 4: Async Governance Update Proposal
+
 ```
 #Mode: Review
 #Context: Evaluate an update proposal
@@ -310,9 +324,12 @@ deltas before that terminal compression step.
   "checkpoint_id": "uuid"
 }
 ```
+
 ## Planned Kernel API
+
 ### Submit Task
-**Endpoint:** `POST /api/v1/tasks` 
+
+**Endpoint:** `POST /api/v1/tasks`
 
 **Request:**
 
@@ -332,6 +349,7 @@ deltas before that terminal compression step.
   }
 }
 ```
+
 **Response (202 Accepted):**
 
 ```json
@@ -342,8 +360,10 @@ deltas before that terminal compression step.
   "estimated_completion": "2026-02-21T10:35:00Z"
 }
 ```
+
 ### Get Task Status
-**Endpoint:** `GET /api/v1/tasks/{task_id}` 
+
+**Endpoint:** `GET /api/v1/tasks/{task_id}`
 
 **Response:**
 
@@ -359,8 +379,10 @@ deltas before that terminal compression step.
   "error": null
 }
 ```
+
 ### Cancel Task
-**Endpoint:** `POST /api/v1/tasks/{task_id}/cancel` 
+
+**Endpoint:** `POST /api/v1/tasks/{task_id}/cancel`
 
 **Response:**
 
@@ -371,17 +393,20 @@ deltas before that terminal compression step.
   "cancelled_at": "2026-02-21T10:31:00Z"
 }
 ```
+
 ### List Tasks
-**Endpoint:** `GET /api/v1/tasks?status=completed&limit=100&offset=0` 
+
+**Endpoint:** `GET /api/v1/tasks?status=completed&limit=100&offset=0`
 
 **Query Parameters:**
 
-- `status`  : Filter by status
-- `agent_id`  : Filter by assigned agent
-- `created_after`  : ISO 8601 timestamp
-- `limit`  : Result limit (default: 100, max: 1000)
-- `offset`  : Pagination offset
-**Response:**
+- `status` : Filter by status
+- `agent_id` : Filter by assigned agent
+- `created_after` : ISO 8601 timestamp
+- `limit` : Result limit (default: 100, max: 1000)
+- `offset` : Pagination offset
+  **Response:**
+
 ```json
 {
   "tasks": [
@@ -399,6 +424,7 @@ deltas before that terminal compression step.
   "offset": 0
 }
 ```
+
 ## Memory Bus API
 
 These mounted Express routes delegate to the Python Memory Bus. In explicit
@@ -413,7 +439,7 @@ projection.
 {
   "path": "Notes/example.md",
   "content": "# Canonical memory",
-  "metadata": {"kind": "brief"},
+  "metadata": { "kind": "brief" },
   "embed": true,
   "idempotency_key": "optional-operation-key",
   "provenance_id": "optional-uuid",
@@ -464,9 +490,12 @@ no background outbox worker.
 
 `POST /api/v1/memory/delete` retains legacy behavior. SQL mode returns
 `MEMORY_DELETE_UNSUPPORTED` (HTTP 409) until canonical tombstones exist.
+
 ## Planned Agent Registry API
+
 ### Register Agent
-**Endpoint:** `POST /api/v1/registry/agents` 
+
+**Endpoint:** `POST /api/v1/registry/agents`
 
 **Request:**
 
@@ -494,6 +523,7 @@ no background outbox worker.
   }
 }
 ```
+
 **Response (201 Created):**
 
 ```json
@@ -504,8 +534,10 @@ no background outbox worker.
   "created_at": "2026-02-21T10:30:00Z"
 }
 ```
+
 ### Get Agent
-**Endpoint:** `GET /api/v1/registry/agents/{agent_id}` 
+
+**Endpoint:** `GET /api/v1/registry/agents/{agent_id}`
 
 **Response:**
 
@@ -525,16 +557,19 @@ no background outbox worker.
   "updated_at": "2026-02-21T10:30:00Z"
 }
 ```
+
 ### List Agents
-**Endpoint:** `GET /api/v1/registry/agents?capability=nlp&status=active&limit=100` 
+
+**Endpoint:** `GET /api/v1/registry/agents?capability=nlp&status=active&limit=100`
 
 **Query Parameters:**
 
-- `capability`  : Filter by capability
-- `status`  : Filter by status
-- `trust_tier`  : Filter by tier
-- `limit`  : Result limit
-**Response:**
+- `capability` : Filter by capability
+- `status` : Filter by status
+- `trust_tier` : Filter by tier
+- `limit` : Result limit
+  **Response:**
+
 ```json
 {
   "agents": [
@@ -551,8 +586,10 @@ no background outbox worker.
   "offset": 0
 }
 ```
+
 ### Update Agent Scores
-**Endpoint:** `PATCH /api/v1/registry/agents/{agent_id}` 
+
+**Endpoint:** `PATCH /api/v1/registry/agents/{agent_id}`
 
 **Request:**
 
@@ -563,6 +600,7 @@ no background outbox worker.
   "efficiency_score": 0.88
 }
 ```
+
 **Response:**
 
 ```json
@@ -574,8 +612,10 @@ no background outbox worker.
   "updated_at": "2026-02-21T10:30:00Z"
 }
 ```
+
 ### Get Agent Violations
-**Endpoint:** `GET /api/v1/registry/agents/{agent_id}/violations` 
+
+**Endpoint:** `GET /api/v1/registry/agents/{agent_id}/violations`
 
 **Response:**
 
@@ -594,8 +634,10 @@ no background outbox worker.
   ]
 }
 ```
+
 ### Clear Agent Violations
-**Endpoint:** `POST /api/v1/registry/agents/{agent_id}/clear-violations` 
+
+**Endpoint:** `POST /api/v1/registry/agents/{agent_id}/clear-violations`
 
 **Request:**
 
@@ -605,6 +647,7 @@ no background outbox worker.
   "rationale": "Manual review confirms safe behavior"
 }
 ```
+
 **Response:**
 
 ```json
@@ -616,9 +659,12 @@ no background outbox worker.
   "override_timestamp": "2026-02-21T10:30:00Z"
 }
 ```
+
 ## Planned Governance API
+
 ### Propose Update
-**Endpoint:** `POST /api/v1/governance/updates` 
+
+**Endpoint:** `POST /api/v1/governance/updates`
 
 **Request:** (See ATP Example 4 in section above)
 
@@ -632,8 +678,10 @@ no background outbox worker.
   "approval_deadline": "2026-02-21T10:35:00Z"
 }
 ```
+
 ### Get Update Status
-**Endpoint:** `GET /api/v1/governance/updates/{update_id}` 
+
+**Endpoint:** `GET /api/v1/governance/updates/{update_id}`
 
 **Response:**
 
@@ -652,8 +700,10 @@ no background outbox worker.
   }
 }
 ```
+
 ### List Pending Approvals
-**Endpoint:** `GET /api/v1/governance/approvals?tier=2&status=pending` 
+
+**Endpoint:** `GET /api/v1/governance/approvals?tier=2&status=pending`
 
 **Response:**
 
@@ -672,8 +722,10 @@ no background outbox worker.
   "overdue": 0
 }
 ```
+
 ### Approve Update
-**Endpoint:** `POST /api/v1/governance/updates/{update_id}/approve` 
+
+**Endpoint:** `POST /api/v1/governance/updates/{update_id}/approve`
 
 **Request:**
 
@@ -684,6 +736,7 @@ no background outbox worker.
   "override_risk": false
 }
 ```
+
 **Response:**
 
 ```json
@@ -694,8 +747,10 @@ no background outbox worker.
   "deployment_time": "2026-02-21T11:05:00Z"
 }
 ```
+
 ### Reject Update
-**Endpoint:** `POST /api/v1/governance/updates/{update_id}/reject` 
+
+**Endpoint:** `POST /api/v1/governance/updates/{update_id}/reject`
 
 **Request:**
 
@@ -706,6 +761,7 @@ no background outbox worker.
   "feedback": "Please refactor to maintain backwards compatibility"
 }
 ```
+
 **Response:**
 
 ```json
@@ -715,8 +771,10 @@ no background outbox worker.
   "rejected_at": "2026-02-21T10:35:00Z"
 }
 ```
+
 ### Propose Rollback
-**Endpoint:** `POST /api/v1/governance/rollbacks` 
+
+**Endpoint:** `POST /api/v1/governance/rollbacks`
 
 **Request:**
 
@@ -728,6 +786,7 @@ no background outbox worker.
   "details": "Anomaly: error rate > 5%"
 }
 ```
+
 **Response (202 Accepted):**
 
 ```json
@@ -738,8 +797,10 @@ no background outbox worker.
   "estimated_completion": "2026-02-21T10:45:00Z"
 }
 ```
+
 ### Get Rollback Status
-**Endpoint:** `GET /api/v1/governance/rollbacks/{rollback_id}` 
+
+**Endpoint:** `GET /api/v1/governance/rollbacks/{rollback_id}`
 
 **Response:**
 
@@ -754,9 +815,12 @@ no background outbox worker.
   "notes": "System restored to stable state"
 }
 ```
+
 ## Planned Hebbian Learning API
+
 ### Get Hebbian Weights
-**Endpoint:** `GET /api/v1/hebbian/weights?agent_id={agent_id}` 
+
+**Endpoint:** `GET /api/v1/hebbian/weights?agent_id={agent_id}`
 
 **Response:**
 
@@ -771,8 +835,10 @@ no background outbox worker.
   "last_updated": "2026-02-21T10:30:00Z"
 }
 ```
+
 ### Get Learning History
-**Endpoint:** `GET /api/v1/hebbian/history/{agent_id}?limit=100` 
+
+**Endpoint:** `GET /api/v1/hebbian/history/{agent_id}?limit=100`
 
 **Response:**
 
@@ -793,7 +859,9 @@ no background outbox worker.
   "limit": 100
 }
 ```
+
 ## Error Responses
+
 All error responses follow this format:
 
 ```json
@@ -808,18 +876,22 @@ All error responses follow this format:
   }
 }
 ```
+
 ### Common Error Codes
-| Code | HTTP | Meaning |
-| ----- | ----- | ----- |
-| `INVALID_REQUEST`  | 400 | Malformed request |
-| `UNAUTHORIZED`  | 401 | Missing/invalid authentication |
-| `FORBIDDEN`  | 403 | Insufficient permissions |
-| `NOT_FOUND`  | 404 | Resource not found |
-| `CONFLICT`  | 409 | Write conflict |
-| `RATE_LIMITED`  | 429 | Rate limit exceeded |
-| `SERVICE_UNAVAILABLE`  | 503 | Service temporarily down |
-| `TIMEOUT`  | 504 | Request timeout |
+
+| Code                  | HTTP | Meaning                        |
+| --------------------- | ---- | ------------------------------ |
+| `INVALID_REQUEST`     | 400  | Malformed request              |
+| `UNAUTHORIZED`        | 401  | Missing/invalid authentication |
+| `FORBIDDEN`           | 403  | Insufficient permissions       |
+| `NOT_FOUND`           | 404  | Resource not found             |
+| `CONFLICT`            | 409  | Write conflict                 |
+| `RATE_LIMITED`        | 429  | Rate limit exceeded            |
+| `SERVICE_UNAVAILABLE` | 503  | Service temporarily down       |
+| `TIMEOUT`             | 504  | Request timeout                |
+
 ## Rate Limiting
+
 Protected Express `/api/v1/*` endpoints are limited per authenticated API key.
 The defaults are 100 request starts per 60-second window and can be changed
 with `ARTEMIS_API_RATE_LIMIT_MAX_REQUESTS` and
@@ -827,10 +899,10 @@ with `ARTEMIS_API_RATE_LIMIT_MAX_REQUESTS` and
 slot when it begins; elapsed generation time does not consume more quota.
 
 - Headers:
-    - `X-RateLimit-Limit`  : Requests per minute
-    - `X-RateLimit-Remaining`  : Remaining requests
-    - `X-RateLimit-Reset`  : Unix timestamp of reset
-    - `Retry-After` : Seconds until retry (429 responses)
+  - `X-RateLimit-Limit` : Requests per minute
+  - `X-RateLimit-Remaining` : Remaining requests
+  - `X-RateLimit-Reset` : Unix timestamp of reset
+  - `Retry-After` : Seconds until retry (429 responses)
 
 Exo's own independent 429 limit is handled by the Python client using bounded
 `Retry-After` retries. An upstream 429 is a provider-availability outcome, not
@@ -839,14 +911,17 @@ Hebbian weight. If retries are exhausted, the Express LLM route forwards safe
 numeric retry guidance in its own `Retry-After` response header.
 
 ## Authentication
+
 Use Bearer token in Authorization header:
 
 ```
 Authorization: Bearer <api_key>
 ```
+
 API keys provisioned per agent/user. Scopes restrict which endpoints are accessible.
 
 ## Planned Webhook Events
+
 Subscribe to events via `POST /api/v1/webhooks`:
 
 ```json
@@ -855,6 +930,7 @@ Subscribe to events via `POST /api/v1/webhooks`:
   "events": ["task.completed", "update.approved", "agent.quarantined"]
 }
 ```
+
 Event payload:
 
 ```json
@@ -868,8 +944,5 @@ Event payload:
   }
 }
 ```
-
-
-
 
 <!--- Eraser file: https://app.eraser.io/workspace/olHJAnjmyPJ03fNBzDOT --->

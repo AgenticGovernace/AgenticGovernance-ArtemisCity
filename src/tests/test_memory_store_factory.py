@@ -18,7 +18,9 @@ def test_legacy_backend_returns_none(monkeypatch):
 def test_neon_backend_without_url_fails_closed(monkeypatch):
     """An explicit Neon selection cannot silently become a local store."""
     from src.integration.memory_store_factory import (
-        MemoryStoreConfigurationError, create_sql_memory_store)
+        MemoryStoreConfigurationError,
+        create_sql_memory_store,
+    )
 
     monkeypatch.setenv("ARTEMIS_MEMORY_BACKEND", "neon")
     monkeypatch.delenv("ARTEMIS_MEMORY_DATABASE_URL", raising=False)
@@ -86,7 +88,9 @@ def test_postgres_backend_builds_store_with_short_connection_factory(monkeypatch
 def test_statement_timeout_must_be_a_positive_integer(monkeypatch, raw_timeout):
     """Invalid statement deadlines fail before a connection can be constructed."""
     from src.integration.memory_store_factory import (
-        MemoryStoreConfigurationError, create_sql_memory_store)
+        MemoryStoreConfigurationError,
+        create_sql_memory_store,
+    )
 
     monkeypatch.setenv("ARTEMIS_MEMORY_BACKEND", "postgres")
     monkeypatch.setenv("ARTEMIS_MEMORY_DATABASE_URL", "postgresql://operator-host/db")

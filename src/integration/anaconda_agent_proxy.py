@@ -40,7 +40,8 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Any, Dict, Iterable, List, Optional
+from collections.abc import Iterable
+from typing import Any
 
 import requests
 
@@ -68,13 +69,13 @@ DEFAULT_ANACONDA_API_KEY = "*"
 ANACONDA_API_KEY_ENV = "ANACONDA_API_KEY"
 
 
-def parse_port_map(env_value: Optional[str]) -> Dict[str, int]:
+def parse_port_map(env_value: str | None) -> dict[str, int]:
     """Parse ``"name:port,name:port"`` into a ``{name: port}`` dict.
 
     Malformed pairs are skipped with a warning rather than raising — a
     typo in one entry should not block the whole stack from registering.
     """
-    out: Dict[str, int] = {}
+    out: dict[str, int] = {}
     if not env_value:
         return out
     for pair in env_value.split(","):
@@ -95,8 +96,8 @@ def discover_anaconda_agents(
     desktop_url: str = ANACONDA_DESKTOP_URL,
     provider_tag: str = ARTEMIS_PROVIDER_TAG,
     timeout: float = 5.0,
-    api_key: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+    api_key: str | None = None,
+) -> list[dict[str, Any]]:
     """Hit ``/api/agents/v1/models`` and return ``artemiscity`` agent metas.
 
     Returns an empty list (with a warning) when Anaconda Desktop is not
@@ -129,7 +130,7 @@ def discover_anaconda_agents(
     ]
 
 
-def parse_sse_chat_completion(stream: Iterable[Any]) -> Dict[str, Any]:
+def parse_sse_chat_completion(stream: Iterable[Any]) -> dict[str, Any]:
     """Consume an OpenAI-style SSE chat completion stream.
 
     Anaconda agents emit ``data: {...}`` lines (per the OpenAI streaming
@@ -146,12 +147,12 @@ def parse_sse_chat_completion(stream: Iterable[Any]) -> Dict[str, Any]:
         Dict with keys: ``content`` (assembled), ``reasoning`` (assembled),
         ``usage``, ``model``, ``id``, ``finish_reason``.
     """
-    content_parts: List[str] = []
-    reasoning_parts: List[str] = []
-    usage: Dict[str, Any] = {}
+    content_parts: list[str] = []
+    reasoning_parts: list[str] = []
+    usage: dict[str, Any] = {}
     model = ""
     completion_id = ""
-    finish_reason: Optional[str] = None
+    finish_reason: str | None = None
 
     for raw_line in stream:
         if raw_line is None:
@@ -223,11 +224,11 @@ class AnacondaAgentProxy(BaseAgent):
         self,
         name: str,
         port: int,
-        capabilities: Optional[List[str]] = None,
+        capabilities: list[str] | None = None,
         host: str = "127.0.0.1",
         timeout: int = 180,
-        model: Optional[str] = None,
-        api_key: Optional[str] = None,
+        model: str | None = None,
+        api_key: str | None = None,
     ):
         caps = list(capabilities) if capabilities else ["llm_chat"]
         super().__init__(name=name, capabilities=caps)
@@ -248,7 +249,7 @@ class AnacondaAgentProxy(BaseAgent):
         """Full URL of the agent's OpenAI-compatible chat completions endpoint."""
         return f"{self.base_url}/v1/chat/completions"
 
-    def _build_messages(self, task_context: Dict[str, Any]) -> List[Dict[str, str]]:
+    def _build_messages(self, task_context: dict[str, Any]) -> list[dict[str, str]]:
         """Build an OpenAI-shape ``messages`` list from a task context.
 
         Accepted keys (in order of priority for the user turn):
@@ -257,7 +258,7 @@ class AnacondaAgentProxy(BaseAgent):
         list of ``{role, content}`` dicts inserted between system and
         user.
         """
-        messages: List[Dict[str, str]] = []
+        messages: list[dict[str, str]] = []
         system = task_context.get("system_prompt")
         if system:
             messages.append({"role": "system", "content": str(system)})
@@ -280,7 +281,7 @@ class AnacondaAgentProxy(BaseAgent):
             messages.append({"role": "user", "content": str(prompt)})
         return messages
 
-    def perform_task(self, task_context: Dict[str, Any]) -> Dict[str, Any]:
+    def perform_task(self, task_context: dict[str, Any]) -> dict[str, Any]:
         """Forward the task to the Anaconda agent and return its reply.
 
         Returns a BaseAgent-shaped dict.  On HTTP failure, ``content`` is
@@ -300,7 +301,7 @@ class AnacondaAgentProxy(BaseAgent):
                 "error": "no prompt provided",
             }
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "model": task_context.get("model") or self.model,
             "messages": messages,
             "stream": False,

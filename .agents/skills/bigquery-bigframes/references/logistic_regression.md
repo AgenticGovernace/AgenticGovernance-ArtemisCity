@@ -1,6 +1,6 @@
 # BigQuery DataFrame Logistic Regression
 
-This example trains a logistic regression model to predict the species of 
+This example trains a logistic regression model to predict the species of
 penguins.
 
 ```python

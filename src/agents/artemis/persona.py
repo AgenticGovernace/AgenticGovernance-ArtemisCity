@@ -6,7 +6,6 @@ for the Artemis agent based on the agent card specification.
 
 import random
 from enum import Enum
-from typing import Dict, List, Optional
 
 
 class ResponseMode(Enum):
@@ -144,7 +143,7 @@ class ArtemisPersona:
     def __init__(self):
         """Initialize Artemis persona."""
         self.current_mode = ResponseMode.REFLECTIVE
-        self.context_history: List[str] = []
+        self.context_history: list[str] = []
 
     def set_mode(self, mode: ResponseMode) -> None:
         """Set current response mode.
@@ -157,7 +156,7 @@ class ArtemisPersona:
         """
         self.current_mode = mode
 
-    def get_opening_phrase(self, mode: Optional[ResponseMode] = None) -> str:
+    def get_opening_phrase(self, mode: ResponseMode | None = None) -> str:
         """Get an appropriate opening phrase for the response.
 
         Args:
@@ -173,7 +172,7 @@ class ArtemisPersona:
             )  # stylistic phrase pick, not security-sensitive  # nosec B311
         return ""
 
-    def get_transition_phrase(self, mode: Optional[ResponseMode] = None) -> str:
+    def get_transition_phrase(self, mode: ResponseMode | None = None) -> str:
         """Get an appropriate transition phrase.
 
         Args:
@@ -189,7 +188,7 @@ class ArtemisPersona:
             )  # stylistic phrase pick, not security-sensitive  # nosec B311
         return ""
 
-    def get_closing_phrase(self, mode: Optional[ResponseMode] = None) -> str:
+    def get_closing_phrase(self, mode: ResponseMode | None = None) -> str:
         """Get an appropriate closing phrase.
 
         Args:
@@ -205,7 +204,7 @@ class ArtemisPersona:
             )  # stylistic phrase pick, not security-sensitive  # nosec B311
         return ""
 
-    def should_be_verbose(self, context: Dict) -> bool:
+    def should_be_verbose(self, context: dict) -> bool:
         """Determine if response should be verbose based on context.
 
         Args:
@@ -240,7 +239,7 @@ class ArtemisPersona:
         return any(indicator in query for indicator in verbose_indicators)
 
     def format_response(
-        self, content: str, context: Dict, include_framing: bool = True
+        self, content: str, context: dict, include_framing: bool = True
     ) -> str:
         """Format response with Artemis personality.
 
@@ -278,7 +277,7 @@ class ArtemisPersona:
 
         return "\n\n".join(parts)
 
-    def _infer_mode(self, context: Dict) -> ResponseMode:
+    def _infer_mode(self, context: dict) -> ResponseMode:
         """Infer appropriate response mode from context.
 
         Args:
@@ -362,7 +361,7 @@ Response Style:
         if len(self.context_history) > 50:
             self.context_history = self.context_history[-50:]
 
-    def get_recent_context(self, count: int = 5) -> List[str]:
+    def get_recent_context(self, count: int = 5) -> list[str]:
         """Get recent context history.
 
         Args:

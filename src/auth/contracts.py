@@ -8,8 +8,14 @@ from math import isfinite
 from types import MappingProxyType
 from typing import Any, Literal, NoReturn
 
-from pydantic import (BaseModel, ConfigDict, Field, field_serializer,
-                      field_validator, model_validator)
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 from pydantic_core import PydanticCustomError
 
 _FORBIDDEN_CREDENTIAL_FIELDS = frozenset(

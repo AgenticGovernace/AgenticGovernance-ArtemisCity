@@ -248,7 +248,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 def cmd_scan(_args: argparse.Namespace) -> int:
     watcher = build_watcher(load_config())
     # Baseline then one diff cycle so a manual scan reports changes since last.
-    watcher._snapshot = watcher._scan()  # noqa: SLF001 - intentional baseline
+    watcher._snapshot = watcher._scan()
     results = watcher.run_once()
     for r in results:
         sys.stdout.write(f"{r.severity.label}\t{r.reason}\n")

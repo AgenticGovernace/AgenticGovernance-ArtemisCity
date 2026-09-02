@@ -255,10 +255,10 @@
 
 ## Final Verification Matrix
 
-| Claim | Required evidence |
-|---|---|
-| Route contract is implemented | `app.tsx`, `router/paths.ts`, and final diff show explicit collection/detail/catch-all routes |
-| Task execution remains safe | Task detail calls `executePendingTask` with API-returned `relative_path`; backend path/security tests pass |
-| Report reads remain safe | Client filename validation plus existing backend traversal/symlink tests pass |
-| User movement works | TypeScript build plus browser smoke coverage for links, back/forward, refresh, and mobile navigation |
-| Phase 1 is complete | All Phase 1 checkboxes are checked and the verification commands have fresh exit-code-0 output |
+| Claim                         | Required evidence                                                                                          |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Route contract is implemented | `app.tsx`, `router/paths.ts`, and final diff show explicit collection/detail/catch-all routes              |
+| Task execution remains safe   | Task detail calls `executePendingTask` with API-returned `relative_path`; backend path/security tests pass |
+| Report reads remain safe      | Client filename validation plus existing backend traversal/symlink tests pass                              |
+| User movement works           | TypeScript build plus browser smoke coverage for links, back/forward, refresh, and mobile navigation       |
+| Phase 1 is complete           | All Phase 1 checkboxes are checked and the verification commands have fresh exit-code-0 output             |

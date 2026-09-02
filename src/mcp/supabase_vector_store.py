@@ -27,8 +27,8 @@ from __future__ import annotations
 import json
 import os
 import time
+from collections.abc import Callable, Iterable
 from datetime import datetime, timezone
-from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from src.utils.helpers import logger, sanitize_for_log
 
@@ -42,7 +42,7 @@ except ImportError:  # pragma: no cover
 _VALID_TABLE_CHARS = set("abcdefghijklmnopqrstuvwxyz0123456789_")
 
 
-def _vector_literal(embedding: List[float]) -> str:
+def _vector_literal(embedding: list[float]) -> str:
     """Render an embedding as a pgvector text literal, e.g. '[0.1,0.2]'."""
     return "[" + ",".join(repr(float(value)) for value in embedding) + "]"
 
@@ -65,10 +65,10 @@ class SupabaseVectorStore:
 
     def __init__(
         self,
-        dsn: Optional[str] = None,
-        embedding_fn: Optional[Callable[[str], List[float]]] = None,
-        table: Optional[str] = None,
-        dim: Optional[int] = None,
+        dsn: str | None = None,
+        embedding_fn: Callable[[str], list[float]] | None = None,
+        table: str | None = None,
+        dim: int | None = None,
     ):
         if psycopg2 is None:
             raise RuntimeError(
@@ -104,7 +104,7 @@ class SupabaseVectorStore:
             self._conn.autocommit = True
         return self._conn
 
-    def _execute(self, sql: str, params: Tuple = ()):  # -> cursor
+    def _execute(self, sql: str, params: tuple = ()):  # -> cursor
         try:
             cursor = self._connection().cursor()
             cursor.execute(sql, params)
@@ -140,7 +140,7 @@ class SupabaseVectorStore:
 
     # -- interface parity with LocalVectorStore --------------------------------
 
-    def upsert(self, doc_id: str, content: str, metadata: Optional[Dict] = None):
+    def upsert(self, doc_id: str, content: str, metadata: dict | None = None):
         """Insert or replace a document with its embedding."""
         start_time = time.perf_counter()
 
@@ -199,7 +199,7 @@ class SupabaseVectorStore:
                 latency_ms=latency_ms,
             )
 
-    def upsert_many(self, records: Iterable[Tuple[str, str, Optional[Dict]]]):
+    def upsert_many(self, records: Iterable[tuple[str, str, dict | None]]):
         """Bulk upsert helper."""
         for doc_id, content, metadata in records:
             self.upsert(doc_id, content, metadata)
@@ -209,7 +209,8 @@ class SupabaseVectorStore:
         start_time = time.perf_counter()
         # table validated against [a-z0-9_] in __init__; values parameterized
         self._execute(
-            f"DELETE FROM {self.table} WHERE doc_id = %s", (doc_id,)  # nosec B608
+            f"DELETE FROM {self.table} WHERE doc_id = %s",  # nosec B608
+            (doc_id,),
         )
         latency_ms = (time.perf_counter() - start_time) * 1000
         logger.debug(
@@ -282,7 +283,7 @@ class SupabaseVectorStore:
         )
         return cursor.rowcount > 0
 
-    def get_decay_records(self) -> List[dict]:
+    def get_decay_records(self) -> list[dict]:
         """Return the persisted fields required by ``MemoryDecayService``."""
         return [
             {
@@ -298,7 +299,7 @@ class SupabaseVectorStore:
 
     def query(
         self, text: str, top_k: int = 5, include_content: bool = False
-    ) -> List[Tuple]:
+    ) -> list[tuple]:
         """
         Return top_k results ordered by cosine similarity, computed in-database.
 
@@ -318,7 +319,7 @@ class SupabaseVectorStore:
             """,  # table validated against [a-z0-9_] in __init__; values parameterized  # nosec B608
             (literal, literal, int(top_k)),
         )
-        results: List[Tuple] = []
+        results: list[tuple] = []
         for doc_id, score, metadata_value, content in cursor.fetchall():
             if isinstance(metadata_value, str):
                 metadata = json.loads(metadata_value or "{}")

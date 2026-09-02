@@ -26,23 +26,27 @@
    - Pooled endpoint for runtime traffic and direct endpoint for manually run
      `psql` migrations
    - Backup and retention policy for immutable revisions and the outbox
+
 2. **Obsidian Vault** (human-readable projection)
 
    - Local filesystem or network mount
    - At least 10GB initial capacity
    - Projection target, not canonical memory authority in SQL mode
    - Regular backup strategy
+
 3. **Vector Store** (semantic search)
 
    - Qdrant 1.0+ (recommended)
    - Weaviate 1.0+ (alternative)
    - Milvus 2.0+ (alternative)
    - Minimum 5GB storage
+
 4. **Message Broker** (async operations)
 
    - Redis 6.0+ (recommended)
    - RabbitMQ 3.8+ (alternative)
    - For Hebbian sync batching and task queuing
+
 5. **Monitoring Stack**
 
    - Prometheus 2.30+ (metrics)
@@ -51,17 +55,17 @@
 
 ### Network Ports
 
-| Service                                                    | Port          | Protocol | Status                                                 |
-| ---------------------------------------------------------- | ------------- | -------- | ------------------------------------------------------ |
-| Kernel API (FastAPI dashboard,`app/api/main.py`)         | 8000          | HTTP     | shipped                                                |
-| Express API (`/api/v1/*` boundary, `app/api/index.ts`) | 4000          | HTTP     | shipped                                                |
-| Memory Bus                                                 | 8001          | HTTP     | **in-process inside `kernel`** — future split |
-| Agent Registry                                             | 8002          | HTTP     | **in-process inside `kernel`** — future split |
-| Prometheus                                                 | 9090          | HTTP     | shipped                                                |
-| Grafana                                                    | 3000          | HTTP     | shipped                                                |
-| Redis                                                      | 6379          | TCP      | shipped                                                |
-| Qdrant                                                     | 6333          | HTTP     | shipped                                                |
-| Obsidian                                                   | (file system) | N/A      | shipped                                                |
+| Service                                                | Port          | Protocol | Status                                        |
+| ------------------------------------------------------ | ------------- | -------- | --------------------------------------------- |
+| Kernel API (FastAPI dashboard,`app/api/main.py`)       | 8000          | HTTP     | shipped                                       |
+| Express API (`/api/v1/*` boundary, `app/api/index.ts`) | 4000          | HTTP     | shipped                                       |
+| Memory Bus                                             | 8001          | HTTP     | **in-process inside `kernel`** — future split |
+| Agent Registry                                         | 8002          | HTTP     | **in-process inside `kernel`** — future split |
+| Prometheus                                             | 9090          | HTTP     | shipped                                       |
+| Grafana                                                | 3000          | HTTP     | shipped                                       |
+| Redis                                                  | 6379          | TCP      | shipped                                       |
+| Qdrant                                                 | 6333          | HTTP     | shipped                                       |
+| Obsidian                                               | (file system) | N/A      | shipped                                       |
 
 > Memory Bus and Agent Registry are currently library modules
 > (`src/integration/memory_bus.py`, `src/integration/agent_registry.py`)
@@ -106,7 +110,7 @@ artemis-city/
 ### Docker Compose Configuration
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   # Core Artemis Services
@@ -219,9 +223,9 @@ services:
     networks:
       - artemis
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=30d'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
     restart: unless-stopped
 
   grafana:
@@ -283,15 +287,15 @@ The provisioner uses four value classes:
 
 Runtime template locations are:
 
-| Runtime | Template |
-|---|---|
-| Python core, FastAPI, and Docker Compose | `.env.example` |
-| TypeScript Express API and bridge | `app/api/.env.example` |
-| React/Vite dashboard | `app/web/frontend/.env.example` |
-| Python source runtime | `src/.env.example` |
-| Obsidian REST shell | `src/Artemis Agentic Memory Layer/.env.example` |
-| Memory MCP server | `services/mcp/artemis-memory/.env.example` |
-| Nested provenance mesh | `config/service-env/provenance.env.example` |
+| Runtime                                  | Template                                        |
+| ---------------------------------------- | ----------------------------------------------- |
+| Python core, FastAPI, and Docker Compose | `.env.example`                                  |
+| TypeScript Express API and bridge        | `app/api/.env.example`                          |
+| React/Vite dashboard                     | `app/web/frontend/.env.example`                 |
+| Python source runtime                    | `src/.env.example`                              |
+| Obsidian REST shell                      | `app/Artemis Agentic Memory Layer/.env.example` |
+| Memory MCP server                        | `services/mcp/artemis-memory/.env.example`      |
+| Nested provenance mesh                   | `config/service-env/provenance.env.example`     |
 
 **Create `.env` file:**
 
@@ -515,22 +519,22 @@ global:
     environment: production
 
 scrape_configs:
-  - job_name: 'artemis'
+  - job_name: "artemis"
     static_configs:
       - targets:
-        - 'kernel:8000'
-        - 'memory-bus:8001'
-        - 'registry:8002'
-    metrics_path: '/metrics'
+          - "kernel:8000"
+          - "memory-bus:8001"
+          - "registry:8002"
+    metrics_path: "/metrics"
 
-  - job_name: 'redis'
+  - job_name: "redis"
     static_configs:
-      - targets: ['redis:6379']
+      - targets: ["redis:6379"]
 
-  - job_name: 'vector-store'
+  - job_name: "vector-store"
     static_configs:
-      - targets: ['vector-store:6333']
-    metrics_path: '/metrics'
+      - targets: ["vector-store:6333"]
+    metrics_path: "/metrics"
 ```
 
 ### Grafana Dashboards
@@ -542,16 +546,19 @@ scrape_configs:
    - Kernel throughput (tasks/sec)
    - Agent availability
    - Error rates (p50/p95/p99)
+
 2. **Memory Bus Health**
 
    - Write latency (histogram)
    - Sync lag (Obsidian → Vector Store)
    - Cache hit ratio
+
 3. **Governance Metrics**
 
    - Approval times by tier
    - Sandbox violations
    - Rollback frequency
+
 4. **Agent Performance**
 
    - Per-agent success rate
@@ -598,11 +605,11 @@ Before going live, verify all items:
 
 - [ ] All environment variables configured (`.env`)
 - [ ] Runtime pooled database URL and migration direct URL supplied through the
-  deployment secret mechanism (not a checked-in file)
+      deployment secret mechanism (not a checked-in file)
 - [ ] SSL/TLS certificates provisioned (if using HTTPS)
 - [ ] Obsidian vault initialized, backed up, and treated as a projection target
 - [ ] Database migration applied with the documented manual `psql` command and
-  direct migration URL
+      direct migration URL
 - [ ] Service discovery configured (if using Kubernetes)
 - [ ] Backup strategy documented (daily snapshots)
 - [ ] Log aggregation configured (optional: ELK, Loki)
@@ -668,7 +675,7 @@ Only independently deployed stateless services may be replicated today:
 ```yaml
 kernel:
   deploy:
-    replicas: 1  # Required while task claiming is single-worker.
+    replicas: 1 # Required while task claiming is single-worker.
 
 registry:
   deploy:
@@ -792,10 +799,10 @@ kernel:
   deploy:
     resources:
       limits:
-        cpus: '2'
+        cpus: "2"
         memory: 4G
       reservations:
-        cpus: '1'
+        cpus: "1"
         memory: 2G
 ```
 

@@ -32,9 +32,9 @@ configuration files MUST be maintained together in the repository root.
 > resource to track the source of creation. Determine the value based on your
 > current IDE environment:
 >
-> -   For Antigravity, set `datacloud: "antigravity"`
-> -   For VS Code, set `datacloud: "vscode"`
-> -   For any other environment, set `datacloud: "other"`
+> - For Antigravity, set `datacloud: "antigravity"`
+> - For VS Code, set `datacloud: "vscode"`
+> - For any other environment, set `datacloud: "other"`
 >
 > Do not use a variable substitution for this label; hardcode the appropriate
 > string value directly into each resource definition (e.g., replacing
@@ -70,33 +70,33 @@ project, region, environment, and commit SHA.
 > extracting `project` and `region` from the target environment configuration
 > (e.g., `dev`).
 
-1.  **Project ID**:
+1. **Project ID**:
 
-    ```bash
-    gcloud config get project
-    ```
+   ```bash
+   gcloud config get project
+   ```
 
-2.  **Project Number**:
+2. **Project Number**:
 
-    ```bash
-    gcloud projects describe $(gcloud config get project) --format="value(projectNumber)"
-    ```
+   ```bash
+   gcloud projects describe $(gcloud config get project) --format="value(projectNumber)"
+   ```
 
-3.  **Region**:
+3. **Region**:
 
-    ```bash
-    gcloud config get-value compute/region
-    ```
+   ```bash
+   gcloud config get-value compute/region
+   ```
 
-4.  **Commit SHA**:
+4. **Commit SHA**:
 
-    ```bash
-    git rev-parse HEAD
-    ```
+   ```bash
+   git rev-parse HEAD
+   ```
 
-5.  **Environment Name**: If initialization is needed, you MUST ask the user for
-    the environment name. If the user does not provide it, use **dev** as the
-    default.
+5. **Environment Name**: If initialization is needed, you MUST ask the user for
+   the environment name. If the user does not provide it, use **dev** as the
+   default.
 
 > [!TIP]
 >
@@ -122,23 +122,23 @@ configurations and resources.
 > **Handling Secrets & Privacy (CRITICAL)**: NEVER hardcode plain-text secrets
 > in `deployment.yaml`.
 >
-> -   **Sensitive Data (Secrets):** Sensitive information such as passwords, API
->     keys, and other sensitive information MUST be stored in Secret Manager and
->     declared in the `secrets:` block of `deployment.yaml`.
-> -   **Non-Sensitive Data (Variables):** General configuration (e.g., dataset
->     names, table IDs, regions) could be declared in the `variables:` block.
-> -   **Substitution via `{{ VAR }}`:** Both `variables:` and `secrets:` MUST be
->     used as `{{ VARIABLE_NAME }}` substitutions in resource definitions.
-> -   **No Creation**: The agent MUST NOT use the framework to *create* new
->     secrets. If `gcloud` indicates the secret does not exist, the agent MUST
->     ask the user to create it manually and then re-verify.
-> -   **Reference Only Policy**: The agent's role is strictly limited to
->     *referencing* existing secrets. The agent MUST NEVER read, print, or
->     inspect the values of secrets.
-> -   **Safe Deployment**: The actual value injection happens during deployment
->     execution. The agent only provides the reference.
-> -   **Manual Secret Management**: Advise the user to manage secret payloads
->     and versions manually.
+> - **Sensitive Data (Secrets):** Sensitive information such as passwords, API
+>   keys, and other sensitive information MUST be stored in Secret Manager and
+>   declared in the `secrets:` block of `deployment.yaml`.
+> - **Non-Sensitive Data (Variables):** General configuration (e.g., dataset
+>   names, table IDs, regions) could be declared in the `variables:` block.
+> - **Substitution via `{{ VAR }}`:** Both `variables:` and `secrets:` MUST be
+>   used as `{{ VARIABLE_NAME }}` substitutions in resource definitions.
+> - **No Creation**: The agent MUST NOT use the framework to _create_ new
+>   secrets. If `gcloud` indicates the secret does not exist, the agent MUST
+>   ask the user to create it manually and then re-verify.
+> - **Reference Only Policy**: The agent's role is strictly limited to
+>   _referencing_ existing secrets. The agent MUST NEVER read, print, or
+>   inspect the values of secrets.
+> - **Safe Deployment**: The actual value injection happens during deployment
+>   execution. The agent only provides the reference.
+> - **Manual Secret Management**: Advise the user to manage secret payloads
+>   and versions manually.
 
 ### Step 4: Validation
 
@@ -165,7 +165,7 @@ gcloud beta orchestration-pipelines deploy --environment=<ENV_NAME> --local
 
 ## Definition of Done
 
--   `deployment.yaml` exists in the repository root with actual discovered
-    values (no placeholders) and correct resource definitions.
--   The agent runs the deployment command to perform the deployment, and it
-    executes successfully (exit code 0).
+- `deployment.yaml` exists in the repository root with actual discovered
+  values (no placeholders) and correct resource definitions.
+- The agent runs the deployment command to perform the deployment, and it
+  executes successfully (exit code 0).

@@ -6,14 +6,14 @@
  * never generates model text, embeddings, usage, or provider state locally.
  */
 
-import { Request, Response, Router } from 'express';
+import { Request, Response, Router } from "express";
 
-import { callBridge } from '../lib/pythonBridge';
+import { callBridge } from "../lib/pythonBridge";
 
 const router = Router();
 
 type LLMBridgeResult = {
-  status: 'success' | 'failed';
+  status: "success" | "failed";
   summary: string;
   raw: string | null;
   provider: string | null;
@@ -27,7 +27,7 @@ type LLMBridgeResult = {
 };
 
 type LLMBridgeConfig = {
-  source: 'configured';
+  source: "configured";
   default_model: string;
   models: Array<Record<string, unknown>>;
   providers: Array<Record<string, unknown>>;
@@ -41,11 +41,18 @@ const PROVIDER_STATUS_BY_CODE: Record<string, number> = {
 };
 
 function sendBridgeFailure(res: Response, result: LLMBridgeResult): void {
-  const code = result.bridge_code || 'PROVIDER_ERROR';
+  const code = result.bridge_code || "PROVIDER_ERROR";
   const statusCode = PROVIDER_STATUS_BY_CODE[code] || 502;
   const retryAfter = Number(result.retry_after_seconds);
-  if (code === 'RATE_LIMITED' && Number.isFinite(retryAfter) && retryAfter > 0) {
-    res.setHeader('Retry-After', String(Math.min(86_400, Math.ceil(retryAfter))));
+  if (
+    code === "RATE_LIMITED" &&
+    Number.isFinite(retryAfter) &&
+    retryAfter > 0
+  ) {
+    res.setHeader(
+      "Retry-After",
+      String(Math.min(86_400, Math.ceil(retryAfter))),
+    );
   }
   res.status(statusCode).json({
     success: false,
@@ -56,43 +63,54 @@ function sendBridgeFailure(res: Response, result: LLMBridgeResult): void {
 }
 
 function sendRouteError(res: Response, error: unknown): void {
-  const candidate = error as { statusCode?: unknown; code?: unknown; message?: unknown };
+  const candidate = error as {
+    statusCode?: unknown;
+    code?: unknown;
+    message?: unknown;
+  };
   const statusCode = Number.isInteger(candidate?.statusCode)
     ? Number(candidate.statusCode)
     : 500;
-  const code = typeof candidate?.code === 'string' ? candidate.code : 'INTERNAL_ERROR';
+  const code =
+    typeof candidate?.code === "string" ? candidate.code : "INTERNAL_ERROR";
   const message =
-    typeof candidate?.message === 'string' ? candidate.message : 'LLM request failed';
+    typeof candidate?.message === "string"
+      ? candidate.message
+      : "LLM request failed";
   res.status(statusCode).json({ success: false, error: message, code });
 }
 
-function notImplemented(res: Response, operation: string, replacement: string): void {
+function notImplemented(
+  res: Response,
+  operation: string,
+  replacement: string,
+): void {
   res.status(501).json({
     success: false,
     error: `${operation} is not implemented by the production Exo bridge.`,
-    code: 'NOT_IMPLEMENTED',
+    code: "NOT_IMPLEMENTED",
     replacement,
   });
 }
 
-router.post('/chat', async (req: Request, res: Response) => {
+router.post("/chat", async (req: Request, res: Response) => {
   try {
     const { messages, model, options } = req.body;
     if (!Array.isArray(messages) || messages.length === 0) {
       res.status(400).json({
         success: false,
-        error: 'messages must be a non-empty array',
-        code: 'INVALID_REQUEST',
+        error: "messages must be a non-empty array",
+        code: "INVALID_REQUEST",
       });
       return;
     }
 
-    const result = (await callBridge('llm.chat', {
+    const result = (await callBridge("llm.chat", {
       messages,
       model,
       options,
     })) as LLMBridgeResult;
-    if (result.status === 'failed') {
+    if (result.status === "failed") {
       sendBridgeFailure(res, result);
       return;
     }
@@ -102,24 +120,24 @@ router.post('/chat', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/complete', async (req: Request, res: Response) => {
+router.post("/complete", async (req: Request, res: Response) => {
   try {
     const { prompt, model, options } = req.body;
-    if (typeof prompt !== 'string' || !prompt.trim()) {
+    if (typeof prompt !== "string" || !prompt.trim()) {
       res.status(400).json({
         success: false,
-        error: 'prompt must be a non-empty string',
-        code: 'INVALID_REQUEST',
+        error: "prompt must be a non-empty string",
+        code: "INVALID_REQUEST",
       });
       return;
     }
 
-    const result = (await callBridge('llm.complete', {
+    const result = (await callBridge("llm.complete", {
       prompt,
       model,
       options,
     })) as LLMBridgeResult;
-    if (result.status === 'failed') {
+    if (result.status === "failed") {
       sendBridgeFailure(res, result);
       return;
     }
@@ -129,17 +147,17 @@ router.post('/complete', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/embed', (_req: Request, res: Response) => {
-  notImplemented(res, 'Embedding generation', '/api/v1/memory/write');
+router.post("/embed", (_req: Request, res: Response) => {
+  notImplemented(res, "Embedding generation", "/api/v1/memory/write");
 });
 
-router.post('/stream', (_req: Request, res: Response) => {
-  notImplemented(res, 'Express LLM streaming', '/api/cli/execute/stream');
+router.post("/stream", (_req: Request, res: Response) => {
+  notImplemented(res, "Express LLM streaming", "/api/cli/execute/stream");
 });
 
-router.get('/models', async (_req: Request, res: Response) => {
+router.get("/models", async (_req: Request, res: Response) => {
   try {
-    const config = (await callBridge('llm.config')) as LLMBridgeConfig;
+    const config = (await callBridge("llm.config")) as LLMBridgeConfig;
     res.json({
       success: true,
       data: config.models,
@@ -151,25 +169,29 @@ router.get('/models', async (_req: Request, res: Response) => {
   }
 });
 
-router.get('/providers', async (_req: Request, res: Response) => {
+router.get("/providers", async (_req: Request, res: Response) => {
   try {
-    const config = (await callBridge('llm.config')) as LLMBridgeConfig;
+    const config = (await callBridge("llm.config")) as LLMBridgeConfig;
     res.json({ success: true, data: config.providers, source: config.source });
   } catch (error: unknown) {
     sendRouteError(res, error);
   }
 });
 
-router.post('/provider', (_req: Request, res: Response) => {
-  notImplemented(res, 'Runtime provider mutation', 'EXO_* environment settings');
+router.post("/provider", (_req: Request, res: Response) => {
+  notImplemented(
+    res,
+    "Runtime provider mutation",
+    "EXO_* environment settings",
+  );
 });
 
-router.post('/atp', (_req: Request, res: Response) => {
-  notImplemented(res, 'Direct LLM ATP processing', '/api/v1/atp/route');
+router.post("/atp", (_req: Request, res: Response) => {
+  notImplemented(res, "Direct LLM ATP processing", "/api/v1/atp/route");
 });
 
-router.get('/usage', (_req: Request, res: Response) => {
-  notImplemented(res, 'In-memory usage estimates', '/api/db/runs');
+router.get("/usage", (_req: Request, res: Response) => {
+  notImplemented(res, "In-memory usage estimates", "/api/db/runs");
 });
 
 export default router;

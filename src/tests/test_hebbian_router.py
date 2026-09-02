@@ -10,8 +10,7 @@ from math import isfinite
 
 import pytest
 
-from src.integration.hebbian_router import (HebbianRanker, HebbianRouter,
-                                            RoutingDecision)
+from src.integration.hebbian_router import HebbianRanker, HebbianRouter, RoutingDecision
 from src.routing.eligibility import EligibleCandidate
 
 from .test_routing_eligibility import _authorized, _filter, _record

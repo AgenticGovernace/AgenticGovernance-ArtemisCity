@@ -8,39 +8,39 @@ reference.
 ## ATP validation
 
 ::: src.validation.models
-    options:
-      show_root_heading: true
-      members_order: source
-      show_source: false
+options:
+show_root_heading: true
+members_order: source
+show_source: false
 
 ::: src.validation.service
-    options:
-      show_root_heading: true
-      members_order: source
-      show_source: false
+options:
+show_root_heading: true
+members_order: source
+show_source: false
 
 ## Authentication and authority
 
 ::: src.auth.contracts
-    options:
-      show_root_heading: true
-      members_order: source
-      show_source: false
+options:
+show_root_heading: true
+members_order: source
+show_source: false
 
 ::: src.auth.verifier
-    options:
-      show_root_heading: true
-      members_order: source
-      show_source: false
+options:
+show_root_heading: true
+members_order: source
+show_source: false
 
 ::: src.auth.authstructure
-    options:
-      show_root_heading: true
-      members_order: source
-      show_source: false
+options:
+show_root_heading: true
+members_order: source
+show_source: false
 
 ::: src.auth.delegation
-    options:
-      show_root_heading: true
-      members_order: source
-      show_source: false
+options:
+show_root_heading: true
+members_order: source
+show_source: false

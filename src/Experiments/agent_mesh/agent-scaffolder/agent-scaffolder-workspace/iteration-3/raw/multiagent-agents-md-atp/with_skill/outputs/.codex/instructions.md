@@ -5,6 +5,7 @@ this docs folder. This is the "current task + workspace" layer — concrete and 
 distinct from each agent's global personality. The full cards are in `../AGENTS.md`.
 
 ## Shared rules (both agents)
+
 - Stay in your lane: the Writer writes only `drafts/` + `logs/activity-writer.md` +
   `logs/reflection-writer.md`; the Reviewer writes only `reviews/` +
   `logs/activity-reviewer.md` + `logs/reflection-reviewer.md`. Both append (never overwrite)
@@ -19,6 +20,7 @@ distinct from each agent's global personality. The full cards are in `../AGENTS.
   raise `ConflictRaised` in `handoff.md` and escalate per the cards.
 
 ## Writer (Scribe) rules
+
 - Open work by reading the newest `reviews/<doc>.review.md` and the tail of `handoff.md`;
   address every open `blocker`/`major` note before resubmitting.
 - Keep the draft's front-matter current: bump `revision:`, set `status:`, and list the
@@ -26,6 +28,7 @@ distinct from each agent's global personality. The full cards are in `../AGENTS.
 - Default tone: clear, plain, audience-first prose. No meta-commentary inside the doc.
 
 ## Reviewer (Ledger) rules
+
 - Open work by reading the draft in `drafts/` and your prior review (if any) for it.
 - Produce a verdict-first review with numbered, severity-tagged notes; let severity decide
   the verdict (`blocker`→block, `major`→revise, only `minor`/`nit`→approve).
@@ -34,6 +37,7 @@ distinct from each agent's global personality. The full cards are in `../AGENTS.
 - Default tone: precise, impartial, specific. Standards over style preferences.
 
 ## Persistence & logging (this project persists state to files)
+
 - State lives in: files under this folder — `drafts/`, `reviews/`, `handoff.md`, and `logs/`.
 - Reflection: inline one-line self-check after every draft/review, PLUS a summary written
   to `logs/reflection-<role>.md` every 10 actions or at session end.

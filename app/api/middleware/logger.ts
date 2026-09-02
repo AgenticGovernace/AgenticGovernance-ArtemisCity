@@ -4,12 +4,12 @@
  * Request/response logging for the API.
  */
 
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from "express";
 
 /**
  * Log levels
  */
-type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR";
 
 /**
  * Log entry interface
@@ -33,16 +33,16 @@ interface LogEntry {
  * Color codes for console output
  */
 const colors = {
-  reset: '\x1b[0m',
-  bright: '\x1b[1m',
-  dim: '\x1b[2m',
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  magenta: '\x1b[35m',
-  cyan: '\x1b[36m',
-  white: '\x1b[37m'
+  reset: "\x1b[0m",
+  bright: "\x1b[1m",
+  dim: "\x1b[2m",
+  red: "\x1b[31m",
+  green: "\x1b[32m",
+  yellow: "\x1b[33m",
+  blue: "\x1b[34m",
+  magenta: "\x1b[35m",
+  cyan: "\x1b[36m",
+  white: "\x1b[37m",
 };
 
 /**
@@ -61,11 +61,16 @@ const getStatusColor = (status: number): string => {
  */
 const getLevelColor = (level: LogLevel): string => {
   switch (level) {
-    case 'ERROR': return colors.red;
-    case 'WARN': return colors.yellow;
-    case 'INFO': return colors.green;
-    case 'DEBUG': return colors.dim;
-    default: return colors.white;
+    case "ERROR":
+      return colors.red;
+    case "WARN":
+      return colors.yellow;
+    case "INFO":
+      return colors.green;
+    case "DEBUG":
+      return colors.dim;
+    default:
+      return colors.white;
   }
 };
 
@@ -74,9 +79,11 @@ const getLevelColor = (level: LogLevel): string => {
  */
 export const sanitizeForLog = (value: unknown): string => {
   if (value === null || value === undefined) {
-    return '';
+    return "";
   }
-  return String(value).replace(/[\r\n]+/g, ' ').replace(/[\x00-\x1F\x7F]/g, '');
+  return String(value)
+    .replace(/[\r\n]+/g, " ")
+    .replace(/[\x00-\x1F\x7F]/g, "");
 };
 
 /**
@@ -84,7 +91,9 @@ export const sanitizeForLog = (value: unknown): string => {
  */
 const formatLogEntry = (entry: LogEntry): string => {
   const levelColor = getLevelColor(entry.level);
-  const statusColor = entry.statusCode ? getStatusColor(entry.statusCode) : colors.white;
+  const statusColor = entry.statusCode
+    ? getStatusColor(entry.statusCode)
+    : colors.white;
 
   let line = `${colors.dim}[${entry.timestamp}]${colors.reset} `;
   line += `${levelColor}${entry.level.padEnd(5)}${colors.reset} `;
@@ -146,7 +155,11 @@ const generateRequestId = (): string => {
  * @param next - Express callback that passes control to the next middleware.
  * @returns Nothing. The middleware completes its work through side effects on the request/response cycle.
  */
-export const requestLogger = (req: Request, res: Response, next: NextFunction): void => {
+export const requestLogger = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void => {
   const startTime = Date.now();
   const requestId = generateRequestId();
 
@@ -158,20 +171,25 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
   const originalJson = res.json;
 
   // Override res.end to capture response
-  (res as any).end = function(chunk?: any, encoding?: any): Response {
+  (res as any).end = function (chunk?: any, encoding?: any): Response {
     const duration = Date.now() - startTime;
 
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
-      level: res.statusCode >= 400 ? (res.statusCode >= 500 ? 'ERROR' : 'WARN') : 'INFO',
+      level:
+        res.statusCode >= 400
+          ? res.statusCode >= 500
+            ? "ERROR"
+            : "WARN"
+          : "INFO",
       method: sanitizeForLog(req.method),
       path: sanitizeForLog(req.path),
       statusCode: res.statusCode,
       duration,
       ip: sanitizeForLog(req.ip || req.socket.remoteAddress) || undefined,
-      userAgent: sanitizeForLog(req.headers['user-agent']) || undefined,
+      userAgent: sanitizeForLog(req.headers["user-agent"]) || undefined,
       userId: sanitizeForLog((req as any).user?.id) || undefined,
-      requestId: sanitizeForLog(requestId)
+      requestId: sanitizeForLog(requestId),
     };
 
     // Log to console
@@ -203,7 +221,7 @@ export const getRecentLogs = (count: number = 100): LogEntry[] => {
  * @returns An array of logentry values produced by getting logs by level.
  */
 export const getLogsByLevel = (level: LogLevel): LogEntry[] => {
-  return logBuffer.filter(log => log.level === level);
+  return logBuffer.filter((log) => log.level === level);
 };
 
 /**
@@ -214,7 +232,7 @@ export const getLogsByLevel = (level: LogLevel): LogEntry[] => {
  */
 export const getLogsByPath = (pathPattern: string): LogEntry[] => {
   const regex = new RegExp(pathPattern);
-  return logBuffer.filter(log => regex.test(log.path));
+  return logBuffer.filter((log) => regex.test(log.path));
 };
 
 /**
@@ -234,20 +252,28 @@ export const clearLogs = (): void => {
  * @param context - Optional structured fields to merge into the emitted log entry.
  * @returns Nothing. The operation completes through side effects.
  */
-export const log = (level: LogLevel, message: string, context?: Partial<LogEntry>): void => {
+export const log = (
+  level: LogLevel,
+  message: string,
+  context?: Partial<LogEntry>,
+): void => {
   const entry: LogEntry = {
     timestamp: new Date().toISOString(),
     level,
-    method: sanitizeForLog(context?.method || '-'),
-    path: sanitizeForLog(context?.path || '-'),
+    method: sanitizeForLog(context?.method || "-"),
+    path: sanitizeForLog(context?.path || "-"),
     statusCode: context?.statusCode,
     duration: context?.duration,
     ip: context?.ip ? sanitizeForLog(context.ip) : undefined,
-    userAgent: context?.userAgent ? sanitizeForLog(context.userAgent) : undefined,
+    userAgent: context?.userAgent
+      ? sanitizeForLog(context.userAgent)
+      : undefined,
     userId: context?.userId ? sanitizeForLog(context.userId) : undefined,
-    requestId: context?.requestId ? sanitizeForLog(context.requestId) : undefined,
+    requestId: context?.requestId
+      ? sanitizeForLog(context.requestId)
+      : undefined,
     message: sanitizeForLog(message),
-    error: context?.error ? sanitizeForLog(context.error) : undefined
+    error: context?.error ? sanitizeForLog(context.error) : undefined,
   };
 
   console.log(formatLogEntry(entry));

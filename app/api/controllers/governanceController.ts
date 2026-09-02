@@ -6,7 +6,7 @@
  * tier classification (auto | monitored | human).
  */
 
-import { callBridge } from '../lib/pythonBridge';
+import { callBridge } from "../lib/pythonBridge";
 
 export interface TrustMetricsInput {
   successful_executions?: number;
@@ -43,9 +43,9 @@ export class GovernanceController {
   async computeTrust(
     agentName: string,
     metrics: TrustMetricsInput = {},
-    persist = true
+    persist = true,
   ): Promise<any> {
-    return callBridge('governance.compute_trust', {
+    return callBridge("governance.compute_trust", {
       name: agentName,
       metrics,
       persist,
@@ -61,8 +61,11 @@ export class GovernanceController {
    * @param proposal - Update proposal payload to classify.
    * @returns Promise resolving to the operation result produced by classifying a proposed self-update into an approval tier. Trust is taken.
    */
-  async evaluateUpdate(agentName: string, proposal: UpdateProposalInput): Promise<any> {
-    return callBridge('governance.evaluate_update', {
+  async evaluateUpdate(
+    agentName: string,
+    proposal: UpdateProposalInput,
+  ): Promise<any> {
+    return callBridge("governance.evaluate_update", {
       agent_name: agentName,
       ...proposal,
     });
@@ -71,9 +74,9 @@ export class GovernanceController {
   async recordViolation(
     agentName: string,
     violationType: string,
-    details: Record<string, unknown> = {}
+    details: Record<string, unknown> = {},
   ): Promise<any> {
-    return callBridge('registry.record_violation', {
+    return callBridge("registry.record_violation", {
       name: agentName,
       violation_type: violationType,
       details,
@@ -81,31 +84,31 @@ export class GovernanceController {
   }
 
   async setTrustTier(agentName: string, tier: string): Promise<any> {
-    return callBridge('registry.set_trust_tier', {
+    return callBridge("registry.set_trust_tier", {
       name: agentName,
       tier,
     });
   }
 
   async createCheckpoint(payload: Record<string, unknown> = {}): Promise<any> {
-    return callBridge('governance.checkpoints.create', payload);
+    return callBridge("governance.checkpoints.create", payload);
   }
 
   async listCheckpoints(): Promise<any> {
-    return callBridge('governance.checkpoints.list');
+    return callBridge("governance.checkpoints.list");
   }
 
   async getCheckpoint(checkpointId: string): Promise<any> {
-    return callBridge('governance.checkpoints.get', {
+    return callBridge("governance.checkpoints.get", {
       checkpoint_id: checkpointId,
     });
   }
 
   async rollbackCheckpoint(
     checkpointId: string,
-    payload: Record<string, unknown>
+    payload: Record<string, unknown>,
   ): Promise<any> {
-    return callBridge('governance.checkpoints.rollback', {
+    return callBridge("governance.checkpoints.rollback", {
       checkpoint_id: checkpointId,
       ...payload,
     });

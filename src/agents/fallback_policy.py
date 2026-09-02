@@ -8,12 +8,12 @@ they are opt-in and excluded from Hebbian/trust learning.
 from __future__ import annotations
 
 import os
-from typing import Any, Dict
+from typing import Any
 
 _TRUE_VALUES = {"1", "true", "yes", "on"}
 
 
-def synthetic_fallback_enabled(task_context: Dict[str, Any]) -> bool:
+def synthetic_fallback_enabled(task_context: dict[str, Any]) -> bool:
     """Return whether a task explicitly permits a local synthetic baseline."""
     explicit = task_context.get("allow_synthetic_fallback")
     if isinstance(explicit, bool):
@@ -24,7 +24,7 @@ def synthetic_fallback_enabled(task_context: Dict[str, Any]) -> bool:
     )
 
 
-def delegate_failure(llm_result: Dict[str, Any]) -> Dict[str, Any]:
+def delegate_failure(llm_result: dict[str, Any]) -> dict[str, Any]:
     """Copy safe, structured provider-failure details into a wrapper result."""
     fields = (
         "provider",
@@ -42,8 +42,8 @@ def delegate_failure(llm_result: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def provider_failure_result(
-    llm_result: Dict[str, Any], *, agent_name: str
-) -> Dict[str, Any]:
+    llm_result: dict[str, Any], *, agent_name: str
+) -> dict[str, Any]:
     """Return an honest failed wrapper result for an unavailable provider."""
     failure = delegate_failure(llm_result)
     summary = str(
@@ -64,7 +64,7 @@ def provider_failure_result(
     }
 
 
-def degraded_metadata(provider: str, reason: str) -> Dict[str, Any]:
+def degraded_metadata(provider: str, reason: str) -> dict[str, Any]:
     """Return the common non-learning metadata for an intentional baseline."""
     return {
         "provider": provider,

@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime
-from typing import Optional
 
 from .dataset_loader import JudgmentRecord, LegalDatasetLoader
 from .eval_harness import LegalEvalHarness
@@ -34,9 +33,9 @@ class BatchRunner:
 
     def __init__(
         self,
-        loader: Optional[LegalDatasetLoader] = None,
-        agent: Optional[LegalSummarizerAgent] = None,
-        store: Optional[RunStore] = None,
+        loader: LegalDatasetLoader | None = None,
+        agent: LegalSummarizerAgent | None = None,
+        store: RunStore | None = None,
         run_logger=None,
     ):
         self.loader = loader or LegalDatasetLoader()
@@ -55,7 +54,7 @@ class BatchRunner:
     # Public API
     # ------------------------------------------------------------------
 
-    def run(self, config: Optional[SummarizationConfig] = None) -> dict:
+    def run(self, config: SummarizationConfig | None = None) -> dict:
         """Execute a full summarization run.
 
         Returns:

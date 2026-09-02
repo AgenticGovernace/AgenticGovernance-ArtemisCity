@@ -41,15 +41,15 @@ it does not run a background projector or automatic retry loop.
 
 ## Client-visible outcomes
 
-| Condition | Result |
-|---|---|
-| SQL commit and Obsidian projection succeed | `status=success`, `sync_pending=false` |
-| SQL commit succeeds but vector projection fails | `status=accepted`, `vector_status=pending`, `sync_pending=true`; Obsidian is not attempted |
-| SQL commit succeeds but projection or acknowledgement fails | `status=accepted`, `sync_pending=true` |
-| SQL transaction fails | raise a storage error; do not write Obsidian |
-| Idempotent replay of the same request | return the original revision and receipt with `duplicate=true` |
-| Same idempotency key with different path or content | raise an idempotency conflict |
-| Replay of an older explicit key after a newer revision | `status=superseded`, `obsidian_status=superseded`, `sync_pending=false`; do not overwrite current projections |
+| Condition                                                   | Result                                                                                                        |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| SQL commit and Obsidian projection succeed                  | `status=success`, `sync_pending=false`                                                                        |
+| SQL commit succeeds but vector projection fails             | `status=accepted`, `vector_status=pending`, `sync_pending=true`; Obsidian is not attempted                    |
+| SQL commit succeeds but projection or acknowledgement fails | `status=accepted`, `sync_pending=true`                                                                        |
+| SQL transaction fails                                       | raise a storage error; do not write Obsidian                                                                  |
+| Idempotent replay of the same request                       | return the original revision and receipt with `duplicate=true`                                                |
+| Same idempotency key with different path or content         | raise an idempotency conflict                                                                                 |
+| Replay of an older explicit key after a newer revision      | `status=superseded`, `obsidian_status=superseded`, `sync_pending=false`; do not overwrite current projections |
 
 An `accepted` result is durable: callers can read the committed SQL revision
 immediately even though its Obsidian mirror is pending. It is not a failed
@@ -63,8 +63,7 @@ Receipts retain compatibility fields and include `memory_id`, `record_id`,
 
 Each SQL-mode invocation without an `idempotency_key` receives a new opaque UUID
 operation key, returned in the receipt. Repeating the same content without
-supplying a prior key is a new write: `A -> B -> A` creates revisions 1, 2, and
-3. Idempotent retry is guaranteed only when the caller supplies and reuses the
+supplying a prior key is a new write: `A -> B -> A` creates revisions 1, 2, and 3. Idempotent retry is guaranteed only when the caller supplies and reuses the
 same nonempty string key (including by taking the generated key from an earlier
 receipt and explicitly sending it on replay).
 
@@ -171,12 +170,12 @@ This is caller/operator replay, not an automatic outbox worker.
 
 The Express bridge maps canonical-memory failures as follows:
 
-| Bridge code | HTTP status |
-|---|---:|
-| `MEMORY_IDEMPOTENCY_CONFLICT` | 409 |
-| `MEMORY_STORAGE_UNAVAILABLE` | 503 |
-| `MEMORY_DATABASE_CONFIGURATION_ERROR` | 503 |
-| `MEMORY_DELETE_UNSUPPORTED` | 409 |
+| Bridge code                           | HTTP status |
+| ------------------------------------- | ----------: |
+| `MEMORY_IDEMPOTENCY_CONFLICT`         |         409 |
+| `MEMORY_STORAGE_UNAVAILABLE`          |         503 |
+| `MEMORY_DATABASE_CONFIGURATION_ERROR` |         503 |
+| `MEMORY_DELETE_UNSUPPORTED`           |         409 |
 
 `ARTEMIS_MEMORY_OUTBOX_MAX_ATTEMPTS` and
 `ARTEMIS_MEMORY_OUTBOX_RETRY_BASE_SECONDS` are reserved/inert configuration

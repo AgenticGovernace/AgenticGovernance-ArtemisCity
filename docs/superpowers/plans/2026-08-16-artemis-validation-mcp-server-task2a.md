@@ -74,18 +74,20 @@ services/mcp/artemis-validation/
 ### Task 2A: Verifier-Injected Validation MCP Server Factory
 
 **Files:**
+
 - Create: `services/mcp/artemis-validation/src/artemis_validation_mcp/server.py`
 - Modify: `services/mcp/artemis-validation/src/artemis_validation_mcp/__init__.py`
 - Create: `services/mcp/artemis-validation/tests/test_server.py`
 
 **Interfaces:**
+
 - Consumes:
   `AuthVerifier.verify(AuthenticationRequest) -> AuthReceiptV1`,
   `AuthorityContextFactory.root(AuthReceiptV1) -> AuthorityContextV1`, Task 1
   DTOs, and the three `ATPValidationService` methods.
 - Produces:
   `create_server(*, verifier, authentication_request, service=None,
-  clock=_utc_now) -> MCPServer` and no module-level runtime object.
+clock=_utc_now) -> MCPServer` and no module-level runtime object.
 
 - [ ] **Step 1: Write canonical auth fixtures and failing startup-admission tests**
 

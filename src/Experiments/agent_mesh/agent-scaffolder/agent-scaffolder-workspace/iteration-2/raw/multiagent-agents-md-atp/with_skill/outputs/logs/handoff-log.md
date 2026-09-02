@@ -4,11 +4,13 @@ One line per handoff between the Writer and Reviewer. Never edit or delete prior
 only. This is the lightweight file-based audit trail referenced in `AGENTS.md`.
 
 Format:
+
 ```
 <ISO-8601 timestamp> | <from> → <to> | <doc-slug> r<round> | <action-type> | <status/verdict> | <notes: feedback IDs or open count>
 ```
 
 Example:
+
 ```
 2026-06-16T14:00Z | writer → reviewer | getting-started r1 | draft-ready-for-review | in-review | initial draft
 2026-06-16T14:05Z | reviewer → writer | getting-started r1 | feedback-returned | changes-requested | 3 open (R1-01..03)

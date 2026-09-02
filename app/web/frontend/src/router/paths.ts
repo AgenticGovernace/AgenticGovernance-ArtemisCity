@@ -18,6 +18,7 @@ export const routeSegments = {
   governance: 'governance',
   executor: 'executor',
   monitoring: 'monitoring',
+  security: 'security',
 } as const;
 
 export const routePaths = {
@@ -29,6 +30,7 @@ export const routePaths = {
   governance: `/${routeSegments.governance}`,
   executor: `/${routeSegments.executor}`,
   monitoring: `/${routeSegments.monitoring}`,
+  security: `/${routeSegments.security}`,
   task: (taskId: string) => `/${routeSegments.tasks}/${encodeURIComponent(taskId)}`,
   taskActivity: (taskId: string) =>
     `/${routeSegments.tasks}/${encodeURIComponent(taskId)}/${routeSegments.taskActivity}`,

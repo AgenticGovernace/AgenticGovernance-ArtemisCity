@@ -12,7 +12,6 @@ import sqlite3
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from src.runtime_paths import data_path, log_path
 
@@ -30,8 +29,8 @@ class RunStore:
 
     def __init__(
         self,
-        db_path: Optional[str] = None,
-        report_dir: Optional[str] = None,
+        db_path: str | None = None,
+        report_dir: str | None = None,
     ):
         self.db_path = data_path(
             "legal_summarization.db",
@@ -145,7 +144,7 @@ class RunStore:
         dataset_config: str,
         split: str,
         total_records: int,
-        dataset_info: Optional[dict] = None,
+        dataset_info: dict | None = None,
     ) -> None:
         """Start run.
 
@@ -187,7 +186,7 @@ class RunStore:
         status: str,
         duration_ms: float,
         *,
-        metrics: Optional[dict] = None,
+        metrics: dict | None = None,
     ) -> None:
         """Finish run.
 
@@ -240,8 +239,8 @@ class RunStore:
         mode: str,
         status: str,
         inference_ms: float,
-        metrics: Optional[dict] = None,
-        eval_result: Optional[dict] = None,
+        metrics: dict | None = None,
+        eval_result: dict | None = None,
     ) -> None:
         """Store result.
 
@@ -323,7 +322,7 @@ class RunStore:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    def get_run(self, run_id: str) -> Optional[dict]:
+    def get_run(self, run_id: str) -> dict | None:
         """Return run.
 
         Args:

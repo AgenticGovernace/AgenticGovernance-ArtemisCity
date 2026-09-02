@@ -19,7 +19,6 @@ import os
 import time
 import uuid
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
 
 from src.runtime_paths import data_path
 
@@ -72,7 +71,7 @@ class FileMemoryBackend(MemoryBackend):
         base_path: Directory path where memory files are stored.
     """
 
-    def __init__(self, base_path: Optional[str] = None):
+    def __init__(self, base_path: str | None = None):
         """Initialize the file-based memory backend.
 
         Args:
@@ -146,7 +145,7 @@ class FileMemoryBackend(MemoryBackend):
                             results.append(data)
                             if len(results) >= limit:
                                 break
-                except Exception:
+                except Exception:  # nosec B112 - skip unreadable record
                     continue
         return results
 
@@ -173,7 +172,7 @@ class VectorMemoryBackend(MemoryBackend):
             self._available = False
             self.vector_store = None
 
-    def write(self, content: str, metadata: Optional[Dict] = None) -> Optional[str]:
+    def write(self, content: str, metadata: dict | None = None) -> str | None:
         """Write content to vector store.
 
         Args:
@@ -196,7 +195,7 @@ class VectorMemoryBackend(MemoryBackend):
             print(f"[Memory] Vector write failed: {e}")
             return None
 
-    def read(self, query: str, limit: int = 10) -> List[Dict]:
+    def read(self, query: str, limit: int = 10) -> list[dict]:
         """Semantic search for content.
 
         Args:
@@ -247,8 +246,8 @@ class MemoryBus:
     def __init__(
         self,
         backend_type: str = "file",
-        backend: Optional[MemoryBackend] = None,
-        file_base_path: Optional[str] = None,
+        backend: MemoryBackend | None = None,
+        file_base_path: str | None = None,
     ):
         """Initialize the MemoryBus with the specified backend.
 
@@ -271,7 +270,7 @@ class MemoryBus:
             self.backend = FileMemoryBackend(file_base_path)
             self.backend_type = "file"
 
-    def write(self, content: str, metadata: Optional[Dict] = None) -> Optional[str]:
+    def write(self, content: str, metadata: dict | None = None) -> str | None:
         """Write content to the memory backend.
 
         Args:
@@ -283,7 +282,7 @@ class MemoryBus:
         """
         return self.backend.write(content, metadata)
 
-    def read(self, query: str, limit: int = 10) -> List[Dict]:
+    def read(self, query: str, limit: int = 10) -> list[dict]:
         """Query the memory backend for matching content.
 
         Args:

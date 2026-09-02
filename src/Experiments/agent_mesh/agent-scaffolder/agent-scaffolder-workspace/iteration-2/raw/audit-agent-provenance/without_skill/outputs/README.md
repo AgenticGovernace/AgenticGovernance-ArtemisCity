@@ -39,23 +39,23 @@ and the `logs/` tree if they don't exist.
 
 ## What it watches and what it writes
 
-| Watched (read-only) | Written by CompSuite |
-|---------------------|----------------------|
-| `voice_logs/`       | `logs/audit-YYYY-MM-DD.log` |
-| `outputs/`          | `logs/escalations.log` |
+| Watched (read-only) | Written by CompSuite                           |
+| ------------------- | ---------------------------------------------- |
+| `voice_logs/`       | `logs/audit-YYYY-MM-DD.log`                    |
+| `outputs/`          | `logs/escalations.log`                         |
 |                     | `logs/provenance/provenance-YYYY-MM-DD.ndjson` |
-|                     | `logs/reflections/reflection-*.md` |
-|                     | `logs/.state.json` (restart checkpoint) |
+|                     | `logs/reflections/reflection-*.md`             |
+|                     | `logs/.state.json` (restart checkpoint)        |
 
 CompSuite **never writes inside the watched trees** — it is read-only on your
 data.
 
 ## Classification (Normal / Warning / Error)
 
-| Severity  | When                                                                              |
-|-----------|-----------------------------------------------------------------------------------|
-| `Normal`  | Expected file with an allowed extension; the steady state.                        |
-| `Warning` | Unexpected extension, zero-byte file, or a deletion. **Logged, never escalated.** |
+| Severity  | When                                                                                                                          |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `Normal`  | Expected file with an allowed extension; the steady state.                                                                    |
+| `Warning` | Unexpected extension, zero-byte file, or a deletion. **Logged, never escalated.**                                             |
 | `Error`   | Path outside the watched roots, a forbidden/executable extension, an unreadable file, or a classifier failure. **Escalated.** |
 
 Rules are data-driven in [`config/compsuite.toml`](./config/compsuite.toml)

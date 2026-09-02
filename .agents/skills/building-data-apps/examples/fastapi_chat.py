@@ -13,6 +13,7 @@
 # limitations under the License.
 import json
 import os
+
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from google.cloud import geminidataanalytics_v1beta as gemini
@@ -134,7 +135,7 @@ async def chat(request: ChatRequestModel):
 
             yield "data: [DONE]\n\n"
         except Exception as e:
-            error_content = f"\\n\\n**API Error**: {str(e)}"
+            error_content = f"\\n\\n**API Error**: {e!s}"
             error_dict = {"type": "FINAL_RESPONSE", "content": error_content}
             yield "data: " + json.dumps(error_dict) + "\n\n"
             yield "data: [DONE]\n\n"

@@ -32,28 +32,30 @@
 ### Task 1: Define canonical authentication and authority contracts
 
 **Files:**
+
 - Create: `src/auth/__init__.py`
 - Create: `src/auth/contracts.py`
 - Create: `src/auth/delegation.py`
 - Create: `src/tests/test_auth_contracts.py`
 
 **Interfaces:**
+
 - Consumes: Authstructure's future credential-free receipt projection.
 - Produces: `PrincipalIdentityV1`, `PrincipalCapabilityV1`, `PrincipalV1`, `AuthReceiptSourceV1`, `AuthReceiptV1`, `VerifiedPartyV1`, `DelegationReferenceV1`, `AuthorityContextV1`, `DelegationGrantV1`, and `DelegationGrantLookup`.
 
 The exact fields are:
 
-| Model | Fields |
-|---|---|
-| `PrincipalIdentityV1` | `actor_issuer`, `actor_subject_ref`, `agent_id`, `tenant_id`, `certificate_issuer`, `certificate_serial`, `certificate_thumbprint`, `request_key_id`, `request_key_jkt` |
-| `PrincipalCapabilityV1` | `token_issuer`, `audience`, `token_key_id`, `token_jti_ref`, `granted_scopes` |
-| `PrincipalV1` | literal `version="artemis.principal/1"`, `identity`, `capability`, `verified_at`, `expires_at` |
-| `AuthReceiptSourceV1` | `format`, `receipt_id`, `record_hash`, `receipt_key_id`, `signer_namespace`, `canonical_receipt` |
-| `AuthReceiptV1` | literal `version="artemis.auth-receipt/1"`, `request_id`, `authentication`, `principal`, `reason_code`, `verified_at`, `source` |
-| `VerifiedPartyV1` | `principal`, `auth_receipt` |
-| `DelegationReferenceV1` | `grant_id`, `grant_hash` |
-| `AuthorityContextV1` | `requester`, `actor`, `delegation` |
-| `DelegationGrantV1` | literal `version="artemis.delegation-grant/1"`, `grant_id`, `grant_hash`, root/parent/outcome IDs, requester/actor principal and receipt refs/hashes, allowed modes/action types/capabilities/target zones, depth limit, budget reservation ID, issue/expiry times, policy version |
+| Model                   | Fields                                                                                                                                                                                                                                                                             |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PrincipalIdentityV1`   | `actor_issuer`, `actor_subject_ref`, `agent_id`, `tenant_id`, `certificate_issuer`, `certificate_serial`, `certificate_thumbprint`, `request_key_id`, `request_key_jkt`                                                                                                            |
+| `PrincipalCapabilityV1` | `token_issuer`, `audience`, `token_key_id`, `token_jti_ref`, `granted_scopes`                                                                                                                                                                                                      |
+| `PrincipalV1`           | literal `version="artemis.principal/1"`, `identity`, `capability`, `verified_at`, `expires_at`                                                                                                                                                                                     |
+| `AuthReceiptSourceV1`   | `format`, `receipt_id`, `record_hash`, `receipt_key_id`, `signer_namespace`, `canonical_receipt`                                                                                                                                                                                   |
+| `AuthReceiptV1`         | literal `version="artemis.auth-receipt/1"`, `request_id`, `authentication`, `principal`, `reason_code`, `verified_at`, `source`                                                                                                                                                    |
+| `VerifiedPartyV1`       | `principal`, `auth_receipt`                                                                                                                                                                                                                                                        |
+| `DelegationReferenceV1` | `grant_id`, `grant_hash`                                                                                                                                                                                                                                                           |
+| `AuthorityContextV1`    | `requester`, `actor`, `delegation`                                                                                                                                                                                                                                                 |
+| `DelegationGrantV1`     | literal `version="artemis.delegation-grant/1"`, `grant_id`, `grant_hash`, root/parent/outcome IDs, requester/actor principal and receipt refs/hashes, allowed modes/action types/capabilities/target zones, depth limit, budget reservation ID, issue/expiry times, policy version |
 
 - [ ] **Step 1: Write failing contract tests**
 
@@ -165,11 +167,13 @@ The exact fields are:
 ### Task 2: Define routing, result, and event contracts
 
 **Files:**
+
 - Create: `src/routing/__init__.py`
 - Create: `src/routing/contracts.py`
 - Create: `src/tests/test_routing_contracts.py`
 
 **Interfaces:**
+
 - Consumes: `AuthorityContextV1` from Task 1.
 - Produces: `TaskSubmissionV1`, `TaskIntentV1`, `RequestedConstraintsV1`, `DelegationContextV1`, `ContinuationV1`, `TaskEnvelopeV1`, `ResolvedIntentV1`, `AuthorizedRouteRequestV1`, `RoutingDecisionV1`, `OutcomeV1`, and `KernelEventV1`.
 
@@ -284,6 +288,7 @@ The exact fields are:
 ### Task 3: Make ATP intent resolution authoritative and non-downgradeable
 
 **Files:**
+
 - Create: `src/routing/intent.py`
 - Create: `src/routing/policy.py`
 - Create: `config/routing/intent-policy.v1.yaml`
@@ -293,6 +298,7 @@ The exact fields are:
 - Modify: `src/tests/test_atp_validator.py`
 
 **Interfaces:**
+
 - Consumes: `TaskIntentV1`, `RequestedConstraintsV1`, `ATPParser`, and `ATPValidator(strict=True)`.
 - Produces: `IntentPolicy.load(path)`, `IntentResolver.resolve(content, typed_intent, requested) -> ResolvedIntentV1`, and stable `IntentDenied(code, message)` errors.
 
@@ -430,6 +436,7 @@ The exact fields are:
 ### Task 4: Authorize and filter eligibility before learned ranking
 
 **Files:**
+
 - Create: `src/routing/authorization.py`
 - Create: `src/routing/eligibility.py`
 - Create: `src/tests/test_routing_authorization.py`
@@ -438,6 +445,7 @@ The exact fields are:
 - Modify: `src/tests/test_hebbian_router.py`
 
 **Interfaces:**
+
 - Consumes: verified `AuthorityContextV1`, `ResolvedIntentV1`, Artemis policy, registry records, trust, quarantine, sandbox policy, and `DelegationGrantLookup`.
 - Produces: `ArtemisAuthorizer.authorize`, `EligibilityFilter.candidates`, and `HebbianRanker.rank` with the typed returns defined below.
 
@@ -515,6 +523,7 @@ The exact fields are:
 ### Task 5: Add the Authstructure verifier port without a production bypass
 
 **Files:**
+
 - Create: `src/auth/verifier.py`
 - Create: `src/auth/authstructure.py`
 - Create: `src/auth/config.py`
@@ -525,6 +534,7 @@ The exact fields are:
 - Modify: `setup_secrets.sh`
 
 **Interfaces:**
+
 - Consumes: raw transport proof only inside `AuthenticationRequest`; the future Authstructure public verification endpoint and signed receipt.
 - Produces: `AuthVerifier.verify(request) -> AuthReceiptV1`, `AuthorityContextFactory.root(receipt) -> AuthorityContextV1`, and fail-closed `load_auth_verifier(environment)`.
 
@@ -623,11 +633,13 @@ The exact fields are:
 ### Task 6: Implement one shared Routing Kernel lifecycle
 
 **Files:**
+
 - Create: `src/routing/kernel.py`
 - Create: `src/routing/ports.py`
 - Create: `src/tests/test_routing_kernel.py`
 
 **Interfaces:**
+
 - Consumes: intent resolver, authorizer, eligibility filter, ranker, sandboxed executor, and finalizer ports.
 - Produces: `RoutingKernel.execute(envelope) -> OutcomeV1`, `RoutingKernel.stream(envelope) -> Iterator[KernelEventV1]`, and `RoutingKernel.preview(envelope) -> RoutingDecisionV1`.
 
@@ -725,6 +737,7 @@ The exact fields are:
 ### Task 7: Reduce MCP common to a declared adapter over the canonical core
 
 **Files:**
+
 - Modify: `services/mcp/common/pyproject.toml`
 - Modify: `services/mcp/common/src/artemis_mcp_common/__init__.py`
 - Modify: `services/mcp/common/src/artemis_mcp_common/models.py`
@@ -735,6 +748,7 @@ The exact fields are:
 - Modify: `docs/superpowers/plans/2026-08-16-artemis-mcp-foundation-memory-server.md`
 
 **Interfaces:**
+
 - Consumes: installed `artemis-city` contracts, `AuthVerifier`, and `RoutingKernel`.
 - Produces: MCP transport DTOs and an adapter that rejects authority-bearing input and delegates exactly once.
 
@@ -806,10 +820,12 @@ The exact fields are:
 ### Task 8: Run the governed-core review gate
 
 **Files:**
+
 - Inspect: all files named by Tasks 1-7.
 - Modify only when a focused check identifies a regression in those files.
 
 **Interfaces:**
+
 - Consumes: completed governed core.
 - Produces: a reviewable green core before task-ledger or ingress wiring begins.
 

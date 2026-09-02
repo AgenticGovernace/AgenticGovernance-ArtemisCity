@@ -889,3 +889,93 @@ export const fetchPrometheusStatus = (
   options: ApiRequestOptions = {}
 ): Promise<PrometheusStatus> =>
   apiFetch<PrometheusStatus>('/monitoring/prometheus', options);
+
+/* -------------------------------------------------------------------------- */
+/* Mutual-TLS agent registry                                                  */
+/*                                                                            */
+/* Projections of the `.agent/clients/*.yaml` manifests and the append-only    */
+/* handshake ledger the memory server writes. Read-only by design: issuing and */
+/* revoking certificates happens in scripts/mtls/artemis-mtls.sh, next to the  */
+/* private keys, never through the dashboard.                                  */
+/* -------------------------------------------------------------------------- */
+
+/** Lifecycle state the dashboard derives, matching the server's precedence. */
+export type MtlsClientStatus =
+  | 'active'
+  | 'revoked'
+  | 'expired'
+  | 'not_yet_valid'
+  | 'invalid';
+
+/** One agent authorised to reach the memory server over mutual TLS. */
+export interface MtlsClient {
+  agent_id: string;
+  display_name: string;
+  fingerprint_sha256: string;
+  issued_by: string;
+  valid_from: string | null;
+  valid_to: string | null;
+  allowed_routes: string[];
+  revoked: boolean;
+  notes: string;
+  status: MtlsClientStatus;
+  days_remaining: number | null;
+  manifest_file: string;
+}
+
+/** A manifest the server refuses to load, and the reason it gave. */
+export interface MtlsProblem {
+  file: string;
+  error: string;
+}
+
+/** Registry roll-up for the Security page header. */
+export interface MtlsStatus {
+  enabled: boolean;
+  agent_dir: string;
+  clients_dir: string;
+  logs_dir: string;
+  client_count: number;
+  active_count: number;
+  revoked_count: number;
+  expiring_soon_count: number;
+  problems: MtlsProblem[];
+}
+
+/** One appended decision from the handshake ledger. */
+export interface MtlsHandshake {
+  ts: string;
+  server_cn: string;
+  client_cn: string;
+  agent_id: string;
+  client_fingerprint_sha256: string;
+  result: 'accepted' | 'rejected' | string;
+  method: string;
+  route: string;
+  remote: string;
+  reason: string | null;
+}
+
+/** Whether mTLS is enforced, and how healthy the client registry is. */
+export const fetchMtlsStatus = (options: ApiRequestOptions = {}) =>
+  apiFetch<MtlsStatus>('/mtls/status', options);
+
+/** Every agent manifest under the configured `.agent/clients` directory. */
+export const fetchMtlsClients = (options: ApiRequestOptions = {}) =>
+  apiFetch<MtlsClient[]>('/mtls/clients', options);
+
+/**
+ * Recent handshake decisions, newest first.
+ *
+ * @param limit - Maximum records to return (server clamps to 1–1000).
+ * @param result - Optional filter: only accepted, or only rejected, handshakes.
+ */
+export const fetchMtlsHandshakes = (
+  limit: number = 100,
+  result?: 'accepted' | 'rejected',
+  options: ApiRequestOptions = {}
+) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (result) params.set('result', result);
+  return apiFetch<MtlsHandshake[]>(`/mtls/handshakes?${params.toString()}`, options);
+};

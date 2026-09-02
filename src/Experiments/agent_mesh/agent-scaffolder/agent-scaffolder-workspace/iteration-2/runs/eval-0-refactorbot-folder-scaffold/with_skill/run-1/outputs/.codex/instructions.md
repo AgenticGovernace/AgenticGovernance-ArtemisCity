@@ -21,6 +21,7 @@ broader defaults.
   one formal line and halt.
 
 ## Persistence & logging
+
 - State lives in: **none** — RefactorBot is ephemeral; each CLI invocation is independent
   and nothing is retained between runs.
 - Reflection: **inline self-check only.** After each diff, silently verify it is a valid

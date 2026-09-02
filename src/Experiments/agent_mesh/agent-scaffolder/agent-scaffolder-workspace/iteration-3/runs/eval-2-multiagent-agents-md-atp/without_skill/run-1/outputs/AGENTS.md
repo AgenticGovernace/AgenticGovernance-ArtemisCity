@@ -38,10 +38,10 @@ is only considered **done** when the Reviewer has approved it.
 
 ## 2. The Agents
 
-| Agent | Role card | Owns (may write) | Reads only |
-|-------|-----------|------------------|------------|
-| **Writer** | `agents/writer.md` | `docs/**`, `review/queue.md` (status flips), `STATE.md` (its own rows) | `review/feedback/**`, `style-guide.md` |
-| **Reviewer** | `agents/reviewer.md` | `review/feedback/**`, `review/queue.md` (verdicts), `STATE.md` (its own rows) | `docs/**`, `style-guide.md` |
+| Agent        | Role card            | Owns (may write)                                                              | Reads only                             |
+| ------------ | -------------------- | ----------------------------------------------------------------------------- | -------------------------------------- |
+| **Writer**   | `agents/writer.md`   | `docs/**`, `review/queue.md` (status flips), `STATE.md` (its own rows)        | `review/feedback/**`, `style-guide.md` |
+| **Reviewer** | `agents/reviewer.md` | `review/feedback/**`, `review/queue.md` (verdicts), `STATE.md` (its own rows) | `docs/**`, `style-guide.md`            |
 
 **Golden rule:** an agent never edits a file the other agent owns. The Writer
 writes docs; the Reviewer writes feedback. Both update only their own rows in
@@ -81,20 +81,20 @@ All coordination flows through two shared, append-friendly artifacts:
 
 **Statuses:**
 
-| Status | Meaning | Owner (whose turn) |
-|--------|---------|--------------------|
-| `DRAFT` | Writer is actively authoring/editing. | Writer |
-| `IN_REVIEW` | Writer has submitted; waiting for Reviewer to pick it up. | Reviewer |
-| `REVIEWING` | Reviewer has claimed it and is reading. | Reviewer |
-| `CHANGES_REQUESTED` | Reviewer returned feedback; Writer must revise. | Writer |
-| `APPROVED` | Reviewer signed off. **Document is done.** | — (locked) |
+| Status              | Meaning                                                   | Owner (whose turn) |
+| ------------------- | --------------------------------------------------------- | ------------------ |
+| `DRAFT`             | Writer is actively authoring/editing.                     | Writer             |
+| `IN_REVIEW`         | Writer has submitted; waiting for Reviewer to pick it up. | Reviewer           |
+| `REVIEWING`         | Reviewer has claimed it and is reading.                   | Reviewer           |
+| `CHANGES_REQUESTED` | Reviewer returned feedback; Writer must revise.           | Writer             |
+| `APPROVED`          | Reviewer signed off. **Document is done.**                | — (locked)         |
 
 Only the owner of a document may move it to its next state, and only along the
 arrows above. No agent may skip states or take an action when it is not its turn.
 
 ### Turn-taking checklist (every agent, every cycle)
 
-1. **Read `STATE.md`.** Find documents where `owner` == *you*.
+1. **Read `STATE.md`.** Find documents where `owner` == _you_.
 2. If none are yours, **do nothing** and report "no work for me this cycle."
 3. Pick the highest-priority document that is yours.
 4. Do your work (see your role card for specifics).

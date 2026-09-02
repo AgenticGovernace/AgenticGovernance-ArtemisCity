@@ -4,8 +4,8 @@
  * Endpoints for vault/memory operations via MCP.
  */
 
-import { Request, Response, Router } from 'express';
-import { MemoryController } from '../controllers/memoryController';
+import { Request, Response, Router } from "express";
+import { MemoryController } from "../controllers/memoryController";
 
 const router = Router();
 const controller = new MemoryController();
@@ -14,7 +14,7 @@ const controller = new MemoryController();
  * GET /api/v1/memory/stats
  * Get vault statistics
  */
-router.get('/stats', async (req: Request, res: Response) => {
+router.get("/stats", async (req: Request, res: Response) => {
   try {
     const stats = await controller.getStats();
     res.json({
@@ -33,14 +33,14 @@ router.get('/stats', async (req: Request, res: Response) => {
  * POST /api/v1/memory/read
  * Read a file from the vault
  */
-router.post('/read', async (req: Request, res: Response) => {
+router.post("/read", async (req: Request, res: Response) => {
   try {
     const { path } = req.body;
 
     if (!path) {
       res.status(400).json({
         success: false,
-        error: 'path is required',
+        error: "path is required",
       });
       return;
     }
@@ -70,14 +70,14 @@ router.post('/read', async (req: Request, res: Response) => {
  * POST /api/v1/memory/write
  * Write content to the vault
  */
-router.post('/write', async (req: Request, res: Response) => {
+router.post("/write", async (req: Request, res: Response) => {
   try {
     const { path, content, metadata } = req.body;
 
     if (!path || content === undefined) {
       res.status(400).json({
         success: false,
-        error: 'path and content are required',
+        error: "path and content are required",
       });
       return;
     }
@@ -86,7 +86,7 @@ router.post('/write', async (req: Request, res: Response) => {
     res.json({
       success: true,
       data: result,
-      message: 'File written successfully',
+      message: "File written successfully",
     });
   } catch (error: any) {
     res.status(500).json({
@@ -100,14 +100,14 @@ router.post('/write', async (req: Request, res: Response) => {
  * POST /api/v1/memory/search
  * Search the vault
  */
-router.post('/search', async (req: Request, res: Response) => {
+router.post("/search", async (req: Request, res: Response) => {
   try {
     const { query, path, tags, limit = 10 } = req.body;
 
     if (!query) {
       res.status(400).json({
         success: false,
-        error: 'query is required',
+        error: "query is required",
       });
       return;
     }
@@ -130,9 +130,9 @@ router.post('/search', async (req: Request, res: Response) => {
  * POST /api/v1/memory/list
  * List files in a directory
  */
-router.post('/list', async (req: Request, res: Response) => {
+router.post("/list", async (req: Request, res: Response) => {
   try {
-    const { path = '' } = req.body;
+    const { path = "" } = req.body;
 
     const files = await controller.listFiles(path);
     res.json({
@@ -152,14 +152,14 @@ router.post('/list', async (req: Request, res: Response) => {
  * POST /api/v1/memory/delete
  * Delete a file from the vault
  */
-router.post('/delete', async (req: Request, res: Response) => {
+router.post("/delete", async (req: Request, res: Response) => {
   try {
     const { path } = req.body;
 
     if (!path) {
       res.status(400).json({
         success: false,
-        error: 'path is required',
+        error: "path is required",
       });
       return;
     }
@@ -175,7 +175,7 @@ router.post('/delete', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: 'File deleted successfully',
+      message: "File deleted successfully",
     });
   } catch (error: any) {
     res.status(500).json({
@@ -189,7 +189,7 @@ router.post('/delete', async (req: Request, res: Response) => {
  * GET /api/v1/memory/context
  * Get current context
  */
-router.get('/context', async (req: Request, res: Response) => {
+router.get("/context", async (req: Request, res: Response) => {
   try {
     const context = await controller.getContext();
     res.json({
@@ -208,14 +208,14 @@ router.get('/context', async (req: Request, res: Response) => {
  * PUT /api/v1/memory/context
  * Update context
  */
-router.put('/context', async (req: Request, res: Response) => {
+router.put("/context", async (req: Request, res: Response) => {
   try {
     const { key, value } = req.body;
 
     if (!key) {
       res.status(400).json({
         success: false,
-        error: 'key is required',
+        error: "key is required",
       });
       return;
     }
@@ -224,7 +224,7 @@ router.put('/context', async (req: Request, res: Response) => {
     res.json({
       success: true,
       data: context,
-      message: 'Context updated',
+      message: "Context updated",
     });
   } catch (error: any) {
     res.status(500).json({
@@ -238,12 +238,12 @@ router.put('/context', async (req: Request, res: Response) => {
  * DELETE /api/v1/memory/context
  * Clear context
  */
-router.delete('/context', async (req: Request, res: Response) => {
+router.delete("/context", async (req: Request, res: Response) => {
   try {
     await controller.clearContext();
     res.json({
       success: true,
-      message: 'Context cleared',
+      message: "Context cleared",
     });
   } catch (error: any) {
     res.status(500).json({

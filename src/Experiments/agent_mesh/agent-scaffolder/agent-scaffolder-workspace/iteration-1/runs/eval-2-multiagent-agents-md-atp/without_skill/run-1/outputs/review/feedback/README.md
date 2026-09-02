@@ -22,6 +22,7 @@ Verdict: CHANGES_REQUESTED
 ```
 
 Rules:
+
 - Only the **Reviewer** writes in this folder.
 - The **Writer** reads these files but never edits them.
 - Never delete past-round feedback — it is the audit trail.

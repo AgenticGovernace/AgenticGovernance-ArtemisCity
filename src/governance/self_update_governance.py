@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from utils.helpers import logger
 
@@ -52,9 +52,9 @@ class WorkflowChange:
     change_type: str  # e.g., "routing_weight", "config_update", "workflow_add"
     target_component: str  # e.g., "agent_router", "memory_bus", "hebbian_layer"
     description: str
-    proposed_diff: Dict[str, Any] = field(default_factory=dict)
-    rollback_data: Dict[str, Any] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    proposed_diff: dict[str, Any] = field(default_factory=dict)
+    rollback_data: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -89,12 +89,12 @@ class ApprovalDecision:
     reason: str
     requires_human: bool = False
     staged_rollout: bool = False
-    sandbox_results: Optional[SandboxTestResults] = None
+    sandbox_results: SandboxTestResults | None = None
     performance_delta: float = 0.0
-    approval_level: Optional[ApprovalLevel] = None
+    approval_level: ApprovalLevel | None = None
     timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         result = {
             "status": self.status,
             "reason": self.reason,
@@ -138,7 +138,7 @@ class SelfUpdateGovernor:
         self.max_perf_regression = max_perf_regression
         self._log_dir = Path(log_dir)
         self._log_dir.mkdir(parents=True, exist_ok=True)
-        self._proposal_history: List[Dict] = []
+        self._proposal_history: list[dict] = []
 
     async def evaluate_proposal(
         self,
@@ -267,7 +267,7 @@ class SelfUpdateGovernor:
             p95_latency_ms=120.0,
         )
 
-    def _lint_proposal(self, change: WorkflowChange) -> List[str]:
+    def _lint_proposal(self, change: WorkflowChange) -> list[str]:
         """
         Static analysis of the proposed change.
 
@@ -316,7 +316,7 @@ class SelfUpdateGovernor:
         self,
         approval_level: ApprovalLevel,
         sandbox_results: SandboxTestResults,
-        lint_issues: List[str],
+        lint_issues: list[str],
         perf_regression: float,
     ) -> ApprovalDecision:
         """Apply decision logic across all evaluation signals."""
@@ -413,6 +413,6 @@ class SelfUpdateGovernor:
             f"({proposed_change.change_type}): {decision.status}"
         )
 
-    def get_proposal_history(self, limit: int = 50) -> List[Dict]:
+    def get_proposal_history(self, limit: int = 50) -> list[dict]:
         """Return recent proposal evaluations."""
         return self._proposal_history[-limit:]

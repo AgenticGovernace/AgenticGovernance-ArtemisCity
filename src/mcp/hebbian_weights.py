@@ -23,7 +23,6 @@ import statistics
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
 
 from src.runtime_paths import data_path
 from src.utils.helpers import logger
@@ -44,14 +43,14 @@ SENTINEL_THRESHOLD = 0.4
 
 @dataclass(frozen=True)
 class _SnapshotTableSpec:
-    columns: Tuple[str, ...]
+    columns: tuple[str, ...]
     select_sql: str
     delete_sql: str
     insert_sql: str
-    defaults: Dict[str, object]
+    defaults: dict[str, object]
 
 
-_SNAPSHOT_TABLE_SPECS: Dict[str, _SnapshotTableSpec] = {
+_SNAPSHOT_TABLE_SPECS: dict[str, _SnapshotTableSpec] = {
     "node_connections": _SnapshotTableSpec(
         columns=(
             "id",
@@ -270,7 +269,7 @@ class HebbianUpdate:
 
     agent_name: str
     task_id: str
-    task_type: Optional[str]
+    task_type: str | None
     success: bool
     performance: float
     weight: float
@@ -314,7 +313,7 @@ class HebbianWeightManager:
     helpers remain available for compatibility and manual diagnostics.
     """
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: str | None = None):
         """
         Initialize Hebbian weight manager with SQLite backend.
 
@@ -510,7 +509,7 @@ class HebbianWeightManager:
         return max(0.0, min(1.0, float(value)))
 
     @staticmethod
-    def _connection_targets(task_id: str, task_type: Optional[str]) -> List[str]:
+    def _connection_targets(task_id: str, task_type: str | None) -> list[str]:
         targets = [str(task_id)]
         if task_type:
             scoped = HebbianWeightManager.task_type_target(task_type)
@@ -522,7 +521,7 @@ class HebbianWeightManager:
         self,
         conn: sqlite3.Connection,
         agent_name: str,
-        task_type: Optional[str],
+        task_type: str | None,
         now: str,
     ) -> dict:
         """Persist the simulation's rolling success/failure sign-change signal."""
@@ -616,8 +615,8 @@ class HebbianWeightManager:
         *,
         success: bool,
         performance: float,
-        task_type: Optional[str] = None,
-        duration_ms: Optional[float] = None,
+        task_type: str | None = None,
+        duration_ms: float | None = None,
         learning_rate: float = DEFAULT_LEARNING_RATE,
         decay: float = DEFAULT_DECAY,
         weight_floor: float = WEIGHT_FLOOR,
@@ -650,7 +649,7 @@ class HebbianWeightManager:
                 (weight_floor, decay),
             )
 
-            updated_rows: Dict[str, sqlite3.Row] = {}
+            updated_rows: dict[str, sqlite3.Row] = {}
             for target in targets:
                 row = conn.execute(
                     "SELECT weight FROM node_connections "
@@ -955,7 +954,7 @@ class HebbianWeightManager:
         weights = {str(row[0]): float(row[1]) for row in rows}
         return (weights.get(agent_name, 0.0) / maximum) * 0.5
 
-    def get_timing_score(self, agent_name: str, task_type: str) -> Optional[float]:
+    def get_timing_score(self, agent_name: str, task_type: str) -> float | None:
         """Return the rolling timing/performance score for an agent/task type."""
         with sqlite3.connect(self.db_path) as conn:
             row = conn.execute(
@@ -994,13 +993,13 @@ class HebbianWeightManager:
     def list_sentinel_status(
         self,
         *,
-        agent_name: Optional[str] = None,
-        task_type: Optional[str] = None,
+        agent_name: str | None = None,
+        task_type: str | None = None,
         limit: int = 100,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """List current sentinel states, most recently updated first."""
         clauses = []
-        params: List[object] = []
+        params: list[object] = []
         if agent_name:
             clauses.append("agent_name = ?")
             params.append(agent_name)
@@ -1028,7 +1027,7 @@ class HebbianWeightManager:
         *,
         open_only: bool = False,
         limit: int = 100,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """List persisted sentinel alert transitions."""
         query = "SELECT * FROM hebbian_sentinel_alerts"
         if open_only:
@@ -1048,7 +1047,7 @@ class HebbianWeightManager:
             return self._compounding_metrics(conn)
 
     def get_agent_learning_summary(
-        self, agent_name: str, task_type: Optional[str] = None
+        self, agent_name: str, task_type: str | None = None
     ) -> dict:
         """Return the Hebbian fields mirrored into the agent registry."""
         target = self.task_type_target(task_type) if task_type else None
@@ -1233,7 +1232,7 @@ class HebbianWeightManager:
             result = cursor.fetchone()
             return result[0] if result else 0.0
 
-    def get_connection_stats(self, origin: str, target: str) -> Optional[dict]:
+    def get_connection_stats(self, origin: str, target: str) -> dict | None:
         """
         Get detailed statistics for a specific connection.
 
@@ -1258,7 +1257,7 @@ class HebbianWeightManager:
 
     def get_strongest_connections(
         self, node: str, limit: int = 10, direction: str = "outgoing"
-    ) -> List[Tuple[str, float]]:
+    ) -> list[tuple[str, float]]:
         """
         Get strongest connections for a node.
 
@@ -1324,7 +1323,7 @@ class HebbianWeightManager:
             raise ValueError("task_type must be a non-empty string")
         return f"task_type:{normalized}"
 
-    def get_task_type_weight(self, agent_name: str, task_type: str) -> Optional[float]:
+    def get_task_type_weight(self, agent_name: str, task_type: str) -> float | None:
         """Return an agent's learned weight for one task type.
 
         ``None`` means that the agent has no scoped history yet. This is
@@ -1382,7 +1381,7 @@ class HebbianWeightManager:
                 return result[0] / result[1]
             return 0.0
 
-    def get_all_connections(self, min_weight: float = 0) -> List[dict]:
+    def get_all_connections(self, min_weight: float = 0) -> list[dict]:
         """
         Get all connections above a minimum weight threshold.
 
@@ -1544,7 +1543,7 @@ class HebbianWeightManager:
             conn.commit()
         return restored
 
-    def get_connections_list(self, limit: int = 50) -> List[dict]:
+    def get_connections_list(self, limit: int = 50) -> list[dict]:
         """
         Get top connections sorted by weight for web UI display.
 

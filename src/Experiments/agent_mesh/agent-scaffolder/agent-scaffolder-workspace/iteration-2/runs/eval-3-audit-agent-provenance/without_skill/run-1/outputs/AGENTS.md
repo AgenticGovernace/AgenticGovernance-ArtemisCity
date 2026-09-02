@@ -37,10 +37,10 @@ provenance ledger, and reflection summaries.
 
 Every event is assigned exactly one of three levels.
 
-| Severity  | Meaning                                                                 | Example triggers (default rules)                                                                 |
-|-----------|-------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------|
-| `Normal`  | Expected, benign activity. The steady state.                            | A new `.wav`/`.json` transcript appears; an output file is written with a known, allowed extension. |
-| `Warning` | Unusual but not necessarily wrong. Worth noting; **do not** escalate.   | Unexpected file extension; zero-byte file; file modified unusually frequently; deletion of an output. |
+| Severity  | Meaning                                                                     | Example triggers (default rules)                                                                                                                                                         |
+| --------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Normal`  | Expected, benign activity. The steady state.                                | A new `.wav`/`.json` transcript appears; an output file is written with a known, allowed extension.                                                                                      |
+| `Warning` | Unusual but not necessarily wrong. Worth noting; **do not** escalate.       | Unexpected file extension; zero-byte file; file modified unusually frequently; deletion of an output.                                                                                    |
 | `Error`   | A real problem or policy violation. **This is the only escalatable level.** | Write/event in a path outside the watched roots; a forbidden/dangerous extension (e.g. `.exe`, `.sh`); a watched file becomes unreadable / permissions broken; classifier itself failed. |
 
 Classification rules live in `config/compsuite.toml` so they can be tuned
@@ -65,9 +65,9 @@ means strictly greater than `Warning` — i.e., `Error` only.
 
 Interpretation, made explicit so there is no ambiguity:
 
-- `Normal`  → log only. Never escalate.
+- `Normal` → log only. Never escalate.
 - `Warning` → log (and surface in the daily summary). **Never escalate.**
-- `Error`   → log **and escalate**.
+- `Error` → log **and escalate**.
 
 "Escalate" = invoke the configured escalation sink (default: append a record to
 `logs/escalations.log` and emit a high-visibility marker line; an
@@ -114,7 +114,7 @@ A reflection captures, for the window since the last reflection:
 - the number of escalations fired,
 - the busiest watched paths,
 - any anomalies (e.g., a spike in Warnings),
-- a short self-check: *"Did I escalate exactly the Errors and nothing below?"*
+- a short self-check: _"Did I escalate exactly the Errors and nothing below?"_
 
 Reflections are for the operator and for the agent's own drift-detection. They
 never themselves escalate.
@@ -129,23 +129,23 @@ This is non-negotiable: **every read and every write is traceable.**
 Each action record (NDJSON line in `logs/provenance/provenance-YYYY-MM-DD.ndjson`)
 contains:
 
-| Field          | Description                                                              |
-|----------------|--------------------------------------------------------------------------|
-| `action_id`    | Unique id for this action (UUID4).                                       |
-| `parent_run_id`| The id of the CompSuite run/session that owns this action.               |
-| `seq`          | Monotonic action counter within the run.                                 |
-| `ts`           | UTC ISO-8601 timestamp.                                                   |
-| `verb`         | One of `READ`, `WRITE`, `CLASSIFY`, `ESCALATE`, `REFLECT`, `SCAN`.        |
-| `target`       | Absolute path (or logical sink name) the action touched.                 |
-| `severity`     | Classification attached to the originating event, if any.                |
-| `sha256`       | Content hash of the bytes read or written (`null` for non-IO actions).   |
-| `bytes`        | Size in bytes for IO actions.                                            |
-| `detail`       | Free-form note (rule matched, reason for severity, etc.).                |
+| Field           | Description                                                            |
+| --------------- | ---------------------------------------------------------------------- |
+| `action_id`     | Unique id for this action (UUID4).                                     |
+| `parent_run_id` | The id of the CompSuite run/session that owns this action.             |
+| `seq`           | Monotonic action counter within the run.                               |
+| `ts`            | UTC ISO-8601 timestamp.                                                |
+| `verb`          | One of `READ`, `WRITE`, `CLASSIFY`, `ESCALATE`, `REFLECT`, `SCAN`.     |
+| `target`        | Absolute path (or logical sink name) the action touched.               |
+| `severity`      | Classification attached to the originating event, if any.              |
+| `sha256`        | Content hash of the bytes read or written (`null` for non-IO actions). |
+| `bytes`         | Size in bytes for IO actions.                                          |
+| `detail`        | Free-form note (rule matched, reason for severity, etc.).              |
 
 Guarantees:
 
 - **No silent IO.** Reads and writes go through `provenance.read_file` /
-  `provenance.write_file` wrappers, which are the *only* sanctioned IO paths.
+  `provenance.write_file` wrappers, which are the _only_ sanctioned IO paths.
   Anything bypassing them is a bug.
 - **Linkage.** `parent_run_id` ties every action back to one run; `seq` orders
   them; `action_id` identifies them individually.

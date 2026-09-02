@@ -4,6 +4,7 @@
 > immediate context — what this location is, what lives here, and how to use it.
 
 ## What this is
+
 This folder defines and houses **CompSuite**, an unattended, observe-and-log audit agent
 that watches the `voice_logs/` and `outputs/` directories, classifies each file event as
 `Normal` / `Warning` / `Error`, escalates only above `Warning`, and keeps full
@@ -11,6 +12,7 @@ action-level provenance. The agent never modifies the systems it watches — it 
 and logs.
 
 ## What's here
+
 - `AGENTS.md` — the CompSuite Agent Card (Role, Purpose, Mission Scope, Boundaries,
   Escalation Policy, Memory, Reflection Routine, Audit & Provenance, Version) plus the
   stated persistence model and the pointer to the provenance skill.
@@ -24,6 +26,7 @@ and logs.
     surfaced to a human.
 
 ## How to use it
+
 - CompSuite runs unattended. On startup it reads the latest `logs/audit-*.md` and
   `logs/summary-*.md` to recover what it has already seen, then resumes watching.
 - The authoritative action history is the external provenance store (`agent_logs`); the
@@ -32,6 +35,7 @@ and logs.
   and the Mission Scope in `AGENTS.md` together.
 
 ## Assumptions made during scaffolding
+
 - "Watch" means recursive monitoring of file create / modify / delete / move /
   permission-change events under each watched directory.
 - "Daily logs" = one dated log file per day under `logs/`.

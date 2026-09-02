@@ -4,6 +4,7 @@
 > immediate context — what this location is, what lives here, and how to use it.
 
 ## What this is
+
 The home of **CompSuite**, an unattended directory-watching audit agent. CompSuite watches
 the `voice_logs/` and `outputs/` directories, classifies every file event as
 Normal / Warning / Error, escalates only above Warning, and keeps a fully traceable record
@@ -11,6 +12,7 @@ of its own actions. This folder holds the agent's definition, its in-folder beha
 and its log/provenance destinations.
 
 ## What's here
+
 - `AGENTS.md` — the CompSuite Agent Card: role, mission, boundaries, escalation policy,
   memory, reflection routine, and audit/provenance contract, plus the persistence model.
 - `.codex/instructions.md` — concrete behavioral rules for acting inside this folder
@@ -24,6 +26,7 @@ and its log/provenance destinations.
   - `README.md` — describes each log file's shape.
 
 ## How to use it
+
 - A runner injects `AGENTS.md` + `.codex/instructions.md` as CompSuite's context, points it
   at the watched directories, and lets it run unattended.
 - CompSuite reads the latest `logs/daily-*.md` and `logs/reflection.md` on start (its

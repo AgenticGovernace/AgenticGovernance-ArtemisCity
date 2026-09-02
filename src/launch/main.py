@@ -12,10 +12,10 @@ _project_root = str(Path(__file__).resolve().parents[2])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-import src.mcp.orchestrator  # noqa: E402
-from src.mcp.config import AGENT_INPUT_DIR, OBSIDIAN_VAULT_PATH  # noqa: E402
-from src.utils.helpers import logger, sanitize_for_log  # noqa: E402
-from src.utils.run_logger import init_run_logger  # noqa: E402
+import src.mcp.orchestrator
+from src.mcp.config import AGENT_INPUT_DIR, OBSIDIAN_VAULT_PATH
+from src.utils.helpers import logger, sanitize_for_log
+from src.utils.run_logger import init_run_logger
 
 
 def _sql_memory_selected() -> bool:

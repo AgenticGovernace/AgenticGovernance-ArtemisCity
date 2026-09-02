@@ -11,10 +11,10 @@ AGENTS.md §2.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import IntEnum
 from pathlib import Path
-from typing import Iterable, Optional
 
 
 class Severity(IntEnum):
@@ -29,7 +29,7 @@ class Severity(IntEnum):
         return {0: "Normal", 1: "Warning", 2: "Error"}[int(self)]
 
     @classmethod
-    def from_label(cls, label: str) -> "Severity":
+    def from_label(cls, label: str) -> Severity:
         key = label.strip().lower()
         table = {"normal": cls.NORMAL, "warning": cls.WARNING, "error": cls.ERROR}
         if key not in table:
@@ -44,7 +44,7 @@ class FileEvent:
     path: Path  # absolute, resolved path the event concerns
     kind: str  # "created" | "modified" | "moved" | "deleted"
     root: Path  # which watch root this path belongs to (resolved)
-    size: Optional[int] = None  # bytes, when known (None for deletes)
+    size: int | None = None  # bytes, when known (None for deletes)
 
 
 @dataclass(frozen=True)

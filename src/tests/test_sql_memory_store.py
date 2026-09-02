@@ -11,9 +11,11 @@ from typing import Any, Self
 
 import pytest
 
-from src.integration.sql_memory_store import (IdempotencyConflictError,
-                                              MemoryStoreError,
-                                              PostgresMemoryStore)
+from src.integration.sql_memory_store import (
+    IdempotencyConflictError,
+    MemoryStoreError,
+    PostgresMemoryStore,
+)
 
 
 class FakePostgresConnection:

@@ -22,7 +22,6 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import List, Optional
 
 try:  # optional dependency; absence just forces the local-mirror fallback
     import requests  # type: ignore
@@ -40,7 +39,7 @@ def _utc_now() -> str:
 @dataclass
 class Reflection:
     text: str
-    ctx: Optional[str]
+    ctx: str | None
     session_id: str
     ts: str
 
@@ -52,7 +51,7 @@ class Reflection:
 class _NotionClient:
     """Thin Notion wrapper. Swap the HTTP body for an MCP connector if preferred."""
 
-    def __init__(self, page_id: str, token: Optional[str]):
+    def __init__(self, page_id: str, token: str | None):
         self.page_id = page_id
         self.token = token
 
@@ -94,8 +93,8 @@ class _NotionClient:
         )
         resp.raise_for_status()
 
-    def read_all(self) -> List[str]:
-        out: List[str] = []
+    def read_all(self) -> list[str]:
+        out: list[str] = []
         cursor = None
         while True:
             params = {"page_size": 100}
@@ -131,7 +130,7 @@ class ReflectionStore:
         self.notion = _NotionClient(page_id, token)
         os.makedirs(os.path.dirname(os.path.abspath(mirror_path)), exist_ok=True)
 
-    def load_reflections(self) -> List[str]:
+    def load_reflections(self) -> list[str]:
         """Read prior reflections at session start. Returns the lines in context."""
         if self.notion.available:
             try:
@@ -144,7 +143,7 @@ class ReflectionStore:
         return []
 
     def add_reflection(
-        self, text: str, session_id: str, ctx: Optional[str] = None
+        self, text: str, session_id: str, ctx: str | None = None
     ) -> tuple[str, bool]:
         """Append a reflection. Returns (sink, notion_ok).
 

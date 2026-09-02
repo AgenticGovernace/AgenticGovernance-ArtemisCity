@@ -23,7 +23,7 @@ def generate_agent_report(agent_name: str, task_id: str, results: dict) -> str:
             else:
                 markdown += f"- **{key.replace('_', ' ').title()}**: {value}\n"
 
-    markdown += f"""\n## Next Steps (Optional)\n\n- [ ]  Review this report\n- [ ]  Discuss findings with team\n"""
+    markdown += """\n## Next Steps (Optional)\n\n- [ ]  Review this report\n- [ ]  Discuss findings with team\n"""
     logger.info(f"Generated report for {agent_name}, task {task_id}")
     return markdown
 
@@ -54,7 +54,7 @@ class ObsidianGenerator:
         if "target" in task_data:
             markdown += f"Target: {task_data['target']}\n\n"
 
-        if "subtasks" in task_data and task_data["subtasks"]:
+        if task_data.get("subtasks"):
             markdown += "## Subtasks\n"
             for subtask in task_data["subtasks"]:
                 checkbox = "[x]" if subtask.get("completed") else "[ ]"

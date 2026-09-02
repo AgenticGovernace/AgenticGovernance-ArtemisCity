@@ -46,11 +46,13 @@ Obsidian filesystem adapter
 ### Task 1: PostgreSQL memory ledger and transactional outbox
 
 **Files:**
+
 - Create: `db/migrations/0001_memory_write_through.sql`
 - Create: `src/integration/sql_memory_store.py`
 - Create: `src/tests/test_sql_memory_store.py`
 
 **Interfaces:**
+
 - Consumes: a psycopg2-compatible `connection_factory` returning a connection
   with context-managed transactions and cursors.
 - Produces: `MemoryRevision`, `MemoryWriteReceipt`, `SqlMemoryStore`,
@@ -145,10 +147,12 @@ Obsidian filesystem adapter
 ### Task 2: Deterministic, crash-safe Obsidian projection
 
 **Files:**
+
 - Modify: `src/obsidian_integration/manager.py`
 - Create: `src/tests/test_obsidian_projection.py`
 
 **Interfaces:**
+
 - Consumes: validated vault-relative path and the exact content committed to SQL.
 - Produces: retry-idempotent `write_note(relative_path, content, overwrite=True)`
   using durable same-directory replacement.
@@ -205,11 +209,13 @@ Obsidian filesystem adapter
 ### Task 3: MemoryBus accepted and sync-pending state machine
 
 **Files:**
+
 - Modify: `src/integration/memory_bus.py`
 - Modify: `src/tests/test_memory_bus.py`
 - Modify: `src/tests/test_memory_bus_integration.py`
 
 **Interfaces:**
+
 - Consumes: optional `SqlMemoryStore` injected as `sql_store`.
 - Produces: the existing memory write receipt plus canonical SQL identity and
   projection status fields.
@@ -257,7 +263,7 @@ Obsidian filesystem adapter
   `accepted + sync_pending` for Obsidian or delivery-ack failures. Do not call
   `vector_store.delete()` as compensation for a committed SQL revision.
   Preserve the current exception/rollback behavior only when `sql_store is
-  None`, so rollout compatibility remains explicit.
+None`, so rollout compatibility remains explicit.
 
 - [ ] **Step 4: Make SQL the read-after-write authority in SQL mode**
 
@@ -281,6 +287,7 @@ Obsidian filesystem adapter
 ### Task 4: Shared store factory and fail-closed runtime wiring
 
 **Files:**
+
 - Create: `src/integration/memory_store_factory.py`
 - Create: `src/tests/test_memory_store_factory.py`
 - Modify: `src/mcp/orchestrator.py`
@@ -289,6 +296,7 @@ Obsidian filesystem adapter
 - Modify: `src/tests/test_api_bridge.py`
 
 **Interfaces:**
+
 - Consumes: `ARTEMIS_MEMORY_BACKEND` and
   `ARTEMIS_MEMORY_DATABASE_URL` from the process environment.
 - Produces: `create_sql_memory_store()` used by both orchestrator and bridge.
@@ -350,6 +358,7 @@ Obsidian filesystem adapter
 ### Task 5: Configuration, deployment contract, and operator documentation
 
 **Files:**
+
 - Modify: `.env.example`
 - Modify: `src/.env.example`
 - Modify: `conftest.py`
@@ -361,6 +370,7 @@ Obsidian filesystem adapter
   not already preserve newly declared operator values.
 
 **Interfaces:**
+
 - Consumes: the approved environment contract.
 - Produces: operator-visible configuration with isolated test defaults.
 
@@ -418,10 +428,12 @@ Obsidian filesystem adapter
 ### Task 6: Migration and release verification
 
 **Files:**
+
 - Inspect: all files changed by Tasks 1-5
 - Update: this plan's checkboxes with verified outcomes
 
 **Interfaces:**
+
 - Consumes: local PostgreSQL 16 when available; otherwise a disposable
   PostgreSQL test service with no production credentials.
 - Produces: evidence for every approved invariant.
@@ -477,7 +489,7 @@ Obsidian filesystem adapter
   schemes and bearer-token patterns; expected result is no credential value.
 
   Outcome: **partially clean, not a complete release gate**. `git diff
-  --check`, maintained-module imports, `bash -n setup_secrets.sh`, TypeScript
+--check`, maintained-module imports, `bash -n setup_secrets.sh`, TypeScript
   production `tsc --noEmit`, and Ruff F-class correctness checks passed. Broad
   Ruff formatting/line-length, Black, and mypy were not established as clean;
   the configured detect-secrets scanner and package-local Jest executable were

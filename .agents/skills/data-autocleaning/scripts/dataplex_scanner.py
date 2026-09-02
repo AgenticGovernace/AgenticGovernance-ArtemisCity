@@ -155,7 +155,7 @@ async def create_and_wait_for_scan(
             result = json.loads(output)
 
             # Check if scan results are populated
-            if "dataProfileResult" in result and result["dataProfileResult"]:
+            if result.get("dataProfileResult"):
                 result_data = result["dataProfileResult"]
                 # Also ensure the profile internals are populated
                 if "profile" in result_data:

@@ -15,7 +15,7 @@
 export const paginate = <T>(
   items: T[],
   page: number = 1,
-  limit: number = 10
+  limit: number = 10,
 ): { data: T[]; pagination: PaginationInfo } => {
   const totalItems = items.length;
   const totalPages = Math.ceil(totalItems / limit);
@@ -31,8 +31,8 @@ export const paginate = <T>(
       totalItems,
       itemsPerPage: limit,
       hasNextPage: currentPage < totalPages,
-      hasPrevPage: currentPage > 1
-    }
+      hasPrevPage: currentPage > 1,
+    },
   };
 };
 
@@ -52,11 +52,18 @@ interface PaginationInfo {
  * @param source - Partial object whose fields should override the target.
  * @returns Deeply merged object with nested plain-object fields combined recursively.
  */
-export const deepMerge = <T extends Record<string, any>>(target: T, source: Partial<T>): T => {
+export const deepMerge = <T extends Record<string, any>>(
+  target: T,
+  source: Partial<T>,
+): T => {
   const output: Record<string, any> = { ...target };
 
   for (const key in source) {
-    if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+    if (
+      source[key] &&
+      typeof source[key] === "object" &&
+      !Array.isArray(source[key])
+    ) {
       output[key] = deepMerge(output[key] || {}, source[key] as any);
     } else {
       output[key] = source[key];
@@ -75,7 +82,7 @@ export const deepMerge = <T extends Record<string, any>>(target: T, source: Part
  */
 export const pick = <T extends Record<string, any>, K extends keyof T>(
   obj: T,
-  keys: K[]
+  keys: K[],
 ): Pick<T, K> => {
   const result = {} as Pick<T, K>;
   for (const key of keys) {
@@ -95,7 +102,7 @@ export const pick = <T extends Record<string, any>, K extends keyof T>(
  */
 export const omit = <T extends Record<string, any>, K extends keyof T>(
   obj: T,
-  keys: K[]
+  keys: K[],
 ): Omit<T, K> => {
   const result = { ...obj };
   for (const key of keys) {
@@ -113,7 +120,7 @@ export const omit = <T extends Record<string, any>, K extends keyof T>(
  */
 export const debounce = <T extends (...args: any[]) => any>(
   fn: T,
-  delay: number
+  delay: number,
 ): ((...args: Parameters<T>) => void) => {
   let timeoutId: NodeJS.Timeout;
 
@@ -132,7 +139,7 @@ export const debounce = <T extends (...args: any[]) => any>(
  */
 export const throttle = <T extends (...args: any[]) => any>(
   fn: T,
-  limit: number
+  limit: number,
 ): ((...args: Parameters<T>) => void) => {
   let inThrottle = false;
 
@@ -152,7 +159,7 @@ export const throttle = <T extends (...args: any[]) => any>(
  * @returns Promise that resolves after the delay elapses.
  */
 export const sleep = (ms: number): Promise<void> => {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 };
 
 /**
@@ -164,7 +171,7 @@ export const sleep = (ms: number): Promise<void> => {
  */
 export const retry = async <T>(
   fn: () => Promise<T>,
-  options: { maxAttempts?: number; delay?: number; backoff?: number } = {}
+  options: { maxAttempts?: number; delay?: number; backoff?: number } = {},
 ): Promise<T> => {
   const { maxAttempts = 3, delay = 1000, backoff = 2 } = options;
 
@@ -192,7 +199,7 @@ export const retry = async <T>(
  * @param prefix - Optional prefix to prepend to the generated identifier.
  * @returns Generated identifier string.
  */
-export const generateId = (prefix: string = ''): string => {
+export const generateId = (prefix: string = ""): string => {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).slice(2, 8);
   return prefix ? `${prefix}-${timestamp}-${random}` : `${timestamp}-${random}`;
@@ -214,15 +221,17 @@ export const formatDate = (date: Date | string | number): string => {
  * @param query - Raw query parameter map.
  * @returns New object with primitive values normalized for downstream use.
  */
-export const parseQueryParams = (query: Record<string, any>): Record<string, any> => {
+export const parseQueryParams = (
+  query: Record<string, any>,
+): Record<string, any> => {
   const parsed: Record<string, any> = {};
 
   for (const [key, value] of Object.entries(query)) {
-    if (value === 'true') {
+    if (value === "true") {
       parsed[key] = true;
-    } else if (value === 'false') {
+    } else if (value === "false") {
       parsed[key] = false;
-    } else if (!isNaN(Number(value)) && value !== '') {
+    } else if (!isNaN(Number(value)) && value !== "") {
       parsed[key] = Number(value);
     } else {
       parsed[key] = value;
@@ -240,10 +249,10 @@ export const parseQueryParams = (query: Record<string, any>): Record<string, any
  */
 export const sanitize = (str: string): string => {
   return str
-    .replace(/[<>]/g, '')
-    .replace(/javascript:/gi, '')
-    .replace(/data:/gi, '')
-    .replace(/vbscript:/gi, '')
+    .replace(/[<>]/g, "")
+    .replace(/javascript:/gi, "")
+    .replace(/data:/gi, "")
+    .replace(/vbscript:/gi, "")
     .trim();
 };
 
@@ -294,8 +303,8 @@ export const clamp = (num: number, min: number, max: number): number => {
 export const isEmpty = (obj: any): boolean => {
   if (obj === null || obj === undefined) return true;
   if (Array.isArray(obj)) return obj.length === 0;
-  if (typeof obj === 'object') return Object.keys(obj).length === 0;
-  if (typeof obj === 'string') return obj.trim().length === 0;
+  if (typeof obj === "object") return Object.keys(obj).length === 0;
+  if (typeof obj === "string") return obj.trim().length === 0;
   return false;
 };
 
@@ -308,13 +317,13 @@ export const isEmpty = (obj: any): boolean => {
  */
 export const createResponse = <T>(
   data: T,
-  options: { message?: string; meta?: Record<string, any> } = {}
+  options: { message?: string; meta?: Record<string, any> } = {},
 ): { success: true; data: T; message?: string; meta?: Record<string, any> } => {
   return {
     success: true,
     data,
     ...(options.message && { message: options.message }),
-    ...(options.meta && { meta: options.meta })
+    ...(options.meta && { meta: options.meta }),
   };
 };
 
@@ -328,7 +337,7 @@ export const simpleHash = (str: string): string => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash;
   }
   return Math.abs(hash).toString(36);

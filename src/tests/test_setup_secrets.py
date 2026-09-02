@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MEMORY_LAYER = "src/Artemis Agentic Memory Layer"
+MEMORY_LAYER = "app/Artemis Agentic Memory Layer"
 MEMORY_MCP = "services/mcp/artemis-memory"
 PROVENANCE = "services/prove"
 FRONTEND = "app/web/frontend"

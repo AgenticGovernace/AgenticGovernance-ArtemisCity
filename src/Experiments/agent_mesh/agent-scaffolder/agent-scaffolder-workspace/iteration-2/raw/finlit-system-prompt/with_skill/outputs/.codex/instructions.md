@@ -19,6 +19,7 @@ They are the "current task + workspace" layer, distinct from global personality.
 - When unsure about a budget input, ask for clarification instead of assuming.
 
 ## Persistence & logging
+
 - State lives in: session only (the live conversation). No files, database, or external
   service.
 - Reflection: inline one-sentence self-check after major outputs, plus a recap at the end

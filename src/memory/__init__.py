@@ -22,7 +22,7 @@ def _run_as_script() -> None:
 if __name__ == "__main__" and not __package__:
     _run_as_script()
 
-from .models import (  # noqa: E402
+from .models import (
     ClaimDisposition,
     LedgerState,
     LedgerWrite,
@@ -37,8 +37,8 @@ from .models import (  # noqa: E402
     ProjectionState,
     WriteDisposition,
 )
-from .ports import MemoryLedger, MemoryProjection, ProjectionClaim  # noqa: E402
-from .service import MemoryService  # noqa: E402
+from .ports import MemoryLedger, MemoryProjection, ProjectionClaim
+from .service import MemoryService
 
 __all__ = [
     "ClaimDisposition",

@@ -25,7 +25,6 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 
 def _utc_now_iso() -> str:
@@ -55,9 +54,9 @@ class ActionRecord:
     ts: str
     verb: str
     target: str
-    severity: Optional[str] = None
-    sha256: Optional[str] = None
-    bytes: Optional[int] = None
+    severity: str | None = None
+    sha256: str | None = None
+    bytes: int | None = None
     detail: str = ""
 
     def to_json(self) -> str:
@@ -111,9 +110,9 @@ class ProvenanceLedger:
         verb: str,
         target: str,
         *,
-        severity: Optional[str] = None,
-        sha256: Optional[str] = None,
-        num_bytes: Optional[int] = None,
+        severity: str | None = None,
+        sha256: str | None = None,
+        num_bytes: int | None = None,
         detail: str = "",
     ) -> ActionRecord:
         """Append one action to the ledger and return the record.
@@ -193,7 +192,7 @@ class ProvenanceLedger:
 
     # ----- checkpoint ------------------------------------------------------
 
-    def checkpoint(self, extra: Optional[dict] = None) -> None:
+    def checkpoint(self, extra: dict | None = None) -> None:
         """Persist run state so a restart is idempotent.
 
         Written via ``write_file`` so even the checkpoint write is traceable.
@@ -212,7 +211,7 @@ class ProvenanceLedger:
         )
 
     @staticmethod
-    def load_checkpoint(log_dir: os.PathLike | str) -> Optional[dict]:
+    def load_checkpoint(log_dir: os.PathLike | str) -> dict | None:
         """Return the last checkpoint dict, or None if there isn't one."""
         p = Path(log_dir) / ".state.json"
         if not p.exists():

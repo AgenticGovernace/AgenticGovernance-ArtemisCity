@@ -8,9 +8,11 @@ import pytest
 
 from src.integration.agent_registry import AgentRegistryStore
 from src.mcp.hebbian_weights import HebbianWeightManager
-from src.monitoring.governance_metrics import (GovernanceCollector,
-                                               metrics_content_type,
-                                               render_metrics)
+from src.monitoring.governance_metrics import (
+    GovernanceCollector,
+    metrics_content_type,
+    render_metrics,
+)
 
 
 def _families(collector):

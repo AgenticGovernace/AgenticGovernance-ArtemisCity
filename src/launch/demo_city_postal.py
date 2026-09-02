@@ -230,10 +230,10 @@ def demo_mailbox_check():
     mail = post_office.check_mailbox("pack_rat")
 
     if mail:
-        print(f"\n    Pack Rat has mail!")
-        print(f"   Review the items above for details")
+        print("\n    Pack Rat has mail!")
+        print("   Review the items above for details")
     else:
-        print(f"\n   📭 No mail yet (vault may be empty or MCP not connected)")
+        print("\n   📭 No mail yet (vault may be empty or MCP not connected)")
 
     input("\n   Press Enter to continue...")
 
@@ -306,11 +306,11 @@ def demo_archive_search():
     )
 
     if results:
-        print(f"\n    Research successful!")
-        print(f"   Copilot can now reference historical documents")
+        print("\n    Research successful!")
+        print("   Copilot can now reference historical documents")
     else:
-        print(f"\n   📭 No archived documents found yet")
-        print(f"   (This is expected on first run)")
+        print("\n   📭 No archived documents found yet")
+        print("   (This is expected on first run)")
 
     input("\n   Press Enter to continue...")
 
@@ -343,7 +343,7 @@ def demo_trust_clearances():
 
         print(f"\n   {citizen:15}")
         print(f"     Level: {score.level.value:10} [{trust_bar}] {score.score:.2f}")
-        print(f"     Clearances: ", end="")
+        print("     Clearances: ", end="")
 
         # Show what they can do
         can_read = "📖 Read" if trust.can_perform_operation(citizen, "read") else ""

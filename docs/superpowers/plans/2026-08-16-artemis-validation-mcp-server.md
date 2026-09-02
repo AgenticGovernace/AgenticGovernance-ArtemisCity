@@ -99,12 +99,14 @@ MCP SDK knowledge and dependency injection.
 ### Task 1: Strict MCP Boundary Models and Package Skeleton
 
 **Files:**
+
 - Create: `services/mcp/artemis-validation/pyproject.toml`
 - Create: `services/mcp/artemis-validation/src/artemis_validation_mcp/models.py`
 - Create: `services/mcp/artemis-validation/src/artemis_validation_mcp/__init__.py`
 - Create: `services/mcp/artemis-validation/tests/test_models.py`
 
 **Interfaces:**
+
 - Consumes: `src.validation.ATPHeaderInput`, `ParsedATP`, and the canonical ATP
   input enum annotations from `src.validation.models`.
 - Produces: `ParseATPInput`, `ValidateATPInput`, `FormatATPInput`,
@@ -418,11 +420,13 @@ four paths above.
 ### Task 2: SUPERSEDED — Do Not Execute
 
 **Files:**
+
 - Create: `services/mcp/artemis-validation/src/artemis_validation_mcp/server.py`
 - Modify: `services/mcp/artemis-validation/src/artemis_validation_mcp/__init__.py`
 - Create: `services/mcp/artemis-validation/tests/test_server.py`
 
 **Interfaces:**
+
 - Consumes: the Task 1 wire models and
   `ATPValidationService.parse(raw_input)`,
   `validate(raw_input, strict)`, and `format(header, syntax)`.
@@ -1119,6 +1123,7 @@ three paths above.
 ### Task 3: Stdio Entrypoint, Operator Documentation, and Wheel Proof
 
 **Files:**
+
 - Create: `services/mcp/artemis-validation/src/artemis_validation_mcp/__main__.py`
 - Modify: `services/mcp/artemis-validation/src/artemis_validation_mcp/server.py`
 - Modify: `services/mcp/artemis-validation/src/artemis_validation_mcp/__init__.py`
@@ -1127,6 +1132,7 @@ three paths above.
 - Create: `services/mcp/artemis-validation/tests/test_entrypoint.py`
 
 **Interfaces:**
+
 - Consumes: Task 2's module-level `server`.
 - Produces: `main() -> None`, `python -m artemis_validation_mcp`, and the
   `artemis-validation-mcp` console script, both running stdio only.
@@ -1214,7 +1220,7 @@ artemis-validation-mcp = "artemis_validation_mcp.server:main"
 
 Create `services/mcp/artemis-validation/README.md` with this complete content:
 
-```markdown
+````markdown
 # Artemis Validation MCP
 
 Read-only MCP 2.0 access to the canonical Artemis ATP parser, validator, and
@@ -1238,6 +1244,7 @@ The initial transport is local stdio only:
 PYTHONPATH=.:services/mcp/artemis-validation/src \
   python -m artemis_validation_mcp
 ```
+````
 
 Stdout is reserved for MCP protocol frames. The server emits no application
 diagnostics.
@@ -1250,7 +1257,8 @@ state-changing Artemis servers.
 Streamable HTTP is intentionally absent until the reviewed Artemis principal
 verifier and MCP `AuthSettings` are wired together. Do not expose this package
 as an unauthenticated HTTP service.
-```
+
+````
 
 - [ ] **Step 6: Run all validation MCP and canonical ATP tests**
 
@@ -1265,7 +1273,7 @@ PYTHONPATH=.:services/mcp/artemis-validation/src \
   src/tests/test_atp_import_boundaries.py \
   src/tests/test_atp.py \
   src/tests/test_atp_validator.py -q
-```
+````
 
 Expected: all tests pass.
 

@@ -53,6 +53,7 @@ on disk, define the releasable surface.
 ### Task 1: Land the already reviewed canonical-layout corrections
 
 **Files:**
+
 - Delete: `app/Kernel/__init__.py`
 - Delete: `app/Kernel/agent_router.py`
 - Delete: `app/Kernel/agent_router.yaml`
@@ -73,6 +74,7 @@ on disk, define the releasable surface.
 - Create: `conftest.py`
 
 **Interfaces:**
+
 - Consumes: the exact currently staged layout correction.
 - Produces: one case-normalized `app/kernel`, root dependency manifests, and a root pytest safety boundary.
 
@@ -125,12 +127,14 @@ on disk, define the releasable surface.
 ### Task 2: Add executable reverse-sync and repository-boundary gates
 
 **Files:**
+
 - Create: `src/tests/test_reverse_sync_cleanup.py`
 - Create: `src/tests/test_repository_boundaries.py`
 - Create: `src/tests/test_release_artifacts.py`
 - Modify: `src/tests/test_makefile_contract.py`
 
 **Interfaces:**
+
 - Consumes: the committed audit manifest and Git index.
 - Produces: `load_reverse_sync_manifest()`, exact classification assertions, case-fold checks, runtime-identity checks, and artifact payload checks.
 
@@ -231,6 +235,7 @@ on disk, define the releasable surface.
 ### Task 3: Apply the deterministic 371-path manifest slice
 
 **Files:**
+
 - Delete: the exact 217 manifest `paths` entries with `classification=REMOVE_REVERSE_SYNC` and `source_status=A`.
 - Restore from `613abc0`: `.devcontainer/devcontainer.json`
 - Restore from `613abc0`: `.github/workflows/promote.yml`
@@ -255,6 +260,7 @@ on disk, define the releasable surface.
 - Preserve unchanged: all 79 `REVIEW_SEPARATELY` paths.
 
 **Interfaces:**
+
 - Consumes: verified manifest and parent `613abc0` canonical blobs.
 - Produces: the deterministic cleanup slice only; mixed paths remain for later review.
 
@@ -322,6 +328,7 @@ on disk, define the releasable surface.
 ### Task 4: Reduce legacy `src.Kernel` to one compatibility facade
 
 **Files:**
+
 - Modify: `docs/audits/2026-08-16-reverse-sync-72cf776-path-manifest.yaml`
 - Modify: `src/Kernel/__init__.py`
 - Delete after classification: all tracked Python, YAML, JSON, and runtime-store paths under `src/Kernel/**` except `src/Kernel/__init__.py`.
@@ -334,6 +341,7 @@ on disk, define the releasable surface.
 - Modify: `src/tests/test_coverage_foundations.py`
 
 **Interfaces:**
+
 - Consumes: canonical `app.kernel.Kernel` and the manifest's adjacent-evidence section.
 - Produces: one identity-preserving compatibility import and an explicit MCP-incubator quarantine.
 
@@ -445,6 +453,7 @@ Historical delete-the-root-tree steps below remain suspended evidence only while
 the hold is active.
 
 **Files:**
+
 - Create: `docs/audits/2026-08-16-root-test-tree-disposition.yaml`
 - Modify: `src/tests/integration/test_governance.py`
 - Modify: `src/tests/integration/test_hebbian_sync.py`
@@ -456,6 +465,7 @@ the hold is active.
 - Preserve: repository-root `conftest.py`.
 
 **Interfaces:**
+
 - Consumes: two currently collected test trees and their AST/test-node inventory.
 - Produces: one disposition record and one canonical collection root with no lost unique behavior.
 
@@ -529,6 +539,7 @@ the hold is active.
 must not alter `pyproject.toml`, `uv.lock`, CI, or either approved allowlist path.
 
 **Files:**
+
 - Create: `docs/audits/2026-08-16-python-release-hold.yaml`
 - Create: `docs/audits/2026-08-16-python-wheel-candidate.v1.txt`
 - Create: `docs/audits/2026-08-16-python-sdist-candidate.v1.txt`
@@ -538,6 +549,7 @@ must not alter `pyproject.toml`, `uv.lock`, CI, or either approved allowlist pat
 - Modify: this plan.
 
 **Interfaces:**
+
 - Consumes: the committed hold, quarantine, and retained-root evidence.
 - Produces: exact candidate evidence and a non-destructive package stop gate.
 

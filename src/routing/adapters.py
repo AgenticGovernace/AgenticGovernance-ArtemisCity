@@ -13,7 +13,8 @@ matching — see :class:`SandboxAdmissionPreflight` for the specific trap.
 
 from __future__ import annotations
 
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from src.routing.eligibility import AgentEligibilityRecord
 
@@ -45,7 +46,7 @@ class RegistryAdmissionLookup:
     dispatch.
     """
 
-    __slots__ = ("_registry", "_default_tenant_id")
+    __slots__ = ("_default_tenant_id", "_registry")
 
     def __init__(
         self,

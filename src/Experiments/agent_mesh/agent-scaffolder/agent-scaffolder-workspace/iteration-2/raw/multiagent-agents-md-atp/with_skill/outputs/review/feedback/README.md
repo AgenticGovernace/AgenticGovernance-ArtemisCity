@@ -6,6 +6,7 @@ revision and resolves items **by ID**. Never delete a feedback file — it is th
 for the review loop.
 
 ## Rules
+
 - Every item has a **stable ID** (`R<round>-<nn>`, e.g., `R1-03`). Reuse the same ID across
   rounds for the same issue so it can be tracked to resolution.
 - Every item has a **severity**: `Blocking` (must fix before approval), `Should-fix`
@@ -19,14 +20,17 @@ for the review loop.
 
 ```markdown
 # Feedback — <doc-slug> — round <n>
+
 Reviewer: Critic | Date: <ISO-8601> | Draft reviewed: docs/<doc-slug>.md
 
 ## Open items
+
 - **R<n>-01** [Blocking] (Location: <section/line>) <issue>. Suggested change: <fix>.
 - **R<n>-02** [Should-fix] (Location: <section/line>) <issue>. Suggested change: <fix>.
 - **R<n>-03** [Nit] (Location: <section/line>) <issue>. Suggested change: <fix>.
 
 ## Carried forward (still open from prior rounds)
+
 - **R<n-1>-04** [Blocking] (Location: <…>) <status note>.
 
 VERDICT: changes-requested

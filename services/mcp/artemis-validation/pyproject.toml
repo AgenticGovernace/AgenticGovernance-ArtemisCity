@@ -9,14 +9,19 @@ description = "Read-only MCP adapter for canonical Artemis ATP validation."
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "artemis-city==1.0.0",
+    "artemis-mcp-common==0.1.0",
     "beartype==0.23.0rc0",
     "hf-xet==1.6.1a0",
     "mcp[cli]==2.0.0",
     "mpmath==1.5.0a0",
+    "posthog>=7.21",
     "protobuf==7.36.0rc2",
     "pydantic==2.14.0b1",
     "pydantic-core==2.48.0",
 ]
+
+[project.scripts]
+artemis-validation-mcp = "artemis_validation_mcp.__main__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/artemis_validation_mcp"]
@@ -26,3 +31,4 @@ testpaths = ["tests"]
 
 [tool.uv.sources]
 artemis-city = { path = "../../..", editable = true }
+artemis-mcp-common = { path = "../common", editable = true }

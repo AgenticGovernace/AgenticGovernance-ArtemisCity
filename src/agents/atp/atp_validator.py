@@ -9,7 +9,6 @@ This module validates ATP messages for completeness, consistency, and quality.
 #  Proin dapibus sapien vel ante. Aliquam erat volutpat. Pellentesque sagittis ligula eget metus.
 #  Vestibulum commodo. Ut rhoncus gravida arcu.
 
-from typing import List
 
 from .atp_models import ATPActionType, ATPMessage, ATPMode
 
@@ -20,9 +19,9 @@ class ValidationResult:
     def __init__(self):
         """Initialize validation result."""
         self.is_valid = True
-        self.warnings: List[str] = []
-        self.errors: List[str] = []
-        self.suggestions: List[str] = []
+        self.warnings: list[str] = []
+        self.errors: list[str] = []
+        self.suggestions: list[str] = []
 
     def add_warning(self, message: str) -> None:
         """Add a warning message.
@@ -228,7 +227,7 @@ class ATPValidator:
                 "Consider using absolute paths or home-relative paths (~/) in TargetZone"
             )
 
-    def suggest_improvements(self, message: ATPMessage) -> List[str]:
+    def suggest_improvements(self, message: ATPMessage) -> list[str]:
         """Suggest improvements for an ATP message.
 
         Args:

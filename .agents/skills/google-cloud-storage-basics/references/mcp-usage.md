@@ -4,29 +4,29 @@ The Cloud Storage Model Context Protocol (MCP) server lets an agent perform
 storage operations through structured tool calls instead of shelling out to the
 CLI or building HTTP requests. It comes in two forms:
 
--   **Remote server (managed):** A Google-hosted HTTP endpoint. No installation;
-    authenticates with OAuth 2.0 and IAM. Best for inspecting buckets and
-    objects, small text reads and writes, and remote management.
+- **Remote server (managed):** A Google-hosted HTTP endpoint. No installation;
+  authenticates with OAuth 2.0 and IAM. Best for inspecting buckets and
+  objects, small text reads and writes, and remote management.
 
--   **Local server (MCP Toolbox):** The open-source
-    [MCP Toolbox](https://github.com/googleapis/mcp-toolbox) running its
-    prebuilt `cloud-storage` tools on your machine over stdio. Best when you
-    need local filesystem integration (upload, download), copy/move operations,
-    or larger payloads.
+- **Local server (MCP Toolbox):** The open-source
+  [MCP Toolbox](https://github.com/googleapis/mcp-toolbox) running its
+  prebuilt `cloud-storage` tools on your machine over stdio. Best when you
+  need local filesystem integration (upload, download), copy/move operations,
+  or larger payloads.
 
 ## Choosing a Server
 
 | Your need                                               | Use               |
 | :------------------------------------------------------ | :---------------- |
 | Zero setup: inspect buckets, read small text/PDF/image  | Remote server     |
-: objects                                                 :                   :
+| : objects : :                                           |
 | Small text writes from a managed endpoint               | Remote server     |
 | Enterprise guardrails: Model Armor screening of tool    | Remote server     |
-: calls, IAM deny policies (e.g. enforce read-only)       :                   :
+| : calls, IAM deny policies (e.g. enforce read-only) : : |
 | Upload/download local files, binary content, or objects | Local MCP Toolbox |
-: over 8 MiB                                              :                   :
+| : over 8 MiB : :                                        |
 | Copy, move, or rename objects; bucket metadata/IAM      | Local MCP Toolbox |
-: inspection                                              :                   :
+| : inspection : :                                        |
 
 When requirements conflict, the hard limits win: the remote server cannot write
 binary content, exceed 8 MiB per read or write, or touch the local filesystem —
@@ -38,12 +38,12 @@ security-sensitive deployments that fit within its limits should prefer remote.
 
 The remote server runs on Google's infrastructure at a single global endpoint:
 
--   **Endpoint:** `https://storage.googleapis.com/storage/mcp`
--   **Transport:** HTTP
--   **Auth:** OAuth 2.0 with IAM. API keys are not accepted; every request
-    requires IAM authorization. Callers need `roles/mcp.toolUser` plus the
-    relevant `roles/storage.*` roles (for example, `roles/storage.objectViewer`
-    to read, `roles/storage.objectCreator` to write).
+- **Endpoint:** `https://storage.googleapis.com/storage/mcp`
+- **Transport:** HTTP
+- **Auth:** OAuth 2.0 with IAM. API keys are not accepted; every request
+  requires IAM authorization. Callers need `roles/mcp.toolUser` plus the
+  relevant `roles/storage.*` roles (for example, `roles/storage.objectViewer`
+  to read, `roles/storage.objectCreator` to write).
 
 Add it to your MCP client as an HTTP server. Because Google Cloud's remote MCP
 servers require IAM authentication, you must configure client-side credentials
@@ -132,43 +132,43 @@ MCP Toolbox is Google's open-source MCP server (formerly Gen AI Toolbox for
 Databases). It ships a prebuilt `cloud-storage` tool source that exposes the
 full set of bucket and object operations.
 
-1.  **Download the binary.** The Toolbox ships as a standalone binary (or
-    container image) — it is not published as an npm or pip package, so never
-    configure it via `npx` or `pip`. Replace `VERSION` with the
-    [latest release](https://github.com/googleapis/mcp-toolbox/releases) and
-    pick your OS/architecture path:
+1. **Download the binary.** The Toolbox ships as a standalone binary (or
+   container image) — it is not published as an npm or pip package, so never
+   configure it via `npx` or `pip`. Replace `VERSION` with the
+   [latest release](https://github.com/googleapis/mcp-toolbox/releases) and
+   pick your OS/architecture path:
 
-    ```bash
-    curl -L -o toolbox \
-      https://storage.googleapis.com/mcp-toolbox-for-databases/VERSION/linux/amd64/toolbox
-    chmod +x toolbox
-    ```
+   ```bash
+   curl -L -o toolbox \
+     https://storage.googleapis.com/mcp-toolbox-for-databases/VERSION/linux/amd64/toolbox
+   chmod +x toolbox
+   ```
 
-2.  **Configure credentials.** The Toolbox uses Application Default Credentials
-    (ADC) in every environment: locally via the command below, on GCP compute
-    via the attached service account, and elsewhere (CI, on-prem) via workload
-    identity federation. **Never download a service-account key file or set
-    `GOOGLE_APPLICATION_CREDENTIALS` to one** — key files are a security
-    liability and are never needed for the Toolbox.
+2. **Configure credentials.** The Toolbox uses Application Default Credentials
+   (ADC) in every environment: locally via the command below, on GCP compute
+   via the attached service account, and elsewhere (CI, on-prem) via workload
+   identity federation. **Never download a service-account key file or set
+   `GOOGLE_APPLICATION_CREDENTIALS` to one** — key files are a security
+   liability and are never needed for the Toolbox.
 
-    ```bash
-    gcloud auth application-default login
-    ```
+   ```bash
+   gcloud auth application-default login
+   ```
 
-3.  **Add it to your MCP client.** For example, in a Claude Code `.mcp.json`
-    (the same `command`/`args` work for other clients such as Gemini CLI):
+3. **Add it to your MCP client.** For example, in a Claude Code `.mcp.json`
+   (the same `command`/`args` work for other clients such as Gemini CLI):
 
-    ```json
-    {
-      "mcpServers": {
-        "cloud-storage": {
-          "command": "./PATH/TO/toolbox",
-          "args": ["--prebuilt", "cloud-storage", "--stdio"],
-          "env": {"CLOUD_STORAGE_PROJECT": "PROJECT_ID"}
-        }
-      }
-    }
-    ```
+   ```json
+   {
+     "mcpServers": {
+       "cloud-storage": {
+         "command": "./PATH/TO/toolbox",
+         "args": ["--prebuilt", "cloud-storage", "--stdio"],
+         "env": { "CLOUD_STORAGE_PROJECT": "PROJECT_ID" }
+       }
+     }
+   }
+   ```
 
 The identity behind ADC needs the `roles/storage.*` roles for the operations you
 intend to call (for example, `roles/storage.objectAdmin` for copy, move, and
@@ -190,34 +190,34 @@ exist on the server you are connected to.
 | `list_objects`        | List objects in a bucket.                          |
 | `get_object_metadata` | Get an object's metadata.                          |
 | `read_object`         | Read object content, including images and PDFs (up |
-:                       : to 8 MiB).                                         :
+| : : to 8 MiB). :      |
 | `create_bucket`       | Create a bucket.                                   |
 | `delete_bucket`       | Delete a bucket.                                   |
 | `write_text`          | Write text to an object (overwrites existing       |
-:                       : content).                                          :
+| : : content). :       |
 | `delete_object`       | Delete an object.                                  |
 
 **Local MCP Toolbox (14 tools):**
 
-| Tool                    | Description                                      |
-| :---------------------- | :----------------------------------------------- |
-| `list_buckets`          | List buckets in a project.                       |
-| `list_objects`          | List objects in a bucket.                        |
-| `get_bucket_metadata`   | Get a bucket's metadata.                         |
-| `get_bucket_iam_policy` | Get a bucket's IAM policy.                       |
-| `get_object_metadata`   | Get an object's metadata.                        |
-| `read_object`           | Read UTF-8 text content (up to 8 MiB); binary is |
-:                         : rejected — use `download_object`.                :
-| `download_object`       | Download an object (including binary) to a local |
-:                         : file.                                            :
-| `create_bucket`         | Create a bucket.                                 |
-| `delete_bucket`         | Delete a bucket.                                 |
-| `write_object`          | Write text content to an object (overwrites).    |
-| `upload_object`         | Upload a local file (including binary) to an     |
-:                         : object.                                          :
-| `copy_object`           | Copy an object.                                  |
-| `move_object`           | Move (rename) an object; deletes the source.     |
-| `delete_object`         | Delete an object.                                |
+| Tool                                    | Description                                      |
+| :-------------------------------------- | :----------------------------------------------- |
+| `list_buckets`                          | List buckets in a project.                       |
+| `list_objects`                          | List objects in a bucket.                        |
+| `get_bucket_metadata`                   | Get a bucket's metadata.                         |
+| `get_bucket_iam_policy`                 | Get a bucket's IAM policy.                       |
+| `get_object_metadata`                   | Get an object's metadata.                        |
+| `read_object`                           | Read UTF-8 text content (up to 8 MiB); binary is |
+| : : rejected — use `download_object`. : |
+| `download_object`                       | Download an object (including binary) to a local |
+| : : file. :                             |
+| `create_bucket`                         | Create a bucket.                                 |
+| `delete_bucket`                         | Delete a bucket.                                 |
+| `write_object`                          | Write text content to an object (overwrites).    |
+| `upload_object`                         | Upload a local file (including binary) to an     |
+| : : object. :                           |
+| `copy_object`                           | Copy an object.                                  |
+| `move_object`                           | Move (rename) an object; deletes the source.     |
+| `delete_object`                         | Delete an object.                                |
 
 On the Toolbox, `read_object`/`write_object` handle UTF-8 text only and are
 capped at 8 MiB; use `download_object`/`upload_object` for binary or large
@@ -232,10 +232,10 @@ files.
 
 ## Documentation
 
--   [Use the Cloud Storage MCP server](https://docs.cloud.google.com/storage/docs/use-cloud-storage-mcp)
--   [Cloud Storage MCP reference (tools)](https://docs.cloud.google.com/storage/docs/reference/mcp)
--   [Connect LLMs to Cloud Storage with MCP Toolbox](https://docs.cloud.google.com/storage/docs/pre-built-tools-with-mcp-toolbox)
--   [Google Cloud MCP servers overview](https://docs.cloud.google.com/mcp/overview)
--   [Configure MCP in an AI application](https://docs.cloud.google.com/mcp/configure-mcp-ai-application)
--   [Protect MCP servers with Model Armor](https://docs.cloud.google.com/model-armor/model-armor-mcp-google-cloud-integration)
--   [Control MCP use with IAM deny policies](https://docs.cloud.google.com/mcp/control-mcp-use-iam)
+- [Use the Cloud Storage MCP server](https://docs.cloud.google.com/storage/docs/use-cloud-storage-mcp)
+- [Cloud Storage MCP reference (tools)](https://docs.cloud.google.com/storage/docs/reference/mcp)
+- [Connect LLMs to Cloud Storage with MCP Toolbox](https://docs.cloud.google.com/storage/docs/pre-built-tools-with-mcp-toolbox)
+- [Google Cloud MCP servers overview](https://docs.cloud.google.com/mcp/overview)
+- [Configure MCP in an AI application](https://docs.cloud.google.com/mcp/configure-mcp-ai-application)
+- [Protect MCP servers with Model Armor](https://docs.cloud.google.com/model-armor/model-armor-mcp-google-cloud-integration)
+- [Control MCP use with IAM deny policies](https://docs.cloud.google.com/mcp/control-mcp-use-iam)

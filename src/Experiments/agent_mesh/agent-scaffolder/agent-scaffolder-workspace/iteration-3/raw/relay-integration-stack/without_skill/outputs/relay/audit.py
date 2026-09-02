@@ -12,7 +12,6 @@ import json
 import os
 import secrets
 from datetime import datetime, timezone
-from typing import Optional
 
 
 class AuditHaltError(RuntimeError):
@@ -58,10 +57,10 @@ class AuditLog:
         self,
         action: str,
         outcome: str = "ok",
-        ctx: Optional[str] = None,
-        target: Optional[str] = None,
+        ctx: str | None = None,
+        target: str | None = None,
         detail: str = "",
-        prov_id: Optional[str] = None,
+        prov_id: str | None = None,
     ) -> str:
         """Append one audit record. Returns the prov_id.
 

@@ -32,10 +32,11 @@ import sqlite3
 import sys
 import time
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Callable, Dict, Tuple, cast
+from typing import Any, cast
 
 from src.agents.atp.atp_context import resolve_task_context
 from src.agents.atp.atp_models import ATPActionType, ATPMode, ATPPriority
@@ -44,19 +45,22 @@ from src.agents.atp.atp_validator import ATPValidator
 from src.agents.llm_agent import LLMAgent
 from src.governance.approvals import SelfUpdateGovernor, UpdateProposal
 from src.governance.checkpoints import CheckpointStore, RollbackManager
-from src.governance.trust import (TrustMetrics, compute_trust_score,
-                                  trust_breakdown)
+from src.governance.trust import TrustMetrics, compute_trust_score, trust_breakdown
 from src.integration.agent_registry import AgentRegistry, AgentRegistryStore
 from src.integration.hebbian_router import HebbianRouter
 from src.integration.learning_governance import LearningGovernanceCoordinator
 from src.integration.memory_bus import LazyProjection, MemoryBus
 from src.integration.memory_store_factory import (
-    MemoryStoreConfigurationError, create_sql_memory_store)
+    MemoryStoreConfigurationError,
+    create_sql_memory_store,
+)
 from src.integration.sandbox import AgentSandbox
-from src.integration.sql_memory_store import (IdempotencyConflictError,
-                                              MemoryStoreError, SqlMemoryStore)
-from src.integration.trust_interface import (TRUST_THRESHOLDS, TrustInterface,
-                                             TrustLevel)
+from src.integration.sql_memory_store import (
+    IdempotencyConflictError,
+    MemoryStoreError,
+    SqlMemoryStore,
+)
+from src.integration.trust_interface import TRUST_THRESHOLDS, TrustInterface, TrustLevel
 from src.mcp.hebbian_weights import HebbianWeightManager
 from src.mcp.vector_store import LocalVectorStore
 from src.obsidian_integration.manager import ObsidianManager
@@ -73,7 +77,7 @@ class BridgeError(Exception):
         self.code = code
 
 
-def _resolve_db_path(payload: Dict[str, Any]) -> str:
+def _resolve_db_path(payload: dict[str, Any]) -> str:
     configured_path = payload.get("db_path")
     if configured_path is None:
         for sibling_key in ("trust_db_path", "hebbian_db_path"):
@@ -88,17 +92,17 @@ def _resolve_db_path(payload: Dict[str, Any]) -> str:
     )
 
 
-def _store(payload: Dict[str, Any]) -> AgentRegistryStore:
+def _store(payload: dict[str, Any]) -> AgentRegistryStore:
     return AgentRegistryStore(db_path=_resolve_db_path(payload))
 
 
-def _require(payload: Dict[str, Any], key: str) -> Any:
+def _require(payload: dict[str, Any], key: str) -> Any:
     if key not in payload or payload[key] in (None, ""):
         raise BridgeError(f"missing required field: {key}", code="INVALID_REQUEST")
     return payload[key]
 
 
-def _require_str(payload: Dict[str, Any], key: str, allow_empty: bool = False) -> str:
+def _require_str(payload: dict[str, Any], key: str, allow_empty: bool = False) -> str:
     value = _require(payload, key) if not allow_empty else payload.get(key)
     if value is None:
         raise BridgeError(f"missing required field: {key}", code="INVALID_REQUEST")
@@ -110,7 +114,7 @@ def _require_str(payload: Dict[str, Any], key: str, allow_empty: bool = False) -
 
 
 def _optional_limit(
-    payload: Dict[str, Any], key: str = "limit", default: int = 10, maximum: int = 100
+    payload: dict[str, Any], key: str = "limit", default: int = 10, maximum: int = 100
 ) -> int:
     raw_limit = payload.get(key, default)
     try:
@@ -127,7 +131,7 @@ def _optional_limit(
 
 
 def _optional_float(
-    payload: Dict[str, Any],
+    payload: dict[str, Any],
     key: str,
     default: float | None = None,
     minimum: float | None = None,
@@ -146,7 +150,7 @@ def _optional_float(
     return value
 
 
-def _optional_string_list(payload: Dict[str, Any], key: str) -> list[str] | None:
+def _optional_string_list(payload: dict[str, Any], key: str) -> list[str] | None:
     value = payload.get(key)
     if value is None:
         return None
@@ -179,12 +183,12 @@ def _safe_note_path(path: str, allow_empty: bool = False) -> str:
     return requested.as_posix()
 
 
-def _require_note_path(payload: Dict[str, Any], key: str = "path") -> str:
+def _require_note_path(payload: dict[str, Any], key: str = "path") -> str:
     return _safe_note_path(_require_str(payload, key), allow_empty=False)
 
 
 def _optional_note_path(
-    payload: Dict[str, Any], key: str = "path", default: str = ""
+    payload: dict[str, Any], key: str = "path", default: str = ""
 ) -> str:
     value = payload.get(key, default)
     if value is None:
@@ -192,7 +196,7 @@ def _optional_note_path(
     return _safe_note_path(value, allow_empty=True)
 
 
-def _validation_to_dict(result) -> Dict[str, Any]:
+def _validation_to_dict(result) -> dict[str, Any]:
     return {
         "is_valid": result.is_valid,
         "valid": result.is_valid,
@@ -203,7 +207,7 @@ def _validation_to_dict(result) -> Dict[str, Any]:
     }
 
 
-def _memory_manager(payload: Dict[str, Any]) -> ObsidianManager:
+def _memory_manager(payload: dict[str, Any]) -> ObsidianManager:
     vault_path = payload.get("vault_path") or os.environ.get("OBSIDIAN_VAULT_PATH")
     return ObsidianManager(vault_path=vault_path)
 
@@ -225,8 +229,8 @@ def _configured_sql_memory_store() -> SqlMemoryStore | None:
 
 
 def _memory_dependencies_for_store(
-    payload: Dict[str, Any], sql_store: SqlMemoryStore | None
-) -> Tuple[ObsidianManager, MemoryBus]:
+    payload: dict[str, Any], sql_store: SqlMemoryStore | None
+) -> tuple[ObsidianManager, MemoryBus]:
     """Construct local projections after canonical configuration is resolved."""
     vector_db_path = data_path(
         "vector_store.db",
@@ -262,7 +266,7 @@ def _memory_dependencies_for_store(
     )
 
 
-def _memory_dependencies(payload: Dict[str, Any]) -> Tuple[ObsidianManager, MemoryBus]:
+def _memory_dependencies(payload: dict[str, Any]) -> tuple[ObsidianManager, MemoryBus]:
     """Build the canonical store before vault or local-vector dependencies."""
     return _memory_dependencies_for_store(payload, _configured_sql_memory_store())
 
@@ -280,7 +284,7 @@ def _storage_bridge_error(error: MemoryStoreError) -> BridgeError:
     )
 
 
-def _trust_interface(payload: Dict[str, Any]) -> TrustInterface:
+def _trust_interface(payload: dict[str, Any]) -> TrustInterface:
     configured_path = payload.get("trust_db_path")
     if configured_path is None and payload.get("db_path"):
         configured_path = str(
@@ -295,7 +299,7 @@ def _trust_interface(payload: Dict[str, Any]) -> TrustInterface:
 
 
 def _learning_governance(
-    payload: Dict[str, Any],
+    payload: dict[str, Any],
     *,
     include_hebbian: bool = False,
     include_trust: bool = True,
@@ -309,7 +313,7 @@ def _learning_governance(
     )
 
 
-def _hebbian_manager(payload: Dict[str, Any]) -> HebbianWeightManager:
+def _hebbian_manager(payload: dict[str, Any]) -> HebbianWeightManager:
     configured_path = payload.get("hebbian_db_path")
     if configured_path is None and payload.get("db_path"):
         configured_path = str(
@@ -323,7 +327,7 @@ def _hebbian_manager(payload: Dict[str, Any]) -> HebbianWeightManager:
     return HebbianWeightManager(db_path=str(db_path))
 
 
-def _checkpoint_store(payload: Dict[str, Any]) -> CheckpointStore:
+def _checkpoint_store(payload: dict[str, Any]) -> CheckpointStore:
     configured_path = payload.get("checkpoint_dir")
     if configured_path is None:
         for sibling_key in ("db_path", "trust_db_path", "hebbian_db_path"):
@@ -334,7 +338,7 @@ def _checkpoint_store(payload: Dict[str, Any]) -> CheckpointStore:
     return CheckpointStore(checkpoint_dir=configured_path)
 
 
-def _atp_db_path(payload: Dict[str, Any]) -> str:
+def _atp_db_path(payload: dict[str, Any]) -> str:
     return data_path(
         "atp_messages.db",
         payload.get("atp_db_path"),
@@ -342,7 +346,7 @@ def _atp_db_path(payload: Dict[str, Any]) -> str:
     )
 
 
-def _ensure_atp_store(payload: Dict[str, Any]) -> str:
+def _ensure_atp_store(payload: dict[str, Any]) -> str:
     db_path = str(_atp_db_path(payload))
     db_dir = os.path.dirname(db_path)
     if db_path != ":memory:" and db_dir:
@@ -373,7 +377,7 @@ def _ensure_atp_store(payload: Dict[str, Any]) -> str:
     return db_path
 
 
-def _atp_row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
+def _atp_row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     return {
         "message_id": row["message_id"],
         "raw_message": row["raw_message"],
@@ -388,7 +392,7 @@ def _atp_row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
     }
 
 
-def _parse_and_validate_atp(raw_input: str, strict: bool = False) -> Dict[str, Any]:
+def _parse_and_validate_atp(raw_input: str, strict: bool = False) -> dict[str, Any]:
     message, metrics = ATPParser().parse_with_metrics(raw_input)
     validation = ATPValidator(strict=strict).validate(message)
     return {
@@ -399,9 +403,9 @@ def _parse_and_validate_atp(raw_input: str, strict: bool = False) -> Dict[str, A
 
 
 def _record_atp_prompt_provenance(
-    payload: Dict[str, Any],
+    payload: dict[str, Any],
     raw_input: str,
-    parsed_message: Dict[str, Any],
+    parsed_message: dict[str, Any],
     *,
     source: str,
     provenance_id: str | None = None,
@@ -425,10 +429,10 @@ def _record_atp_prompt_provenance(
 
 
 def _record_atp_child_provenance(
-    payload: Dict[str, Any],
+    payload: dict[str, Any],
     parent_id: str,
     event_type: str,
-    metadata: Dict[str, Any],
+    metadata: dict[str, Any],
 ) -> str:
     """Fail-closed child provenance write for an ATP action."""
     try:
@@ -442,7 +446,7 @@ def _record_atp_child_provenance(
         raise BridgeError("ATP provenance write failed", code="BRIDGE_ERROR") from exc
 
 
-def _atp_provenance_logger(payload: Dict[str, Any]) -> RunLogger:
+def _atp_provenance_logger(payload: dict[str, Any]) -> RunLogger:
     """Use sibling test stores when a bridge request overrides runtime paths."""
     for key in ("atp_db_path", "db_path", "hebbian_db_path", "trust_db_path"):
         configured = payload.get(key)
@@ -470,7 +474,7 @@ _LLM_OPTION_KEYS = {
 }
 
 
-def _llm_options(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _llm_options(payload: dict[str, Any]) -> dict[str, Any]:
     """Validate and normalize the public LLM generation options."""
     options = payload.get("options")
     if options is None:
@@ -487,8 +491,8 @@ def _llm_options(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _llm_number_option(
-    payload: Dict[str, Any],
-    options: Dict[str, Any],
+    payload: dict[str, Any],
+    options: dict[str, Any],
     *,
     option_key: str,
     aliases: tuple[str, ...] = (),
@@ -516,7 +520,7 @@ def _llm_number_option(
     return value
 
 
-def _llm_max_tokens(payload: Dict[str, Any], options: Dict[str, Any]) -> int:
+def _llm_max_tokens(payload: dict[str, Any], options: dict[str, Any]) -> int:
     """Read a bounded integral max-token value."""
     raw: Any = 4000
     for key in ("maxTokens", "max_tokens"):
@@ -540,7 +544,7 @@ def _llm_max_tokens(payload: Dict[str, Any], options: Dict[str, Any]) -> int:
     return value
 
 
-def _llm_model(payload: Dict[str, Any]) -> str | None:
+def _llm_model(payload: dict[str, Any]) -> str | None:
     """Validate an optional caller-selected model identifier."""
     model = payload.get("model")
     if model is None:
@@ -550,7 +554,7 @@ def _llm_model(payload: Dict[str, Any]) -> str | None:
     return model.strip()
 
 
-def _llm_system_prompt(payload: Dict[str, Any], options: Dict[str, Any]) -> str | None:
+def _llm_system_prompt(payload: dict[str, Any], options: dict[str, Any]) -> str | None:
     """Validate an optional system prompt without accepting arbitrary options."""
     value = None
     for key in ("systemPrompt", "system_prompt"):
@@ -567,7 +571,7 @@ def _llm_system_prompt(payload: Dict[str, Any], options: Dict[str, Any]) -> str 
     return value.strip() or None
 
 
-def _llm_context(payload: Dict[str, Any], *, prompt: str | None = None) -> dict:
+def _llm_context(payload: dict[str, Any], *, prompt: str | None = None) -> dict:
     """Build the narrow task context accepted by the authoritative LLM agent."""
     options = _llm_options(payload)
     context: dict[str, Any] = {
@@ -592,7 +596,7 @@ def _llm_context(payload: Dict[str, Any], *, prompt: str | None = None) -> dict:
     return context
 
 
-def _llm_messages(payload: Dict[str, Any]) -> list[dict[str, str]]:
+def _llm_messages(payload: dict[str, Any]) -> list[dict[str, str]]:
     """Validate chat messages before any provider request is attempted."""
     messages = _require(payload, "messages")
     if not isinstance(messages, list) or not messages:
@@ -620,7 +624,7 @@ def _llm_messages(payload: Dict[str, Any]) -> list[dict[str, str]]:
     return normalized
 
 
-def _llm_failure_code(result: Dict[str, Any]) -> str:
+def _llm_failure_code(result: dict[str, Any]) -> str:
     """Map provider evidence to a stable bridge-level failure code."""
     exo_request = result.get("exo_request")
     if not isinstance(exo_request, dict):
@@ -638,7 +642,7 @@ def _llm_failure_code(result: Dict[str, Any]) -> str:
     return "PROVIDER_ERROR"
 
 
-def _normalize_llm_result(result: Any, agent: LLMAgent) -> Dict[str, Any]:
+def _normalize_llm_result(result: Any, agent: LLMAgent) -> dict[str, Any]:
     """Preserve the agent result while exposing stable public response fields."""
     if not isinstance(result, dict):
         raise BridgeError("LLM agent returned an invalid result", code="BRIDGE_ERROR")
@@ -662,7 +666,7 @@ def _normalize_llm_result(result: Any, agent: LLMAgent) -> Dict[str, Any]:
     return normalized
 
 
-def _run_llm(context: Dict[str, Any]) -> Dict[str, Any]:
+def _run_llm(context: dict[str, Any]) -> dict[str, Any]:
     """Run one real Exo request after the agent's sandbox preflight."""
     agent = LLMAgent()
     sandbox = AgentSandbox(
@@ -688,7 +692,7 @@ def _run_llm(context: Dict[str, Any]) -> Dict[str, Any]:
     return _normalize_llm_result(agent.perform_task(context), agent)
 
 
-def _llm_chat(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _llm_chat(payload: dict[str, Any]) -> dict[str, Any]:
     """Execute a real Exo chat request through :class:`LLMAgent`."""
     context = _llm_context(payload)
     messages = _llm_messages(payload)
@@ -699,13 +703,13 @@ def _llm_chat(payload: Dict[str, Any]) -> Dict[str, Any]:
     return _run_llm(context)
 
 
-def _llm_complete(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _llm_complete(payload: dict[str, Any]) -> dict[str, Any]:
     """Execute a real Exo text-completion request through :class:`LLMAgent`."""
     prompt = _require_str(payload, "prompt").strip()
     return _run_llm(_llm_context(payload, prompt=prompt))
 
 
-def _llm_config(_: Dict[str, Any]) -> Dict[str, Any]:
+def _llm_config(_: dict[str, Any]) -> dict[str, Any]:
     """Return environment-backed Exo configuration without probing the network."""
     agent = LLMAgent()
     return {
@@ -734,12 +738,12 @@ def _llm_config(_: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _list_agents(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _list_agents(payload: dict[str, Any]) -> dict[str, Any]:
     records = _store(payload).list_agent_records()
     return {"agents": records, "total": len(records)}
 
 
-def _get_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _get_agent(payload: dict[str, Any]) -> dict[str, Any]:
     name = _require(payload, "name")
     record = _store(payload).get_agent_record(name)
     if record is None:
@@ -747,7 +751,7 @@ def _get_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
     return record
 
 
-def _register_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _register_agent(payload: dict[str, Any]) -> dict[str, Any]:
     name = payload.get("name") or payload.get("id")
     if not isinstance(name, str) or not name.strip():
         raise BridgeError("missing required field: name", code="INVALID_REQUEST")
@@ -814,7 +818,7 @@ def _register_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
     return store.get_agent_record(name) or {}
 
 
-def _update_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _update_agent(payload: dict[str, Any]) -> dict[str, Any]:
     name = _require_str(payload, "name")
     updates = payload.get("updates", {})
     if not isinstance(updates, dict):
@@ -887,7 +891,7 @@ def _update_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
     return store.get_agent_record(name) or {}
 
 
-def _delete_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _delete_agent(payload: dict[str, Any]) -> dict[str, Any]:
     name = _require_str(payload, "name")
     store = _store(payload)
     if store.get_agent_record(name) is None:
@@ -899,7 +903,7 @@ def _delete_agent(payload: Dict[str, Any]) -> Dict[str, Any]:
     return {"name": name, "deleted": cursor.rowcount > 0}
 
 
-def _set_agent_status(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _set_agent_status(payload: dict[str, Any]) -> dict[str, Any]:
     name = _require_str(payload, "name")
     status = _require_str(payload, "status")
     if status not in ("active", "suspended", "quarantined"):
@@ -921,7 +925,7 @@ def _set_agent_status(payload: Dict[str, Any]) -> Dict[str, Any]:
     return record
 
 
-def _get_violations(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _get_violations(payload: dict[str, Any]) -> dict[str, Any]:
     name = _require(payload, "name")
     store = _store(payload)
     if store.get_agent_record(name) is None:
@@ -946,7 +950,7 @@ def _get_violations(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _clear_violations(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _clear_violations(payload: dict[str, Any]) -> dict[str, Any]:
     name = _require(payload, "name")
     store = _store(payload)
     if store.get_agent_record(name) is None:
@@ -971,7 +975,7 @@ def _clear_violations(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _set_trust_tier(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _set_trust_tier(payload: dict[str, Any]) -> dict[str, Any]:
     name = _require(payload, "name")
     tier = _require(payload, "tier")
     store = _store(payload)
@@ -984,7 +988,7 @@ def _set_trust_tier(payload: Dict[str, Any]) -> Dict[str, Any]:
     return store.get_governance_state(name) or {}
 
 
-def _record_violation(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _record_violation(payload: dict[str, Any]) -> dict[str, Any]:
     name = _require(payload, "name")
     vtype = _require(payload, "violation_type")
     details = payload.get("details", {})
@@ -997,7 +1001,7 @@ def _record_violation(payload: Dict[str, Any]) -> Dict[str, Any]:
         raise BridgeError(str(exc), code="INVALID_REQUEST")
 
 
-def _build_metrics(payload: Dict[str, Any], store, name: str) -> TrustMetrics:
+def _build_metrics(payload: dict[str, Any], store, name: str) -> TrustMetrics:
     """Construct TrustMetrics from a payload's ``metrics`` block, defaulting
     ``recent_violation_count`` to the agent's persisted count when absent."""
     metrics = dict(payload.get("metrics") or {})
@@ -1010,7 +1014,7 @@ def _build_metrics(payload: Dict[str, Any], store, name: str) -> TrustMetrics:
     return TrustMetrics(**filtered)
 
 
-def _compute_trust(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _compute_trust(payload: dict[str, Any]) -> dict[str, Any]:
     name = _require(payload, "name")
     store = _store(payload)
     if store.get_agent_record(name) is None:
@@ -1029,7 +1033,7 @@ def _compute_trust(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _evaluate_update(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _evaluate_update(payload: dict[str, Any]) -> dict[str, Any]:
     name = _require(payload, "agent_name")
     store = _store(payload)
     record = store.get_agent_record(name)
@@ -1071,7 +1075,7 @@ def _evaluate_update(payload: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-def _checkpoint_summary(record: dict) -> Dict[str, Any]:
+def _checkpoint_summary(record: dict) -> dict[str, Any]:
     state = record.get("state", {})
     registry = state.get("registry_snapshot", {})
     hebbian = state.get("config_snapshot", {}).get("hebbian", {})
@@ -1088,7 +1092,7 @@ def _checkpoint_summary(record: dict) -> Dict[str, Any]:
     }
 
 
-def _create_checkpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _create_checkpoint(payload: dict[str, Any]) -> dict[str, Any]:
     checkpoint_type = str(payload.get("checkpoint_type", "manual"))
     metadata = payload.get("metadata", {})
     if metadata is None:
@@ -1115,7 +1119,7 @@ def _create_checkpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
     return _checkpoint_summary(record)
 
 
-def _list_checkpoints(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _list_checkpoints(payload: dict[str, Any]) -> dict[str, Any]:
     store = _checkpoint_store(payload)
     records = store.list_checkpoints()
     return {
@@ -1124,7 +1128,7 @@ def _list_checkpoints(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _get_checkpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _get_checkpoint(payload: dict[str, Any]) -> dict[str, Any]:
     checkpoint_id = _require_str(payload, "checkpoint_id")
     store = _checkpoint_store(payload)
     record = store.get_checkpoint(checkpoint_id)
@@ -1136,7 +1140,7 @@ def _get_checkpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _rollback_checkpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _rollback_checkpoint(payload: dict[str, Any]) -> dict[str, Any]:
     checkpoint_id = _require_str(payload, "checkpoint_id")
     initiated_by = _require_str(payload, "initiated_by")
     if payload.get("confirmed") is not True:
@@ -1174,13 +1178,13 @@ def _rollback_checkpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _parse_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _parse_atp(payload: dict[str, Any]) -> dict[str, Any]:
     raw_input = _require_str(payload, "message")
     message, metrics = ATPParser().parse_with_metrics(raw_input)
     return {"message": message.to_dict(), "metrics": metrics}
 
 
-def _validate_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _validate_atp(payload: dict[str, Any]) -> dict[str, Any]:
     raw_input = _require_str(payload, "message")
     strict = bool(payload.get("strict", False))
     message = ATPParser().parse(raw_input)
@@ -1191,7 +1195,7 @@ def _validate_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _send_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _send_atp(payload: dict[str, Any]) -> dict[str, Any]:
     raw_input = (
         payload.get("message") or payload.get("text") or payload.get("atpMessage")
     )
@@ -1238,7 +1242,7 @@ def _send_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _infer_route_capability(message: Dict[str, Any], payload: Dict[str, Any]) -> str:
+def _infer_route_capability(message: dict[str, Any], payload: dict[str, Any]) -> str:
     explicit = payload.get("required_capability") or payload.get("capability")
     if isinstance(explicit, str) and explicit.strip():
         return explicit.strip()
@@ -1256,7 +1260,7 @@ def _infer_route_capability(message: Dict[str, Any], payload: Dict[str, Any]) ->
     return "llm_chat"
 
 
-def _bridge_routing_registry(payload: Dict[str, Any]) -> AgentRegistry:
+def _bridge_routing_registry(payload: dict[str, Any]) -> AgentRegistry:
     """Hydrate the registry facade from its authoritative persisted records."""
     registry = AgentRegistry(db_path=_resolve_db_path(payload))
     for record in registry.store.list_agent_records():
@@ -1280,13 +1284,13 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
-def _route_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _route_atp(payload: dict[str, Any]) -> dict[str, Any]:
     message_id = payload.get("message_id") or payload.get("id")
     db_path = _ensure_atp_store(payload)
     raw_input = (
         payload.get("message") or payload.get("text") or payload.get("atpMessage")
     )
-    stored: Dict[str, Any] | None = None
+    stored: dict[str, Any] | None = None
     if message_id:
         if not isinstance(message_id, str):
             raise BridgeError("message_id must be a string", code="INVALID_REQUEST")
@@ -1304,7 +1308,7 @@ def _route_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     parsed = _parse_and_validate_atp(raw_input, strict=bool(payload.get("strict")))
     explicit = payload.get("required_capability") or payload.get("capability")
-    task_context: Dict[str, Any] = {
+    task_context: dict[str, Any] = {
         "content": raw_input,
         "context": raw_input,
         "_capability_explicit": bool(explicit),
@@ -1376,11 +1380,11 @@ def _route_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _atp_modes(_: Dict[str, Any]) -> Dict[str, Any]:
+def _atp_modes(_: dict[str, Any]) -> dict[str, Any]:
     return {"modes": [mode.value for mode in ATPMode if mode != ATPMode.UNKNOWN]}
 
 
-def _atp_priorities(_: Dict[str, Any]) -> Dict[str, Any]:
+def _atp_priorities(_: dict[str, Any]) -> dict[str, Any]:
     return {
         "priorities": [
             priority.value
@@ -1390,7 +1394,7 @@ def _atp_priorities(_: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _atp_action_types(_: Dict[str, Any]) -> Dict[str, Any]:
+def _atp_action_types(_: dict[str, Any]) -> dict[str, Any]:
     return {
         "action_types": [
             action.value for action in ATPActionType if action != ATPActionType.UNKNOWN
@@ -1398,7 +1402,7 @@ def _atp_action_types(_: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _atp_template(_: Dict[str, Any]) -> Dict[str, Any]:
+def _atp_template(_: dict[str, Any]) -> dict[str, Any]:
     template = "\n".join(
         [
             "#Mode: Build",
@@ -1414,7 +1418,7 @@ def _atp_template(_: Dict[str, Any]) -> Dict[str, Any]:
     return {"template": template}
 
 
-def _format_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _format_atp(payload: dict[str, Any]) -> dict[str, Any]:
     source = payload.get("message")
     if isinstance(source, dict):
         data = source
@@ -1434,7 +1438,7 @@ def _format_atp(payload: Dict[str, Any]) -> Dict[str, Any]:
     return {"formatted": formatted, "parsed": ATPParser().parse(formatted).to_dict()}
 
 
-def _get_atp_message(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _get_atp_message(payload: dict[str, Any]) -> dict[str, Any]:
     message_id = _require_str(payload, "message_id")
     db_path = _ensure_atp_store(payload)
     with sqlite3.connect(db_path) as conn:
@@ -1447,7 +1451,7 @@ def _get_atp_message(payload: Dict[str, Any]) -> Dict[str, Any]:
     return _atp_row_to_dict(row)
 
 
-def _get_atp_response(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _get_atp_response(payload: dict[str, Any]) -> dict[str, Any]:
     record = _get_atp_message(payload)
     return {
         "message_id": record["message_id"],
@@ -1457,7 +1461,7 @@ def _get_atp_response(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _atp_queue(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _atp_queue(payload: dict[str, Any]) -> dict[str, Any]:
     limit = _optional_limit(payload, default=50, maximum=200)
     db_path = _ensure_atp_store(payload)
     with sqlite3.connect(db_path) as conn:
@@ -1478,7 +1482,7 @@ def _atp_queue(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _memory_read(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _memory_read(payload: dict[str, Any]) -> dict[str, Any]:
     path = _require_note_path(payload)
     storage_error = None
     try:
@@ -1496,7 +1500,7 @@ def _memory_read(payload: Dict[str, Any]) -> Dict[str, Any]:
     return {"status": "success", **result}
 
 
-def _memory_write(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _memory_write(payload: dict[str, Any]) -> dict[str, Any]:
     path = _require_note_path(payload)
     content = _require_str(payload, "content", allow_empty=True)
     metadata = payload.get("metadata")
@@ -1556,7 +1560,7 @@ def _memory_write(payload: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
-def _memory_list(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _memory_list(payload: dict[str, Any]) -> dict[str, Any]:
     path = _optional_note_path(payload)
     suffix = payload.get("suffix", ".md")
     if not isinstance(suffix, str):
@@ -1585,7 +1589,7 @@ def _memory_list(payload: Dict[str, Any]) -> Dict[str, Any]:
     return {"path": path, "files": files, "count": len(files), "source": source}
 
 
-def _memory_delete(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _memory_delete(payload: dict[str, Any]) -> dict[str, Any]:
     path = _require_note_path(payload)
     sql_store = _configured_sql_memory_store()
     if sql_store is not None:
@@ -1605,7 +1609,7 @@ def _memory_delete(payload: Dict[str, Any]) -> Dict[str, Any]:
     return {"status": "success", "path": path, "deleted": True}
 
 
-def _memory_stats(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _memory_stats(payload: dict[str, Any]) -> dict[str, Any]:
     path = _optional_note_path(payload)
     suffix = payload.get("suffix", ".md")
     if not isinstance(suffix, str):
@@ -1668,7 +1672,7 @@ def _memory_stats(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _memory_search(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _memory_search(payload: dict[str, Any]) -> dict[str, Any]:
     query = _require_str(payload, "query")
     limit = _optional_limit(payload, default=10, maximum=100)
     path = _optional_note_path(payload, default="")
@@ -1703,7 +1707,7 @@ def _memory_search(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _trust_get_score(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _trust_get_score(payload: dict[str, Any]) -> dict[str, Any]:
     entity_id = _require_str(payload, "entity_id")
     entity_type = payload.get("entity_type", "agent")
     if not isinstance(entity_type, str):
@@ -1712,7 +1716,7 @@ def _trust_get_score(payload: Dict[str, Any]) -> Dict[str, Any]:
     return score.to_dict()
 
 
-def _trust_set_score(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _trust_set_score(payload: dict[str, Any]) -> dict[str, Any]:
     entity_id = _require_str(payload, "entity_id")
     entity_type = payload.get("entity_type", "agent")
     if not isinstance(entity_type, str):
@@ -1728,7 +1732,7 @@ def _trust_set_score(payload: Dict[str, Any]) -> Dict[str, Any]:
     return updated.to_dict()
 
 
-def _trust_record_success(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _trust_record_success(payload: dict[str, Any]) -> dict[str, Any]:
     entity_id = _require_str(payload, "entity_id")
     entity_type = payload.get("entity_type", "agent")
     amount = _optional_float(payload, "amount", 0.02, 0.0, 1.0)
@@ -1747,7 +1751,7 @@ def _trust_record_success(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _trust_record_failure(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _trust_record_failure(payload: dict[str, Any]) -> dict[str, Any]:
     entity_id = _require_str(payload, "entity_id")
     entity_type = payload.get("entity_type", "agent")
     amount = _optional_float(payload, "amount", 0.05, 0.0, 1.0)
@@ -1766,7 +1770,7 @@ def _trust_record_failure(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _trust_permissions(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _trust_permissions(payload: dict[str, Any]) -> dict[str, Any]:
     entity_id = _require_str(payload, "entity_id")
     entity_type = str(payload.get("entity_type", "agent"))
     interface = _trust_interface(payload)
@@ -1779,7 +1783,7 @@ def _trust_permissions(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _trust_can_perform(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _trust_can_perform(payload: dict[str, Any]) -> dict[str, Any]:
     entity_id = _require_str(payload, "entity_id")
     operation = _require_str(payload, "operation")
     entity_type = str(payload.get("entity_type", "agent"))
@@ -1794,7 +1798,7 @@ def _trust_can_perform(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _trust_levels(_: Dict[str, Any]) -> Dict[str, Any]:
+def _trust_levels(_: dict[str, Any]) -> dict[str, Any]:
     return {
         "levels": [
             {
@@ -1806,17 +1810,17 @@ def _trust_levels(_: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _trust_report(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _trust_report(payload: dict[str, Any]) -> dict[str, Any]:
     return _trust_interface(payload).get_trust_report()
 
 
-def _trust_apply_decay(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _trust_apply_decay(payload: dict[str, Any]) -> dict[str, Any]:
     decay_rate = _optional_float(payload, "decay_rate", None, 0.0, 1.0)
     updated = _learning_governance(payload).apply_trust_decay(decay_rate)
     return {"updated": updated, "count": len(updated)}
 
 
-def _hebbian_weights(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _hebbian_weights(payload: dict[str, Any]) -> dict[str, Any]:
     limit = _optional_limit(payload, default=50, maximum=500)
     min_weight = _optional_float(payload, "min_weight", 0.0) or 0.0
     manager = _hebbian_manager(payload)
@@ -1824,7 +1828,7 @@ def _hebbian_weights(payload: Dict[str, Any]) -> Dict[str, Any]:
     return {"summary": manager.get_network_summary(), "connections": connections}
 
 
-def _hebbian_sentinel_status(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _hebbian_sentinel_status(payload: dict[str, Any]) -> dict[str, Any]:
     limit = _optional_limit(payload, default=100, maximum=500)
     agent_name = payload.get("agent_name")
     task_type = payload.get("task_type")
@@ -1840,7 +1844,7 @@ def _hebbian_sentinel_status(payload: Dict[str, Any]) -> Dict[str, Any]:
     return {"signals": signals, "total": len(signals)}
 
 
-def _hebbian_sentinel_alerts(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _hebbian_sentinel_alerts(payload: dict[str, Any]) -> dict[str, Any]:
     limit = _optional_limit(payload, default=100, maximum=500)
     open_only = payload.get("open_only", False)
     if not isinstance(open_only, bool):
@@ -1852,7 +1856,7 @@ def _hebbian_sentinel_alerts(payload: Dict[str, Any]) -> Dict[str, Any]:
     return {"alerts": alerts, "total": len(alerts)}
 
 
-def _hebbian_update(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _hebbian_update(payload: dict[str, Any]) -> dict[str, Any]:
     origin = payload.get("origin") or payload.get("agent1")
     target = payload.get("target") or payload.get("agent2")
     if not isinstance(origin, str) or not origin.strip():
@@ -1916,7 +1920,7 @@ def _hebbian_update(payload: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-COMMANDS: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
+COMMANDS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     "llm.chat": _llm_chat,
     "llm.complete": _llm_complete,
     "llm.config": _llm_config,
@@ -1970,7 +1974,7 @@ COMMANDS: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
 }
 
 
-def dispatch(command: str, payload: Dict[str, Any] | None = None) -> Dict[str, Any]:
+def dispatch(command: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
     """Run a bridge command and return its JSON-able result dict.
 
     Raises :class:`BridgeError` for unknown commands or handler failures.

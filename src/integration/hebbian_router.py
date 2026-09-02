@@ -42,7 +42,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from math import isfinite
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.routing.authorization import AuthorizationDecision
 from src.routing.eligibility import EligibleCandidate
@@ -110,7 +110,7 @@ class CandidateScore:
     trust_score: float  # current trust in [0, 1] (already decay-adjusted)
     blended: float
     pair_bonus: float = 0.0
-    timing_score: Optional[float] = None
+    timing_score: float | None = None
     hebbian_effective: float = 0.0
     oscillation_rate: float = 0.0
     sentinel_alert: bool = False
@@ -125,13 +125,13 @@ class RoutingDecision:
     alpha: float
     beta: float = 0.0
     trust_floor: float = 0.0
-    candidates: List[CandidateScore] = field(default_factory=list)
+    candidates: list[CandidateScore] = field(default_factory=list)
     # The originally-requested capability, set when this decision came from the
     # fallback path (i.e. no agent had the requested capability). None otherwise.
-    fallback_from: Optional[str] = None
-    capability: Optional[str] = None
-    routing_scope: Optional[str] = None
-    atp_action_type: Optional[str] = None
+    fallback_from: str | None = None
+    capability: str | None = None
+    routing_scope: str | None = None
+    atp_action_type: str | None = None
     # Which routing path produced this decision. Defaults to the legacy
     # router because that is the only producer that never relabels itself;
     # the Routing Kernel stamps ``kernel`` on its own decisions and the
@@ -284,7 +284,7 @@ class HebbianRanker:
             atp_action_type=authorized.intent.action_type,
         )
 
-    def _hebbian_weight(self, name: str, task_type: str) -> Optional[float]:
+    def _hebbian_weight(self, name: str, task_type: str) -> float | None:
         try:
             get_scoped = getattr(self.hebbian, "get_task_type_weight", None)
             if callable(get_scoped):
@@ -310,7 +310,7 @@ class HebbianRanker:
         except Exception:  # noqa: BLE001 - optional learned evidence is fail-neutral
             return 0.0
 
-    def _timing_score(self, name: str, task_type: str) -> Optional[float]:
+    def _timing_score(self, name: str, task_type: str) -> float | None:
         try:
             getter = getattr(self.hebbian, "get_timing_score", None)
             if not callable(getter):
@@ -355,7 +355,7 @@ class HebbianRouter:
         hebbian,
         alpha: float = DEFAULT_ALPHA,
         neutral_prior: float = NEUTRAL_PRIOR,
-        fallback_capability: Optional[str] = None,
+        fallback_capability: str | None = None,
         trust_interface: Any = None,
         beta: float = DEFAULT_BETA,
         trust_floor: float = DEFAULT_TRUST_FLOOR,
@@ -394,7 +394,7 @@ class HebbianRouter:
         self.trust_interface = trust_interface
         self.trust_floor = max(0.0, min(1.0, float(trust_floor)))
 
-    def route(self, task: Dict[str, Any]) -> RoutingDecision:
+    def route(self, task: dict[str, Any]) -> RoutingDecision:
         """Route a task to the highest blended-score eligible agent.
 
         Resolution order: the task's ``required_capability`` first, then the
@@ -449,7 +449,7 @@ class HebbianRouter:
 
         raise ValueError(f"No agent found with the required capability: {capability}")
 
-    def route_name(self, task: Dict[str, Any]) -> str:
+    def route_name(self, task: dict[str, Any]) -> str:
         """Convenience: route and return only the selected agent name."""
         return self.route(task).agent_name
 
@@ -460,11 +460,11 @@ class HebbianRouter:
     def _route_for(
         self,
         capability: str,
-        fell_back_from: Optional[str] = None,
+        fell_back_from: str | None = None,
         *,
-        routing_scope: Optional[str] = None,
-        atp_action_type: Optional[str] = None,
-    ) -> Optional[RoutingDecision]:
+        routing_scope: str | None = None,
+        atp_action_type: str | None = None,
+    ) -> RoutingDecision | None:
         """Score and choose among agents with ``capability``; None if there are none."""
         # First pass: capability + governance (quarantine/suspension) filter.
         eligible = [
@@ -527,7 +527,7 @@ class HebbianRouter:
         )
         composite_weight = max(0.0, 1.0 - self.alpha - self.beta)
 
-        scored: List[CandidateScore] = []
+        scored: list[CandidateScore] = []
         for name in candidates:
             (
                 composite,
@@ -633,7 +633,7 @@ class HebbianRouter:
         except Exception:  # pragma: no cover - defensive
             return self.neutral_prior
 
-    def _hebbian_weight(self, name: str, task_type: str) -> Optional[float]:
+    def _hebbian_weight(self, name: str, task_type: str) -> float | None:
         """Task-type weight, falling back to legacy agent-wide history."""
         try:
             get_scoped = getattr(self.hebbian, "get_task_type_weight", None)
@@ -693,7 +693,7 @@ class HebbianRouter:
         except Exception:  # pragma: no cover - defensive
             return 0.0
 
-    def _timing_score(self, name: str, task_type: str) -> Optional[float]:
+    def _timing_score(self, name: str, task_type: str) -> float | None:
         """Rolling timing/performance activation, or None on cold start."""
         try:
             getter = getattr(self.hebbian, "get_timing_score", None)

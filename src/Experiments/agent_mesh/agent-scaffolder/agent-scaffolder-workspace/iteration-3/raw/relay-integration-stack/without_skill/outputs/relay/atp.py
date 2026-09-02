@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import secrets
 from dataclasses import dataclass, field
-from typing import Dict, Optional
 
 ATP_VERSION = "0.3.1"
 
@@ -107,7 +106,7 @@ class Reply:
     sender: str = ""
     ctx: str = ""
     ack: str = ""
-    fields: Dict[str, str] = field(default_factory=dict)
+    fields: dict[str, str] = field(default_factory=dict)
     payload: str = ""
 
 

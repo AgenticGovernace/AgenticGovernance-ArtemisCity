@@ -3,11 +3,11 @@
 Artemis City uses three long-lived branches, policy profiles, and GitHub
 Environments with the same names. There is no translation layer:
 
-| Branch | Policy profile | GitHub Environment | Purpose |
-|---|---|---|---|
-| `dev` | `config/environments/dev.yaml` | `dev` | Integration |
-| `staging` | `config/environments/staging.yaml` | `staging` | Pre-production rehearsal |
-| `prod` | `config/environments/prod.yaml` | `prod` | Production and default branch |
+| Branch    | Policy profile                     | GitHub Environment | Purpose                       |
+| --------- | ---------------------------------- | ------------------ | ----------------------------- |
+| `dev`     | `config/environments/dev.yaml`     | `dev`              | Integration                   |
+| `staging` | `config/environments/staging.yaml` | `staging`          | Pre-production rehearsal      |
+| `prod`    | `config/environments/prod.yaml`    | `prod`             | Production and default branch |
 
 Approval counts do not live in YAML. Required reviewers, wait timers, branch
 restrictions, environment variables, and environment secrets are configured in

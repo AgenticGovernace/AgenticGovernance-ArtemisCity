@@ -20,7 +20,6 @@ import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import List, Optional
 
 from src.runtime_paths import data_path
 from src.utils.helpers import logger
@@ -69,7 +68,7 @@ def _hash_state(state: dict) -> str:
 class CheckpointStore:
     """JSON-file-backed store for system checkpoints."""
 
-    def __init__(self, checkpoint_dir: Optional[str] = None):
+    def __init__(self, checkpoint_dir: str | None = None):
         self.checkpoint_dir = Path(
             data_path(
                 "checkpoints",
@@ -86,9 +85,9 @@ class CheckpointStore:
         self,
         registry_snapshot: dict,
         checkpoint_type: str = "manual",
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
         retention_days: int = DEFAULT_RETENTION_DAYS,
-        config_snapshot: Optional[dict] = None,
+        config_snapshot: dict | None = None,
     ) -> dict:
         """Persist a checkpoint and return its record.
 
@@ -153,7 +152,7 @@ class CheckpointStore:
         )
         return record
 
-    def get_checkpoint(self, checkpoint_id: str) -> Optional[dict]:
+    def get_checkpoint(self, checkpoint_id: str) -> dict | None:
         """Load a checkpoint record, or None if it does not exist.
 
         Args:
@@ -168,7 +167,7 @@ class CheckpointStore:
         with open(path, "r", encoding="utf-8") as fh:
             return json.load(fh)
 
-    def list_checkpoints(self) -> List[dict]:
+    def list_checkpoints(self) -> list[dict]:
         """Return all checkpoint records, newest first.
 
         Returns:
@@ -208,7 +207,7 @@ class CheckpointStore:
         config_ok = _hash_state(config_snapshot) == state.get("config_hash")
         return system_ok and config_ok
 
-    def prune_expired(self, now: Optional[datetime] = None) -> int:
+    def prune_expired(self, now: datetime | None = None) -> int:
         """Delete checkpoints whose retention window has passed.
 
         Args:

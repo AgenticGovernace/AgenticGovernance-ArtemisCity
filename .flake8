@@ -1,0 +1,268 @@
+[flake8]
+# Aligned with black and isort (both pinned to 88 in .pre-commit-config.yaml).
+# Leaving flake8 at its 79-column default makes the two formatters fight:
+# black reformats to 88, flake8 then reports E501 on every such line.
+max-line-length = 88
+
+# Black-incompatible checks, per Black's own documented guidance:
+#   E203  whitespace before ':'  — black's slice spacing intentionally emits it
+#   E704  statement on same line as def — black formats stub overloads this way
+#   W503  line break before binary operator — black prefers the break there
+#   D1xx  missing-docstring family — docstring policy is owned by the
+#         interrogate hook (--fail-under=80, JSF AV Rules 134-135). Leaving
+#         flake8-docstrings unconfigured alongside it enforces an implicit 100%
+#         on every public symbol, contradicting that deliberate 80% threshold.
+extend-ignore = E203, E704, W503,
+    D100, D101, D102, D103, D104, D105, D107,
+    D202, D205, D400, D401, D403
+
+exclude =
+    .git,
+    .agents,
+    .venv,
+    node_modules,
+    __pycache__,
+    build,
+    dist,
+    .pixi,
+    # Reverse-sync quarantine (see docs/audits/*-removal-hold.yaml): these
+    # are retained comparison evidence with no runtime, import or routing
+    # authority, so linting them is meaningless. Their names also contain a
+    # space, which per-file-ignores cannot express.
+    * 2.py
+
+# ---------------------------------------------------------------------------
+# Legacy debt ratchet.
+#
+# flake8 was previously inert: no config file existed, so it ran at its
+# 79-column default against black's 88 and failed on everything. Arming it
+# exposed a pre-existing backlog. These per-file entries freeze that backlog
+# so the gate applies in full to every new and untouched file, while the
+# listed files are burned down individually. Only ever remove lines here.
+# ---------------------------------------------------------------------------
+per-file-ignores =
+    .agents/skills/bigquery-data-transfer-service/scripts/bigquery_dts.py: E501
+    .agents/skills/building-data-apps/examples/fastapi_chat.py: E501
+    .agents/skills/data-autocleaning/scripts/dataplex_scanner.py: E501
+    .agents/skills/gcp-managed-airflow-recommendations/scripts/lib/monitoring.py: E501
+    .agents/skills/gcp-managed-airflow-recommendations/scripts/workload_cpu_usage.py: E501
+    .agents/skills/gcp-managed-airflow-recommendations/scripts/workload_disk_usage.py: E501
+    .agents/skills/gcp-managed-airflow-recommendations/scripts/workload_memory_usage.py: E501
+    .agents/skills/gcp-managed-airflow-recommendations/scripts/workload_restarts.py: E501
+    .agents/skills/gcp-pipeline-orchestration/scripts/trigger/airflow_trigger.py: E501
+    .agents/skills/gcs-security-assessment/scripts/cloud_rest_helpers_nodeps.py: B014,B042,E501,SIM105
+    .agents/skills/gcs-security-assessment/scripts/evaluate_project_security_posture.py: E501
+    .agents/skills/gcs-security-assessment/scripts/fetch_object_telemetry.py: E501
+    .agents/skills/gcs-security-assessment/scripts/list_datasets.py: E501
+    Concept_Demos/demo_artemis.py: E402,E501
+    Concept_Demos/demo_city_postal.py: E501,F541,F841
+    Concept_Demos/demo_memory_integration.py: E402,E501
+    app/api/main.py: B008,E501,SIM114
+    app/api/posthog.py: E501
+    app/benchmarks/bench_memory_ops.py: B007,E402,E501
+    app/examples/governance_demo/run.py: E402,E501
+    app/scripts/run_tests_shim.py: D209
+    app/scripts/verify_hebbian_router.py: E501
+    app/scripts/verify_llm_routing.py: E501
+    app/scripts/verify_new_modules.py: E501
+    archive/legacy-web-api/main-copy.py: E402,E501
+    archive/legacy-web-api/main.py: E402,E501
+    sandbox_city/networked_scripts/mail_delivery_sim.py: F541
+    scripts/environment_config.py: B014,E402
+    scripts/syntax_gate.py: F401
+    services/mcp/artemis-kernel/src/artemis_kernel_mcp/service.py: B042
+    services/mcp/artemis-memory/src/artemis_memory_mcp/server.py: E501
+    services/mcp/artemis-validation/tests/test_server.py: B008
+    services/mcp/common/src/artemis_mcp_common/gate.py: E501
+    services/mcp/common/src/artemis_mcp_common/provenance.py: B014,E501
+    src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/grade2.py: D209,E501,SIM105
+    src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/grade3.py: D209,E501,SIM105
+    src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/grade_and_restructure.py: D209,E501,SIM105
+    src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/iteration-2/raw/audit-agent-provenance/without_skill/outputs/compsuite.py: C408,E501,SIM105
+    src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/iteration-2/raw/audit-agent-provenance/without_skill/outputs/compsuite/escalation.py: SIM105
+    src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/iteration-2/raw/audit-agent-provenance/without_skill/outputs/compsuite/watcher.py: F401,SIM105
+    src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/iteration-2/runs/eval-3-audit-agent-provenance/without_skill/run-1/outputs/compsuite.py: C408,E501,SIM105
+    src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/iteration-2/runs/eval-3-audit-agent-provenance/without_skill/run-1/outputs/compsuite/escalation.py: SIM105
+    src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/iteration-2/runs/eval-3-audit-agent-provenance/without_skill/run-1/outputs/compsuite/watcher.py: F401,SIM105
+    src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/iteration-3/raw/relay-integration-stack/without_skill/outputs/relay/agent.py: E501,F401
+    src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/iteration-3/raw/relay-integration-stack/without_skill/outputs/relay/atp.py: F401
+    src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/iteration-3/raw/relay-integration-stack/without_skill/outputs/relay/memory.py: SIM105
+    src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/iteration-3/runs/eval-3-audit-agent-provenance/without_skill/run-1/outputs/compsuite.py: C408,E501,SIM105
+    src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/iteration-3/runs/eval-3-audit-agent-provenance/without_skill/run-1/outputs/compsuite/escalation.py: SIM105
+    src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/iteration-3/runs/eval-3-audit-agent-provenance/without_skill/run-1/outputs/compsuite/watcher.py: F401,SIM105
+    src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/iteration-3/runs/eval-4-relay-integration-stack/without_skill/run-1/outputs/relay/agent.py: E501,F401
+    src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/iteration-3/runs/eval-4-relay-integration-stack/without_skill/run-1/outputs/relay/atp.py: F401
+    src/Experiments/agent_mesh/agent-scaffolder/agent-scaffolder-workspace/iteration-3/runs/eval-4-relay-integration-stack/without_skill/run-1/outputs/relay/memory.py: SIM105
+    src/Experiments/legal_summarization/.SETUP.py: E501,SIM105
+    src/Experiments/legal_summarization/batch_runner.py: E501,F811
+    src/Experiments/legal_summarization/dataset_loader.py: E501
+    src/Experiments/legal_summarization/eval_harness.py: E501,F401
+    src/Experiments/legal_summarization/main.py: D412,E501
+    src/Experiments/legal_summarization/run_store.py: E501
+    src/Experiments/legal_summarization/summarization_config.py: E501
+    src/Kernel/agents/artemis_cli_agent.py: E501
+    src/agents/artemis/reflection 2.py: E501
+    src/agents/artemis/reflection.py: E501
+    src/agents/artemis/semantic_tagging.py: C401
+    src/agents/artemis_agent 2.py: E501
+    src/agents/artemis_agent.py: E501
+    src/agents/atp/atp_models.py: E501
+    src/agents/atp/atp_parser.py: E501
+    src/agents/atp/atp_validator.py: E501
+    src/agents/base_agent 2.py: E501,F401
+    src/agents/base_agent.py: E501
+    src/agents/llm_agent.py: B042,E501,SIM105
+    src/agents/research_agent 2.py: E501,F541
+    src/agents/research_agent.py: E501
+    src/agents/summarizer_agent 2.py: E501
+    src/agents/summarizer_agent.py: E501
+    src/api_bridge.py: B042,D209,E501
+    src/auth/authstructure.py: B014
+    src/core/__init__.py: E501
+    src/core/instructions/__init__.py: E501
+    src/core/instructions/instruction_cache.py: E501
+    src/core/instructions/instruction_loader.py: B014,E501,F401,SIM105
+    src/exceptions 2.py: B042,E501
+    src/exceptions copy.py: B042,E501
+    src/exceptions.py: B042,E501
+    src/generator.py: E501,F541
+    src/governance/approvals.py: E501
+    src/governance/checkpoints.py: E501
+    src/governance/trust.py: E501
+    src/hebbian_weights.py: E501
+    src/helpers.py: E402
+    src/integration/agent_registry.py: E501
+    src/integration/exceptions.py: B042,E501
+    src/integration/governance.py: E501
+    src/integration/hebbian_router.py: E501
+    src/integration/memory_bus.py: C401
+    src/integration/memory_decay.py: SIM113
+    src/integration/sandbox.py: E501
+    src/integration/sql_memory_store.py: C420,E501
+    src/interface/Quantumharmony_cli.py: E501
+    src/launch/atp_cli.py: E402,E501,F401,F841
+    src/launch/demo_artemis.py: E402,E501
+    src/launch/demo_city_postal.py: E501,F541,F841
+    src/launch/demo_memory_integration.py: E402,E501
+    src/launch/interface/Quantumharmony_cli.py: E501
+    src/launch/main.py: E501,SIM908
+    src/main.py: E501,SIM908
+    src/mcp/config.py: E501
+    src/mcp/hebbian_weights 2.py: E501
+    src/mcp/hebbian_weights.py: E501
+    src/mcp/orchestrator 2.py: D200,E501,F401
+    src/mcp/orchestrator.py: D200,E501,F841
+    src/mcp/supabase_vector_store.py: E501
+    src/mcp/vector_store 2.py: E501
+    src/mcp/vector_store.py: E501
+    src/memory/__init__.py: E402
+    src/monitoring/governance_metrics.py: C420,SIM105
+    src/my_types.py: F401
+    src/obsidian_integration/generator.py: E501,F541
+    src/obsidian_integration/manager 2.py: F401
+    src/obsidian_integration/manager.py: B042,SIM105
+    src/obsidian_integration/parser 2.py: F841
+    src/parser.py: F841
+    src/routing/authorization.py: B042
+    src/routing/contracts.py: E501
+    src/routing/eligibility.py: B042
+    src/routing/intent.py: B042
+    src/routing/kernel.py: B042,E501
+    src/run_logger.py: E501,F401,SIM105
+    src/semantic_tagging.py: C401
+    src/tests/conftest.py: F401
+    src/tests/integration/test_agent_registry.py: E402
+    src/tests/integration/test_artemis_persona 2.py: E402
+    src/tests/integration/test_artemis_persona.py: E402
+    src/tests/integration/test_atp_metrics.py: E402
+    src/tests/integration/test_atp_validator.py: E402,E501
+    src/tests/integration/test_base_agent.py: E402
+    src/tests/integration/test_context_loader.py: E402
+    src/tests/integration/test_governance.py: E402
+    src/tests/integration/test_governance_monitor.py: E402
+    src/tests/integration/test_memory_bus_integration.py: E402
+    src/tests/integration/test_memory_client.py: E402
+    src/tests/integration/test_memory_decay.py: E402
+    src/tests/integration/test_reflection.py: E402
+    src/tests/integration/test_sandbox.py: E402
+    src/tests/integration/test_semantic_tagging.py: E402
+    src/tests/integration/test_trust_interface.py: E402
+    src/tests/run_simulation.py: E501,F401
+    src/tests/test_agent_registry.py: E402
+    src/tests/test_agent_routing.py: E501
+    src/tests/test_anaconda_agent_proxy.py: F401
+    src/tests/test_atp.py: E501
+    src/tests/test_atp_import_boundaries.py: E501
+    src/tests/test_atp_validator.py: E402,E501
+    src/tests/test_auth_verifier.py: B008
+    src/tests/test_base_agent_compliance.py: E501
+    src/tests/test_checkpoints.py: E402
+    src/tests/test_cli_entrypoints.py: E501
+    src/tests/test_context_loader.py: E402
+    src/tests/test_dashboard_api.py: E501
+    src/tests/test_docker_compose.py: E501
+    src/tests/test_environment_config.py: E501
+    src/tests/test_governance_monitor.py: E402
+    src/tests/test_guidelines_demo.py: F401
+    src/tests/test_hebbian_learning.py: D200
+    src/tests/test_hebbian_marketplace_vs_inference.py: SIM113
+    src/tests/test_legal_summarization_coverage.py: E501,SIM117
+    src/tests/test_legal_summarization_eval_harness.py: E501,F401
+    src/tests/test_llm_agent_coverage.py: B042,E501
+    src/tests/test_makefile_contract.py: SIM300
+    src/tests/test_memory_client.py: E402
+    src/tests/test_memory_integration.py: E501
+    src/tests/test_memory_service.py: E501
+    src/tests/test_orchestrator_coverage.py: E501
+    src/tests/test_postgres_memory_ledger.py: E501
+    src/tests/test_reflection.py: E402
+    src/tests/test_registry_read_service.py: E501
+    src/tests/test_repository_boundaries.py: E501
+    src/tests/test_reverse_sync_cleanup.py: E501
+    src/tests/test_root_test_retention.py: E501
+    src/tests/test_routing_contracts.py: E501,SIM904
+    src/tests/test_run_logger_coverage.py: SIM117
+    src/tests/test_sql_memory_store.py: E501
+    src/tests/test_trust_interface.py: E402
+    src/utils/helpers.py: B014
+    src/utils/run_logger.py: E501,SIM105
+    src/vector_store.py: E501
+    tests/integration/test_agent_registry.py: E402
+    tests/integration/test_artemis_persona 2.py: E402
+    tests/integration/test_artemis_persona.py: E402
+    tests/integration/test_atp_metrics.py: E402
+    tests/integration/test_atp_validator.py: E402,E501
+    tests/integration/test_base_agent.py: E402
+    tests/integration/test_context_loader.py: E402
+    tests/integration/test_exceptions.py: E402
+    tests/integration/test_governance.py: E402,F811
+    tests/integration/test_governance_monitor.py: E402
+    tests/integration/test_hebbian_sync.py: E402
+    tests/integration/test_memory_bus_integration.py: E402
+    tests/integration/test_memory_client.py: E402
+    tests/integration/test_memory_decay.py: E402
+    tests/integration/test_reflection.py: E402
+    tests/integration/test_sandbox.py: E402
+    tests/integration/test_semantic_tagging.py: E402
+    tests/integration/test_trust_interface.py: E402
+    tests/run_simulation.py: E501,F401
+    tests/test_agent_registry.py: E402
+    tests/test_agent_routing.py: E501
+    tests/test_anaconda_agent_proxy.py: F401
+    tests/test_atp.py: E501
+    tests/test_atp_validator.py: E402,E501
+    tests/test_base_agent_compliance.py: E501,F541
+    tests/test_checkpoints.py: E402
+    tests/test_context_loader.py: E402
+    tests/test_docker_compose.py: E501
+    tests/test_governance_monitor.py: E402
+    tests/test_guidelines_demo.py: F401
+    tests/test_hebbian_learning.py: D200,SIM105
+    tests/test_hebbian_marketplace_vs_inference.py: B001,B007,E402,E501,E722
+    tests/test_hebbian_router.py: E501
+    tests/test_hebbian_scoped_vs_coldstart.py: B001,E402,E501,E722,F841
+    tests/test_memory_client.py: E402
+    tests/test_memory_integration.py: E501
+    tests/test_reflection.py: E402
+    tests/test_semantic_tagging.py: E402
+    tests/test_trust_interface.py: E402

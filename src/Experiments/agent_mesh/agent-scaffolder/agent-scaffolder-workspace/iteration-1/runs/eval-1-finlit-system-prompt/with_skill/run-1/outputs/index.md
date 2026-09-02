@@ -4,11 +4,13 @@
 > immediate context — what this location is, what lives here, and how to use it.
 
 ## What this is
+
 This folder defines the FinLit Planner agent: a friendly financial-literacy and
 budgeting coach that helps users build budgets and understand personal-finance concepts,
 while explicitly never giving specific investment buy/sell advice.
 
 ## What's here
+
 - `system-prompt.md` — the full system prompt (Agent Card) for FinLit Planner, built from
   the 6-layer formula: Role, Mission, Output Standards, Escalation Rules, Memory,
   Reflection.
@@ -18,9 +20,10 @@ while explicitly never giving specific investment buy/sell advice.
   (tone, budget format, the no-investment-advice guardrail).
 
 ## How to use it
+
 - To deploy the agent, load `system-prompt.md` as the agent's system prompt.
 - The folder's `index.md` and `.codex/instructions.md` are the local context layer.
   Confirm whether your runtime auto-loads these on folder entry; some CLIs read
   `instructions.md` automatically, others need the content pasted into the prompt.
-- Scope cascade: global/personal defaults  <  project-wide rules  <  this folder's
+- Scope cascade: global/personal defaults < project-wide rules < this folder's
   `index.md` / `.codex/instructions.md`.

@@ -6,7 +6,6 @@ narrative building from multiple conversation threads.
 
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Tuple
 
 
 @dataclass
@@ -22,8 +21,8 @@ class ConceptNode:
     """
 
     concept: str
-    contexts: List[str] = field(default_factory=list)
-    related_concepts: Set[str] = field(default_factory=set)
+    contexts: list[str] = field(default_factory=list)
+    related_concepts: set[str] = field(default_factory=set)
     frequency: int = 0
     importance_score: float = 0.0
 
@@ -60,8 +59,8 @@ class ConceptGraph:
         concept_pairs: Set of related concept pairs
     """
 
-    concepts: Dict[str, ConceptNode] = field(default_factory=dict)
-    concept_pairs: Set[Tuple[str, str]] = field(default_factory=set)
+    concepts: dict[str, ConceptNode] = field(default_factory=dict)
+    concept_pairs: set[tuple[str, str]] = field(default_factory=set)
 
     def add_concept(self, concept: str, context: str) -> None:
         """Add or update a concept in the graph.
@@ -99,7 +98,7 @@ class ConceptGraph:
             a, b = sorted([key1, key2])
             self.concept_pairs.add((a, b))
 
-    def get_top_concepts(self, n: int = 10) -> List[ConceptNode]:
+    def get_top_concepts(self, n: int = 10) -> list[ConceptNode]:
         """Get top N concepts by importance.
 
         Args:
@@ -115,7 +114,7 @@ class ConceptGraph:
         )
         return sorted_concepts[:n]
 
-    def find_concept_clusters(self) -> List[Set[str]]:
+    def find_concept_clusters(self) -> list[set[str]]:
         """Find clusters of related concepts.
 
         Returns:
@@ -124,7 +123,7 @@ class ConceptGraph:
         visited = set()
         clusters = []
 
-        def dfs(concept_key: str, cluster: Set[str]) -> None:
+        def dfs(concept_key: str, cluster: set[str]) -> None:
             """Depth-first search to find connected concepts."""
             if concept_key in visited:
                 return
@@ -159,7 +158,7 @@ class ReflectionEngine:
     def __init__(self):
         """Initialize reflection engine."""
         self.concept_graph = ConceptGraph()
-        self.conversation_history: List[str] = []
+        self.conversation_history: list[str] = []
 
     def add_conversation(self, text: str) -> None:
         """Add a conversation to the reflection corpus.
@@ -179,7 +178,7 @@ class ReflectionEngine:
 
         self._identify_relationships(concepts, text)
 
-    def synthesize(self, focus: Optional[str] = None) -> str:
+    def synthesize(self, focus: str | None = None) -> str:
         """Synthesize insights from conversation history.
 
         Args:
@@ -224,7 +223,7 @@ class ReflectionEngine:
         return "\n".join(parts)
 
     def _build_narrative(
-        self, top_concepts: List[ConceptNode], clusters: List[Set[str]]
+        self, top_concepts: list[ConceptNode], clusters: list[set[str]]
     ) -> str:
         """Build narrative from concepts and clusters."""
         narrative_parts = []
@@ -253,7 +252,7 @@ class ReflectionEngine:
         return " ".join(narrative_parts)
 
     def _generate_focus_section(
-        self, focus: str, top_concepts: List[ConceptNode]
+        self, focus: str, top_concepts: list[ConceptNode]
     ) -> str:
         """Generate insights focused on a specific area."""
         focus_lower = focus.lower()
@@ -265,7 +264,7 @@ class ReflectionEngine:
             return f"The focus area '{focus}' intersects with: {', '.join(related)}."
         return f"No direct connections found for focus area '{focus}', but it may relate to emerging themes."
 
-    def _extract_concepts(self, text: str) -> List[str]:
+    def _extract_concepts(self, text: str) -> list[str]:
         """Extract potential concepts from text."""
         normalized = re.sub(r"[^a-zA-Z0-9\s]", " ", text.lower())
         words = normalized.split()
@@ -295,7 +294,7 @@ class ReflectionEngine:
         candidates = [w for w in words if len(w) > 3 and w not in stopwords]
         return list(dict.fromkeys(candidates))
 
-    def _identify_relationships(self, concepts: List[str], text: str) -> None:
+    def _identify_relationships(self, concepts: list[str], text: str) -> None:
         """Identify relationships between concepts in the same text."""
         for i, concept in enumerate(concepts):
             for related in concepts[i + 1 :]:

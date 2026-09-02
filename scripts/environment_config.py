@@ -744,9 +744,7 @@ def main(argv: list[str] | None = None) -> int:
     mode = (
         "regenerate"
         if arguments.regenerate
-        else "check"
-        if arguments.setup_check
-        else "sync"
+        else "check" if arguments.setup_check else "sync"
     )
     print(f"Artemis City — secure environment setup ({mode})")
     errors = provision_environment(REPO_ROOT, mode)

@@ -106,7 +106,7 @@ def _canonical_line_sha256(paths: list[str]) -> str:
 
 
 def _canonical_nul_sha256(paths: list[str]) -> str:
-    payload = b"".join(f"{path}\0".encode("utf-8") for path in paths)
+    payload = b"".join(f"{path}\0".encode() for path in paths)
     return hashlib.sha256(payload).hexdigest()
 
 

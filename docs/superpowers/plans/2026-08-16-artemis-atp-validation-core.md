@@ -35,10 +35,12 @@
 ### Task 1: Define strict immutable validation contracts
 
 **Files:**
+
 - Create: `src/validation/models.py`
 - Create: `src/tests/test_atp_validation_models.py`
 
 **Interfaces:**
+
 - Consumes: canonical `ATPMode`, `ATPPriority`, and `ATPActionType` enums from `src.agents.atp.atp_models`.
 - Produces: `ATPHeaderInput`, `ParsedATP`, `ValidationIssue`, `ATPValidationReport`, `DetectedATPFormat`, `IssueSeverity`, and `ValidationIssueCode`.
 
@@ -404,11 +406,13 @@ git commit -m "feat(validation): add typed ATP contracts"
 ### Task 2: Implement canonical parse, validate, and format behavior
 
 **Files:**
+
 - Create: `src/validation/service.py`
 - Create: `src/validation/__init__.py`
 - Create: `src/tests/test_atp_validation_service.py`
 
 **Interfaces:**
+
 - Consumes: Task 1 DTOs; `ATPParser.parse(raw_input) -> ATPMessage`; `ATPParser.detect_format(raw_input) -> str | None`; `ATPValidator(strict).validate(message) -> ValidationResult`.
 - Produces: `ATPValidationService.parse(raw_input: str) -> ParsedATP`, `ATPValidationService.validate(raw_input: str, strict: bool = True) -> ATPValidationReport`, and `ATPValidationService.format(header: ATPHeaderInput, syntax: Literal["hash", "bracket"] = "bracket") -> str`.
 

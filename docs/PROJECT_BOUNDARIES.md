@@ -5,33 +5,33 @@ This document is the working separation map: it identifies each project,
 records how it is run, and names the next safe step for splitting it without
 breaking the Artemis City core.
 
-For the responsibility, data, and test boundaries *inside* these projects, use
+For the responsibility, data, and test boundaries _inside_ these projects, use
 [`REPOSITORY_LAYERS.md`](REPOSITORY_LAYERS.md).
 
 ## Active Projects
 
-| Project | Current path | Runtime | Manifest or entry point | Status | Separation target |
-|---|---|---|---|---|---|
-| Artemis Python core | `src/` | Python 3.12 | `pyproject.toml`, `requirements.txt`, `src/mcp/orchestrator.py` | Active authoritative core | Root `pyproject.toml` is canonical |
-| In-process kernel | `app/kernel/` | Python 3.12 | `app/kernel/cli.py`, `app/kernel/kernel.py` | Active, packaged with the core | Keep with the Python core package |
-| FastAPI dashboard backend | `app/api/main.py` | Python/FastAPI | `make api`, `app/api/main.py` | Active dashboard surface | Split into `services/dashboard-api/` after imports are stable |
-| TypeScript Express API | `app/api/**/*.ts` | Node/TypeScript/Express | `app/api/package.json`, `app/api/tsconfig.json`, `app/api/index.ts` | Active public HTTP boundary | Ready for a later physical move to `services/express-api/` |
-| React dashboard frontend | `app/web/frontend/` | Node/TypeScript/React/Vite | `app/web/frontend/package.json`, `vite.config.ts` | Active frontend | Split into `apps/dashboard-web/` |
-| Launch demos and CLI walkthroughs | `src/launch/` | Python scripts, feature-only npm compatibility shim | `src/launch/Makefile`, `src/launch/package.json` | Transitional | Keep scripts near the core; the shim delegates to the Makefile and can be retired in a separately approved cleanup |
-| Static concept demos | `Concept_Demos/` | Static HTML/browser demos | `Concept_Demos/README.md` | Supported prototype gallery | Split into `examples/concept-demos/` or keep as non-package docs assets |
+| Project                           | Current path        | Runtime                                             | Manifest or entry point                                             | Status                         | Separation target                                                                                                  |
+| --------------------------------- | ------------------- | --------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| Artemis Python core               | `src/`              | Python 3.12                                         | `pyproject.toml`, `requirements.txt`, `src/mcp/orchestrator.py`     | Active authoritative core      | Root `pyproject.toml` is canonical                                                                                 |
+| In-process kernel                 | `app/kernel/`       | Python 3.12                                         | `app/kernel/cli.py`, `app/kernel/kernel.py`                         | Active, packaged with the core | Keep with the Python core package                                                                                  |
+| FastAPI dashboard backend         | `app/api/main.py`   | Python/FastAPI                                      | `make api`, `app/api/main.py`                                       | Active dashboard surface       | Split into `services/dashboard-api/` after imports are stable                                                      |
+| TypeScript Express API            | `app/api/**/*.ts`   | Node/TypeScript/Express                             | `app/api/package.json`, `app/api/tsconfig.json`, `app/api/index.ts` | Active public HTTP boundary    | Ready for a later physical move to `services/express-api/`                                                         |
+| React dashboard frontend          | `app/web/frontend/` | Node/TypeScript/React/Vite                          | `app/web/frontend/package.json`, `vite.config.ts`                   | Active frontend                | Split into `apps/dashboard-web/`                                                                                   |
+| Launch demos and CLI walkthroughs | `src/launch/`       | Python scripts, feature-only npm compatibility shim | `src/launch/Makefile`, `src/launch/package.json`                    | Transitional                   | Keep scripts near the core; the shim delegates to the Makefile and can be retired in a separately approved cleanup |
+| Static concept demos              | `Concept_Demos/`    | Static HTML/browser demos                           | `Concept_Demos/README.md`                                           | Supported prototype gallery    | Split into `examples/concept-demos/` or keep as non-package docs assets                                            |
 
 ## Incomplete Or Stale Project Shells
 
-| Surface | Current path | Evidence | Recommended action |
-|---|---|---|---|
-| Obsidian REST shell | `src/Artemis Agentic Memory Layer/` | Working `package.json`, `Dockerfile`, and `middleware/auth.ts` are present; `make server` runs it. Not registered in the root npm workspace. Branding-only — plain REST, no `@modelcontextprotocol/sdk` dependency; the reviewed MCP design does not treat it as Model Context Protocol | Register it in the root npm workspace before treating it as a production dependency |
-| Legacy web API copy | `archive/legacy-web-api/` | Old `app/web/api/` FastAPI copies; active dashboard API is `app/api/main.py` | Archived for reference |
-| Duplicate memory integration package | `memory/` | Mirrors `src/memory/` names outside the package root | Verify imports, then remove or convert to compatibility shims |
-| Duplicate root tests | `tests/` | Substantially overlaps `src/tests/`, but is not byte-identical | Keep `src/tests/` canonical; root `tests/` is migration-only and documented by `tests/README.md` |
-| Historical kernel placeholder | `src/Kernel/` | Only `__init__.py`; maintained kernel is `app/kernel/` | Remove once import search confirms it is unused |
-| Local GitHub Actions runner | `actions-runner/` | Runtime tool directory, not source code | Move outside the repository or add to ignore rules after confirming it is not intentionally vendored |
-| Marketplace prototype | `quantum-harmony-marketplace/` | Separate top-level product-like directory | Inspect manifest/docs, then split or archive independently |
-| Simulation sandbox | `sandbox_city/` | Legacy city simulation assets referenced by archived docs and old launch package scripts | Keep as examples only or move under `examples/sandbox-city/` |
+| Surface                              | Current path                        | Evidence                                                                                                                                                                                                                                                                                | Recommended action                                                                                   |
+| ------------------------------------ | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Obsidian REST shell                  | `app/Artemis Agentic Memory Layer/` | Working `package.json`, `Dockerfile`, and `middleware/auth.ts` are present; `make server` runs it. Not registered in the root npm workspace. Branding-only — plain REST, no `@modelcontextprotocol/sdk` dependency; the reviewed MCP design does not treat it as Model Context Protocol | Register it in the root npm workspace before treating it as a production dependency                  |
+| Legacy web API copy                  | `archive/legacy-web-api/`           | Old `app/web/api/` FastAPI copies; active dashboard API is `app/api/main.py`                                                                                                                                                                                                            | Archived for reference                                                                               |
+| Duplicate memory integration package | `memory/`                           | Mirrors `src/memory/` names outside the package root                                                                                                                                                                                                                                    | Verify imports, then remove or convert to compatibility shims                                        |
+| Duplicate root tests                 | `tests/`                            | Substantially overlaps `src/tests/`, but is not byte-identical                                                                                                                                                                                                                          | Keep `src/tests/` canonical; root `tests/` is migration-only and documented by `tests/README.md`     |
+| Historical kernel placeholder        | `src/Kernel/`                       | Only `__init__.py`; maintained kernel is `app/kernel/`                                                                                                                                                                                                                                  | Remove once import search confirms it is unused                                                      |
+| Local GitHub Actions runner          | `actions-runner/`                   | Runtime tool directory, not source code                                                                                                                                                                                                                                                 | Move outside the repository or add to ignore rules after confirming it is not intentionally vendored |
+| Marketplace prototype                | `quantum-harmony-marketplace/`      | Separate top-level product-like directory                                                                                                                                                                                                                                               | Inspect manifest/docs, then split or archive independently                                           |
+| Simulation sandbox                   | `sandbox_city/`                     | Legacy city simulation assets referenced by archived docs and old launch package scripts                                                                                                                                                                                                | Keep as examples only or move under `examples/sandbox-city/`                                         |
 
 ## Cross-Project Coupling To Preserve
 
@@ -52,7 +52,7 @@ These must be resolved before broad file moves or package extraction:
 2. Root `pyproject.toml` is the canonical Python package manifest.
 3. Package-lock files parse as JSON. The Express API now has a local manifest,
    local TypeScript config, and regenerated local lockfile.
-4. `src/Artemis Agentic Memory Layer/` is a runnable standalone Obsidian REST
+4. `app/Artemis Agentic Memory Layer/` is a runnable standalone Obsidian REST
    shell, but is not a registered workspace service, and is not a Model
    Context Protocol implementation despite its name — the real MCP SDK is
    used under `services/mcp/`.

@@ -38,7 +38,7 @@ Date: 2024
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class ArtemisError(Exception):
@@ -61,8 +61,8 @@ class ArtemisError(Exception):
     def __init__(
         self,
         message: str,
-        error_code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        error_code: str | None = None,
+        details: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message)
         self.message = message
@@ -74,9 +74,9 @@ class ArtemisError(Exception):
             return f"[{self.error_code}] {self.message}"
         return self.message
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert exception to dictionary for API responses."""
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "error": self.__class__.__name__,
             "message": self.message,
         }
@@ -94,8 +94,6 @@ class ArtemisError(Exception):
 
 class TaskError(ArtemisError):
     """Base exception for task-related errors."""
-
-    pass
 
 
 class TaskRoutingError(TaskError):
@@ -115,8 +113,8 @@ class TaskRoutingError(TaskError):
     def __init__(
         self,
         message: str,
-        task_id: Optional[str] = None,
-        required_capability: Optional[str] = None,
+        task_id: str | None = None,
+        required_capability: str | None = None,
     ) -> None:
         details = {}
         if task_id:
@@ -141,11 +139,11 @@ class TaskExecutionError(TaskError):
     def __init__(
         self,
         message: str,
-        task_id: Optional[str] = None,
-        agent_name: Optional[str] = None,
-        original_error: Optional[Exception] = None,
+        task_id: str | None = None,
+        agent_name: str | None = None,
+        original_error: Exception | None = None,
     ) -> None:
-        details: Dict[str, Any] = {}
+        details: dict[str, Any] = {}
         if task_id:
             details["task_id"] = task_id
         if agent_name:
@@ -171,11 +169,11 @@ class TaskValidationError(TaskError):
     def __init__(
         self,
         message: str,
-        task_id: Optional[str] = None,
-        missing_fields: Optional[List[str]] = None,
-        invalid_fields: Optional[Dict[str, str]] = None,
+        task_id: str | None = None,
+        missing_fields: list[str] | None = None,
+        invalid_fields: dict[str, str] | None = None,
     ) -> None:
-        details: Dict[str, Any] = {}
+        details: dict[str, Any] = {}
         if task_id:
             details["task_id"] = task_id
         if missing_fields:
@@ -196,8 +194,6 @@ class TaskValidationError(TaskError):
 class AgentError(ArtemisError):
     """Base exception for agent-related errors."""
 
-    pass
-
 
 class AgentNotFoundError(AgentError):
     """
@@ -211,10 +207,10 @@ class AgentNotFoundError(AgentError):
     def __init__(
         self,
         agent_name: str,
-        available_agents: Optional[List[str]] = None,
+        available_agents: list[str] | None = None,
     ) -> None:
         message = f"Agent '{agent_name}' not found in registry"
-        details: Dict[str, Any] = {"agent_name": agent_name}
+        details: dict[str, Any] = {"agent_name": agent_name}
         if available_agents:
             details["available_agents"] = available_agents
             message += f". Available: {', '.join(available_agents)}"
@@ -257,12 +253,12 @@ class AgentCapabilityError(AgentError):
         self,
         agent_name: str,
         required_capability: str,
-        agent_capabilities: Optional[List[str]] = None,
+        agent_capabilities: list[str] | None = None,
     ) -> None:
         message = (
             f"Agent '{agent_name}' lacks required capability '{required_capability}'"
         )
-        details: Dict[str, Any] = {
+        details: dict[str, Any] = {
             "agent_name": agent_name,
             "required_capability": required_capability,
         }
@@ -282,8 +278,6 @@ class AgentCapabilityError(AgentError):
 class MemorySystemError(ArtemisError):
     """Base exception for memory system errors."""
 
-    pass
-
 
 class MemoryBusError(MemorySystemError):
     """
@@ -297,10 +291,10 @@ class MemoryBusError(MemorySystemError):
     def __init__(
         self,
         message: str,
-        operation: Optional[str] = None,
-        path: Optional[str] = None,
+        operation: str | None = None,
+        path: str | None = None,
     ) -> None:
-        details: Dict[str, Any] = {}
+        details: dict[str, Any] = {}
         if operation:
             details["operation"] = operation
         if path:
@@ -322,10 +316,10 @@ class VectorStoreError(MemorySystemError):
     def __init__(
         self,
         message: str,
-        operation: Optional[str] = None,
-        query: Optional[str] = None,
+        operation: str | None = None,
+        query: str | None = None,
     ) -> None:
-        details: Dict[str, Any] = {}
+        details: dict[str, Any] = {}
         if operation:
             details["operation"] = operation
         if query:
@@ -363,8 +357,6 @@ class ObsidianConnectionError(MemorySystemError):
 class GovernanceError(ArtemisError):
     """Base exception for governance-related errors."""
 
-    pass
-
 
 class GovernanceViolationError(GovernanceError):
     """
@@ -378,10 +370,10 @@ class GovernanceViolationError(GovernanceError):
     def __init__(
         self,
         message: str,
-        policy: Optional[str] = None,
-        violation_details: Optional[str] = None,
+        policy: str | None = None,
+        violation_details: str | None = None,
     ) -> None:
-        details: Dict[str, Any] = {}
+        details: dict[str, Any] = {}
         if policy:
             details["policy"] = policy
         if violation_details:
@@ -439,10 +431,10 @@ class ConfigurationError(ArtemisError):
     def __init__(
         self,
         message: str,
-        config_key: Optional[str] = None,
-        expected_type: Optional[str] = None,
+        config_key: str | None = None,
+        expected_type: str | None = None,
     ) -> None:
-        details: Dict[str, Any] = {}
+        details: dict[str, Any] = {}
         if config_key:
             details["config_key"] = config_key
         if expected_type:

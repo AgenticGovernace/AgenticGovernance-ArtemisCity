@@ -35,12 +35,14 @@
 ### Task 1: Add the ledger port, schema, submission replay, and atomic claim
 
 **Files:**
+
 - Create: `src/tasks/__init__.py`
 - Create: `src/tasks/ledger.py`
 - Create: `src/tasks/sqlite_ledger.py`
 - Create: `src/tests/test_task_ledger.py`
 
 **Interfaces:**
+
 - Consumes: `TaskEnvelopeV1` and `OutcomeV1` from the Routing Kernel core plan.
 - Produces: `TaskLedger`, `TaskRecord`, `SubmissionReceipt`, `ClaimReceipt`, `LedgerConflict`, and `SQLiteTaskLedger`.
 
@@ -143,11 +145,13 @@ class TaskLedger(Protocol):
 ### Task 2: Add lease recovery, bounded retry, and explicit requeue
 
 **Files:**
+
 - Modify: `src/tasks/ledger.py`
 - Modify: `src/tasks/sqlite_ledger.py`
 - Modify: `src/tests/test_task_ledger.py`
 
 **Interfaces:**
+
 - Consumes: `ClaimReceipt` from Task 1.
 - Produces: `mark_dispatch_started`, `schedule_retry`, `recover_expired_leases`, and `requeue`.
 
@@ -227,6 +231,7 @@ def requeue(
 ### Task 3: Persist OutcomeV1 and idempotent result provenance before completion
 
 **Files:**
+
 - Create: `src/provenance/__init__.py`
 - Create: `src/provenance/ports.py`
 - Create: `src/provenance/run_logger_adapter.py`
@@ -236,6 +241,7 @@ def requeue(
 - Modify: `src/tests/test_run_logger_provenance.py`
 
 **Interfaces:**
+
 - Consumes: `OutcomeV1`, `TaskLedger`, and canonical `src.utils.run_logger.RunLogger`.
 - Produces: `CompletionProvenancePort.commit_result`, `OutcomeFinalizer.finalize`, and `OutcomeFinalizer.resume`.
 
@@ -331,6 +337,7 @@ class OutcomeFinalizer:
 ### Task 4: Make Hebbian, registry, and trust learning idempotent per outcome
 
 **Files:**
+
 - Create: `src/routing/learning.py`
 - Create: `src/tests/test_learning_idempotency.py`
 - Modify: `src/mcp/hebbian_weights.py`
@@ -341,6 +348,7 @@ class OutcomeFinalizer:
 - Modify: `src/tests/test_learning_governance.py`
 
 **Interfaces:**
+
 - Consumes: a durable outcome and result-provenance receipt.
 - Produces: `OutcomeLearningCoordinator.apply_once(outcome, provenance) -> LearningReceipt` and idempotent store methods keyed by `(outcome_id, learning_policy_version)`.
 
@@ -370,7 +378,7 @@ class OutcomeFinalizer:
 - [ ] **Step 4: Add one application table to every mutable store**
 
   Each database uses a unique primary key on `(outcome_id,
-  learning_policy_version)` and stores content hash, state, and timestamp. A
+learning_policy_version)` and stores content hash, state, and timestamp. A
   repeated identical application returns its prior receipt; a hash mismatch is
   `learning_application_conflict`.
 
@@ -400,6 +408,7 @@ class OutcomeFinalizer:
 ### Task 5: Authorize bounded child graphs and atomically fan out
 
 **Files:**
+
 - Modify: `src/auth/delegation.py`
 - Create: `src/tasks/graph.py`
 - Create: `src/tests/test_task_graph.py`
@@ -407,6 +416,7 @@ class OutcomeFinalizer:
 - Modify: `src/routing/contracts.py`
 
 **Interfaces:**
+
 - Consumes: durable parent task/outcome, `AuthorityContextV1`, strict intent resolver, Artemis authorizer, and current policy.
 - Produces: `ChildTaskSpecV1`, `DelegationGrantV1`, `GraphLimits`, `AuthorizedChildPlan`, `TaskGraphService.authorize_plan`, and `SQLiteTaskLedger.accept_child_plan`.
 
@@ -483,12 +493,14 @@ def accept_child_plan(
 ### Task 6: Add idempotent fan-in, continuation, failure, and cancellation policy
 
 **Files:**
+
 - Modify: `src/tasks/graph.py`
 - Modify: `src/tasks/ledger.py`
 - Modify: `src/tasks/sqlite_ledger.py`
 - Modify: `src/tests/test_task_graph.py`
 
 **Interfaces:**
+
 - Consumes: terminal child outcomes and persisted edge policies.
 - Produces: `fan_in`, `apply_child_terminal_policy`, `ContinuationReceipt`, and `ParentResolution`.
 
@@ -511,7 +523,7 @@ def apply_child_terminal_policy(
 - [ ] **Step 1: Write continuation hashing and replay tests**
 
   Canonically sort required child tuples `(outcome_id, content_sha256,
-  failure_policy, cancellation_policy)`, encode canonical JSON, and hash it.
+failure_policy, cancellation_policy)`, encode canonical JSON, and hash it.
   Assert exactly one continuation increments sequence, keeps the same
   generation, sets the child-result hash, and derives a distinct attempt key.
   Duplicate/out-of-order child events return the prior continuation.
@@ -551,12 +563,14 @@ def apply_child_terminal_policy(
 ### Task 7: Project durable task state to Obsidian through an outbox
 
 **Files:**
+
 - Create: `src/tasks/projection.py`
 - Create: `src/tests/test_task_projection.py`
 - Modify: `src/mcp/orchestrator.py`
 - Modify after its owning change lands: `src/integration/memory_bus.py`
 
 **Interfaces:**
+
 - Consumes: committed `projection_outbox` events and canonical MemoryBus write port.
 - Produces: `TaskProjectionWorker.run_once(limit) -> ProjectionBatchReceipt`.
 
@@ -609,6 +623,7 @@ def apply_child_terminal_policy(
 ### Task 8: Wire the durable finalizer into the shared kernel and add reconciliation
 
 **Files:**
+
 - Create: `src/tasks/reconciler.py`
 - Create: `src/tests/test_routing_lifecycle.py`
 - Modify: `src/routing/kernel.py`
@@ -617,6 +632,7 @@ def apply_child_terminal_policy(
 - Modify: `src/tests/test_orchestrator_coverage.py`
 
 **Interfaces:**
+
 - Consumes: completed ledger, graph, finalizer, learning, and projection ports.
 - Produces: one real lifecycle for execute/stream and `FinalizationReconciler.run_once(limit)`.
 

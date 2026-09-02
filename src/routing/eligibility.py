@@ -144,7 +144,9 @@ class EligibilityFilter:
                 continue
             try:
                 trust_score = float(self._trust.score(record.agent_id))
-            except Exception:  # noqa: BLE001, S112 - missing trust denies admission
+            except (
+                Exception
+            ):  # noqa: BLE001, S112 # nosec B112 - missing trust denies admission
                 continue
             if not isfinite(trust_score) or not 0.0 <= trust_score <= 1.0:
                 continue
@@ -154,7 +156,9 @@ class EligibilityFilter:
                 sandbox_allowed = self._sandbox.allows(
                     record.agent_id, frozenset(capabilities), requester_tenant
                 )
-            except Exception:  # noqa: BLE001, S112 - failed preflight denies admission
+            except (
+                Exception
+            ):  # noqa: BLE001, S112 # nosec B112 - failed preflight denies admission
                 continue
             if not sandbox_allowed:
                 continue

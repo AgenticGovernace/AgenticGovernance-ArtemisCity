@@ -23,7 +23,7 @@ SHELL := /bin/bash
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 ROOT_DIR := $(abspath $(MAKEFILE_DIR))
 LAUNCH_DIR := $(ROOT_DIR)/src/launch
-MEMORY_SERVER_DIR := $(ROOT_DIR)/src/Artemis Agentic Memory Layer
+MEMORY_SERVER_DIR := $(ROOT_DIR)/app/Artemis Agentic Memory Layer
 
 PYTHON_VERSION ?= 3.12
 VENV ?= $(ROOT_DIR)/.venv
@@ -121,6 +121,13 @@ check: lint ## Run formatting, import-order, and type checks
 
 security: security-static security-deps security-node ## Run all source and dependency security gates
 
+# Roots are named explicitly rather than pointing at services/ wholesale.
+# services/ carries ~113k vendored .py files (Colab Notebooks/, prove/, and
+# their .venv / .pixi / sklearn-env trees) that .gitignore already excludes;
+# bandit walks the filesystem, not git, so a bare "services" root drowns the
+# 11 real MCP source files in six orders of magnitude of third-party noise.
+# ADDING A NEW services/ PACKAGE MEANS ADDING ITS ROOT HERE — it is not
+# discovered automatically.
 security-static: ## Static security analysis of the runtime surface (fails on any finding)
 	cd "$(ROOT_DIR)" && $(PYTHON) -m bandit -r src app services/mcp -c pyproject.toml -q
 
@@ -272,6 +279,31 @@ server: ## Start the standalone memory server when its package is available
 		exit 1; \
 	fi
 	cd "$(MEMORY_SERVER_DIR)" && $(NPM) run dev
+
+mtls-init: ## Create the local mTLS CA and issue the memory-server certificate
+	"$(ROOT_DIR)/scripts/mtls/artemis-mtls.sh" init-ca
+	"$(ROOT_DIR)/scripts/mtls/artemis-mtls.sh" issue-server
+
+mtls-issue: ## Issue a client cert: make mtls-issue AGENT=codex ROUTES=/api/getContext,/api/listNotes
+	@if [ -z "$(AGENT)" ]; then \
+		echo "ERROR: set AGENT, e.g. make mtls-issue AGENT=codex ROUTES=/api/listNotes" >&2; \
+		exit 1; \
+	fi
+	"$(ROOT_DIR)/scripts/mtls/artemis-mtls.sh" issue-client "$(AGENT)" \
+		$(if $(ROUTES),--routes "$(ROUTES)",)
+
+mtls-revoke: ## Revoke a client cert immediately: make mtls-revoke AGENT=codex
+	@if [ -z "$(AGENT)" ]; then \
+		echo "ERROR: set AGENT, e.g. make mtls-revoke AGENT=codex" >&2; \
+		exit 1; \
+	fi
+	"$(ROOT_DIR)/scripts/mtls/artemis-mtls.sh" revoke "$(AGENT)"
+
+mtls-status: ## Show the CA plus every registered client certificate
+	"$(ROOT_DIR)/scripts/mtls/artemis-mtls.sh" status
+
+memory-server-test: ## Run the memory server's mutual-TLS test suite
+	cd "$(MEMORY_SERVER_DIR)" && $(NPM) test
 
 frontend: ## Start the Vite frontend on :5173; run make api separately
 	cd "$(ROOT_DIR)" && $(NPM) run frontend:dev

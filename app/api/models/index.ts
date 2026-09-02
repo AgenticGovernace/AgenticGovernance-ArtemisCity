@@ -21,7 +21,7 @@ export interface Agent {
   updatedAt: string;
 }
 
-export type AgentStatus = 'active' | 'suspended' | 'inactive';
+export type AgentStatus = "active" | "suspended" | "inactive";
 
 export interface AgentCard extends Agent {
   trustBadge: string;
@@ -101,9 +101,17 @@ export interface VaultStats {
 // ATP Models
 // ============================================
 
-export type ATPMode = 'RESEARCH' | 'EXECUTE' | 'REPORT' | 'DELEGATE' | 'QUERY';
-export type ATPPriority = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'BACKGROUND';
-export type ATPActionType = 'CREATE' | 'READ' | 'UPDATE' | 'DELETE' | 'SEARCH' | 'ANALYZE' | 'SYNC' | 'NOTIFY';
+export type ATPMode = "RESEARCH" | "EXECUTE" | "REPORT" | "DELEGATE" | "QUERY";
+export type ATPPriority = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "BACKGROUND";
+export type ATPActionType =
+  | "CREATE"
+  | "READ"
+  | "UPDATE"
+  | "DELETE"
+  | "SEARCH"
+  | "ANALYZE"
+  | "SYNC"
+  | "NOTIFY";
 
 export interface ATPHeader {
   mode: ATPMode;
@@ -142,7 +150,7 @@ export interface ATPValidationResult {
 // Trust Models
 // ============================================
 
-export type TrustLevel = 'FULL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'UNTRUSTED';
+export type TrustLevel = "FULL" | "HIGH" | "MEDIUM" | "LOW" | "UNTRUSTED";
 
 export interface TrustScore {
   entityId: string;
@@ -156,7 +164,7 @@ export interface TrustScore {
   updatedAt: string;
 }
 
-export type TrustEntityType = 'agent' | 'user' | 'service' | 'external';
+export type TrustEntityType = "agent" | "user" | "service" | "external";
 
 export interface TrustPermissions {
   entityId: string;
@@ -230,7 +238,7 @@ export interface PaginatedResponse<T> {
 // ============================================
 
 export interface HealthStatus {
-  status: 'healthy' | 'degraded' | 'unhealthy';
+  status: "healthy" | "degraded" | "unhealthy";
   version: string;
   uptime: number;
   timestamp: string;
@@ -239,7 +247,7 @@ export interface HealthStatus {
 
 export interface HealthCheck {
   name: string;
-  status: 'pass' | 'warn' | 'fail';
+  status: "pass" | "warn" | "fail";
   message?: string;
   duration?: number;
 }

@@ -129,15 +129,15 @@ mode.
 
 ## Server boundaries
 
-| Server | Prove source intent | Artemis-owned service | Initial surface |
-|---|---|---|---|
-| `artemis-memory` | memory read/write/search | `MemoryService` | write, read, search, status tools |
-| `artemis-provenance` | root provenance MCP | `ProvenanceService` | mint, bind, log, chain, verify |
-| `artemis-task` | kernel task operations | orchestrator/task service | submit, get, list, cancel; internal completion |
-| `artemis-registry` | agent registry | `AgentRegistry` facade | get/list; governed registration and updates |
-| `artemis-governance` | approvals and rollback | governance services | propose, inspect, approve/reject, rollback |
-| `artemis-validation` | ATP validator | authoritative ATP validator | parse, validate, format; no EXO proxy or reflection experiments |
-| `artemis-routing` | Hebbian diagnostics | routing service | preview and diagnostics; no ungoverned learning mutation |
+| Server               | Prove source intent      | Artemis-owned service       | Initial surface                                                 |
+| -------------------- | ------------------------ | --------------------------- | --------------------------------------------------------------- |
+| `artemis-memory`     | memory read/write/search | `MemoryService`             | write, read, search, status tools                               |
+| `artemis-provenance` | root provenance MCP      | `ProvenanceService`         | mint, bind, log, chain, verify                                  |
+| `artemis-task`       | kernel task operations   | orchestrator/task service   | submit, get, list, cancel; internal completion                  |
+| `artemis-registry`   | agent registry           | `AgentRegistry` facade      | get/list; governed registration and updates                     |
+| `artemis-governance` | approvals and rollback   | governance services         | propose, inspect, approve/reject, rollback                      |
+| `artemis-validation` | ATP validator            | authoritative ATP validator | parse, validate, format; no EXO proxy or reflection experiments |
+| `artemis-routing`    | Hebbian diagnostics      | routing service             | preview and diagnostics; no ungoverned learning mutation        |
 
 ## Memory write-through contract
 

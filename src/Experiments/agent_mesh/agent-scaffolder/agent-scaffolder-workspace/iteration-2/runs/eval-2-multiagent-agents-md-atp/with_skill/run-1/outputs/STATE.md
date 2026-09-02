@@ -6,6 +6,7 @@
 > do not touch its files.
 
 ## Status legend
+
 - `drafting` — Writer is authoring/revising; owner = `writer`.
 - `in-review` — Reviewer is reviewing; owner = `reviewer`.
 - `changes-requested` — Reviewer returned feedback; owner = `writer`.
@@ -14,9 +15,9 @@
 
 ## Docs in flight
 
-| Doc slug | Owner | Status | Round | Last handoff (UTC) | Notes |
-|----------|-------|--------|-------|--------------------|-------|
-| _example-intro_ | none | not-started | 0 | — | template row; replace when a real doc starts |
+| Doc slug        | Owner | Status      | Round | Last handoff (UTC) | Notes                                        |
+| --------------- | ----- | ----------- | ----- | ------------------ | -------------------------------------------- |
+| _example-intro_ | none  | not-started | 0     | —                  | template row; replace when a real doc starts |
 
 <!--
 Example of a live row mid-loop:

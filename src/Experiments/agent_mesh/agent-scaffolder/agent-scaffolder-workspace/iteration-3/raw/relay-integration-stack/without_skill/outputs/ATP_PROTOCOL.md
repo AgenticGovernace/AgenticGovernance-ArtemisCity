@@ -38,23 +38,23 @@ Every transmission opens with a fixed header, then `---`, then the payload.
 
 ### Core signal tags (the `#` fields)
 
-| Tag | Meaning |
-|-----|---------|
-| `#Mode:` | Overall intent of the entry (Build, Review, Organize, Capture, Synthesize, Commit). **Drives behavior.** |
-| `#Context:` | Brief mission goal or purpose for the action. **Anchors purpose.** |
-| `#Priority:` | How urgent/critical (Critical, High, Normal, Low). |
-| `#ActionType:` | What response is expected (Summarize, Scaffold, Execute, Reflect). |
-| `#TargetZone:` | Project/folder area this work applies to. |
-| `#SpecialNotes:` | Any unusual instructions, warnings, or exceptions. |
+| Tag              | Meaning                                                                                                  |
+| ---------------- | -------------------------------------------------------------------------------------------------------- |
+| `#Mode:`         | Overall intent of the entry (Build, Review, Organize, Capture, Synthesize, Commit). **Drives behavior.** |
+| `#Context:`      | Brief mission goal or purpose for the action. **Anchors purpose.**                                       |
+| `#Priority:`     | How urgent/critical (Critical, High, Normal, Low).                                                       |
+| `#ActionType:`   | What response is expected (Summarize, Scaffold, Execute, Reflect).                                       |
+| `#TargetZone:`   | Project/folder area this work applies to.                                                                |
+| `#SpecialNotes:` | Any unusual instructions, warnings, or exceptions.                                                       |
 
 ### Routing/envelope tags (the `==` fields)
 
-| Tag | Meaning |
-|-----|---------|
-| `==atp_version==` | Protocol version. Receiver must speak the same major version. |
-| `==from==` / `==to==` | Sender and recipient agent names. |
-| `==ctx==` | Unique context id for this transmission (`ctx_<hash>`). |
-| `==expect==` | The ack tag the sender will wait for. |
+| Tag                   | Meaning                                                       |
+| --------------------- | ------------------------------------------------------------- |
+| `==atp_version==`     | Protocol version. Receiver must speak the same major version. |
+| `==from==` / `==to==` | Sender and recipient agent names.                             |
+| `==ctx==`             | Unique context id for this transmission (`ctx_<hash>`).       |
+| `==expect==`          | The ack tag the sender will wait for.                         |
 
 ---
 
@@ -63,11 +63,11 @@ Every transmission opens with a fixed header, then `---`, then the payload.
 All outbound and inbound tags are mirrored. A request is only complete when its mirror
 arrives.
 
-| Request | Valid replies |
-|---------|---------------|
+| Request       | Valid replies                                                           |
+| ------------- | ----------------------------------------------------------------------- |
 | `==handoff==` | `==accept==` (recipient takes the task) or `==decline==` (cannot/won't) |
-| `==ask==` | `==rephrase==` (needs clarification) or `==decline==` |
-| `==ref==` | `==ref_ack==` (reference acknowledged) |
+| `==ask==`     | `==rephrase==` (needs clarification) or `==decline==`                   |
+| `==ref==`     | `==ref_ack==` (reference acknowledged)                                  |
 
 Relay uses `==handoff==` as its primary tag; `==expect==` in the header names the ack it
 is waiting for (typically `==accept==`).

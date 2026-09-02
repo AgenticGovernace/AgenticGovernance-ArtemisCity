@@ -1,3 +1,4 @@
+#!
 """
 Run Logger for Artemis City MCP
 
@@ -14,7 +15,6 @@ import time
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
 
 class RunLogger:
@@ -32,13 +32,13 @@ class RunLogger:
         self,
         log_dir: str = "logs",
         db_path: str = "data/run_logs.db",
-        run_id: Optional[str] = None,
+        run_id: str | None = None,
     ):
         self.log_dir = Path(log_dir)
         self.db_path = db_path
         self.run_id = run_id or datetime.now().strftime("%Y%m%d_%H%M%S")
         self.run_start_time = time.perf_counter()
-        self._events: List[Dict] = []
+        self._events: list[dict] = []
 
         # Ensure directories exist
         self.log_dir.mkdir(parents=True, exist_ok=True)
@@ -164,9 +164,9 @@ class RunLogger:
         self,
         event_type: str,
         component: str,
-        metadata: Optional[Dict] = None,
-        message: Optional[str] = None,
-        duration_ms: Optional[float] = None,
+        metadata: dict | None = None,
+        message: str | None = None,
+        duration_ms: float | None = None,
     ):
         """
         Log a general event.
@@ -232,9 +232,9 @@ class RunLogger:
         doc_id: str,
         operation: str,
         content: str,
-        embedding: List[float],
-        metadata: Optional[Dict] = None,
-        latency_ms: Optional[float] = None,
+        embedding: list[float],
+        metadata: dict | None = None,
+        latency_ms: float | None = None,
     ):
         """
         Log a vector store operation.
@@ -301,10 +301,10 @@ class RunLogger:
         database: str,
         table_name: str,
         operation: str,
-        record_id: Optional[str] = None,
-        data: Optional[Dict] = None,
+        record_id: str | None = None,
+        data: dict | None = None,
         rows_affected: int = 1,
-        latency_ms: Optional[float] = None,
+        latency_ms: float | None = None,
     ):
         """
         Log a database write operation.
@@ -373,7 +373,7 @@ class RunLogger:
         agent_name: str,
         status: str,
         duration_ms: float,
-        metadata: Optional[Dict] = None,
+        metadata: dict | None = None,
     ):
         """Log task execution details."""
         self.log_event(
@@ -396,7 +396,7 @@ class RunLogger:
         operation: str,
         old_weight: float,
         new_weight: float,
-        latency_ms: Optional[float] = None,
+        latency_ms: float | None = None,
     ):
         """Log Hebbian weight updates."""
         self.log_event(
@@ -428,10 +428,10 @@ class RunLogger:
         operation: str,
         path: str,
         status: str,
-        vector_latency_ms: Optional[float] = None,
-        file_latency_ms: Optional[float] = None,
-        total_latency_ms: Optional[float] = None,
-        metadata: Optional[Dict] = None,
+        vector_latency_ms: float | None = None,
+        file_latency_ms: float | None = None,
+        total_latency_ms: float | None = None,
+        metadata: dict | None = None,
     ):
         """Log memory bus operations."""
         self.log_event(
@@ -451,7 +451,7 @@ class RunLogger:
 
     @contextmanager
     def timed_operation(
-        self, event_type: str, component: str, metadata: Optional[Dict] = None
+        self, event_type: str, component: str, metadata: dict | None = None
     ):
         """
         Context manager for timing operations.
@@ -480,7 +480,7 @@ class RunLogger:
                 duration_ms,
             )
 
-    def finalize_run(self, status: str = "completed", summary: Optional[Dict] = None):
+    def finalize_run(self, status: str = "completed", summary: dict | None = None):
         """
         Finalize the run log with summary statistics.
 
@@ -557,7 +557,7 @@ class RunLogger:
 
         self._append_md_section(summary_md)
 
-    def get_run_stats(self) -> Dict:
+    def get_run_stats(self) -> dict:
         """Get statistics for the current run."""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -579,7 +579,7 @@ class RunLogger:
 
 
 # Global run logger instance (initialized on import or explicitly)
-_run_logger: Optional[RunLogger] = None
+_run_logger: RunLogger | None = None
 
 
 def get_run_logger() -> RunLogger:
@@ -593,7 +593,7 @@ def get_run_logger() -> RunLogger:
 def init_run_logger(
     log_dir: str = "logs",
     db_path: str = "data/run_logs.db",
-    run_id: Optional[str] = None,
+    run_id: str | None = None,
 ) -> RunLogger:
     """Initialize a new run logger (resets the global instance)."""
     global _run_logger
@@ -601,7 +601,7 @@ def init_run_logger(
     return _run_logger
 
 
-def get_recent_runs(db_path: str = "data/run_logs.db", limit: int = 20) -> List[Dict]:
+def get_recent_runs(db_path: str = "data/run_logs.db", limit: int = 20) -> list[dict]:
     """
     Get recent runs with summary statistics.
 
@@ -652,7 +652,7 @@ def get_run_events(
     run_id: str = None,
     event_type: str = None,
     limit: int = 100,
-) -> List[Dict]:
+) -> list[dict]:
     """
     Get events for a specific run, optionally filtered by event type.
 

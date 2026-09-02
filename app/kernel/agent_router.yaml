@@ -22,4 +22,3 @@ agents:
     role: "Architect, planning"
     keywords: ["plan", "roadmap", "blueprint", "schedule"]
     action_description: "Developing execution plan."
-
