@@ -1,8 +1,0 @@
-{
-  "content": "I am ArtemisCliAgent. I processed your request: '\u001b[A\u001b[A'. (LLM Simulation)",
-  "metadata": {
-    "source": "ArtemisCliAgent",
-    "trigger": "\u001b[A\u001b[A"
-  },
-  "timestamp": 1771597964.496452
-}

@@ -485,3 +485,21 @@ data/memory_store/1787626849_daemon_aad2193d.json
 data/memory_store/1786991845_daemon_8724ccb0.json
 data/memory_store/1786951192_daemon_51ddf07b.json
 data/memory_store/1786951170_daemon_f9ea1aae.json
+
+# --- Ignore-contract corrections -------------------------------------------
+# Enforced by src/tests/test_gitignore_contract.py. These sit after the shared
+# QuantumHarmony baseline so they win without editing the vendored block.
+#
+# Anchored with a leading "/" on purpose: the contract also requires
+# app/scripts/data/vector_store.db and src/data/schema.json to stay TRACKABLE,
+# so an unanchored "vector_store.db" or "data/**" would over-match.
+# run_logs.db was previously only excluded via .git/info/exclude, which is
+# machine-local and never reaches a clone or CI.
+/data/run_logs.db
+/src/data/vector_store.db
+
+# Re-include portable, shared project assets the baseline over-matches.
+# .vscode/settings.json is listed twice inside the baseline block, and ".ai/*"
+# hides the agent-instruction mirror; both are shared source, not local state.
+!.vscode/settings.json
+!.ai/AGENTS.md

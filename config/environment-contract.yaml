@@ -75,6 +75,12 @@ source_excludes:
   # _iter_source_paths has no equivalent guard, so they are listed explicitly.
   - src/myenv
   - src/artemis-city
+  - src/.venv
+  # Installed npm dependencies. The app/api and app/web/frontend globs
+  # otherwise sweep @types/node and report its ambient names (HOST,
+  # NODE_UNIQUE_ID, BOOK_LANG) as undeclared project variables.
+  - app/api/node_modules
+  - app/web/frontend/node_modules
   - services/mcp/artemis-validation/.venv
   - services/mcp/common/.venv
   - app/Artemis Agentic Memory Layer/src/__tests__

@@ -1,8 +1,0 @@
-{
-  "content": "I am ArtemisCliAgent. I processed your request: 'research '. (LLM Simulation)",
-  "metadata": {
-    "source": "ArtemisCliAgent",
-    "trigger": "research "
-  },
-  "timestamp": 1771597237.06231
-}

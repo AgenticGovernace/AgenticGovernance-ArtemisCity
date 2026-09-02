@@ -1,0 +1,143 @@
+"""Multi-agent workflow: Research -> (memory hand-off) -> Summarize.
+
+Demonstrates how agents collaborate *through shared memory* and how the
+Hebbian layer learns from the outcomes:
+
+1. A research task is routed to the ResearchAgent, which produces findings.
+2. The findings are written to the memory bus (the shared, auditable store).
+3. A summarization task is routed to the SummarizerAgent, which reads the
+   research back out of memory and condenses it.
+4. Each successful step strengthens a Hebbian agent->task connection, and the
+   weight changes are propagated in a single batch via :class:`HebbianSyncService`.
+
+Runs against the same repository-level stores as the API so its routing,
+memory, and run metrics remain visible after completion. Note the ResearchAgent
+simulates work with a short sleep, so the demo takes a few seconds. Run with::
+
+    python examples/multi_agent_workflow/run.py
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_REPO_ROOT))
+
+from src.agents.research_agent import ResearchAgent
+from src.agents.summarizer_agent import SummarizerAgent
+from src.integration.agent_registry import AgentRegistry
+from src.integration.hebbian_sync import HebbianSyncService
+from src.integration.memory_bus import MemoryBus
+from src.mcp.hebbian_weights import HebbianWeightManager
+from src.mcp.vector_store import LocalVectorStore
+from src.obsidian_integration import ObsidianManager
+from src.runtime_paths import data_dir, data_path
+from src.utils.run_logger import init_run_logger
+
+
+def main() -> None:
+    """Run the research -> summarize pipeline end to end."""
+    workdir = data_dir()
+    vault = Path(
+        data_path(
+            "workflow_vault",
+            env_var="ARTEMIS_WORKFLOW_VAULT",
+        )
+    )
+    (vault / "Agent Outputs").mkdir(parents=True, exist_ok=True)
+    run_logger = init_run_logger()
+
+    try:
+        print("=" * 70)
+        print("ARTEMIS CITY — Multi-Agent Workflow (Research -> Summarize)")
+        print("=" * 70)
+
+        registry = AgentRegistry()
+        registry.register_agent(ResearchAgent())
+        registry.register_agent(SummarizerAgent())
+        print(f"\nRegistered agents: {registry.get_agent_names()}")
+
+        memory = MemoryBus(
+            ObsidianManager(str(vault)),
+            LocalVectorStore(),
+            search_dirs=["Agent Outputs"],
+        )
+        hebbian = HebbianWeightManager()
+        # Batch weight-change propagation instead of one write per update.
+        sync = HebbianSyncService(sink=lambda batch: None)
+
+        # --- Stage 1: research -------------------------------------------------
+        research_task = {
+            "task_id": "wf_research_001",
+            "title": "Adaptive multi-agent memory systems",
+            "topic": "adaptive multi-agent memory systems",
+            "keywords": "hebbian,memory bus,governance",
+            "required_capability": "document_analysis",
+        }
+        researcher = registry.route_task(research_task)
+        print(f"\n[Stage 1] '{research_task['title']}' -> {researcher}")
+        research_result = registry.get_agent(researcher).perform_task(research_task)
+
+        # Hand off via shared memory: write the research findings to the vault.
+        findings_md = "# Research Findings\n\n" + research_result["summary"] + "\n\n"
+        findings_md += "\n".join(f"- {f}" for f in research_result["findings"])
+        memory.write_note_with_embedding(
+            "Agent Outputs/research_findings.md",
+            findings_md,
+            metadata={"agent": researcher, "task_id": research_task["task_id"]},
+        )
+        _reward(hebbian, sync, researcher, research_task["task_id"])
+        print("  findings written to shared memory; Hebbian connection reinforced")
+
+        # --- Stage 2: summarize (reads research back out of memory) -----------
+        recalled = memory.read("research findings", max_results=1)
+        handed_off = recalled[0]["content"] if recalled else findings_md
+        summary_task = {
+            "task_id": "wf_summary_001",
+            "title": "Summarize the research findings",
+            "required_capability": "text_summarization",
+            "content": handed_off,
+        }
+        summarizer = registry.route_task(summary_task)
+        print(f"\n[Stage 2] '{summary_task['title']}' -> {summarizer}")
+        summary_result = registry.get_agent(summarizer).perform_task(summary_task)
+        _reward(hebbian, sync, summarizer, summary_task["task_id"])
+        print(f"  summary: {summary_result['summary'][:120]}...")
+
+        # --- Flush batched weight updates & report ----------------------------
+        batch = sync.flush_batch()
+        net = hebbian.get_network_summary()
+        print("\n" + "-" * 70)
+        print("Hebbian network after workflow:")
+        print(f"  connections      : {net.get('total_connections', 0)}")
+        print(f"  average weight   : {net.get('average_weight', 0):.2f}")
+        print(f"  success rate     : {net.get('success_rate', 0) * 100:.0f}%")
+        print(
+            f"  sync batch       : flushed {batch.flushed} update(s) "
+            f"in {batch.latency_ms:.2f}ms"
+        )
+        run_logger.finalize_run(
+            status="completed",
+            summary={
+                "research_agent": researcher,
+                "summarizer_agent": summarizer,
+            },
+        )
+        print(f"\nPersistent metrics: {workdir}")
+        print("Done.")
+    except Exception as exc:
+        run_logger.finalize_run(status="failed", summary={"error": str(exc)})
+        raise
+
+
+def _reward(hebbian, sync, agent_name: str, task_id: str) -> None:
+    """Strengthen the agent->task connection and queue the change for sync."""
+    old_weight = hebbian.get_weight(agent_name, task_id)
+    new_weight = hebbian.strengthen_connection(agent_name, task_id)
+    sync.propagate(f"{agent_name}->{task_id}", old_weight, new_weight)
+
+
+if __name__ == "__main__":
+    main()

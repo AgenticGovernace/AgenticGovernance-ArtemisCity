@@ -1,8 +1,0 @@
-{
-  "content": "I am ArtemisCliAgent. I processed your request: 'python main.py '. (LLM Simulation)",
-  "metadata": {
-    "source": "ArtemisCliAgent",
-    "trigger": "python main.py "
-  },
-  "timestamp": 1771597222.258933
-}

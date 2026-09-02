@@ -1,0 +1,47 @@
+# Python service image for the Artemis City core (the FastAPI dashboard
+# running app/api/main.py). Used by the ``kernel`` compose service. The
+# Express boundary container has its own (Node + python3) image and does
+# not consume this one.
+
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    ARTEMIS_ENV=dev
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+WORKDIR /app
+
+# OS deps psycopg2 needs to compile when installed from source. curl is
+# only here for the compose healthcheck (``curl -f http://.../health``).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install runtime Python deps first so this layer caches when only source
+# changes. requirements.txt is dev/test/lint tooling; the runtime set
+# (fastapi, uvicorn, redis, sqlalchemy, ...) is generated from
+# pyproject.toml [project.dependencies] into requirements-runtime.txt.
+COPY ../requirements-runtime.txt ./
+RUN uv pip install --system -r requirements-runtime.txt
+
+# Copy the Python source tree. The FastAPI dashboard imports
+# ``app.api.main`` and the bridge / orchestrator code under ``src/``.
+COPY src/ ./src/
+COPY ../app ./app/
+
+# Drop root for runtime.
+RUN useradd --create-home --uid 10001 artemis \
+    && chown -R artemis:artemis /app
+USER artemis
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
