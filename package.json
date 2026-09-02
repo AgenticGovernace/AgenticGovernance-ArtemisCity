@@ -47,6 +47,8 @@
     "url": "AgenticGovernace/Artemis_City.git"
   },
   "dependencies": {
+    "@babel/helper-module-imports": "^8.0.0",
+    "@babel/runtime": "^8.0.0",
     "posthog-node": "^5.51.2",
     "tsc": "^2.0.4",
     "zod": "^4.5.4"
@@ -54,6 +56,8 @@
   "devDependencies": {
     "@babel/cli": "^8.0.4",
     "@babel/core": "^8.0.1",
+    "@babel/eslint-plugin": "^8.0.1",
+    "@babel/preset-flow": "^8.0.1",
     "@babel/preset-react": "^8.0.1",
     "@babel/preset-typescript": "^8.0.1",
     "ts-loader": "^9.6.2"
