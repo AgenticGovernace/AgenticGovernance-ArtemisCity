@@ -1,6 +1,15 @@
 {
   "circleci.filters.branchFilter": "allBranches",
-  "yaml.disableSchemaDetection": [],
+  "yaml.disableSchemaDetection": [
+    "**/docker-compose.yml",
+    "**/docker-compose.yaml",
+    "**/docker-compose.*.yml",
+    "**/docker-compose.*.yaml",
+    "**/compose.yml",
+    "**/compose.yaml",
+    "**/compose.*.yml",
+    "**/compose.*.yaml"
+  ],
   "yaml.schemas": {
     "https://www.schemastore.org/circleciconfig.json": "file:///Users/prinstono.palmer/git/repository/Artemis_City/.circleci/config.yml",
     "https://gitlab.com/appsemble/appsemble/-/raw/HEAD/packages/cli/assets/appsemblerc.schema.json": "file:///Users/prinstono.palmer/git/repository/Artemis_City/.circleci/config.yml",

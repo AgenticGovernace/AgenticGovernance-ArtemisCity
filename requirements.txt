@@ -27,3 +27,6 @@ sqlalchemy>=1.4.0
 tensor>=0.0.0
 torch>=1.0.0
 uvicorn[standard]>=0.15.0
+django>=5.2.15
+vite>=1.5.2
+

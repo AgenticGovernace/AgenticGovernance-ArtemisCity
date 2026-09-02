@@ -5,6 +5,6 @@
 # package definitions while preserving a breadcrumb for older scripts and docs
 # that still look for src/pyproject.toml.
 
-[tool.artemis-city]
+[artemis_city]
 canonical-pyproject = "src/pyproject.toml"
 status = "pointer-only"

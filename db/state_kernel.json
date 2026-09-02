@@ -1,0 +1,25 @@
+{
+  "history": [
+    {
+      "type": "command",
+      "content": "hebbian"
+    },
+    {
+      "type": "command",
+      "content": "need to setup the command to orchestration pipelinge"
+    },
+    {
+      "type": "command",
+      "content": "/help"
+    },
+    {
+      "type": "command",
+      "content": "help"
+    },
+    {
+      "type": "command",
+      "content": "help"
+    }
+  ],
+  "boot_count": 17
+}
