@@ -382,6 +382,30 @@ supabase/.env
 !**/renv.lock
 !**/.terraform.lock.hcl
 
+# NOTE: a bare `.env*` here would override the negations at lines 89-96
+# (last matching pattern wins), re-ignoring .env.example and the
+# *.template reproducibility assets. Policy lives above; do not re-add.
+.flaskenv*
+!.env.project
+!.env.vault
+
+# Stray partial virtualenv skeletons (bin/ + lib/ pip fragments) that were once
+# accidentally staged. The real package is src/artemis_city (underscore); these
+# hyphenated paths are never legitimate tracked content.
+**/.pnpmrc/**
+.gemini/**
+*.gemini_diff_adds.txt
+/obsidian_vault
+/logs
+/db/huggingface
+Artemis_City.Rproj
+.jupyter/desktop-settings.json
+.vscode/settings.json
+.claude/mcp.json
+db/governance/checkpoints/61a3477d-4627-49a2-8639-d8b96395f8bb.json
+/db/memory_store
+.vscode/settings.json
+
 # Archives are intentionally not ignored here. They may be generated bundles or
 # source/provenance artifacts, so each repository must make that decision.
 
@@ -452,27 +476,12 @@ ide-index-mcp.skill
 /agents
 /Agent Outputs
 .aiignore
-
-# NOTE: a bare `.env*` here would override the negations at lines 89-96
-# (last matching pattern wins), re-ignoring .env.example and the
-# *.template reproducibility assets. Policy lives above; do not re-add.
-.flaskenv*
-!.env.project
-!.env.vault
-
-# Stray partial virtualenv skeletons (bin/ + lib/ pip fragments) that were once
-# accidentally staged. The real package is src/artemis_city (underscore); these
-# hyphenated paths are never legitimate tracked content.
-**/.pnpmrc/**
-.gemini/**
-*.gemini_diff_adds.txt
-/obsidian_vault
-/logs
-/db/huggingface
-Artemis_City.Rproj
-.jupyter/desktop-settings.json
-.vscode/settings.json
-.claude/mcp.json
-db/governance/checkpoints/61a3477d-4627-49a2-8639-d8b96395f8bb.json
-/db/memory_store
-.vscode/settings.json
+/data/migrations
+/data/memory_store
+/data/huggingface
+/data/memory_store
+data/memory_store/1787630972_daemon_169bb5cb.json
+data/memory_store/1787626849_daemon_aad2193d.json
+data/memory_store/1786991845_daemon_8724ccb0.json
+data/memory_store/1786951192_daemon_51ddf07b.json
+data/memory_store/1786951170_daemon_f9ea1aae.json
