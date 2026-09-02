@@ -1,0 +1,8 @@
+{
+  "content": "I am ArtemisCliAgent. I processed your request: '        # single-agent stats'. (LLM Simulation)",
+  "metadata": {
+    "source": "ArtemisCliAgent",
+    "trigger": "        # single-agent stats"
+  },
+  "timestamp": 1771597434.539258
+}

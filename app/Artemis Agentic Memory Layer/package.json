@@ -1,5 +1,5 @@
 {
-  "name": "obsidian-mcp-server",
+  "name": "Artemis Agentic Memory Layer",
   "version": "1.0.0",
   "description": "Model Context Protocol (MCP) server for Obsidian vaults.",
   "main": "dist/index.js",
@@ -20,7 +20,7 @@
     "knowledge-base"
   ],
   "author": "Prinston Palmer",
-  "license": "MIT",
+  "license": "",
   "dependencies": {
     "axios": "^1.6.8",
     "cors": "^2.8.5",

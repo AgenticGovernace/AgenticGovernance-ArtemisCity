@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Task storage for the Kernel surface.
 
 Replaces the Agent Studio module-level ``_tasks`` dict plus its import-time
@@ -77,7 +78,7 @@ class TaskStore:
             except Exception:  # nosec B112 - one bad record must not lose the rest
                 continue
 
-    def _save(self) -> None:
+    async def _save(self) -> None:
         if self._path is None:
             return
         self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -89,7 +90,7 @@ class TaskStore:
         tmp.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         os.replace(tmp, self._path)
 
-    def create(
+    async def create(
         self,
         *,
         description: str,
@@ -111,17 +112,17 @@ class TaskStore:
             updated_at=now,
         )
         self._tasks[task.task_id] = task
-        self._save()
+        await self._save()
         return task
 
-    def get(self, task_id: str) -> Task:
+    async def get(self, task_id: str) -> Task:
         task = self._tasks.get(task_id)
         if task is None:
             raise TaskNotFound(task_id)
         return task
 
-    def cancel(self, task_id: str, reason: str) -> Task:
-        task = self.get(task_id)
+    async def post_cancel_task(self, task_id: str, reason: str) -> Task:
+        task = await self.get(task_id)
         if task.status in TERMINAL_STATUSES:
             raise TaskNotCancellable(task.status)
         now = _utc_now()
@@ -134,13 +135,13 @@ class TaskStore:
             }
         )
         self._tasks[task_id] = updated
-        self._save()
+        await self._save()
         return updated
 
-    def update_status(
+    async def get_update_status(
         self, task_id: str, status: TaskStatus, result_summary: str
     ) -> Task:
-        task = self.get(task_id)
+        task = await self.get(task_id)
         now = _utc_now()
         changes: dict[str, Any] = {"status": status, "updated_at": now}
         if status in {TaskStatus.COMPLETED, TaskStatus.FAILED}:
@@ -151,10 +152,10 @@ class TaskStore:
             changes["result_summary"] = result_summary
         updated = task.model_copy(update=changes)
         self._tasks[task_id] = updated
-        self._save()
+        await self._save()
         return updated
 
-    def list(
+    async def get_task_list(
         self,
         *,
         status: TaskStatus | None,

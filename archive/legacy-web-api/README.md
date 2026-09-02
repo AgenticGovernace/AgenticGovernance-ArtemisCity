@@ -1,6 +1,6 @@
 # Legacy Web API Copy
 
-This directory holds the old `app/web/api/` FastAPI copies that predate the
+This directory holds the old `../../app/web/backend` FastAPI copies that predate the
 current project split.
 
 The maintained dashboard backend is `app/api/main.py`. The React frontend lives

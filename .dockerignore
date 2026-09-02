@@ -1,0 +1,76 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+.npm
+pnpm-debug.log
+dist
+.cache
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.pytest_cache
+.tox
+.mypy_cache
+.ruff_cache
+*.egg
+.venv
+venv
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+*.sublime-project
+
+# Testing
+coverage
+htmlcov
+.coverage
+
+# Build/Dist
+build
+dist
+*.egg-info
+
+# Misc
+.turbo
+.next
+out
+README.md
+LICENSE
+SECURITY.md
+*.md
+docs
+.devcontainer
+Makefile
+.pre-commit-config.yaml
+.flake8
+jest.config.cjs
+mkdocs.yml
+tsconfig.json
+archive
+Concept_Demos
+examples
+scripts
+tests
+
+.env*
+.flaskenv*
+!.env.project
+!.env.vault

@@ -163,6 +163,3 @@ volumes: { redis-data, vector-data, prometheus-data, grafana-data }
 networks:
   artemis:
     driver: bridge
-
-openapi:
-info:

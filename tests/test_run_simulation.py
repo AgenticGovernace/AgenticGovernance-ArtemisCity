@@ -6,7 +6,7 @@ public interface (Public Square). The loop is intentionally lightweight so it
 can run in constrained environments or be embedded into other agents/tests.
 
 Run it directly:
-    python app/sandbox_city/run_simulation.py --ticks 16 --seed 42
+    python tests/test_run_simulation.py --ticks 16 --seed 42
 """
 
 from __future__ import annotations
@@ -163,9 +163,9 @@ class CitySimulation:
         self.tick: int = 0
         self.zones: dict[str, ZoneState] = self._default_zones()
         self.residents: list[Resident] = self._default_residents()
-        self.history: list[dict[str, object]] = (
-            []
-        )  # Snapshots per tick for offline analysis
+        self.history: list[
+            dict[str, object]
+        ] = []  # Snapshots per tick for offline analysis
 
     # ---- Public API -----------------------------------------------------
 
@@ -581,10 +581,12 @@ class CitySimulation:
             location = f" @ {action['zone']}" if action["zone"] else ""
             print(f"• {action['actor']} {action['summary']}{location}")
 
-        print(textwrap.dedent(f"""
+        print(
+            textwrap.dedent(f"""
                 Scores: service_health={scores["service_health"]:.3f} | stability={scores["stability"]:.2f} | load={scores["load"]:.2f} | risk={scores["risk"]:.2f}
                         morale={scores["morale"]:.2f} | trust={scores["trust"]:.2f} | energy={scores["energy"]:.2f}
-                """).strip())
+                """).strip()
+        )
 
 
 def _parse_args() -> argparse.Namespace:
