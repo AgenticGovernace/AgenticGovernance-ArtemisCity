@@ -170,8 +170,12 @@ async def create_and_wait_for_scan(
           )
 
           output_file = os.path.join(output_dir, f"{table}_{profile_name}.json")
-          with open(output_file, "w") as f:
-            json.dump(result, f, indent=2)
+
+          def _write_results():
+            with open(output_file, "w") as f:
+              json.dump(result, f, indent=2)
+
+          await asyncio.to_thread(_write_results)
 
           logging.info("[%s] Results saved to %s", table_id, output_file)
           return
