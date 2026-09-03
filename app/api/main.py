@@ -1216,18 +1216,19 @@ async def get_agents(_key: None = Depends(_require_api_key)):
 
     conn = _connect_db(AGENT_REGISTRY_DB)
     try:
-        rows = conn.execute("""
+        return [
+            AgentResponse(
+                name=row["name"],
+                capabilities=c if isinstance(c := _parse_json(row["capabilities"], []), list) else []
+            )
+            for row in conn.execute(
+                """
             SELECT name, capabilities
             FROM agents
             ORDER BY name ASC
-            """).fetchall()
-        agents: List[AgentResponse] = []
-        for row in rows:
-            capabilities = _parse_json(row["capabilities"], [])
-            if not isinstance(capabilities, list):
-                capabilities = []
-            agents.append(AgentResponse(name=row["name"], capabilities=capabilities))
-        return agents
+            """
+            )
+        ]
     except Exception as e:
         logger.error("Error fetching agents: %s", _sanitize_for_log(e))
         raise HTTPException(status_code=500, detail="Failed to fetch agents.")
