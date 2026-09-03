@@ -13,6 +13,7 @@ workflow definitions, the proposal flows through this governor:
 Part of the Artemis City Governance Layer.
 """
 
+import asyncio
 import json
 import time
 from dataclasses import dataclass, field
@@ -401,12 +402,21 @@ class SelfUpdateGovernor:
         }
         self._proposal_history.append(record)
 
-        log_file = self._log_dir / "proposals.jsonl"
+        def _write_log():
+            log_file = self._log_dir / "proposals.jsonl"
+            try:
+                with log_file.open("a", encoding="utf-8") as fh:
+                    fh.write(json.dumps(record) + "\n")
+            except OSError:
+                logger.warning("Failed to persist governance proposal log")
+
         try:
-            with log_file.open("a", encoding="utf-8") as fh:
-                fh.write(json.dumps(record) + "\n")
-        except OSError:
-            logger.warning("Failed to persist governance proposal log")
+            loop = asyncio.get_running_loop()
+            # Fire and forget in the default executor (thread pool)
+            loop.run_in_executor(None, _write_log)
+        except RuntimeError:
+            # No running event loop, execute synchronously
+            _write_log()
 
         logger.info(
             f"[GOVERNANCE] Proposal by '{proposing_agent_id}' "
