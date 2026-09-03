@@ -95,7 +95,7 @@ router.get(
 router.get(
   "/:entityId",
   asyncHandler(async (req: Request, res: Response) => {
-    const data = await controller.getTrustScore(req.params.entityId);
+    const data = await controller.getTrustScore(String(req.params.entityId));
     res.json({ success: true, data });
   }),
 );
@@ -111,7 +111,7 @@ router.put(
     const entityType =
       typeof payload.entityType === "string" ? payload.entityType : "agent";
     const data = await controller.setTrustScore(
-      req.params.entityId,
+      String(req.params.entityId),
       score,
       entityType,
     );
@@ -127,7 +127,10 @@ router.post(
     if (typeof amount !== "number" || amount < 0) {
       throw Errors.BadRequest("amount must be a non-negative number");
     }
-    const data = await controller.recordSuccess(req.params.entityId, amount);
+    const data = await controller.recordSuccess(
+      String(req.params.entityId),
+      amount,
+    );
     res.json({ success: true, data });
   }),
 );
@@ -140,7 +143,10 @@ router.post(
     if (typeof amount !== "number" || amount < 0) {
       throw Errors.BadRequest("amount must be a non-negative number");
     }
-    const data = await controller.recordFailure(req.params.entityId, amount);
+    const data = await controller.recordFailure(
+      String(req.params.entityId),
+      amount,
+    );
     res.json({
       success: true,
       data,
@@ -153,7 +159,7 @@ router.post(
 router.get(
   "/:entityId/permissions",
   asyncHandler(async (req: Request, res: Response) => {
-    const data = await controller.getPermissions(req.params.entityId);
+    const data = await controller.getPermissions(String(req.params.entityId));
     res.json({ success: true, data });
   }),
 );
@@ -166,7 +172,7 @@ router.post(
       throw Errors.BadRequest("operation is required");
     }
     const data = await controller.canPerformOperation(
-      req.params.entityId,
+      String(req.params.entityId),
       operation,
     );
     res.json({ success: true, data });

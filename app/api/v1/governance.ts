@@ -24,7 +24,9 @@ router.get(
 router.get(
   "/checkpoints/:checkpointId",
   asyncHandler(async (req: Request, res: Response) => {
-    const data = await controller.getCheckpoint(req.params.checkpointId);
+    const data = await controller.getCheckpoint(
+      String(req.params.checkpointId),
+    );
     res.json({ success: true, data });
   }),
 );
@@ -45,7 +47,7 @@ router.post(
       throw Errors.BadRequest("confirmed=true and initiated_by are required");
     }
     const data = await controller.rollbackCheckpoint(
-      req.params.checkpointId,
+      String(req.params.checkpointId),
       body,
     );
     res.json({ success: true, data });
@@ -67,7 +69,7 @@ router.post(
     }
     const persist = body.persist !== false; // default true
     const data = await controller.computeTrust(
-      req.params.agentId,
+      String(req.params.agentId),
       metrics,
       persist,
     );

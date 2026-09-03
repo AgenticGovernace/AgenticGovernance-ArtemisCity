@@ -101,7 +101,7 @@ router.post(
 router.get(
   "/message/:id",
   asyncHandler(async (req: Request, res: Response) => {
-    const data = await controller.getMessage(req.params.id);
+    const data = await controller.getMessage(String(req.params.id));
     res.json({ success: true, data });
   }),
 );
@@ -109,7 +109,7 @@ router.get(
 router.get(
   "/response/:id",
   asyncHandler(async (req: Request, res: Response) => {
-    const data = await controller.getResponse(req.params.id);
+    const data = await controller.getResponse(String(req.params.id));
     res.json({ success: true, data });
   }),
 );

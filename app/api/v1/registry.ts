@@ -32,7 +32,7 @@ router.get(
 router.get(
   "/agents/:agentId",
   asyncHandler(async (req: Request, res: Response) => {
-    const data = await controller.getAgent(req.params.agentId);
+    const data = await controller.getAgent(String(req.params.agentId));
     res.json({ success: true, data });
   }),
 );
@@ -51,7 +51,7 @@ router.get(
       throw Errors.BadRequest("limit must be a positive integer");
     }
     const data = await controller.getViolations(
-      req.params.agentId,
+      String(req.params.agentId),
       includeCleared,
       limit,
     );
@@ -72,7 +72,7 @@ router.post(
       throw Errors.BadRequest("rationale is required");
     }
     const data = await controller.clearViolations(
-      req.params.agentId,
+      String(req.params.agentId),
       rationale,
       overrideTier,
     );
@@ -92,7 +92,10 @@ router.patch(
     if (!tier || typeof tier !== "string") {
       throw Errors.BadRequest("trust_tier is required");
     }
-    const data = await controller.setTrustTier(req.params.agentId, tier);
+    const data = await controller.setTrustTier(
+      String(req.params.agentId),
+      tier,
+    );
     res.json({ success: true, data });
   }),
 );

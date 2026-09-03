@@ -50,8 +50,8 @@ router.get(
 router.get(
   "/:id/card",
   asyncHandler(async (req: Request, res: Response) => {
-    if (!validateAgentId(req.params.id, res)) return;
-    const card = await controller.getAgentCard(req.params.id);
+    if (!validateAgentId(String(req.params.id), res)) return;
+    const card = await controller.getAgentCard(String(req.params.id));
     if (req.query.format === "markdown") {
       res
         .type("text/plain")
@@ -69,7 +69,7 @@ router.get(
 router.get(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
-    const agent = await controller.getAgent(req.params.id);
+    const agent = await controller.getAgent(String(req.params.id));
     res.json({
       success: true,
       data: agent,
@@ -88,7 +88,10 @@ router.post(
 router.put(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
-    const agent = await controller.updateAgent(req.params.id, req.body ?? {});
+    const agent = await controller.updateAgent(
+      String(req.params.id),
+      req.body ?? {},
+    );
     res.json({ success: true, data: agent });
   }),
 );
@@ -96,7 +99,7 @@ router.put(
 router.delete(
   "/:id",
   asyncHandler(async (req: Request, res: Response) => {
-    const data = await controller.deleteAgent(req.params.id);
+    const data = await controller.deleteAgent(String(req.params.id));
     res.json({ success: true, data });
   }),
 );
@@ -106,7 +109,7 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const reason =
       typeof req.body?.reason === "string" ? req.body.reason : undefined;
-    const data = await controller.suspendAgent(req.params.id, reason);
+    const data = await controller.suspendAgent(String(req.params.id), reason);
     res.json({ success: true, data });
   }),
 );
@@ -114,7 +117,7 @@ router.post(
 router.post(
   "/:id/activate",
   asyncHandler(async (req: Request, res: Response) => {
-    const data = await controller.activateAgent(req.params.id);
+    const data = await controller.activateAgent(String(req.params.id));
     res.json({ success: true, data });
   }),
 );

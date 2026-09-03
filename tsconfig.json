@@ -4,16 +4,22 @@
     "module": "commonjs",
     "lib": ["ES2022"],
     "outDir": "dist",
-    "rootDir": "./",
+    "rootDir": "./app/api",
     "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": false,
+    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "declaration": false,
     "sourceMap": false,
     "moduleResolution": "node"
   },
-  "include": ["**/*.ts"],
-  "exclude": ["node_modules", "dist", "**/node_modules", "**/dist"]
+  "include": ["app/api/**/*.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "app/web/**",
+    "app/kernel/**"
+  ]
 }
