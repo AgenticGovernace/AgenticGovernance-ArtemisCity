@@ -224,9 +224,28 @@ class TrustStore:
         """Return all persisted scores keyed by ``entity_type:entity_id``."""
         out: Dict[str, TrustScore] = {}
         with self._lock, self._connect() as conn:
-            for row in conn.execute("SELECT * FROM trust_scores"):
-                score = TrustScore.from_row(row)
-                out[f"{score.entity_type}:{score.entity_id}"] = score
+            old_factory = conn.row_factory
+            conn.row_factory = None
+            try:
+                TL = TrustLevel
+                dfiso = datetime.fromisoformat
+                ca = _coerce_aware
+
+                for etype, eid, score, level, last_updated, decay, reinf, pen in conn.execute(
+                    "SELECT entity_type, entity_id, score, level, last_updated, decay_rate, reinforcement_events, penalty_events FROM trust_scores"
+                ):
+                    out[f"{etype}:{eid}"] = TrustScore(
+                        entity_id=eid,
+                        entity_type=etype,
+                        score=score,
+                        level=TL(level),
+                        last_updated=ca(dfiso(last_updated)),
+                        decay_rate=decay,
+                        reinforcement_events=reinf,
+                        penalty_events=pen,
+                    )
+            finally:
+                conn.row_factory = old_factory
         return out
 
     def upsert(self, score: TrustScore) -> None:

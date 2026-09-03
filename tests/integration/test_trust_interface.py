@@ -150,15 +150,13 @@ class TestTrustInterface:
         return TrustInterface()
 
     def test_default_agents_initialized(self, iface):
-        assert "artemis" in iface.trust_scores
-        assert "pack_rat" in iface.trust_scores
+        assert "agent:artemis" in iface.trust_scores
+        assert "agent:pack_rat" in iface.trust_scores
 
     def test_get_trust_score_existing(self, iface):
-        # Default agents are stored by plain name, but get_trust_score
-        # uses "type:id" keys for NEW lookups.  The "artemis" key was
-        # seeded directly in _initialize_default_agents.
-        assert "artemis" in iface.trust_scores
-        ts = iface.trust_scores["artemis"]
+        # The "agent:artemis" key was seeded directly in _initialize_default_agents.
+        assert "agent:artemis" in iface.trust_scores
+        ts = iface.trust_scores["agent:artemis"]
         assert ts.score >= 0.9
 
     def test_get_trust_score_new_agent(self, iface):
